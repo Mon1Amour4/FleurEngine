@@ -1,0 +1,33 @@
+# Build artifacts
+build
+*.build
+Engine/Debug
+Engine/Release
+Sandbox/Debug
+Sandbox/Release
+
+# PCH
+Engine/SharedPrecompiledHeaders
+
+# Generated sources
+Sandbox/Generated
+
+# IDE
+.vscode
+
+# APPLE
+.DS_Store
+*.xcodeproj
+
+# CMake
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
