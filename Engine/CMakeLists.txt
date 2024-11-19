@@ -115,7 +115,8 @@ else()
 
 endif()
 
-target_link_libraries( FuegoEngine PUBLIC
+target_link_libraries( FuegoEngine 
+    PUBLIC
     ${DEPENDENCIES}
 )
 
@@ -140,7 +141,10 @@ if ( WIN32 )
         External/glad/include
     )
 
-    target_link_libraries(FuegoEngine PRIVATE opengl32)
+    target_link_libraries(FuegoEngine 
+        PRIVATE 
+        opengl32
+    )
 
 endif()
 
