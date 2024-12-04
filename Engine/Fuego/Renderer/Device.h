@@ -18,6 +18,6 @@ public:
     virtual std::unique_ptr<CommandPool> CreateCommandPool(std::shared_ptr<CommandQueue> queue) = 0;
     virtual std::unique_ptr<Swapchain> CreateSwapchain(std::shared_ptr<Surface> surface) = 0;
 
-    static std::unique_ptr<Device> CreateDevice();
+    static std::unique_ptr<Device> CreateDevice(Surface* surface);
 };
 }  // namespace Fuego::Renderer
