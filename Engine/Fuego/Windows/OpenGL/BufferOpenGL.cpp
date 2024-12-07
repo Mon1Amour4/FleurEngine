@@ -24,4 +24,8 @@ uint32_t BufferOpenGL::GetBufferID() const
 {
     return _vbo;
 }
+std::unique_ptr<Buffer> Buffer::Create(size_t size, uint32_t flags)
+{
+    return std::unique_ptr<BufferOpenGL>();
+}
 }  // namespace Fuego::Renderer
