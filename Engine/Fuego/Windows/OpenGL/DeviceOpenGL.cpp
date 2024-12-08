@@ -2,13 +2,13 @@
 
 #include "Application.h"
 #include "BufferOpenGL.h"
+#include "CommandPoolOpenGl.h"
 #include "CommandQueueOpenGL.h"
 #include "Core.h"
-#include "SwapchainOpenGL.h"
-#include "CommandPoolOpenGl.h"
 #include "ShaderOpenGL.h"
-#include "glad/glad.h"
 #include "SurfaceWindows.h"
+#include "SwapchainOpenGL.h"
+#include "glad/glad.h"
 
 
 namespace Fuego::Renderer
@@ -17,7 +17,7 @@ DeviceOpenGL::DeviceOpenGL(const Surface& surface)
     : _ctx(nullptr)
 {
     const SurfaceWindows& surfaceWin = dynamic_cast<const SurfaceWindows&>(surface);
-    HDC hdc = GetDC(*surfaceWin.GetWindowsHandle());
+    const HDC hdc = surfaceWin.GetHDC();
     int pixelFormat = ChoosePixelFormat(hdc, surfaceWin.GetPFD());
     SetPixelFormat(hdc, pixelFormat, surfaceWin.GetPFD());
     _ctx = wglCreateContext(hdc);
@@ -44,23 +44,23 @@ DeviceOpenGL::~DeviceOpenGL()
 }
 
 std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(size_t size, uint32_t flags)
-{return Buffer::Create(size, flags);}
+{
+    return Buffer::Create(size, flags);
+}
 
 std::unique_ptr<CommandQueue> DeviceOpenGL::CreateQueue()
-{return CommandQueue::CreateQueue();}
+{
+    return CommandQueue::CreateQueue();
+}
 
 std::unique_ptr<CommandPool> DeviceOpenGL::CreateCommandPool(const CommandQueue& queue)
 {
-    UNUSED(queue);
-
-    return CommandPoolOpenGl::CreateCommandPool();
+    return CommandPoolOpenGl::CreateCommandPool(queue);
 }
 
 std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
 {
-    UNUSED(surface);
-
-    return SwapchainOpenGL::CreateSwapChain();
+    return SwapchainOpenGL::CreateSwapChain(surface);
 }
 
 std::unique_ptr<Shader> DeviceOpenGL::CreateShader(std::string_view shaderName)
