@@ -7,4 +7,4 @@ BufferMetal::BufferMetal(MTL::Buffer* buffer)
 {
 }
 
-}  // namespace Fuego
+}  // namespace Fuego::Renderer

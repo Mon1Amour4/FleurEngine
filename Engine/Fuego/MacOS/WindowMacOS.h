@@ -31,7 +31,7 @@ public:
     {
         return true;
     }
-    
+
     virtual void* GetNativeWindow() const override;
 
 private:

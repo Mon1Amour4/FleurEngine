@@ -1,15 +1,14 @@
 #pragma once
 
-#include "Renderer/Device.h"
-
 #include <Metal/Metal.hpp>
+
+#include "Renderer/Device.h"
 
 
 namespace Fuego::Renderer
 {
 class DeviceMetal : public Device
 {
-    
 public:
     DeviceMetal();
     ~DeviceMetal();
@@ -19,7 +18,7 @@ public:
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) override;
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) override;
     virtual std::unique_ptr<Shader> CreateShader(std::string_view shaderName) override;
-    
+
 private:
     MTL::Device* _device;
     MTL::Library* _defaultLibrary;

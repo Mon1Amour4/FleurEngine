@@ -7,4 +7,4 @@ ShaderMetal::ShaderMetal(MTL::Function* function)
 {
 }
 
-}  // namespace Fuego
+}  // namespace Fuego::Renderer

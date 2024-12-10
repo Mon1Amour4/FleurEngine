@@ -1,5 +1,5 @@
-#include <EntryPoint.h>
 #include <Application.h>
+#include <EntryPoint.h>
 
 int APIENTRY FuegoMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int cmdshow)
 {

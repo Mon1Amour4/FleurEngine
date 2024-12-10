@@ -8,8 +8,11 @@ class TextureMetal : public Texture
 {
 public:
     TextureMetal() = default;
-    
-    inline virtual TextureFormat GetTextureFormat() const override { return _format; };
+
+    inline virtual TextureFormat GetTextureFormat() const override
+    {
+        return _format;
+    };
 
 private:
     TextureFormat _format;

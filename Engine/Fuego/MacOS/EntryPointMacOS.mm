@@ -1,5 +1,5 @@
-#include <EntryPoint.h>
 #include <Application.h>
+#include <EntryPoint.h>
 
 @interface FuegoApplication : NSApplication
 
@@ -9,7 +9,8 @@
 
 @end
 
-@implementation FuegoApplication;
+@implementation FuegoApplication
+;
 
 - (void)run
 {

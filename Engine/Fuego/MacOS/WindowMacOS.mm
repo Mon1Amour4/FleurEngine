@@ -89,7 +89,7 @@ WindowMacOS::WindowMacOS(const WindowProps& props, EventQueue& eventQueue)
     }
 
     // Setup NSWindow
-    FuegoWindow* w = [[FuegoWindow alloc] initWithContentRect:rect styleMask:styleMask backing:NSBackingStoreBuffered defer:NO];;
+    FuegoWindow* w = [[FuegoWindow alloc] initWithContentRect:rect styleMask:styleMask backing:NSBackingStoreBuffered defer:NO];
 
     NSString* title = [NSString stringWithCString:props.Title.c_str() encoding:[NSString defaultCStringEncoding]];
 
@@ -126,7 +126,7 @@ WindowMacOS::WindowMacOS(const WindowProps& props, EventQueue& eventQueue)
     _props = props;
     _window = (__bridge_retained void*)w;
     _view = (__bridge_retained void*)v;
-    
+
     _context = std::make_unique<Fuego::MetalContext>(_window);
     FU_CORE_ASSERT(_context->Init(), "[GraphicsContext] hasn't been initialized!");
 }

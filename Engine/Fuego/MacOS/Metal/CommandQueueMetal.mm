@@ -8,4 +8,4 @@ CommandQueueMetal::CommandQueueMetal(MTL::CommandQueue* commandQueue)
 {
 }
 
-}  // namespace Fuego
+}  // namespace Fuego::Renderer
