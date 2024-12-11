@@ -9,9 +9,9 @@ namespace Fuego::Renderer
 SwapchainOpenGL::SwapchainOpenGL(const Surface& surface)
     : _surface(dynamic_cast<const SurfaceOpenGL&>(surface))
 {
-    const auto hdc = _surface.GetHDC();
-    int pixelFormat = ChoosePixelFormat(hdc, _surface.GetPFD());
-    SetPixelFormat(hdc, pixelFormat, _surface.GetPFD());
+    const auto hdc = _surface.GetHdc();
+    int pixelFormat = ChoosePixelFormat(hdc, _surface.GetPfd());
+    SetPixelFormat(hdc, pixelFormat, _surface.GetPfd());
     _ctx = wglCreateContext(hdc);
     wglMakeCurrent(hdc, _ctx);
 
@@ -39,12 +39,12 @@ SwapchainOpenGL::~SwapchainOpenGL()
 void SwapchainOpenGL::Present()
 {
     static PAINTSTRUCT ps;
-    BeginPaint(_surface.GetWindowsHandle(), &ps);
-    EndPaint(_surface.GetWindowsHandle(), &ps);
+    BeginPaint((HWND)_surface.GetNativeHandle(), &ps);
+    EndPaint((HWND)_surface.GetNativeHandle(), &ps);
     glClearColor(0.2f, 0.3f, 0.1f, 1);
     glClear(GL_COLOR_BUFFER_BIT);
     glDrawArrays(GL_TRIANGLES, 0, 3);  // TODO: move from here
-    SwapBuffers(_surface.GetHDC());
+    SwapBuffers(_surface.GetHdc());
 }
 
 Surface& SwapchainOpenGL::GetScreenTexture()

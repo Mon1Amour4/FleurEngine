@@ -49,7 +49,7 @@ public:
     virtual void SetVSync(bool enabled) = 0;
     virtual bool IsVSync() const = 0;
 
-    virtual const Renderer::Surface* GetSurface() const = 0;
+    virtual const void* GetNativeHandle() const = 0;
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 };

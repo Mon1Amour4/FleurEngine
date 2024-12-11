@@ -2,13 +2,10 @@
 
 namespace Fuego::Renderer
 {
-SurfaceOpenGL::SurfaceOpenGL(HWND handle)
-    : _handle(nullptr)
-    , _hdc(nullptr)
-    , _pfd{}
+SurfaceOpenGL::SurfaceOpenGL(const void* window)
 {
-    _handle = handle;
-    _hdc = GetDC(_handle);
+    _window = (HWND)window;
+    _hdc = GetDC(_window);
     _pfd = {sizeof(PIXELFORMATDESCRIPTOR),
             1,
             PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER,
@@ -37,22 +34,21 @@ SurfaceOpenGL::SurfaceOpenGL(HWND handle)
             0};
 }
 
+SurfaceOpenGL::~SurfaceOpenGL()
+{
+    ReleaseDC(_window, _hdc);
+}
+
 const void* SurfaceOpenGL::GetNativeHandle() const
 {
-    return _handle;
+    return _window;
 }
-
-HWND SurfaceOpenGL::GetWindowsHandle() const
-{
-    return _handle;
-}
-
-HDC SurfaceOpenGL::GetHDC() const
+HDC SurfaceOpenGL::GetHdc() const
 {
     return _hdc;
 }
 
-const PIXELFORMATDESCRIPTOR* SurfaceOpenGL::GetPFD() const
+const PIXELFORMATDESCRIPTOR* SurfaceOpenGL::GetPfd() const
 {
     return &_pfd;
 }

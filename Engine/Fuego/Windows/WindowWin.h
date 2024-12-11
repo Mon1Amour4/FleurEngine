@@ -1,17 +1,10 @@
 #pragma once
 
-#include <OpenGL/SurfaceOpenGL.h>
-
 #include "EventQueueWin.h"
-#include "OpenGL/BufferOpenGL.h"
 #include "Window.h"
 
 namespace Fuego
 {
-#define LAST_CODE UINT16_MAX
-
-LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
-
 class SurfaceWindows;
 
 class WindowWin : public Window
@@ -23,27 +16,26 @@ public:
 
     inline virtual unsigned int GetWidth() const override
     {
-        return m_Props.Width;
+        return _props.Width;
     }
     inline virtual unsigned int GetHeight() const override
     {
-        return m_Props.Height;
+        return _props.Height;
     }
 
     virtual void SetVSync(bool enabled) override;
     virtual bool IsVSync() const override;
 
-    virtual const Renderer::Surface* GetSurface() const override;
+    virtual const void* GetNativeHandle() const override;
 
     LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
-    static std::unordered_map<HWND, WindowWin*> hwndMap;
 
     Input::KeyState GetKeyState(KeyCode keyCode) const;
     Input::MouseState GetMouseState(MouseCode mouseCode) const;
     void GetCursorPos(OUT float& xPos, OUT float& yPos) const;
 
 private:
-    void Shutdown();
+    static DWORD WinThreadMain(_In_ LPVOID lpParameter);
     static LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
     EventQueueWin* _eventQueue;
@@ -52,16 +44,14 @@ private:
     Input::CursorPos _cursorPos;
 
     // Window handle
-    HANDLE m_Window;
-    HINSTANCE m_HInstance;  // Relates to the Application
-    WindowProps m_Props;
-    Renderer::SurfaceOpenGL* _surface;
+    HWND _hwnd;
+    HINSTANCE _hinstance;  // Relates to the Application
+    WindowProps _props;
 
     // Threads
     HANDLE _winThread;
     LPDWORD _winThreadID;
     HANDLE _onThreadCreated;
-    static DWORD WinThreadMain(_In_ LPVOID lpParameter);
 };
 
 }  // namespace Fuego

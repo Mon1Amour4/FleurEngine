@@ -7,16 +7,15 @@ namespace Fuego::Renderer
 class SurfaceOpenGL : public Surface
 {
 public:
-    SurfaceOpenGL(HWND handle);
-    virtual ~SurfaceOpenGL() = default;
+    SurfaceOpenGL(const void* window);
+    ~SurfaceOpenGL();
 
     virtual const void* GetNativeHandle() const override;
-    HWND GetWindowsHandle() const;
-    HDC GetHDC() const;
-    const PIXELFORMATDESCRIPTOR* GetPFD() const;
+    HDC GetHdc() const;
+    const PIXELFORMATDESCRIPTOR* GetPfd() const;
 
 private:
-    HWND _handle;                // WIN32: Window descriptor
+    HWND _window;                // shouldn't be here
     HDC _hdc;                    // WIN32: Handle to Device Context
     PIXELFORMATDESCRIPTOR _pfd;  // WIN32: Pixel format descriptor
 };

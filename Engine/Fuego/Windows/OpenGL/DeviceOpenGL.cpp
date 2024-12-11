@@ -15,6 +15,11 @@ std::unique_ptr<Device> Device::CreateDevice()
     return std::unique_ptr<Device>(new DeviceOpenGL());
 }
 
+std::unique_ptr<Surface> Device::CreateSurface(const void* window)
+{
+    return std::unique_ptr<Surface>(new SurfaceOpenGL(window));
+}
+
 std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(size_t size, uint32_t flags)
 {
     return std::unique_ptr<Buffer>(new BufferOpenGL(size, flags));

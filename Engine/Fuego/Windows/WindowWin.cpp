@@ -2,26 +2,26 @@
 
 #include "InputWin.h"
 #include "Log.h"
-#include "OpenGL/SurfaceOpenGL.h"
-#include "glad/glad.h"
+
+#define LAST_CODE UINT16_MAX
 
 namespace Fuego
 {
 
 DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 {
-    WindowWin* _wnd = reinterpret_cast<WindowWin*>(lpParameter);
+    WindowWin* _wnd = static_cast<WindowWin*>(lpParameter);
 
     static TCHAR buffer[32] = TEXT("");
 #ifdef UNICODE
     MultiByteToWideChar(CP_UTF8, 0, props.Title.c_str(), -1, buffer, _countof(buffer));
 #else
-    sprintf_s(buffer, _wnd->m_Props.Title.c_str());
+    sprintf_s(buffer, _wnd->_props.Title.c_str());
 #endif
     WNDCLASSEX wndClass = {};
     wndClass.cbSize = sizeof(WNDCLASSEX);
-    wndClass.lpszClassName = _wnd->m_Props.APP_WINDOW_CLASS_NAME;
-    wndClass.hInstance = _wnd->m_HInstance;
+    wndClass.lpszClassName = _wnd->_props.APP_WINDOW_CLASS_NAME;
+    wndClass.hInstance = _wnd->_hinstance;
     wndClass.hIcon = LoadIcon(nullptr, IDI_WINLOGO);
     wndClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpfnWndProc = WindowProcStatic;
@@ -30,20 +30,22 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 
     DWORD style = WS_OVERLAPPEDWINDOW | WS_SYSMENU;
     RECT rect;
-    rect.left = _wnd->m_Props.x;
-    rect.top = _wnd->m_Props.y;
-    rect.right = rect.left + _wnd->m_Props.Width;
-    rect.bottom = rect.top + _wnd->m_Props.Height;
+    rect.left = _wnd->_props.x;
+    rect.top = _wnd->_props.y;
+    rect.right = rect.left + _wnd->_props.Width;
+    rect.bottom = rect.top + _wnd->_props.Height;
 
     AdjustWindowRect(&rect, style, true);
 
-    _wnd->_surface = new Renderer::SurfaceOpenGL(CreateWindowEx(0, _wnd->m_Props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top,
-                                                                rect.right - rect.left, rect.bottom - rect.top, nullptr, nullptr, _wnd->m_HInstance, nullptr));
+    _wnd->_hwnd = CreateWindowEx(0, _wnd->_props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+                                 nullptr, nullptr, _wnd->_hinstance, nullptr);
 
-    FU_CORE_ASSERT(_wnd->_surface, "[AppWindow] hasn't been initialized!");
-    hwndMap.emplace(_wnd->_surface->GetWindowsHandle(), _wnd);
+    FU_CORE_ASSERT(_wnd->_hwnd, "[AppWindow] hasn't been initialized!");
 
-    ShowWindow(_wnd->_surface->GetWindowsHandle(), SW_SHOW);
+    // Associate this instance with the HWND
+    SetWindowLongPtr(_wnd->_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(_wnd));
+
+    ShowWindow(_wnd->_hwnd, SW_SHOW);
 
     FU_CORE_ASSERT(Input::Init(new InputWin()), "[Input] hasn't been initialized!");
     SetEvent(_wnd->_onThreadCreated);
@@ -54,30 +56,24 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-    // Cleanup
-    ReleaseDC(_wnd->_surface->GetWindowsHandle(), _wnd->_surface->GetHDC());
-    DestroyWindow(_wnd->_surface->GetWindowsHandle());
+
+    DestroyWindow(_wnd->_hwnd);
     DestroyIcon(wndClass.hIcon);
     DestroyCursor(wndClass.hCursor);
-    UnregisterClass(_wnd->m_Props.APP_WINDOW_CLASS_NAME, _wnd->m_HInstance);
+    UnregisterClass(_wnd->_props.APP_WINDOW_CLASS_NAME, _wnd->_hinstance);
 
     return S_OK;
 }
 
-std::unordered_map<HWND, WindowWin*> WindowWin::hwndMap;
-
 LRESULT CALLBACK WindowWin::WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    auto _this = WindowWin::hwndMap.find(hWnd);
+    WindowWin* window = reinterpret_cast<WindowWin*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    if (window)
+    {
+        return window->WindowProc(hWnd, uMsg, wParam, lParam);
+    }
 
-    if (_this != WindowWin::hwndMap.end() && _this->second)
-    {
-        return _this->second->WindowProc(hWnd, uMsg, wParam, lParam);
-    }
-    else
-    {
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
-    }
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
 LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
@@ -174,11 +170,8 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     : _eventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
-    ,  // do not transfer ownership
-    m_Window(nullptr)
-    , m_HInstance(GetModuleHandle(nullptr))
-    , m_Props(props)
-    , _surface(nullptr)
+    , _hinstance(GetModuleHandle(nullptr))
+    , _props(props)
     , _lastKey{Input::KEY_NONE, LAST_CODE}
     , _lastMouse{Input::MOUSE_NONE, LAST_CODE}
     , _cursorPos{0.f, 0.f}
@@ -204,9 +197,9 @@ bool WindowWin::IsVSync() const
     return true;
 }
 
-const Renderer::Surface* WindowWin::GetSurface() const
+const void* WindowWin::GetNativeHandle() const
 {
-    return reinterpret_cast<const Renderer::Surface*>(_surface);
+    return _hwnd;
 }
 
 Input::KeyState WindowWin::GetKeyState(KeyCode keyCode) const
@@ -223,16 +216,6 @@ void WindowWin::GetCursorPos(OUT float& xPos, OUT float& yPos) const
 {
     xPos = _cursorPos.x;
     yPos = _cursorPos.y;
-}
-
-void WindowWin::Shutdown()
-{
-    if (_surface->GetNativeHandle() != nullptr)
-    {
-        DestroyWindow(_surface->GetWindowsHandle());
-        delete _surface;
-        _surface = nullptr;
-    }
 }
 
 std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)

@@ -24,6 +24,7 @@ class Application::ApplicationImpl
     std::unique_ptr<Renderer::Swapchain> _swapchain;
     std::unique_ptr<Renderer::Shader> _vertexShader;
     std::unique_ptr<Renderer::Shader> _pixelShader;
+    std::unique_ptr<Renderer::Surface> _surface;
     bool m_Running;
     LayerStack m_LayerStack;
     static Application* m_Instance;
@@ -42,7 +43,8 @@ Application::Application()
     d->_device = Renderer::Device::CreateDevice();
     d->_commandQueue = d->_device->CreateQueue();
     d->_commandPool = d->_device->CreateCommandPool(*d->_commandQueue);
-    d->_swapchain = d->_device->CreateSwapchain(*d->m_Window->GetSurface());
+    d->_surface = d->_device->CreateSurface(d->m_Window->GetNativeHandle());
+    d->_swapchain = d->_device->CreateSwapchain(*d->_surface);
 
     d->_vertexShader = d->_device->CreateShader("vs_triangle");
     d->_pixelShader = d->_device->CreateShader("ps_triangle");

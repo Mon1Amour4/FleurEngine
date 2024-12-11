@@ -28,6 +28,7 @@ void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
+    // TODO: shouldn't be here
     auto handle = (HWND)texture.GetNativeHandle();
     RECT clientRect;
     if (GetClientRect(handle, &clientRect))
