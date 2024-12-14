@@ -22,7 +22,6 @@ public:
     MTL::PixelFormat GetPixelFormat() const;
 
 private:
-    void* _window;  // shouldn't be here
     void* _metalLayer;
 };
 }  // namespace Fuego::Renderer

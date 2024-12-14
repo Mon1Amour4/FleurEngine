@@ -10,7 +10,7 @@ namespace Fuego::Renderer
 class CommandBufferMetal : public CommandBuffer
 {
 public:
-    CommandBufferMetal();
+    CommandBufferMetal(MTL::CommandBuffer* commandBuffer);
     ~CommandBufferMetal();
 
     virtual void BindRenderTarget(const Surface& texture) override;
@@ -22,6 +22,7 @@ public:
 
 private:
     MTL::RenderPipelineDescriptor* _renderPipelineDescriptor;
+    MTL::CommandBuffer* _commandBuffer;
 };
 
 }  // namespace Fuego::Renderer

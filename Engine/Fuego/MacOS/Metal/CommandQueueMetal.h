@@ -10,6 +10,8 @@ namespace Fuego::Renderer
 class CommandQueueMetal : public CommandQueue
 {
 public:
+    friend class CommandPoolMetal;
+
     CommandQueueMetal(MTL::CommandQueue* commandQueue);
 
     virtual void Submit(const CommandBuffer& commandBuffer)

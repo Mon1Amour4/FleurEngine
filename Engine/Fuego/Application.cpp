@@ -41,7 +41,7 @@ Application::Application()
 
     // Temporarily here.
     d->_device = Renderer::Device::CreateDevice();
-    d->_commandQueue = d->_device->CreateQueue();
+    d->_commandQueue = d->_device->CreateCommandQueue();
     d->_commandPool = d->_device->CreateCommandPool(*d->_commandQueue);
     d->_surface = d->_device->CreateSurface(d->m_Window->GetNativeHandle());
     d->_swapchain = d->_device->CreateSwapchain(*d->_surface);
