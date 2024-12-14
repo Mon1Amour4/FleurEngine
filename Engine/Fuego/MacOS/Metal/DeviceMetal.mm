@@ -2,6 +2,7 @@
 #include "Metal/BufferMetal.h"
 #include "Metal/CommandQueueMetal.h"
 #include "Metal/ShaderMetal.h"
+#include "Metal/SurfaceMetal.h"
 #include "Renderer/Device.h"
 
 #include <QuartzCore/CAMetalLayer.hpp>
@@ -58,10 +59,13 @@ std::unique_ptr<Shader> DeviceMetal::CreateShader(std::string_view shaderName)
     return std::make_unique<ShaderMetal>(shader);
 }
 
-std::unique_ptr<Device> Device::CreateDevice(const Surface& surface)
+std::unique_ptr<Surface> DeviceMetal::CreateSurface(const void* window)
 {
-    UNUSED(surface);
+    return std::make_unique<SurfaceMetal>(window, _device);
+}
 
+std::unique_ptr<Device> Device::CreateDevice()
+{
     return std::make_unique<DeviceMetal>();
 }
 }  // namespace Fuego::Renderer

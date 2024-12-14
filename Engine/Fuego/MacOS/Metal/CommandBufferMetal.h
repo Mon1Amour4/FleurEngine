@@ -13,7 +13,7 @@ public:
     CommandBufferMetal();
     ~CommandBufferMetal();
 
-    virtual void BindRenderTarget(const Texture& texture) override;
+    virtual void BindRenderTarget(const Surface& texture) override;
     virtual void BindVertexShader(const Shader& vertexShader) override;
     virtual void BindPixelShader(const Shader& pixelShader) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;

@@ -20,6 +20,6 @@ public:
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) = 0;
     virtual std::unique_ptr<Shader> CreateShader(std::string_view shaderName) = 0;
-    virtual std::unique_ptr<Surface> CreateSurface(const void* window);
+    virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
 };
 }  // namespace Fuego::Renderer
