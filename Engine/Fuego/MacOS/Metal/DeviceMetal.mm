@@ -4,6 +4,7 @@
 #include "Metal/CommandQueueMetal.h"
 #include "Metal/ShaderMetal.h"
 #include "Metal/SurfaceMetal.h"
+#include "Metal/SwapchainMetal.h"
 #include "Renderer/Device.h"
 
 #include <QuartzCore/CAMetalLayer.hpp>
@@ -46,9 +47,7 @@ std::unique_ptr<CommandPool> DeviceMetal::CreateCommandPool(const CommandQueue& 
 
 std::unique_ptr<Swapchain> DeviceMetal::CreateSwapchain(const Surface& surface)
 {
-    UNUSED(surface);
-
-    return nullptr;
+    return std::make_unique<SwapchainMetal>(surface);
 }
 
 std::unique_ptr<Shader> DeviceMetal::CreateShader(std::string_view shaderName)
