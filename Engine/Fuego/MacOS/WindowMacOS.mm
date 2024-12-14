@@ -1,4 +1,6 @@
 #include "WindowMacOS.h"
+#include "EventQueueMacOS.h"
+#include "Events/ApplicationEvent.h"
 
 @interface FuegoWindow : NSWindow
 {
@@ -66,8 +68,6 @@ namespace Fuego
 {
 WindowMacOS::WindowMacOS(const WindowProps& props, EventQueue& eventQueue)
 {
-    UNUSED(eventQueue);
-
     NSRect rect = NSMakeRect(props.x, props.y, props.Width, props.Height);
     NSWindowStyleMask styleMask = NSWindowStyleMaskTitled;
     if (props.Closable)
@@ -125,6 +125,7 @@ WindowMacOS::WindowMacOS(const WindowProps& props, EventQueue& eventQueue)
     _props = props;
     _window = (__bridge_retained void*)w;
     _view = (__bridge_retained void*)v;
+    _eventQueue = dynamic_cast<EventQueueMacOS*>(&eventQueue);
 }
 
 WindowMacOS::~WindowMacOS()
@@ -134,6 +135,8 @@ WindowMacOS::~WindowMacOS()
 
 void WindowMacOS::Update()
 {
+    _eventQueue->PushEvent(_eventQueue, std::make_shared<EventVariant>(AppRenderEvent()));
+
     @autoreleasepool
     {
         [NSApp updateWindows];

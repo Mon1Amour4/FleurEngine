@@ -13,8 +13,9 @@ public:
     virtual void Pop() override;
     virtual bool Empty() override;
 
+    static void PushEvent(EventQueueMacOS* eq, std::shared_ptr<EventVariant> ev);
+
 private:
-    friend void PushEvent(EventQueueMacOS* eq, std::shared_ptr<EventVariant> ev);
     std::queue<std::shared_ptr<EventVariant>> _queue;
 
     // WindowEventsObserver*

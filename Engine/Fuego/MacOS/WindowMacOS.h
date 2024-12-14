@@ -5,6 +5,8 @@
 
 namespace Fuego
 {
+class EventQueueMacOS;
+
 class WindowMacOS : public Window
 {
 public:
@@ -41,5 +43,6 @@ private:
     void* _view;
 
     WindowProps _props;
+    EventQueueMacOS* _eventQueue;
 };
 }  // namespace Fuego
