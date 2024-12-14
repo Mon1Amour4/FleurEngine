@@ -7,10 +7,6 @@
 #include "Log.h"
 #include "MouseCodes.h"
 
-void Fuego::PushEvent(EventQueueMacOS* eq, std::shared_ptr<EventVariant> ev)
-{
-    eq->_queue.push(ev);
-}
 
 @interface WindowEventsObserver : NSObject
 {
@@ -24,14 +20,14 @@ void Fuego::PushEvent(EventQueueMacOS* eq, std::shared_ptr<EventVariant> ev)
 
 - (void)_windowWillClose:(NSNotification*)notification
 {
-    Fuego::PushEvent(_eq, std::make_shared<Fuego::EventVariant>(Fuego::WindowCloseEvent()));
+    Fuego::EventQueueMacOS::PushEvent(_eq, std::make_shared<Fuego::EventVariant>(Fuego::WindowCloseEvent()));
 }
 
 - (void)_windowDidResize:(NSNotification*)notification
 {
     NSWindow* window = (NSWindow*)[notification object];
     NSRect rect = [window contentRectForFrameRect:[window frame]];
-    Fuego::PushEvent(_eq, std::make_shared<Fuego::EventVariant>(Fuego::WindowResizeEvent(rect.size.width, rect.size.height)));
+    Fuego::EventQueueMacOS::PushEvent(_eq, std::make_shared<Fuego::EventVariant>(Fuego::WindowResizeEvent(rect.size.width, rect.size.height)));
 }
 
 - (instancetype)initWithEventQueue:(Fuego::EventQueueMacOS*)eq
@@ -59,6 +55,11 @@ EventQueueMacOS::EventQueueMacOS()
 EventQueueMacOS::~EventQueueMacOS()
 {
     __unused id obj = (__bridge_transfer WindowEventsObserver*)_windowEventsObserver;
+}
+
+void EventQueueMacOS::PushEvent(EventQueueMacOS* eq, std::shared_ptr<EventVariant> ev)
+{
+    eq->_queue.push(ev);
 }
 
 void EventQueueMacOS::Update()
