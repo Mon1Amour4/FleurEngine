@@ -12,7 +12,8 @@ set(PROJECT_HEADERS
     Metal/CommandBufferMetal.h
     Metal/TextureMetal.h
     Metal/SurfaceMetal.h
-    Metal/CommandPoolMetal.h)
+    Metal/CommandPoolMetal.h
+    Metal/SwapchainMetal.h)
 
 set(PROJECT_SOURCES
     InputMacOS.cpp
@@ -27,7 +28,8 @@ set(PROJECT_SOURCES
     Metal/CommandBufferMetal.mm
     Metal/TextureMetal.mm
     Metal/SurfaceMetal.mm
-    Metal/CommandPoolMetal.mm)
+    Metal/CommandPoolMetal.mm
+    Metal/SwapchainMetal.mm)
 
 set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/../../build/win/output)
 
