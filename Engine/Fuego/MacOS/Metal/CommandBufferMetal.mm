@@ -1,5 +1,6 @@
 #include "Metal/CommandBufferMetal.h"
 #include "Metal/ShaderMetal.h"
+#include "Metal/SurfaceMetal.h"
 #include "Metal/TextureMetal.h"
 
 namespace Fuego::Renderer
@@ -11,10 +12,10 @@ CommandBufferMetal::CommandBufferMetal()
     _renderPipelineDescriptor->setLabel(NS::String::string("Default Rendering Pipeline", NS::ASCIIStringEncoding));
 }
 
-void CommandBufferMetal::BindRenderTarget(const Texture& texture)
+void CommandBufferMetal::BindRenderTarget(const Surface& texture)
 {
-    const auto* metalTexture = static_cast<const TextureMetal*>(&texture);
-    MTL::PixelFormat pixelFormat = (MTL::PixelFormat)metalTexture->GetTextureFormat();
+    const auto* metalSurface = static_cast<const SurfaceMetal*>(&texture);
+    MTL::PixelFormat pixelFormat = metalSurface->GetPixelFormat();
     _renderPipelineDescriptor->colorAttachments()->object(0)->setPixelFormat(pixelFormat);
     FU_CORE_ASSERT(_renderPipelineDescriptor, "Failed to bind Render Target");
 }

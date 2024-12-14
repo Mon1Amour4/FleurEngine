@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Core.h"
-#include "Metal/MetalContext.h"
 #include "Window.h"
 
 namespace Fuego
@@ -32,7 +31,7 @@ public:
         return true;
     }
 
-    virtual void* GetNativeWindow() const override;
+    virtual const void* GetNativeHandle() const override;
 
 private:
     void Init(const WindowProps& props, EventQueue& eventQueue);
@@ -40,8 +39,6 @@ private:
 
     void* _window;
     void* _view;
-
-    std::unique_ptr<MetalContext> _context;
 
     WindowProps _props;
 };

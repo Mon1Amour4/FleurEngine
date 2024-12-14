@@ -25,16 +25,6 @@ MetalContext::~MetalContext()
 
 bool MetalContext::Init()
 {
-    CAMetalLayer* metalLayer = [CAMetalLayer layer];
-    metalLayer.device = (__bridge id<MTLDevice>)_device;
-    metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-
-    _metalLayer = (__bridge_retained void*)metalLayer;
-
-    NSWindow* w = (__bridge NSWindow*)_window;
-    w.contentView.layer = metalLayer;
-    w.contentView.wantsLayer = YES;
-
     // Temporary code to draw a triangle as soon as possible.
     simd::float3 triangleVertices[] = {{-0.5f, -0.5f, 0.0f}, {0.5f, -0.5f, 0.0f}, {0.0f, 0.5f, 0.0f}};
 
