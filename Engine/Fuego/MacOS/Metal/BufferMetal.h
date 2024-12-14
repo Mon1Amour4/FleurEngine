@@ -9,6 +9,8 @@ namespace Fuego::Renderer
 class BufferMetal : public Buffer
 {
 public:
+    friend class CommandBufferMetal;
+
     BufferMetal(MTL::Buffer* buffer);
 
 private:

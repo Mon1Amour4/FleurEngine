@@ -40,7 +40,8 @@ std::unique_ptr<CommandQueue> DeviceMetal::CreateCommandQueue()
 
 std::unique_ptr<CommandPool> DeviceMetal::CreateCommandPool(const CommandQueue& queue)
 {
-    return std::make_unique<CommandPoolMetal>(queue);
+    auto* commandQueue = dynamic_cast<const CommandQueueMetal*>(&queue)->_commandQueue;
+    return std::make_unique<CommandPoolMetal>(commandQueue, _device);
 }
 
 std::unique_ptr<Swapchain> DeviceMetal::CreateSwapchain(const Surface& surface)

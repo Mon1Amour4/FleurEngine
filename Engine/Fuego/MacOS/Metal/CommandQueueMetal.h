@@ -10,7 +10,7 @@ namespace Fuego::Renderer
 class CommandQueueMetal : public CommandQueue
 {
 public:
-    friend class CommandPoolMetal;
+    friend class DeviceMetal;
 
     CommandQueueMetal(MTL::CommandQueue* commandQueue);
 
