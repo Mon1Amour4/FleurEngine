@@ -1,5 +1,6 @@
 #include "Metal/DeviceMetal.h"
 #include "Metal/BufferMetal.h"
+#include "Metal/CommandPoolMetal.h"
 #include "Metal/CommandQueueMetal.h"
 #include "Metal/ShaderMetal.h"
 #include "Metal/SurfaceMetal.h"
@@ -32,16 +33,14 @@ std::unique_ptr<Buffer> DeviceMetal::CreateBuffer(size_t size, uint32_t flags)
     return std::make_unique<BufferMetal>(_device->newBuffer(size, MTL::ResourceStorageModeShared));
 }
 
-std::unique_ptr<CommandQueue> DeviceMetal::CreateQueue()
+std::unique_ptr<CommandQueue> DeviceMetal::CreateCommandQueue()
 {
     return std::make_unique<CommandQueueMetal>(_device->newCommandQueue());
 }
 
 std::unique_ptr<CommandPool> DeviceMetal::CreateCommandPool(const CommandQueue& queue)
 {
-    UNUSED(queue);
-
-    return nullptr;
+    return std::make_unique<CommandPoolMetal>(queue);
 }
 
 std::unique_ptr<Swapchain> DeviceMetal::CreateSwapchain(const Surface& surface)

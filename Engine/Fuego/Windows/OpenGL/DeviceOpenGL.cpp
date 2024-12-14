@@ -25,7 +25,7 @@ std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(size_t size, uint32_t flags)
     return std::unique_ptr<Buffer>(new BufferOpenGL(size, flags));
 }
 
-std::unique_ptr<CommandQueue> DeviceOpenGL::CreateQueue()
+std::unique_ptr<CommandQueue> DeviceOpenGL::CreateCommandQueue()
 {
     return std::unique_ptr<CommandQueue>(new CommandQueueOpenGL());
 }

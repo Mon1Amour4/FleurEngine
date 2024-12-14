@@ -18,7 +18,7 @@ public:
     virtual ~Device() = default;
 
     virtual std::unique_ptr<Buffer> CreateBuffer(size_t size, uint32_t flags) = 0;
-    virtual std::unique_ptr<CommandQueue> CreateQueue() = 0;
+    virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) = 0;
     virtual std::unique_ptr<Shader> CreateShader(std::string_view shaderName, Shader::ShaderType type) = 0;

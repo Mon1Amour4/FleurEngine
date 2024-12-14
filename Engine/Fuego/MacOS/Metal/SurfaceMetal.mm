@@ -30,7 +30,7 @@ SurfaceMetal::~SurfaceMetal()
 
 const void* SurfaceMetal::GetNativeHandle() const
 {
-    return _window;
+    return _metalLayer;
 }
 
 }  // namespace Fuego::Renderer
