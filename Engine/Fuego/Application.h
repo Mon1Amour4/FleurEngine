@@ -1,11 +1,14 @@
 #pragma once
 
+#include <filesystem>
+
 #include "EventQueue.h"
 #include "Events/ApplicationEvent.h"
 #include "Events/EventVisitor.h"
 #include "Layer.h"
 #include "LayerStack.h"
 #include "Window.h"
+#include "fstream"
 
 namespace Fuego
 {
@@ -34,4 +37,5 @@ public:
 
 // Should be defined in a client.
 Application* CreateApplication();
+
 }  // namespace Fuego

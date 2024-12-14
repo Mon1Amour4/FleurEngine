@@ -16,6 +16,9 @@ class Application::ApplicationImpl
 {
     friend class Application;
 
+    const std::string pathToResources = std::filesystem::current_path().string() + "..\\..\\..\\Sandbox\\Resources\\";
+    std::string OpenFile(const std::string& file, std::fstream::ios_base::openmode mode = std::ios::in);
+
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<EventQueue> m_EventQueue;
     std::unique_ptr<Renderer::Device> _device;
@@ -46,8 +49,9 @@ Application::Application()
     d->_surface = d->_device->CreateSurface(d->m_Window->GetNativeHandle());
     d->_swapchain = d->_device->CreateSwapchain(*d->_surface);
 
-    d->_vertexShader = d->_device->CreateShader("vs_triangle");
-    d->_pixelShader = d->_device->CreateShader("ps_triangle");
+    const std::string ps_shader = d->OpenFile("Windows\\Shaders\\ps_triangle.glsl");
+    d->_vertexShader = d->_device->CreateShader("vs_triangle", Renderer::Shader::ShaderType::Vertex);
+    d->_pixelShader = d->_device->CreateShader("ps_triangle", Renderer::Shader::ShaderType::Pixel);
 }
 
 Application::~Application()
@@ -165,4 +169,20 @@ void Application::Run()
         }
     }
 }
+
+std::string Application::ApplicationImpl::OpenFile(const std::string& file, std::fstream::ios_base::openmode mode)
+{
+    std::string path = pathToResources + file;
+    std::fstream f(path, mode);
+    FU_CORE_ASSERT(f.is_open(), "[FS] failed open a file");
+
+    std::string content;
+    while (f.good())
+    {
+        f >> content;
+    }
+    f.close();
+    return content;
+}
+
 }  // namespace Fuego
