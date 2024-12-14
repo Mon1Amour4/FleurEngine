@@ -42,8 +42,8 @@ std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
 
 std::unique_ptr<Shader> DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
 {
-    // return std::unique_ptr<Shader>(new ShaderOpenGL(shaderName, type));
-    return nullptr;
+    const std::string shaderCode = OpenFile(std::string(shaderName));
+    return std::unique_ptr<Shader>(new ShaderOpenGL(shaderCode.c_str(), type));
 }
 
 
