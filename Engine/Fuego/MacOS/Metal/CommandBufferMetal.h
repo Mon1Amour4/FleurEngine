@@ -4,13 +4,12 @@
 
 #include "Renderer/CommandBuffer.h"
 
-namespace CA
-{
-class MetalDrawable;
-}
-
 namespace Fuego::Renderer
 {
+
+class ShaderMetal;
+class BufferMetal;
+class SurfaceMetal;
 
 class CommandBufferMetal : public CommandBuffer
 {
@@ -26,11 +25,13 @@ public:
     virtual void Draw(uint32_t vertexCount) override;
 
 private:
-    MTL::RenderPipelineDescriptor* _renderPipelineDescriptor;
     MTL::CommandBuffer* _commandBuffer;
-    MTL::RenderCommandEncoder* _renderCommandEncoder;
     MTL::Device* _device;
-    CA::MetalDrawable* _metalDrawable;
+
+    const ShaderMetal* _vertexShader;
+    const ShaderMetal* _pixelShader;
+    const BufferMetal* _buffer;
+    const SurfaceMetal* _surface;
 };
 
 }  // namespace Fuego::Renderer
