@@ -6,14 +6,15 @@
 namespace Fuego::Renderer
 {
 
-CommandPoolMetal::CommandPoolMetal(const CommandQueue& queue)
+CommandPoolMetal::CommandPoolMetal(MTL::CommandQueue* commandQueue, MTL::Device* device)
+    : _commandQueue(commandQueue)
+    , _device(device)
 {
-    _commandQueue = dynamic_cast<const CommandQueueMetal*>(&queue)->_commandQueue;
 }
 
 std::unique_ptr<CommandBuffer> CommandPoolMetal::CreateCommandBuffer()
 {
-    return std::make_unique<CommandBufferMetal>(_commandQueue->commandBuffer());
+    return std::make_unique<CommandBufferMetal>(_commandQueue->commandBuffer(), _device);
 }
 
 }  // namespace Fuego::Renderer

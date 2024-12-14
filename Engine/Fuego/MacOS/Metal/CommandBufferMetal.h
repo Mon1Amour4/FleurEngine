@@ -4,13 +4,18 @@
 
 #include "Renderer/CommandBuffer.h"
 
+namespace CA
+{
+class MetalDrawable;
+}
+
 namespace Fuego::Renderer
 {
 
 class CommandBufferMetal : public CommandBuffer
 {
 public:
-    CommandBufferMetal(MTL::CommandBuffer* commandBuffer);
+    CommandBufferMetal(MTL::CommandBuffer* commandBuffer, MTL::Device* device);
     ~CommandBufferMetal();
 
     virtual void BindRenderTarget(const Surface& texture) override;
@@ -23,6 +28,9 @@ public:
 private:
     MTL::RenderPipelineDescriptor* _renderPipelineDescriptor;
     MTL::CommandBuffer* _commandBuffer;
+    MTL::RenderCommandEncoder* _renderCommandEncoder;
+    MTL::Device* _device;
+    CA::MetalDrawable* _metalDrawable;
 };
 
 }  // namespace Fuego::Renderer
