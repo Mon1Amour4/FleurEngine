@@ -32,6 +32,9 @@ GLint ShaderOpenGL::GetShaderType(ShaderType type) const
         return GL_FRAGMENT_SHADER;
     case Vertex:
         return GL_VERTEX_SHADER;
+    default:
+        FU_CORE_ERROR("[Shader] Invalid shader type:");
+        break;
     }
 }
 
