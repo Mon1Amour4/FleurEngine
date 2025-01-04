@@ -2,7 +2,6 @@
 
 #include "Renderer/Swapchain.h"
 #include "SurfaceOpenGL.h"
-#include "glad/gl.h"
 
 namespace Fuego::Renderer
 {

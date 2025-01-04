@@ -1,7 +1,6 @@
 #include "SwapchainOpenGL.h"
 
 #include "OpenGL/SurfaceOpenGL.h"
-#include "TextureOpenGL.h"
 // clang-format off
 #include "glad/wgl.h"
 #include "glad/gl.h"

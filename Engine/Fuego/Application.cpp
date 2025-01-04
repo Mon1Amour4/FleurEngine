@@ -2,7 +2,7 @@
 
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
-#include "Input.h"
+#include "LayerStack.h"
 #include "Renderer.h"
 
 
@@ -124,7 +124,7 @@ bool Application::OnValidateWindow(WindowValidateEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     // clang-format off
-    static float mesh[] = {  
+    static float mesh[] = {
     // Positions          // Colors
     -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,  // Front-bottom-left (Red)
     0.5f, -0.5f, -0.5f,   0.0f, 1.0f, 0.0f,  // Front-bottom-right (Green)

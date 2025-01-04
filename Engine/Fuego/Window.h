@@ -1,10 +1,6 @@
 #pragma once
 
 #include "EventQueue.h"
-#include "Events/Event.h"
-#include "Input.h"
-#include "Renderer/Surface.h"
-#include "fupch.h"
 
 namespace Fuego
 {

@@ -6,12 +6,11 @@
 #include "CommandQueue.h"
 #include "Device.h"
 #include "Shader.h"
+#include "Surface.h"
 #include "Swapchain.h"
 
 namespace Fuego::Renderer
 {
-class Surface;
-
 class Renderer
 {
 public:

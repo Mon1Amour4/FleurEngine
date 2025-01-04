@@ -1,21 +1,18 @@
 #pragma once
 
-#include <filesystem>
-
 #include "EventQueue.h"
 #include "Events/ApplicationEvent.h"
 #include "Events/EventVisitor.h"
-#include "Layer.h"
-#include "LayerStack.h"
-#include "Window.h"
 #include "FileSystem/FileSystem.h"
+#include "Layer.h"
+#include "Window.h"
 
 
 namespace Fuego::Renderer
 {
 class Renderer;
 class FileSystem;
-}
+}  // namespace Fuego::Renderer
 
 namespace Fuego
 {

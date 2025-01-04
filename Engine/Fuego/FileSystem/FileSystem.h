@@ -1,7 +1,6 @@
 #pragma once
-#include <fstream>
 #include <filesystem>
-#include "string.h"
+#include <fstream>
 
 namespace Fuego::FS
 {
@@ -26,4 +25,4 @@ private:
     const std::string pathToResources = GetExecutablePath() + "\\..\\..\\..\\..\\Sandbox\\Resources\\";
     const std::string pathToShadersWindows = "Windows\\Shaders\\";
 };
-}
+}  // namespace Fuego::FS

@@ -3,7 +3,6 @@
 #include <mutex>
 
 #include "EventQueue.h"
-#include "Window.h"
 
 namespace Fuego
 {

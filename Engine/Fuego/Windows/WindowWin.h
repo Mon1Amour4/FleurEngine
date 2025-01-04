@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EventQueueWin.h"
+#include "Input.h"
 #include "Window.h"
 
 namespace Fuego
@@ -66,14 +67,13 @@ private:
     bool isResizing;
     bool isPainted;
 
-    private:
     friend class Application;
     virtual inline void SetPainted() override
     {
         isPainted = true;
     }
 
-    protected:
+protected:
     virtual void SetWindowMode(WPARAM mode);
 };
 
