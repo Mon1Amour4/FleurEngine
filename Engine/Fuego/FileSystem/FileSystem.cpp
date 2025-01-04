@@ -1,5 +1,10 @@
 #include "FileSystem/FileSystem.h"
 
+#if defined(FUEGO_PLATFORM_MACOS)
+#include <limits.h>
+#include <mach-o/dyld.h>
+#endif
+
 namespace Fuego::FS
 {
 
@@ -18,8 +23,17 @@ std::string FileSystem::OpenFile(const std::string& file, std::fstream::ios_base
 
 const std::string FileSystem::GetExecutablePath() const
 {
+#if defined(FUEGO_PLATFORM_WIN)
     char path[MAX_PATH];
     GetModuleFileNameA(NULL, path, MAX_PATH);
+#elif defined(FUEGO_PLATFORM_MACOS)
+    char path[PATH_MAX];
+    uint32_t size = sizeof(path);
+    if (_NSGetExecutablePath(path, &size) != 0)
+    {
+        throw std::runtime_error("Buffer too small for executable path");
+    }
+#endif
     return std::filesystem::path(path).parent_path().string();
 }
 

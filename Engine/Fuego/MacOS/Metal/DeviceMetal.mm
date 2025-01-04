@@ -50,8 +50,9 @@ std::unique_ptr<Swapchain> DeviceMetal::CreateSwapchain(const Surface& surface)
     return std::make_unique<SwapchainMetal>(surface);
 }
 
-std::unique_ptr<Shader> DeviceMetal::CreateShader(std::string_view shaderName)
+std::unique_ptr<Shader> DeviceMetal::CreateShader(std::string_view shaderName, Shader::ShaderType shaderType)
 {
+    UNUSED(shaderType);
     auto shader = _defaultLibrary->newFunction(NS::String::string(shaderName.data(), NS::ASCIIStringEncoding));
     FU_CORE_ASSERT(shader, "Failed to create shader");
 

@@ -16,6 +16,13 @@ public:
     virtual void Present() override;
 
     virtual Surface& GetScreenTexture() override;
+    virtual void ShowWireFrame(bool show) override
+    {
+        UNUSED(show);
+    }
+    virtual void ValidateWindow() override
+    {
+    }
 
 private:
     SurfaceMetal _surface;

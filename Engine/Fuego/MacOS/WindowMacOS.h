@@ -35,6 +35,14 @@ public:
 
     virtual const void* GetNativeHandle() const override;
 
+    virtual void SetPainted() override
+    {
+    }
+    virtual inline bool IsResizing() const override
+    {
+        return false;
+    }
+
 private:
     void Init(const WindowProps& props, EventQueue& eventQueue);
     void Shutdown();

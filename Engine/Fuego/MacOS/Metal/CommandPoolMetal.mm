@@ -12,9 +12,12 @@ CommandPoolMetal::CommandPoolMetal(MTL::CommandQueue* commandQueue, MTL::Device*
 {
 }
 
-std::unique_ptr<CommandBuffer> CommandPoolMetal::CreateCommandBuffer()
+CommandPoolMetal::~CommandPoolMetal()
 {
-    return std::make_unique<CommandBufferMetal>(_commandQueue->commandBuffer(), _device);
+}
+
+CommandBuffer& CommandPoolMetal::GetCommandBuffer()
+{
 }
 
 }  // namespace Fuego::Renderer
