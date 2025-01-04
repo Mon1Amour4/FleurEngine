@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 from __future__ import annotations
 
 import os
@@ -8,7 +9,7 @@ from pathlib import Path
 
 
 def create_venv(venv_path):
-    result = subprocess.run(['python', '-m', 'venv', venv_path])
+    result = subprocess.run(['python3', '-m', 'venv', venv_path])
 
     if result.returncode == 0:
         print(f'Successfully created venv at {venv_path}')

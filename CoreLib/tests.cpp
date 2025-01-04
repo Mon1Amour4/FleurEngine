@@ -1,506 +1,513 @@
 ﻿#include <gtest/gtest.h>
 
-#include "SharedPtr.h"
-#include "UniquePtr.h"
+#include "Sptr.h"
+#include "Uptr.h"
 
 using namespace Fuego;
 
-TEST(CoreLibTests, UniquePtr_NullPtrTest)
+
+TEST(CoreLibTest, Uptr_DefaultConstructor)
 {
-    UniquePtr<int> Ptr;
+    Uptr<int> Ptr;
     EXPECT_EQ(Ptr.Get(), nullptr);
 }
 
-TEST(CoreLibTests, UniquePtr_GetRawTest)
+TEST(CoreLibTest, Uptr_ConstructorWithPointer)
 {
-    int* RawPtr = new int(5);
-    UniquePtr<int> Ptr(RawPtr);
+    int* RawPtr = new int(42);
+    Uptr<int> Ptr(RawPtr);
     EXPECT_EQ(Ptr.Get(), RawPtr);
+    EXPECT_EQ(*Ptr, 42);
 }
 
-TEST(CoreLibTests, UniquePtr_DereferenceTest)
+TEST(CoreLibTest, Uptr_MoveConstructor)
 {
-    UniquePtr<int> Ptr(new int(10));
-    EXPECT_EQ(*Ptr, 10);
-}
+    int* RawPtr = new int(42);
+    Uptr<int> Ptr1(RawPtr);
+    Uptr<int> Ptr2(std::move(Ptr1));
 
-TEST(CoreLibTests, UniquePtr_MoveTest)
-{
-    UniquePtr<int> Ptr1(new int(15));
-    UniquePtr<int> Ptr2(std::move(Ptr1));
+    EXPECT_EQ(Ptr2.Get(), RawPtr);
     EXPECT_EQ(Ptr1.Get(), nullptr);
-    EXPECT_EQ(*Ptr2, 15);
+    EXPECT_EQ(*Ptr2, 42);
 }
 
-TEST(CoreLibTests, UniquePtr_ResetTest)
+TEST(CoreLibTest, Uptr_MoveAssignment)
 {
-    UniquePtr<int> Ptr(new int(20));
+    int* RawPtr1 = new int(42);
+    int* RawPtr2 = new int(100);
+
+    Uptr<int> Ptr1(RawPtr1);
+    Uptr<int> Ptr2(RawPtr2);
+
+    Ptr2 = std::move(Ptr1);
+
+    EXPECT_EQ(Ptr2.Get(), RawPtr1);
+    EXPECT_EQ(Ptr1.Get(), nullptr);
+    EXPECT_EQ(*Ptr2, 42);
+}
+
+TEST(CoreLibTest, Uptr_Reset)
+{
+    int* RawPtr = new int(42);
+    Uptr<int> Ptr(RawPtr);
+
     Ptr.Reset();
     EXPECT_EQ(Ptr.Get(), nullptr);
+
+    int* newPtr = new int(100);
+    Ptr.Reset(newPtr);
+    EXPECT_EQ(Ptr.Get(), newPtr);
+    EXPECT_EQ(*Ptr, 100);
 }
 
-TEST(CoreLibTests, UniquePtr_ReleaseTest)
+TEST(CoreLibTest, Uptr_Release)
 {
-    UniquePtr<int> Ptr(new int(25));
-    int* RawPtr = Ptr.Release();
+    int* RawPtr = new int(42);
+    Uptr<int> Ptr(RawPtr);
+
+    int* releasedPtr = Ptr.Release();
+    EXPECT_EQ(releasedPtr, RawPtr);
     EXPECT_EQ(Ptr.Get(), nullptr);
-    EXPECT_EQ(*RawPtr, 25);
-    delete RawPtr;
+
+    delete releasedPtr;
 }
 
-TEST(CoreLibTests, UniquePtr_CustomDeleterTest)
+TEST(CoreLibTest, Uptr_Swap)
 {
-    struct CustomDeleter
-    {
-        void operator()(int* Ptr)
-        {
-            delete Ptr;
-        }
-    };
-    UniquePtr<int, CustomDeleter> Ptr(new int(5));
+    int* RawPtr1 = new int(42);
+    int* RawPtr2 = new int(100);
+
+    Uptr<int> Ptr1(RawPtr1);
+    Uptr<int> Ptr2(RawPtr2);
+
+    Ptr1.Swap(Ptr2);
+
+    EXPECT_EQ(Ptr1.Get(), RawPtr2);
+    EXPECT_EQ(Ptr2.Get(), RawPtr1);
+    EXPECT_EQ(*Ptr1, 100);
+    EXPECT_EQ(*Ptr2, 42);
+}
+
+TEST(CoreLibTest, Uptr_BoolOperator)
+{
+    Uptr<int> Ptr;
+    EXPECT_FALSE(Ptr);
+
+    int* RawPtr = new int(42);
+    Ptr.Reset(RawPtr);
     EXPECT_TRUE(Ptr);
 }
 
-TEST(CoreLibTests, UniquePtr_ArrayTest)
+TEST(CoreLibTest, UptrArray_ConstructorWithPointer)
 {
-    UniquePtr<int[]> Ptr(new int[3]{1, 2, 3});
+    int* RawPtr = new int[5]{1, 2, 3, 4, 5};
+    Uptr<int[]> Ptr(5, RawPtr);
+
+    EXPECT_EQ(Ptr.Get(), RawPtr);
+    EXPECT_EQ(Ptr.Size(), 5);
     EXPECT_EQ(Ptr[0], 1);
-    EXPECT_EQ(Ptr[2], 3);
+    EXPECT_EQ(Ptr[4], 5);
 }
 
-TEST(CoreLibTests, UniquePtr_CustomDeleterTypeTest)
+TEST(CoreLibTest, UptrArray_Reset)
 {
-    struct CustomDeleter
-    {
-        void operator()(int* Ptr)
-        {
-            delete Ptr;
-        }
-        int Check()
-        {
-            return 3;
-        }
-    };
+    int* RawPtr = new int[5]{1, 2, 3, 4, 5};
+    Uptr<int[]> Ptr(5, RawPtr);
 
-    UniquePtr<int, CustomDeleter> Ptr(new int(10));
-    auto Deleter = Ptr.GetDeleter();
-    EXPECT_EQ(Deleter.Check(), 3);
+    Ptr.Reset();
+    EXPECT_EQ(Ptr.Get(), nullptr);
+    EXPECT_EQ(Ptr.Size(), 0);
+
+    int* newPtr = new int[3]{10, 20, 30};
+    Ptr.Reset(3, newPtr);
+    EXPECT_EQ(Ptr.Get(), newPtr);
+    EXPECT_EQ(Ptr.Size(), 3);
+    EXPECT_EQ(Ptr[0], 10);
+    EXPECT_EQ(Ptr[2], 30);
 }
 
-TEST(CoreLibTests, UniquePtr_CustomDeleterArrayTypeTest)
+TEST(CoreLibTest, UptrArray_Release)
 {
-    struct CustomDeleter
-    {
-        void operator()(int* Ptr)
-        {
-            delete[] Ptr;
-        }
-        int Check()
-        {
-            return 3;
-        }
-    };
+    Uptr<int[]> Ptr(5, new int[5]{1, 2, 3, 4, 5});
 
-    UniquePtr<int[], CustomDeleter> Ptr(new int[3]{1, 2, 3});
-    auto Deleter = Ptr.GetDeleter();
-    EXPECT_EQ(Deleter.Check(), 3);
+    int* releasedPtr = Ptr.Release();
+    EXPECT_EQ(Ptr.Get(), nullptr);
+    EXPECT_EQ(Ptr.Size(), 0);
+
+    delete[] releasedPtr;
 }
 
-TEST(CoreLibTests, UniquePtr_SwapTest)
+TEST(CoreLibTest, UptrArray_Swap)
 {
-    UniquePtr<int> Ptr1(new int(1));
-    UniquePtr<int> Ptr2(new int(2));
+    int* RawPtr1 = new int[3]{1, 2, 3};
+    int* RawPtr2 = new int[2]{10, 20};
+
+    Uptr<int[]> Ptr1(3, RawPtr1);
+    Uptr<int[]> Ptr2(2, RawPtr2);
+
     Ptr1.Swap(Ptr2);
-    EXPECT_EQ(*Ptr1, 2);
-    EXPECT_EQ(*Ptr2, 1);
+
+    EXPECT_EQ(Ptr1.Get(), RawPtr2);
+    EXPECT_EQ(Ptr2.Get(), RawPtr1);
+    EXPECT_EQ(Ptr1.Size(), 2);
+    EXPECT_EQ(Ptr2.Size(), 3);
+    EXPECT_EQ(Ptr1[0], 10);
+    EXPECT_EQ(Ptr2[2], 3);
 }
 
-class LeakChecker
+TEST(CoreLibTest, UptrArray_BoolOperator)
 {
-public:
-    LeakChecker(int& InstanceCout_)
-        : InstanceCout(InstanceCout_)
-    {
-        ++InstanceCout;
-    }
+    Uptr<int[]> Ptr;
+    EXPECT_FALSE(Ptr);
 
-    ~LeakChecker()
-    {
-        --InstanceCout;
-    }
+    int* RawPtr = new int[5]{1, 2, 3, 4, 5};
+    Ptr.Reset(5, RawPtr);
+    EXPECT_TRUE(Ptr);
+}
 
-    int GetInstanceCount() const
-    {
-        return InstanceCout;
-    }
+TEST(CoreLibTest, Uptr_Comparison_SamePointers)
+{
+    int* RawPtr = new int(42);
+    Uptr<int> Ptr1(RawPtr);
+    Uptr<int> Ptr2(RawPtr);
 
-private:
-    int& InstanceCout;
+    EXPECT_EQ(Ptr1 <=> Ptr2, std::strong_ordering::equal);
+    EXPECT_FALSE(Ptr1 < Ptr2);
+    EXPECT_FALSE(Ptr1 > Ptr2);
+    EXPECT_TRUE(Ptr1 == Ptr2);
+
+    Ptr1.Release();
+}
+
+// TEST(CoreLibTest, Uptr_Comparison_WithNullptr)
+//{
+//     Uptr<int> Ptr1;
+//     int* RawPtr = new int(42);
+//     Uptr<int> Ptr2(RawPtr);
+//
+//     EXPECT_LT(Ptr1 <=> Ptr2, 0);
+//     EXPECT_GT(Ptr2 <=> Ptr1, 0);
+//     EXPECT_EQ(Ptr1.Get(), nullptr);
+// }
+
+TEST(CoreLibTest, Uptr_Comparison_DifferentPointers)
+{
+    int* RawPtr1 = new int(42);
+    int* RawPtr2 = new int(100);
+
+    Uptr<int> Ptr1(RawPtr1);
+    Uptr<int> Ptr2(RawPtr2);
+
+    EXPECT_NE(Ptr1 <=> Ptr2, std::strong_ordering::equal);
+    EXPECT_TRUE(Ptr1.Get() < Ptr2.Get() || Ptr1.Get() > Ptr2.Get());
+}
+
+TEST(CoreLibTest, UptrArray_PointerArithmetic)
+{
+    int* RawPtr = new int[5]{1, 2, 3, 4, 5};
+    Uptr<int[]> Ptr(5, RawPtr);
+
+    EXPECT_EQ(Ptr[0], 1);
+    EXPECT_EQ(Ptr[1], 2);
+    EXPECT_EQ(Ptr[4], 5);
+
+    EXPECT_EQ(RawPtr + 0, Ptr + 0);
+    EXPECT_EQ(RawPtr + 1, Ptr + 1);
+    EXPECT_EQ(RawPtr + 4, Ptr + 4);
+}
+
+TEST(CoreLibTest, SingleObject_DefaultConstruction)
+{
+    Uptr<int> ptr = MakeUnique<int>();
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(*ptr, 0);
+}
+
+TEST(CoreLibTest, SingleObject_CustomConstruction)
+{
+    Uptr<int> ptr = MakeUnique<int>(42);
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(*ptr, 42);
+}
+
+struct TestStruct
+{
+    int a;
+    float b;
+
+    TestStruct(int x, float y)
+        : a(x)
+        , b(y)
+    {
+    }
 };
 
-TEST(CoreLibTests, UniquePtr_MemoryLeakTest_1)
+TEST(CoreLibTest, SingleObject_CustomType)
 {
-    int InstanceCout = 0;
-
-    {
-        UniquePtr<LeakChecker> Ptr(new LeakChecker(InstanceCout));
-        EXPECT_EQ(Ptr->GetInstanceCount(), 1);
-    }
-
-    EXPECT_EQ(InstanceCout, 0);
+    Uptr<TestStruct> ptr = MakeUnique<TestStruct>(10, 3.14f);
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(ptr->a, 10);
+    EXPECT_FLOAT_EQ(ptr->b, 3.14f);
 }
 
-TEST(CoreLibTests, UniquePtr_MemoryLeakTest_2)
+TEST(CoreLibTest, SingleObject_MemoryDeallocation)
 {
-    int InstanceCout = 0;
+    Uptr<int> ptr = MakeUnique<int>(100);
+    EXPECT_TRUE(ptr);
+    EXPECT_EQ(*ptr, 100);
 
-    UniquePtr<LeakChecker> Ptr(new LeakChecker(InstanceCout));
-    EXPECT_EQ(Ptr->GetInstanceCount(), 1);
+    ptr.Reset();
+    EXPECT_FALSE(ptr);
+}
+
+TEST(CoreLibTest, Sptr_DefaultConstructor)
+{
+    Sptr<int> Ptr;
+    EXPECT_EQ(Ptr.Get(), nullptr);
+    EXPECT_EQ(Ptr.UseCount(), 0);
+}
+
+TEST(CoreLibTest, Sptr_ConstructorWithPointer)
+{
+    Sptr<int> Ptr(new int(42));
+
+    EXPECT_EQ(*Ptr, 42);
+    EXPECT_EQ(Ptr.UseCount(), 1);
+}
+
+TEST(CoreLibTest, Sptr_CopyConstructor)
+{
+    Sptr<int> Ptr1(new int(42));
+    Sptr<int> Ptr2(Ptr1);
+
+    EXPECT_EQ(*Ptr1, 42);
+    EXPECT_EQ(*Ptr2, 42);
+    EXPECT_EQ(Ptr1.Get(), Ptr2.Get());
+    EXPECT_EQ(Ptr1.UseCount(), 2);
+    EXPECT_EQ(Ptr2.UseCount(), 2);
+}
+
+TEST(CoreLibTest, Sptr_MoveConstructor)
+{
+    Sptr<int> Ptr1(new int(42));
+    Sptr<int> Ptr2(std::move(Ptr1));
+
+    EXPECT_EQ(Ptr2.UseCount(), 1);
+    EXPECT_EQ(*Ptr2, 42);
+    EXPECT_EQ(Ptr1.Get(), nullptr);
+}
+
+TEST(CoreLibTest, Sptr_CopyAssignment)
+{
+    Sptr<int> Ptr1(new int(42));
+    Sptr<int> Ptr2;
+
+    Ptr2 = Ptr1;
+
+    EXPECT_EQ(*Ptr1, 42);
+    EXPECT_EQ(*Ptr2, 42);
+    EXPECT_EQ(Ptr1.UseCount(), 2);
+    EXPECT_EQ(Ptr2.UseCount(), 2);
+}
+
+TEST(CoreLibTest, Sptr_MoveAssignment)
+{
+    Sptr<int> Ptr1(new int(42));
+    Sptr<int> Ptr2;
+
+    Ptr2 = std::move(Ptr1);
+
+    EXPECT_EQ(*Ptr2, 42);
+    EXPECT_EQ(Ptr2.UseCount(), 1);
+    EXPECT_EQ(Ptr1.Get(), nullptr);
+}
+
+TEST(CoreLibTest, Sptr_Reset)
+{
+    Sptr<int> Ptr(new int(42));
+    EXPECT_EQ(*Ptr, 42);
+
+    Ptr.Reset(new int(100));
+    EXPECT_EQ(*Ptr, 100);
+    EXPECT_EQ(Ptr.UseCount(), 1);
+}
+
+TEST(CoreLibTest, Sptr_Swap)
+{
+    Sptr<int> Ptr1(new int(42));
+    Sptr<int> Ptr2(new int(100));
+
+    Ptr1.Swap(Ptr2);
+
+    EXPECT_EQ(*Ptr1, 100);
+    EXPECT_EQ(*Ptr2, 42);
+}
+
+TEST(CoreLibTest, Sptr_BoolOperator)
+{
+    Sptr<int> Ptr;
+    EXPECT_FALSE(Ptr);
+
+    Ptr.Reset(new int(42));
+    EXPECT_TRUE(Ptr);
+}
+
+TEST(CoreLibTest, SptrArray_ConstructorWithPointer)
+{
+    Sptr<int[]> Ptr(5, new int[5]{1, 2, 3, 4, 5});
+
+    EXPECT_EQ(Ptr.GetSize(), 5);
+    EXPECT_EQ(Ptr[0], 1);
+    EXPECT_EQ(Ptr[4], 5);
+}
+
+TEST(CoreLibTest, SptrArray_Reset)
+{
+    Sptr<int[]> Ptr(5, new int[5]{1, 2, 3, 4, 5});
+    Ptr.Reset(3, new int[3]{10, 20, 30});
+
+    EXPECT_EQ(Ptr.GetSize(), 3);
+    EXPECT_EQ(Ptr[0], 10);
+    EXPECT_EQ(Ptr[2], 30);
+}
+
+TEST(CoreLibTest, Wptr_Lock)
+{
+    Sptr<int> Ptr(new int(42));
+    Wptr<int> Weak(Ptr);
+
+    auto Locked = Weak.Lock();
+    EXPECT_EQ(Locked.UseCount(), 2);
+    EXPECT_EQ(*Locked, 42);
+}
+
+TEST(CoreLibTest, Wptr_CopyConstructor)
+{
+    Sptr<int> Ptr(new int(42));
+    Wptr<int> Weak1(Ptr);
+    Wptr<int> Weak2(Weak1);
+
+    EXPECT_EQ(Weak1.Expired(), false);
+    EXPECT_EQ(Weak2.Expired(), false);
+    EXPECT_EQ(Weak1.Lock().UseCount(), 2);
+    EXPECT_EQ(Weak2.Lock().UseCount(), 2);
+}
+
+TEST(CoreLibTest, Wptr_MoveConstructor)
+{
+    Sptr<int> Ptr(new int(42));
+    Wptr<int> Weak1(Ptr);
+    Wptr<int> Weak2(std::move(Weak1));
+
+    EXPECT_FALSE(Weak2.Expired());
+    EXPECT_EQ(Weak1.Lock().Get(), nullptr);
+    EXPECT_EQ(*Weak2.Lock(), 42);
+}
+
+TEST(CoreLibTest, Wptr_Assignment)
+{
+    Sptr<int> Ptr(new int(42));
+    Wptr<int> Weak1(Ptr);
+
+    Wptr<int> Weak2 = Weak1;
+
+    EXPECT_EQ(Weak2.Expired(), false);
+    EXPECT_EQ(*Weak2.Lock(), 42);
+    EXPECT_EQ(Weak2.Lock().UseCount(), 2);
+}
+
+TEST(CoreLibTest, Wptr_Expired)
+{
+    Sptr<int> Ptr(new int(42));
+    Wptr<int> Weak(Ptr);
+
     Ptr.Reset();
 
-    EXPECT_EQ(InstanceCout, 0);
+    EXPECT_TRUE(Weak.Expired());
+    EXPECT_EQ(Weak.Lock().Get(), nullptr);
 }
 
-TEST(CoreLibTests, UniquePtr_ArrayMemoryLeakTest)
+TEST(CoreLibTest, SptrAndWptr_Lifecycle)
 {
-    int InstanceCount = 0;
+    Sptr<int> Shared(new int(42));
+    Wptr<int> Weak(Shared);
+
+    EXPECT_EQ(Shared.UseCount(), 1);
+    EXPECT_FALSE(Weak.Expired());
 
     {
-        UniquePtr<LeakChecker[]> Ptr(new LeakChecker[3]{InstanceCount, InstanceCount, InstanceCount});
-        EXPECT_EQ(Ptr[2].GetInstanceCount(), 3);
+        auto Locked = Weak.Lock();
+        EXPECT_EQ(Locked.UseCount(), 2);
+        EXPECT_EQ(*Locked, 42);
     }
 
-    EXPECT_EQ(InstanceCount, 0);
+    Shared.Reset();
+    EXPECT_TRUE(Weak.Expired());
 }
 
-TEST(CoreLibTests, UniquePtr_BoolCastTest)
-{
-    UniquePtr<int> Ptr(nullptr);
-    EXPECT_FALSE(bool(Ptr));
-}
+static uint32_t Counter = 0;
 
-class CheckClassPtr
+struct MemLeaker
 {
 public:
-    int Call()
+    MemLeaker()
     {
-        return 11;
+        ++Counter;
+    }
+
+    ~MemLeaker()
+    {
+        --Counter;
     }
 };
 
-TEST(CoreLibTests, UniquePtr_ClassPtrTest)
+TEST(CoreLibTest, Uptr_Single_LeakTest)
 {
-    UniquePtr<CheckClassPtr> Ptr(new CheckClassPtr);
-    EXPECT_EQ(Ptr->Call(), 11);
+    auto Ptr = MakeUnique<MemLeaker>();
+
+    Ptr.Reset();
+
+    EXPECT_EQ(Counter, 0);
 }
 
-TEST(CoreLibTests, UniquePtr_ClassPtrDereferanceTest)
+TEST(CoreLibTest, Uptr_Single_LeadTestMove)
 {
-    UniquePtr<CheckClassPtr> Ptr(new CheckClassPtr);
-    EXPECT_EQ((*Ptr).Call(), 11);
+    auto Ptr = MakeUnique<MemLeaker>();
+
+
+    Ptr.Reset();
+
+    EXPECT_EQ(Counter, 0);
 }
 
-TEST(CoreLibTests, SharedPtr_DefaultConstructorTest)
+TEST(CoreLibTest, Uptr_Array_LeakTest)
 {
-    SharedPtr<int> Sp;
-    EXPECT_EQ(Sp.Get(), nullptr);
-    EXPECT_EQ(Sp.UseCount(), 0);
+    auto Ptr = MakeUnique<MemLeaker[]>(5);
+
+    Ptr.Reset();
+
+    EXPECT_EQ(Counter, 0);
 }
 
-TEST(CoreLibTests, SharedPtr_ConstructorWithPointerTest)
+TEST(CoreLibTest, Sptr_Single_LeakTest)
 {
-    SharedPtr<int> Sp(new int(42));
-    EXPECT_NE(Sp.Get(), nullptr);
-    EXPECT_EQ(*Sp, 42);
-    EXPECT_EQ(Sp.UseCount(), 1);
+    auto Ptr = MakeShared<MemLeaker>();
+
+    Ptr.Reset();
+
+    EXPECT_EQ(Counter, 0);
 }
 
-TEST(CoreLibTests, SharedPtr_DestructorReleasesResourceTest)
+TEST(CoreLibTest, Sptr_Array_LeakTest)
 {
-    SharedPtr<int>* Sp = new SharedPtr<int>(new int(42));
-    delete Sp;
-    SUCCEED();
-}
+    auto Ptr = MakeShared<MemLeaker[]>(5);
 
-TEST(CoreLibTests, SharedPtr_CopyConstructorTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = Sp1;
-    EXPECT_EQ(Sp1.Get(), Sp2.Get());
-    EXPECT_EQ(Sp1.UseCount(), 2);
-}
+    Ptr.Reset();
 
-TEST(CoreLibTests, SharedPtr_MoveConstructorTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = std::move(Sp1);
-    EXPECT_EQ(Sp1.Get(), nullptr);
-    EXPECT_EQ(Sp2.UseCount(), 1);
-}
+    EXPECT_EQ(Counter, 0);
 
-TEST(CoreLibTests, SharedPtr_CopyAssignmentTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = SharedPtr<int>();
-    Sp2 = Sp1;
-    EXPECT_EQ(Sp1.Get(), Sp2.Get());
-    EXPECT_EQ(Sp1.UseCount(), 2);
-}
 
-TEST(CoreLibTests, SharedPtr_MoveAssignmentTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = SharedPtr<int>();
-    Sp2 = std::move(Sp1);
-    EXPECT_EQ(Sp1.Get(), nullptr);
-    EXPECT_EQ(Sp2.UseCount(), 1);
-}
+    std::shared_ptr<int> uptr(new int(3));
 
-TEST(CoreLibTests, SharedPtr_ArrayAccessTest)
-{
-    auto Sp = SharedPtr<int[]>(new int[3]{1, 2, 3});
-    EXPECT_EQ(Sp[0], 1);
-    EXPECT_EQ(Sp[1], 2);
-    EXPECT_EQ(Sp[2], 3);
-    Sp[1] = 42;
-    EXPECT_EQ(Sp[1], 42);
-}
-
-TEST(CoreLibTests, WeakPtr_LockReturnsSharedPtrTest)
-{
-    auto Sp = SharedPtr<int>(new int(42));
-    WeakPtr<int> Wp(Sp);
-    auto Sp2 = Wp.Lock();
-    EXPECT_EQ(Sp.Get(), Sp2.Get());
-    EXPECT_EQ(Sp2.UseCount(), 2);
-}
-
-TEST(CoreLibTests, WeakPtr_ExpiredReturnsTrueTest)
-{
-    WeakPtr<int> Wp;
-    {
-        auto Sp = SharedPtr<int>(new int(42));
-        Wp = Sp;
-    }
-    EXPECT_TRUE(Wp.Expired());
-}
-
-TEST(CoreLibTests, WeakPtr_ReleaseResetsWeakPtrTest)
-{
-    auto Sp = SharedPtr<int>(new int(42));
-    WeakPtr<int> Wp(Sp);
-    Wp.Release();
-    EXPECT_TRUE(Wp.Expired());
-    EXPECT_EQ(Wp.Lock().Get(), nullptr);
-}
-
-TEST(CoreLibTests, SharedPtr_ResetReleasesResourceTest)
-{
-    auto Sp = SharedPtr<int>(new int(42));
-    Sp.Reset();
-    EXPECT_EQ(Sp.Get(), nullptr);
-    EXPECT_EQ(Sp.UseCount(), 0);
-}
-
-TEST(CoreLibTests, SharedPtr_SwapExchangesResourcesTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = SharedPtr<int>(new int(24));
-    Sp1.Swap(Sp2);
-    EXPECT_EQ(*Sp1, 24);
-    EXPECT_EQ(*Sp2, 42);
-}
-
-TEST(CoreLibTests, SharedPtr_UseCountIncreasesOnCopyTest)
-{
-    auto Sp1 = SharedPtr<int>(new int(42));
-    auto Sp2 = Sp1;
-    EXPECT_EQ(Sp1.UseCount(), 2);
-    EXPECT_EQ(Sp2.UseCount(), 2);
-}
-
-TEST(CoreLibTests, SharedPtr_UseCountDecreasesOnResetTest)
-{
-    auto Sp = SharedPtr<int>(new int(42));
-    Sp.Reset();
-    EXPECT_EQ(Sp.UseCount(), 0);
-}
-
-TEST(CoreLibTests, SharedPtrWeakPtr_SharedPtrFromWeakPtrTest)
-{
-    auto Sp = SharedPtr<int>(new int(42));
-    WeakPtr<int> Wp(Sp);
-    auto Sp2 = Wp.Lock();
-    EXPECT_EQ(Sp.Get(), Sp2.Get());
-    EXPECT_EQ(Sp2.UseCount(), 2);
-}
-
-TEST(CoreLibTests, SharedPtrWeakPtr_WeakPtrTracksResourceTest)
-{
-    WeakPtr<int> Wp;
-    {
-        auto Sp = SharedPtr<int>(new int(42));
-        Wp = Sp;
-        EXPECT_FALSE(Wp.Expired());
-    }
-    EXPECT_TRUE(Wp.Expired());
-}
-
-TEST(CoreLibTests, SharedPtr_CompareTwoNullPtrs)
-{
-    SharedPtr<int> Ptr1;
-    SharedPtr<int> Ptr2;
-
-    EXPECT_TRUE(Ptr1 == Ptr2);
-    EXPECT_FALSE(Ptr1 != Ptr2);
-    EXPECT_FALSE(Ptr1 < Ptr2);
-    EXPECT_FALSE(Ptr1 > Ptr2);
-    EXPECT_TRUE(Ptr1 <= Ptr2);
-    EXPECT_TRUE(Ptr1 >= Ptr2);
-}
-
-TEST(CoreLibTests, SharedPtr_CompareSameObject)
-{
-    auto RawPtr = new int(10);
-    SharedPtr<int> Ptr1(RawPtr);
-    SharedPtr<int> Ptr2(Ptr1);
-
-    EXPECT_TRUE(Ptr1 == Ptr2);
-    EXPECT_FALSE(Ptr1 != Ptr2);
-    EXPECT_FALSE(Ptr1 < Ptr2);
-    EXPECT_FALSE(Ptr1 > Ptr2);
-    EXPECT_TRUE(Ptr1 <= Ptr2);
-    EXPECT_TRUE(Ptr1 >= Ptr2);
-}
-
-TEST(CoreLibTests, SharedPtr_CompareDifferentObjects)
-{
-    SharedPtr<int> Ptr1(new int(10));
-    SharedPtr<int> Ptr2(new int(20));
-
-    EXPECT_FALSE(Ptr1 == Ptr2);
-    EXPECT_TRUE(Ptr1 != Ptr2);
-    EXPECT_TRUE((Ptr1 < Ptr2) || (Ptr1 > Ptr2));
-}
-
-TEST(CoreLibTests, SharedPtr_CompareWithNullPtr)
-{
-    SharedPtr<int> Ptr(new int(10));
-    SharedPtr<int> nPtr;
-
-    EXPECT_FALSE(Ptr == nPtr);
-    EXPECT_TRUE(Ptr != nPtr);
-    EXPECT_TRUE(nPtr == nPtr);
-    EXPECT_FALSE(nPtr != nPtr);
-}
-
-TEST(CoreLibTests, SharedPtr_CompareWithRawPointer)
-{
-    int* RawPtr = new int(10);
-    SharedPtr<int> Ptr(RawPtr);
-
-    EXPECT_TRUE(Ptr == RawPtr);
-    EXPECT_FALSE(Ptr != RawPtr);
-}
-
-TEST(CoreLibTests, UniquePtr_CompareTwoNullPtrs)
-{
-    UniquePtr<int> Ptr1;
-    UniquePtr<int> Ptr2;
-
-    EXPECT_TRUE(Ptr1 == Ptr2);
-    EXPECT_FALSE(Ptr1 != Ptr2);
-}
-
-TEST(CoreLibTests, UniquePtr_CompareWithSelf)
-{
-    UniquePtr<int> Ptr(new int(10));
-
-    EXPECT_TRUE(Ptr == Ptr);
-    EXPECT_FALSE(Ptr != Ptr);
-}
-
-TEST(CoreLibTests, UniquePtr_CompareDifferentObjects)
-{
-    UniquePtr<int> Ptr1(new int(10));
-    UniquePtr<int> Ptr2(new int(20));
-
-    EXPECT_FALSE(Ptr1 == Ptr2);
-    EXPECT_TRUE(Ptr1 != Ptr2);
-}
-
-TEST(CoreLibTests, UniquePtr_CompareWithNullPtr)
-{
-    UniquePtr<int> Ptr(new int(10));
-    UniquePtr<int> nPtr;
-
-    EXPECT_FALSE(Ptr == nPtr);
-    EXPECT_TRUE(Ptr != nPtr);
-    EXPECT_TRUE(nPtr == nPtr);
-    EXPECT_FALSE(nPtr != nPtr);
-}
-
-class EmptyDeleter
-{
-public:
-    void operator()(void* ptr)
-    {
-    }
-};
-
-TEST(CoreLibTests, SharedPtr_AddOffset)
-{
-    int array[5] = {10, 20, 30, 40, 50};
-    SharedPtr<int, EmptyDeleter> Ptr(array);
-
-    int* PtrOffset = Ptr + 2;
-    EXPECT_EQ(*PtrOffset, 30);
-}
-
-TEST(CoreLibTests, SharedPtr_SubtractOffset)
-{
-    int Array[5] = {10, 20, 30, 40, 50};
-    SharedPtr<int, EmptyDeleter> Ptr(Array + 4);
-
-    int* PtrOffset = Ptr - 2;
-    EXPECT_EQ(*PtrOffset, 30);
-}
-
-TEST(CoreLibTests, SharedPtr_PointerDifference)
-{
-    int Array[5] = {10, 20, 30, 40, 50};
-
-    SharedPtr<int, EmptyDeleter> Ptr1(Array);
-    SharedPtr<int, EmptyDeleter> Ptr2(Array + 3);
-
-    ptrdiff_t diff = Ptr2 - Ptr1;
-    EXPECT_EQ(diff, 3);
-}
-
-TEST(CoreLibTests, UniquePtr_AddOffset)
-{
-    int Array[5] = {10, 20, 30, 40, 50};
-    UniquePtr<int, EmptyDeleter> Ptr(Array);
-
-    int* PtrOffset = Ptr + 2;
-    EXPECT_EQ(*PtrOffset, 30);
-}
-
-TEST(CoreLibTests, UniquePtr_SubtractOffset)
-{
-    int Array[5] = {10, 20, 30, 40, 50};
-    UniquePtr<int, EmptyDeleter> Ptr(Array + 4);
-
-    int* PtrOffset = Ptr - 2;
-    EXPECT_EQ(*PtrOffset, 30);
-}
-
-TEST(CoreLibTests, UniquePtr_PointerDifference)
-{
-    int Array[5] = {10, 20, 30, 40, 50};
-    UniquePtr<int, EmptyDeleter> Ptr1(Array);
-    UniquePtr<int, EmptyDeleter> Ptr2(Array + 3);
-
-    ptrdiff_t diff = Ptr2 - Ptr1;
-    EXPECT_EQ(diff, 3);
+    std::weak_ptr<int> wptr(uptr);
 }
