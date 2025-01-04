@@ -177,7 +177,7 @@ std::unique_ptr<Device> Device::CreateDevice()
     return std::unique_ptr<Device>(new DeviceOpenGL());
 }
 
-std::unique_ptr<Surface> Device::CreateSurface(const void* window)
+std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
 {
     return std::unique_ptr<Surface>(new SurfaceOpenGL(window));
 }
