@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Core.h"
-#include "Metal/MetalContext.h"
 #include "Window.h"
 
 namespace Fuego
 {
+class EventQueueMacOS;
+
 class WindowMacOS : public Window
 {
 public:
@@ -16,11 +17,11 @@ public:
 
     inline virtual unsigned int GetWidth() const override
     {
-        return m_Props.Width;
+        return _props.Width;
     }
     inline virtual unsigned int GetHeight() const override
     {
-        return m_Props.Height;
+        return _props.Height;
     }
 
     inline virtual void SetVSync(bool enabled) override
@@ -32,18 +33,24 @@ public:
         return true;
     }
 
+    virtual const void* GetNativeHandle() const override;
+
+    virtual void SetPainted() override
+    {
+    }
+    virtual inline bool IsResizing() const override
+    {
+        return false;
+    }
+
 private:
     void Init(const WindowProps& props, EventQueue& eventQueue);
     void Shutdown();
 
-    // FuegoWindow*
-    void* m_Window;
+    void* _window;
+    void* _view;
 
-    // FuegoView*
-    void* m_View;
-
-    MetalContext* _context;
-
-    WindowProps m_Props;
+    WindowProps _props;
+    EventQueueMacOS* _eventQueue;
 };
 }  // namespace Fuego

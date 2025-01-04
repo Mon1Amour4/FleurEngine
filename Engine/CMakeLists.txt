@@ -25,12 +25,16 @@ set(PROJECT_HEADERS
     Fuego/Input.h
     Fuego/LayerStack.h
     Fuego/ImGui/ImGuiLayer.h
+    Fuego/Renderer
+    Fuego/FileSystem/FileSystem.h
     Fuego.h
     fupch.h
-    Fuego/Renderer/GraphicsContext.h
-    Fuego/Renderer/Buffer.h)
+)
+
 set(SOURCES Fuego/Application.cpp Fuego/Log.cpp Fuego/Layer.cpp
-            Fuego/LayerStack.cpp Fuego/ImGui/ImGuiLayer.cpp)
+            Fuego/LayerStack.cpp Fuego/ImGui/ImGuiLayer.cpp Fuego/FileSystem/FileSystem.cpp)
+
+set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer )
 
 if(FUEGO_DYNAMIC_LIB)
   set(LIB_TYPE SHARED)
@@ -41,6 +45,7 @@ endif()
 
 # Common setup
 list(APPEND ENGINE_DEPENDENCIES ImGui)
+list(APPEND ENGINE_DEPENDENCIES Renderer)
 
 set(PUBLIC_ENGINE_COMPILE_DEFS FUEGO_ENABLE_ASSERTS)
 
@@ -65,14 +70,17 @@ elseif(APPLE)
 endif()
 # End Project set up
 
-add_subdirectory(${PLATFORM_SUBDIRECTORIES})
+add_subdirectory( ${PLATFORM_SUBDIRECTORIES} )
+add_subdirectory( ${RENDERER_PATH} )
 
 set(ENGINE_PUBLIC_INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego
+    ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer 
     ${CMAKE_CURRENT_SOURCE_DIR}/External/glm
     ${CMAKE_CURRENT_SOURCE_DIR}/External/imgui
-    ${CMAKE_CURRENT_SOURCE_DIR}/External/spdlog/include)
+    ${CMAKE_CURRENT_SOURCE_DIR}/External/spdlog/include 
+)
 
 # An interface library to propagate headers to platform implementations
 add_library(FuegoInterface INTERFACE)
@@ -93,16 +101,16 @@ target_compile_options(FuegoInterface
 # An engine library to be used by clients
 add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
-target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES})
+target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer )
 target_include_directories(FuegoEngine
                            PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
 
 target_precompile_headers(FuegoEngine PUBLIC
                           ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
 
-target_compile_definitions(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS})
-target_compile_definitions(FuegoEngine PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS})
-target_compile_features(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_features(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
-target_compile_options(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS})
-target_compile_options(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})
+target_compile_definitions( FuegoEngine PUBLIC  ${PUBLIC_ENGINE_COMPILE_DEFS}     )
+target_compile_definitions( FuegoEngine PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS}    )
+target_compile_features   ( FuegoEngine PUBLIC  ${PUBLIC_ENGINE_COMPILE_FEATURES} )
+target_compile_features   ( FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
+target_compile_options    ( FuegoEngine PUBLIC  ${PUBLIC_ENGINE_COMPILE_OPTIONS}  )
+target_compile_options    ( FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS} )

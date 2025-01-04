@@ -1,25 +1,45 @@
 ﻿#include "WindowWin.h"
 
+#include <glad/gl.h>
+#include <glad/wgl.h>
+
 #include "InputWin.h"
 #include "Log.h"
+
+#define LAST_CODE UINT16_MAX
+
+typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int* attribList);
+wglCreateContextAttribsARB_type* wglCreateContextAttribsARB;
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
+
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
+
+typedef BOOL WINAPI wglChoosePixelFormatARB_type(HDC hdc, const int* piAttribIList, const FLOAT* pfAttribFList, UINT nMaxFormats, int* piFormats,
+                                                 UINT* nNumFormats);
+wglChoosePixelFormatARB_type* wglChoosePixelFormatARB;
 
 namespace Fuego
 {
 
 DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 {
-    WindowWin* _wnd = reinterpret_cast<WindowWin*>(lpParameter);
+    InitOpenGLExtensions();
+
+    WindowWin* window = static_cast<WindowWin*>(lpParameter);
 
     static TCHAR buffer[32] = TEXT("");
 #ifdef UNICODE
     MultiByteToWideChar(CP_UTF8, 0, props.Title.c_str(), -1, buffer, _countof(buffer));
 #else
-    sprintf_s(buffer, _wnd->m_Props.Title.c_str());
+    sprintf_s(buffer, window->_props.Title.c_str());
 #endif
     WNDCLASSEX wndClass = {};
     wndClass.cbSize = sizeof(WNDCLASSEX);
-    wndClass.lpszClassName = _wnd->m_Props.APP_WINDOW_CLASS_NAME;
-    wndClass.hInstance = _wnd->m_HInstance;
+    wndClass.lpszClassName = window->_props.APP_WINDOW_CLASS_NAME;
+    wndClass.hInstance = window->_hinstance;
     wndClass.hIcon = LoadIcon(nullptr, IDI_WINLOGO);
     wndClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpfnWndProc = WindowProcStatic;
@@ -28,32 +48,25 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 
     DWORD style = WS_OVERLAPPEDWINDOW | WS_SYSMENU;
     RECT rect;
-    rect.left = _wnd->m_Props.x;
-    rect.top = _wnd->m_Props.y;
-    rect.right = rect.left + _wnd->m_Props.Width;
-    rect.bottom = rect.top + _wnd->m_Props.Height;
+    rect.left = window->_props.x;
+    rect.top = window->_props.y;
+    rect.right = rect.left + window->_props.Width;
+    rect.bottom = rect.top + window->_props.Height;
 
     AdjustWindowRect(&rect, style, true);
 
-    _wnd->m_Hwnd = CreateWindowEx(0, _wnd->m_Props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-                                  nullptr, nullptr, _wnd->m_HInstance, nullptr);
-    FU_CORE_ASSERT(_wnd->m_Hwnd, "[AppWindow] hasn't been initialized!");
-    hwndMap.emplace(_wnd->m_Hwnd, _wnd);
+    window->_hwnd = CreateWindowEx(0, window->_props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+                                   nullptr, nullptr, window->_hinstance, nullptr);
 
-    _wnd->_context = new OpenGLContext(&_wnd->m_Hwnd);
-    FU_CORE_ASSERT(_wnd->_context->Init(), "[GraphicsContext] hasn't been initialized!");
+    FU_CORE_ASSERT(window->_hwnd, "[AppWindow] hasn't been initialized!");
 
-    ShowWindow(_wnd->m_Hwnd, SW_SHOW);
-    _wnd->_hdc = GetDC(_wnd->m_Hwnd);
+    // Associate this instance with the HWND
+    SetWindowLongPtr(window->_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
+
+    ShowWindow(window->_hwnd, SW_SHOW);
+
     FU_CORE_ASSERT(Input::Init(new InputWin()), "[Input] hasn't been initialized!");
-
-    float vertices[3 * 3] = {-0.5f, -0.5f, 0.0f, 0.5f, -0.5f, 0.0f, 0.0f, 0.5f, 0.0f};
-    uint32_t indices[3] = {0, 1, 2};
-
-    _wnd->VBO.reset(VertexBuffer::Create(vertices, sizeof(vertices)));
-    FU_CORE_ASSERT(_wnd->VBO, "[Vertex Buffer] hasn't been initialized!");
-    _wnd->EBO.reset(IndexBuffer::Create(indices, sizeof(indices) / sizeof(uint32_t)));
-    FU_CORE_ASSERT(_wnd->VBO, "[Element Buffer] hasn't been initialized!");
+    SetEvent(window->_onThreadCreated);
 
     MSG msg{};
     while (GetMessage(&msg, nullptr, 0u, 0u))
@@ -61,52 +74,122 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-    // Cleanup
-    ReleaseDC(_wnd->m_Hwnd, _wnd->_hdc);
-    DestroyWindow(_wnd->m_Hwnd);
+
+    DestroyWindow(window->_hwnd);
     DestroyIcon(wndClass.hIcon);
     DestroyCursor(wndClass.hCursor);
-    _wnd->VBO.reset();
-    _wnd->EBO.reset();
-    UnregisterClass(_wnd->m_Props.APP_WINDOW_CLASS_NAME, _wnd->m_HInstance);
+    UnregisterClass(window->_props.APP_WINDOW_CLASS_NAME, window->_hinstance);
 
     return S_OK;
 }
 
-std::unordered_map<HWND, WindowWin*> WindowWin::hwndMap;
-
 LRESULT CALLBACK WindowWin::WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-    auto _this = WindowWin::hwndMap.find(hWnd);
+    WindowWin* window = reinterpret_cast<WindowWin*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+    if (window)
+    {
+        return window->WindowProc(hWnd, uMsg, wParam, lParam);
+    }
 
-    if (_this != WindowWin::hwndMap.end() && _this->second)
-    {
-        return _this->second->WindowProc(hWnd, uMsg, wParam, lParam);
-    }
-    else
-    {
-        return DefWindowProc(hWnd, uMsg, wParam, lParam);
-    }
+    return DefWindowProc(hWnd, uMsg, wParam, lParam);
+}
+
+void WindowWin::InitOpenGLExtensions()
+{
+    WNDCLASSA window_class = {
+        .style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
+        .lpfnWndProc = DefWindowProcA,
+        .hInstance = GetModuleHandle(0),
+        .lpszClassName = "Dummy_Window",
+    };
+
+    if (!RegisterClassA(&window_class))
+        FU_CORE_ERROR("Failed to register dummy OpenGL window");
+
+    HWND dummy_window = CreateWindowExA(0, window_class.lpszClassName, "Dummy OpenGL Window", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0,
+                                        0, window_class.hInstance, 0);
+    if (!dummy_window)
+        FU_CORE_ERROR("Failed to create dummy OpenGL window.");
+
+    HDC dummy_dc = GetDC(dummy_window);
+
+    PIXELFORMATDESCRIPTOR pfd = {0};
+    pfd.nSize = sizeof(pfd);
+    pfd.nVersion = 1;
+    pfd.iPixelType = PFD_TYPE_RGBA;
+    pfd.dwFlags = PFD_DRAW_TO_WINDOW | PFD_SUPPORT_OPENGL | PFD_DOUBLEBUFFER;
+    pfd.cColorBits = 32;
+    pfd.cAlphaBits = 8;
+    pfd.iLayerType = PFD_MAIN_PLANE;
+    pfd.cDepthBits = 24;
+    pfd.cStencilBits = 8;
+
+    int pixel_format = ChoosePixelFormat(dummy_dc, &pfd);
+    if (!pixel_format)
+        FU_CORE_ERROR("Failed to find a suitable pixel format.");
+    if (!SetPixelFormat(dummy_dc, pixel_format, &pfd))
+        FU_CORE_ERROR("Failed to set the pixel format.");
+
+    HGLRC dummy_context = wglCreateContext(dummy_dc);
+    if (!dummy_context)
+        FU_CORE_ERROR("Failed to create a dummy OpenGL rendering context.");
+
+    if (!wglMakeCurrent(dummy_dc, dummy_context))
+        FU_CORE_ERROR("Failed to activate dummy OpenGL rendering context.");
+
+    wglCreateContextAttribsARB = (wglCreateContextAttribsARB_type*)wglGetProcAddress("wglCreateContextAttribsARB");
+    wglChoosePixelFormatARB = (wglChoosePixelFormatARB_type*)wglGetProcAddress("wglChoosePixelFormatARB");
+
+    wglMakeCurrent(dummy_dc, 0);
+    wglDeleteContext(dummy_context);
+    ReleaseDC(dummy_window, dummy_dc);
+    DestroyWindow(dummy_window);
 }
 
 LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     switch (msg)
     {
-    case WM_PAINT:
-    {
-        static PAINTSTRUCT ps;
-        BeginPaint(hwnd, &ps);
-        EndPaint(hwnd, &ps);
-        glClearColor(0.2f, 0.3f, 0.1f, 1);
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 3);
-        SwapBuffers(_hdc);
-        return 0;
-    }
     case WM_ACTIVATE:
         break;
+    case WM_PAINT:
+    {
+        if (!isPainted || isResizing || _props.mode == MINIMIZED) return 0;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowValidateEvent()));
+        isPainted = false;
+        return 0;
+    }
+    case WM_ENTERSIZEMOVE:
+    {
+        isResizing = true;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowStartResizeEvent()));
+        break;
+    }
+    case WM_EXITSIZEMOVE:
+    {
+        isResizing = false;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent()));
 
+        UINT width = LOWORD(lparam);
+        UINT height = HIWORD(lparam);
+        _currentWidth = width;
+        _currentHeigth = height;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(width, height)));
+        break;
+    }
+    case WM_SIZE:
+    {
+        if (isResizing) break;
+
+        UINT width = LOWORD(lparam);
+        UINT height = HIWORD(lparam);
+        _currentWidth = width;
+        _currentHeigth = height;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(width, height)));
+
+        SetWindowMode(wparam);
+        break;
+    }
     case WM_MOUSEMOVE:
     {
         float x = static_cast<float>(GET_X_LPARAM(lparam));
@@ -170,14 +253,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
         break;
 
-    case WM_SIZE:
-    {
-        UINT width = LOWORD(lparam);
-        UINT height = HIWORD(lparam);
 
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(width, height)));
-        break;
-    }
 
     default:
     {
@@ -191,26 +267,31 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
 WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     : _eventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
-    ,  // do not transfer ownership
-    m_Window(nullptr)
-    , m_HInstance(GetModuleHandle(nullptr))
-    , m_Hwnd(nullptr)
-    , m_Props(props)
+    , _hinstance(GetModuleHandle(nullptr))
+    , _props(props)
     , _lastKey{Input::KEY_NONE, LAST_CODE}
     , _lastMouse{Input::MOUSE_NONE, LAST_CODE}
     , _cursorPos{0.f, 0.f}
     , _winThread{}
     , _winThreadID(nullptr)
-    , VBO(nullptr)
-    , EBO(nullptr)
-    , _context(nullptr)
-    , _hdc(nullptr)
+    , _onThreadCreated(CreateEvent(nullptr, FALSE, FALSE, nullptr))
+    , isResizing(false)
+    , isPainted(true)
+    , _currentWidth(props.Width)
+    , _currentHeigth(props.Height)
 {
     _winThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, _winThreadID);
+    WaitForSingleObject(_onThreadCreated, INFINITE);
 }
 
 void WindowWin::Update()
 {
+    if (isResizing || _props.mode == MINIMIZED)
+    {
+        FU_CORE_INFO("stop rendering");
+        return;
+    }
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
 void WindowWin::SetVSync(bool enabled)
@@ -221,7 +302,12 @@ void WindowWin::SetVSync(bool enabled)
 bool WindowWin::IsVSync() const
 {
     return true;
-};
+}
+
+const void* WindowWin::GetNativeHandle() const
+{
+    return _hwnd;
+}
 
 Input::KeyState WindowWin::GetKeyState(KeyCode keyCode) const
 {
@@ -239,17 +325,24 @@ void WindowWin::GetCursorPos(OUT float& xPos, OUT float& yPos) const
     yPos = _cursorPos.y;
 }
 
-void WindowWin::Shutdown()
-{
-    if (m_Hwnd != nullptr)
-    {
-        DestroyWindow(m_Hwnd);
-        m_Hwnd = nullptr;
-    }
-}
-
 std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
 {
     return std::make_unique<WindowWin>(props, eventQueue);
+}
+
+void WindowWin::SetWindowMode(WPARAM mode)
+{
+    switch (mode)
+    {
+    case SIZE_MINIMIZED:
+        _props.mode = MINIMIZED;
+        break;
+    case SIZE_MAXIMIZED:
+        _props.mode = MAXIMIZED;
+        break;
+    case SIZE_RESTORED:
+        _props.mode = RESTORED;
+        break;
+    }
 }
 }  // namespace Fuego

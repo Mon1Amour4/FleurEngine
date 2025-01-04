@@ -1,14 +1,27 @@
-
 #include <metal_stdlib>
 using namespace metal;
 
-vertex float4 vertexShader(uint vertexID [[vertex_id]], constant simd::float3* vertexPositions)
+struct VertexIn
 {
-    float4 vertexOutPositions = float4(vertexPositions[vertexID][0], vertexPositions[vertexID][1], vertexPositions[vertexID][2], 1.0f);
-    return vertexOutPositions;
+    float3 position [[attribute(0)]];
+    float3 color [[attribute(1)]];
+};
+
+struct VertexOut
+{
+    float4 position [[position]];
+    float3 fragColor;
+};
+
+vertex VertexOut vs_triangle(VertexIn in [[stage_in]])
+{
+    VertexOut out;
+    out.position = float4(in.position, 1.0);
+    out.fragColor = in.color;
+    return out;
 }
 
-fragment float4 fragmentShader(float4 vertexOutPositions [[stage_in]])
+fragment float4 ps_triangle(VertexOut in [[stage_in]])
 {
-    return float4(182.0f / 255.0f, 240.0f / 255.0f, 228.0f / 255.0f, 1.0f);
+    return float4(in.fragColor, 1.0);
 }

@@ -1,17 +1,22 @@
 #include "Application.h"
 
 #include "Events/EventVisitor.h"
-#include "Input.h"
-#include "Renderer/Buffer.h"
+#include "FileSystem/FileSystem.h"
+#include "LayerStack.h"
+#include "Renderer.h"
+
 
 namespace Fuego
 {
+
 class Application::ApplicationImpl
 {
     friend class Application;
-
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<EventQueue> m_EventQueue;
+    std::unique_ptr<Renderer::Renderer> _renderer;
+    std::unique_ptr<Fuego::FS::FileSystem> _fs;
+
     bool m_Running;
     LayerStack m_LayerStack;
     static Application* m_Instance;
@@ -22,9 +27,16 @@ Application::Application()
     : d(new ApplicationImpl())
 {
     ApplicationImpl::m_Instance = this;
+    d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
     d->m_EventQueue = EventQueue::CreateEventQueue();
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
+    d->_renderer.reset(new Renderer::Renderer());
     d->m_Running = true;
+}
+
+Renderer::Renderer& Application::Renderer()
+{
+    return *d->_renderer.get();
 }
 
 Application::~Application()
@@ -44,8 +56,15 @@ void Application::PushOverlay(Layer* overlay)
 
 void Application::OnEvent(EventVariant& event)
 {
-    auto ApplicationEventVisitor =
-        EventVisitor{[this](WindowCloseEvent& ev) { OnWindowClose(ev); }, [this](WindowResizeEvent& ev) { OnWindowResize(ev); }, [](Event&) {}};
+    // clang-format off
+    auto ApplicationEventVisitor = EventVisitor{[this](WindowCloseEvent&    ev) { OnWindowClose(ev); },
+                                                [this](WindowResizeEvent&   ev) { OnWindowResize(ev); },
+                                                [this](AppRenderEvent&      ev) { OnRenderEvent(ev); },
+                                                [this](WindowStartResizeEvent&    ev) { OnStartResizeWindow(ev); },
+                                                [this](WindowEndResizeEvent&    ev) { OnEndResizeWindow(ev); },
+                                                [this](WindowValidateEvent&    ev) { OnValidateWindow(ev); },
+                                                [](Event&){}};
+    // clang-format on
 
     std::visit(ApplicationEventVisitor, event);
 
@@ -55,7 +74,7 @@ void Application::OnEvent(EventVariant& event)
 
         auto HandledEventVisitor = EventVisitor{[](const Event& ev) -> bool
                                                 {
-                                                    FU_CORE_TRACE("{0}", ev.ToString());
+                                                    // FU_CORE_TRACE("{0}", ev.ToString());
                                                     return ev.GetHandled();
                                                 }};
 
@@ -68,21 +87,93 @@ void Application::OnEvent(EventVariant& event)
 
 bool Application::OnWindowClose(WindowCloseEvent& event)
 {
-    UNUSED(event);
-
     d->m_Running = false;
+    event.SetHandled();
     return true;
 }
 
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    FU_CORE_TRACE("{0}", event.ToString());
+    UNUSED(event);
+
+    // TODO: Recreate swapchain?
+
+    return true;
+}
+
+bool Application::OnStartResizeWindow(WindowStartResizeEvent& event)
+{
+    event.SetHandled();
+    return true;
+}
+
+bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
+{
+    event.SetHandled();
+    return true;
+}
+
+bool Application::OnValidateWindow(WindowValidateEvent& event)
+{
+    d->_renderer->ValidateWindow();
+    d->m_Window->SetPainted();
+    event.SetHandled();
+    return true;
+}
+
+bool Application::OnRenderEvent(AppRenderEvent& event)
+{
+    // clang-format off
+    static float mesh[] = {
+    // Positions          // Colors
+    -0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f,  // Front-bottom-left (Red)
+    0.5f, -0.5f, -0.5f,   0.0f, 1.0f, 0.0f,  // Front-bottom-right (Green)
+    0.5f,  0.5f, -0.5f,   0.0f, 0.0f, 1.0f,  // Front-top-right (Blue)
+    -0.5f,  0.5f, -0.5f,  0.0f, 0.0f, 0.0f,  // Front-top-left (Yellow)
+    -0.5f, -0.5f,  0.5f,  0.5f, 0.0f, 0.5f,  // Back-bottom-left (Cyan)
+    0.5f, -0.5f,  0.5f,   0.0f, 1.0f, 1.0f,  // Back-bottom-right (Magenta)
+    0.5f,  0.5f,  0.5f,   0.5f, 0.5f, 0.5f,  // Back-top-right (Gray)
+    -0.5f,  0.5f,  0.5f,  1.0f, 1.0f, 1.0f   // Back-top-left (White)
+};
+    static unsigned int indices[] = {
+    // Front face
+    0, 1, 2,
+    2, 3, 0,
+    // Back face
+    4, 5, 6,
+    6, 7, 4,
+    // Left face
+    4, 0, 3,
+    3, 7, 4,
+    // Right face
+    1, 5, 6,
+    6, 2, 1,
+    // Top face
+    3, 2, 6,
+    6, 7, 3,
+    // Bottom face
+    4, 5, 1,
+    1, 0, 4
+};
+    // clang-format on
+
+
+    d->_renderer->ShowWireFrame(false);
+    d->_renderer->Clear();
+    d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
+    d->_renderer->Present();
+
+    event.SetHandled();
     return true;
 }
 
 Application& Application::Get()
 {
     return *Application::ApplicationImpl::m_Instance;
+}
+Fuego::FS::FileSystem& Application::FileSystem()
+{
+    return *d->_fs.get();
 }
 
 Window& Application::GetWindow()
@@ -110,4 +201,6 @@ void Application::Run()
         }
     }
 }
+
+
 }  // namespace Fuego

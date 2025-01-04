@@ -7,8 +7,6 @@
 #include <QuartzCore/CAMetalLayer.hpp>
 #include <QuartzCore/QuartzCore.hpp>
 
-#include "Renderer/GraphicsContext.h"
-
 namespace Fuego
 {
 class MetalContext : public GraphicsContext

@@ -1,12 +1,17 @@
 #pragma once
 
 #include "EventQueue.h"
-#include "Events/Event.h"
-#include "Input.h"
-#include "fupch.h"
 
 namespace Fuego
 {
+
+enum WindowMode
+{
+    MINIMIZED = 0,
+    MAXIMIZED = 1,
+    RESTORED = 2,
+};
+
 struct WindowProps
 {
     std::string Title = "Fuego Engine";
@@ -14,6 +19,7 @@ struct WindowProps
     long y = 100;
     unsigned int Width = 1280;
     unsigned int Height = 720;
+    WindowMode mode = RESTORED;
 
     bool Centered = true;
     bool Resizable = true;
@@ -33,6 +39,8 @@ struct WindowProps
 #endif
 };
 
+class Surface;
+
 class Window
 {
 public:
@@ -45,6 +53,11 @@ public:
 
     virtual void SetVSync(bool enabled) = 0;
     virtual bool IsVSync() const = 0;
+
+    virtual const void* GetNativeHandle() const = 0;
+
+    virtual void SetPainted() = 0;
+    virtual inline bool IsResizing() const = 0;
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 };
