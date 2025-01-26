@@ -27,6 +27,23 @@ public:
         float y = 0.0f;
     };
 
+#pragma pack(push, 1)
+    struct VertexData
+    {
+        glm::vec3 pos;
+        glm::vec2 textcoord;
+        glm::vec3 normal;
+    };
+#pragma pack(pop)
+
+    enum TextureType
+    {
+        ALBEDO = 0,
+        DIFFUSE = 1,
+        SPECULAR = 2
+    };
+
+
     ~Renderer() = default;
     // TODO replace array of floats to Mesh class
     void DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices[], uint32_t indicesCount);
@@ -45,16 +62,6 @@ public:
     Renderer(const Renderer&&) = delete;
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
-
-
-#pragma pack(push, 1)
-    struct VertexData
-    {
-        glm::vec3 pos;
-        glm::vec2 textcoord;
-        glm::vec3 normal;
-    };
-#pragma pack(pop)
 
 private:
     bool show_wireframe;
