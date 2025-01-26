@@ -14,7 +14,8 @@ set(PROJECT_HEADERS
     Texture.h
     Renderer.h
     Mesh.h
-    Camera.h)
+    Camera.h
+    Material.h)
 
 set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp)
 
