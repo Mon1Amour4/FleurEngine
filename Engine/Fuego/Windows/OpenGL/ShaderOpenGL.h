@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <glm/fwd.hpp>
 
 #include "Renderer/Shader.h"
 #include "glad/gl.h"
@@ -16,17 +17,21 @@ public:
     {
         return _type;
     }
-
     inline uint32_t GetID() const
     {
         return _shaderID;
     }
+
+    virtual bool AddVar(const std::string& uniform) override;
+    virtual bool SetVec3f(const std::string& var, glm::vec3 vector) override;
 
 private:
     uint32_t _shaderID;
     ShaderType _type;
 
     GLint GetShaderType(ShaderType type) const;
+
+    std::unordered_map<std::string, uint16_t> uniforms;
 
 protected:
     friend class DeviceOpenGL;

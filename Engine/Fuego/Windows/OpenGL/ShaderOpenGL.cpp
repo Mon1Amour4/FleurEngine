@@ -42,4 +42,33 @@ GLint ShaderOpenGL::GetShaderType(ShaderType type) const
     }
 }
 
+bool ShaderOpenGL::AddVar(const std::string& uniform)
+{
+    GLint location = glGetUniformLocation(_shaderID, uniform.c_str());
+    if (location != -1)
+    {
+        uniforms[uniform] = location;
+        return true;
+    }
+    else
+    {
+        FU_CORE_ERROR("[Shader] Uniform {} not found in shader", uniform.c_str());
+        return false;
+    }
+}
+
+bool ShaderOpenGL::SetVec3f(const std::string& var, glm::vec3 vector)
+{
+    auto it = uniforms.find(var);
+    if (it != uniforms.end())
+    {
+        glUniform3f(it->second, vector.x, vector.y, vector.z);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
 }  // namespace Fuego::Renderer
