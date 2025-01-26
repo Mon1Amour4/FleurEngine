@@ -24,6 +24,7 @@ public:
 
     virtual bool AddVar(const std::string& uniform) override;
     virtual bool SetVec3f(const std::string& var, glm::vec3 vector) override;
+    virtual bool SetMat4f(const std::string& var, glm::mat4 matrix) override;
 
 private:
     uint32_t _shaderID;

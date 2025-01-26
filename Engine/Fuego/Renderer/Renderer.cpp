@@ -24,8 +24,14 @@ Renderer::Renderer()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    _vertexShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
+    _mainVsShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
+    _mainVsShader->AddVar("model");
+    _mainVsShader->AddVar("view");
+    _mainVsShader->AddVar("projection");
+
     _pixelShader = _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel);
+    _pixelShader->AddVar("text_coords");
+
     _buffer = _device->CreateBuffer(0, 0);
 }
 
@@ -36,7 +42,7 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
     cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_vertexShader);
+    cmd.BindVertexShader(*_mainVsShader);
     cmd.BindPixelShader(*_pixelShader);
     cmd.BindIndexBuffer(indices, sizeof(unsigned int) * indicesCount);
     cmd.IndexedDraw(vertexCount);
@@ -44,18 +50,22 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     cmd.Submit();
 }
 
-void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h)
+void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h, glm::mat4 mesh_pos, glm::mat4 camera,
+                        glm::mat4 projection)
 {
     _buffer->BindData<float>(std::span(data.data(), data.size()));
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
     cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_vertexShader);
+    cmd.BindVertexShader(*_mainVsShader);
     cmd.BindPixelShader(*_pixelShader);
     cmd.BindTexture(texture, w, h);
     // cmd.BindIndexBuffer( );
     // cmd.IndexedDraw();
+    _mainVsShader->SetMat4f("model", mesh_pos);
+    _mainVsShader->SetMat4f("view", camera);
+    _mainVsShader->SetMat4f("projection", projection);
     cmd.Draw(vertex_count);
     cmd.EndRecording();
     cmd.Submit();

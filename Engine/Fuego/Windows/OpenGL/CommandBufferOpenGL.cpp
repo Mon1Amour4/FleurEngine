@@ -11,18 +11,18 @@
 
 namespace Fuego::Renderer
 {
-glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
-glm::mat4 model = glm::rotate(model_pos, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
-int modelLoc;
-int viewLoc;
-int projLoc;
-int samplerLoc;
+// glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
+// glm::mat4 model = glm::rotate(model_pos, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+// glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
+// int modelLoc;
+// int viewLoc;
+// int projLoc;
+// int samplerLoc;
 
 CommandBufferOpenGL::CommandBufferOpenGL()
     : _programID(0)
     , _isFree(true)
-    , _vertexShader(-1)
+    , _mainVsShader(-1)
     , _pixelShader(-1)
     , _isLinked(false)
     , _vao(0)
@@ -70,16 +70,16 @@ void CommandBufferOpenGL::BindVertexShader(const Shader& vertexShader)
     if (!_isLinked)
     {
         glAttachShader(_programID, shaderGL->GetID());
-        _vertexShader = shaderGL->GetID();
+        _mainVsShader = shaderGL->GetID();
     }
     else
     {
-        if (_vertexShader != shaderGL->GetID())
+        if (_mainVsShader != shaderGL->GetID())
         {
-            glDetachShader(_programID, _vertexShader);
-            glDeleteShader(_vertexShader);
+            glDetachShader(_programID, _mainVsShader);
+            glDeleteShader(_mainVsShader);
             glAttachShader(_programID, shaderGL->GetID());
-            _vertexShader = shaderGL->GetID();
+            _mainVsShader = shaderGL->GetID();
         }
     }
 }
@@ -106,10 +106,10 @@ void CommandBufferOpenGL::BindPixelShader(const Shader& pixelShader)
         _isLinked = true;
 
         glUseProgram(_programID);
-        modelLoc = glGetUniformLocation(_programID, "model");
-        viewLoc = glGetUniformLocation(_programID, "view");
-        projLoc = glGetUniformLocation(_programID, "projection");
-        samplerLoc = glGetUniformLocation(_programID, "gSampler");
+        // modelLoc = glGetUniformLocation(_programID, "model");
+        // viewLoc = glGetUniformLocation(_programID, "view");
+        // projLoc = glGetUniformLocation(_programID, "projection");
+        // samplerLoc = glGetUniformLocation(_programID, "gSampler");
         glUseProgram(0);
 
         return;
@@ -125,7 +125,7 @@ void CommandBufferOpenGL::BindPixelShader(const Shader& pixelShader)
         }
         else
         {
-            model = glm::rotate(model, glm::radians(0.5f), glm::vec3(1.1f, 1.0f, 1.0f));
+            // model = glm::rotate(model, glm::radians(0.5f), glm::vec3(1.1f, 1.0f, 1.0f));
         }
     }
 }
@@ -191,10 +191,10 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glUseProgram(_programID);
     glBindVertexArray(_vao);
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform1i(samplerLoc, 0);
+    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
+    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    // glUniform1i(samplerLoc, 0);
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
     glBindVertexArray(0);
@@ -205,9 +205,9 @@ void CommandBufferOpenGL::IndexedDraw(uint32_t vertexCount)
     glUseProgram(_programID);
     glBindVertexArray(_vao);
 
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
-    glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
+    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
+    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
 
     glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
 

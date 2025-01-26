@@ -47,7 +47,8 @@ public:
     ~Renderer() = default;
     // TODO replace array of floats to Mesh class
     void DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices[], uint32_t indicesCount);
-    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h);
+    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h, glm::mat4 mesh_pos, glm::mat4 camera,
+                  glm::mat4 projection);
     void Clear();
     void Present();
 
@@ -72,7 +73,7 @@ private:
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
     std::unique_ptr<Swapchain> _swapchain;
-    std::unique_ptr<Shader> _vertexShader;
+    std::unique_ptr<Shader> _mainVsShader;
     std::unique_ptr<Shader> _pixelShader;
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;

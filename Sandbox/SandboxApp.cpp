@@ -1,5 +1,7 @@
 ﻿#include "SandboxApp.h"
 
+#include "Camera.h"
+
 
 unsigned char* texture_data;
 int w, h, n;
@@ -54,13 +56,16 @@ void SceneLayer::OnEvent(Fuego::EventVariant& event)
 
 bool SceneLayer::OnRenderEvent(Fuego::AppRenderEvent& event)
 {
+    glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
     UNUSED(event);
     // FU_TRACE("Client OnRenderEvent");
     auto& renderer = Fuego::Application::Get().Renderer();
     int i = 0;
     for (auto& mesh : mesh_data)
     {
-        renderer.DrawMesh(mesh, scene_meshes[i]->GetVertexCount(), texture_data, w, h);
+        renderer.DrawMesh(mesh, scene_meshes[i]->GetVertexCount(), texture_data, w, h, model_pos, Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+                          projection);
         i++;
     }
     return true;

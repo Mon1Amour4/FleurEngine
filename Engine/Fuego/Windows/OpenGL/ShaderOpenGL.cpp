@@ -1,5 +1,7 @@
 #include "ShaderOpenGL.h"
 
+#include <glm/gtc/type_ptr.hpp>
+
 namespace Fuego::Renderer
 {
 ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type)
@@ -63,6 +65,21 @@ bool ShaderOpenGL::SetVec3f(const std::string& var, glm::vec3 vector)
     if (it != uniforms.end())
     {
         glUniform3f(it->second, vector.x, vector.y, vector.z);
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool ShaderOpenGL::SetMat4f(const std::string& var, glm::mat4 matrix)
+{
+    auto it = uniforms.find(var);
+    if (it != uniforms.end())
+    {
+        glUniformMatrix4fv(it->second, 1, GL_FALSE, glm::value_ptr(matrix));
+
         return true;
     }
     else

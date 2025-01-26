@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "glm/common.hpp"
+#include "glm/glm.hpp"
 
 namespace Fuego::Renderer
 {
@@ -13,7 +13,8 @@ public:
         Pixel = 2
     };
     virtual bool AddVar(const std::string& name);
-    virtual bool SetVec3f(glm::vec3 vector);
+    virtual bool SetVec3f(const std::string& var, glm::vec3 vector);
+    virtual bool SetMat4f(const std::string& var, glm::mat4 matrix);
 
     virtual ~Shader() = default;
 };
