@@ -9,12 +9,12 @@ class Shader;
 class Material
 {
 public:
-    Material(uint16_t albedo);
+    static Material* CreateMaterial(uint16_t albedo);
+
     virtual ~Material() = default;
 
-    void Bind(Shader& shader);
+    virtual void Bind(Shader& shader) = 0;
 
 private:
-    // uint16_t albedo_texture;
 };
 }  // namespace Fuego::Renderer
