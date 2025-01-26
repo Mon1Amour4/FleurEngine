@@ -1,12 +1,12 @@
 #include "Application.h"
 
+#include "Camera.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
+#include "KeyCodes.h"
 #include "LayerStack.h"
 #include "Mesh.h"
 #include "Renderer.h"
-#include "KeyCodes.h"
-#include "Camera.h"
 
 namespace Fuego
 {
@@ -128,13 +128,12 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
     KeyEvent& e = (KeyEvent&)event;
     KeyCode crossplatform_key = e.GetKeyCode();
-    
+
     switch (crossplatform_key)
     {
     case Key::D1:
         d->_renderer->ToggleWireFrame();
         break;
-
     }
     event.SetHandled();
     return true;
@@ -143,12 +142,12 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    //d->_renderer->Clear();
-    // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
-    //d->_renderer->DrawMesh(data, model->GetVertexCount());
+    // d->_renderer->Clear();
+    //  d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
+    // d->_renderer->DrawMesh(data, model->GetVertexCount());
     d->_renderer->Present();
 
-    //event.SetHandled();
+    // event.SetHandled();
     UNUSED(event);
     return true;
 }

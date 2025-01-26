@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Fuego.h>
+
 #include "Mesh.h"
 
 class SceneLayer : public Fuego::Layer
@@ -27,4 +28,3 @@ public:
 };
 
 Fuego::Application* Fuego::CreateApplication();
-

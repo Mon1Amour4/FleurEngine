@@ -245,7 +245,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         {
             _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
         }
-         break;
+        break;
     }
 
     case WM_MOUSEWHEEL:

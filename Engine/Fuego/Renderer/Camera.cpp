@@ -19,7 +19,6 @@ Camera::Camera()
     , dir(glm::vec3(0.0f, 0.0f, 0.0f))
 
 {
-
 }
 
 Camera::~Camera()
@@ -73,6 +72,6 @@ void Camera::RotateCamera()
     direction.y = sin(glm::radians(pitch));
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camera_forward = glm::normalize(direction);
-    //FU_CORE_TRACE("view {0} {1} {2},  pos: {3} {4} {5}", direction.x, direction.y, direction.z, position.x, position.y, position.z);
+    // FU_CORE_TRACE("view {0} {1} {2},  pos: {3} {4} {5}", direction.x, direction.y, direction.z, position.x, position.y, position.z);
 }
 }  // namespace Fuego::Renderer

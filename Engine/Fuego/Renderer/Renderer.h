@@ -57,7 +57,6 @@ public:
 #pragma pack(pop)
 
 private:
-
     bool show_wireframe;
 
     void UpdateViewport();

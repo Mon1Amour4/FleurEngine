@@ -11,8 +11,8 @@ namespace Fuego::Renderer
 {
 
 Renderer::Renderer()
-    : show_wireframe(false), 
-    _camera(std::unique_ptr<Camera>(new Camera()))
+    : show_wireframe(false)
+    , _camera(std::unique_ptr<Camera>(new Camera()))
 {
     _camera->Activate();
 

@@ -16,9 +16,9 @@ SandboxApp::SandboxApp()
 }
 
 SceneLayer::SceneLayer()
-        : Layer("3D scene layer")
-    {
-    }
+    : Layer("3D scene layer")
+{
+}
 
 void SceneLayer::OnUpdate()
 {
@@ -45,21 +45,17 @@ void SceneLayer::OnDetach()
 }
 
 void SceneLayer::OnEvent(Fuego::EventVariant& event)
-    {
-        auto LogEventVisitor =
-            Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); },
-            [](const Fuego::Event& ev) 
-            {
-                FU_TRACE("{0}", ev.ToString()); 
-            }};
+{
+    auto LogEventVisitor =
+        Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); }, [](const Fuego::Event& ev) { FU_TRACE("{0}", ev.ToString()); }};
 
-        std::visit(LogEventVisitor, event);
-    }
+    std::visit(LogEventVisitor, event);
+}
 
 bool SceneLayer::OnRenderEvent(Fuego::AppRenderEvent& event)
 {
     UNUSED(event);
-    //FU_TRACE("Client OnRenderEvent");
+    // FU_TRACE("Client OnRenderEvent");
     auto& renderer = Fuego::Application::Get().Renderer();
     int i = 0;
     for (auto& mesh : mesh_data)
@@ -69,5 +65,3 @@ bool SceneLayer::OnRenderEvent(Fuego::AppRenderEvent& event)
     }
     return true;
 }
-
-
