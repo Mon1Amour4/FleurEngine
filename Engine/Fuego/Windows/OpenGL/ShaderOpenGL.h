@@ -22,11 +22,13 @@ public:
         return _shaderID;
     }
 
+    virtual void BindToShaderObject(ShaderObject& obj) override;
     virtual bool AddVar(const std::string& uniform) override;
     virtual bool SetVec3f(const std::string& var, glm::vec3 vector) override;
     virtual bool SetMat4f(const std::string& var, glm::mat4 matrix) override;
 
 private:
+    uint16_t shader_object;
     uint32_t _shaderID;
     ShaderType _type;
 

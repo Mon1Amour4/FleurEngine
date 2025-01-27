@@ -2,6 +2,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "ShaderObjectOpenGL.h"
+
 namespace Fuego::Renderer
 {
 ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type)
@@ -44,9 +46,15 @@ GLint ShaderOpenGL::GetShaderType(ShaderType type) const
     }
 }
 
+void ShaderOpenGL::BindToShaderObject(ShaderObject& obj)
+{
+    ShaderObjectOpenGL& obj_gl = static_cast<ShaderObjectOpenGL&>(obj);
+    shader_object = obj_gl.GetObjectID();
+}
+
 bool ShaderOpenGL::AddVar(const std::string& uniform)
 {
-    GLint location = glGetUniformLocation(_shaderID, uniform.c_str());
+    GLint location = glGetUniformLocation(shader_object, uniform.c_str());
     if (location != -1)
     {
         uniforms[uniform] = location;
