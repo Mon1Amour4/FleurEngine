@@ -9,7 +9,7 @@ class Shader;
 class Material
 {
 public:
-    static Material* CreateMaterial(uint16_t albedo);
+    static Material* CreateMaterial(uint32_t albedo);
 
     virtual ~Material() = default;
 

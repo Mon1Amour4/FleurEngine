@@ -28,13 +28,13 @@ public:
     virtual bool SetMat4f(const std::string& var, glm::mat4 matrix) override;
 
 private:
-    uint16_t shader_object;
+    uint32_t shader_object;
     uint32_t _shaderID;
     ShaderType _type;
 
     GLint GetShaderType(ShaderType type) const;
 
-    std::unordered_map<std::string, uint16_t> uniforms;
+    std::unordered_map<std::string, uint32_t> uniforms;
 
 protected:
     friend class DeviceOpenGL;

@@ -3,12 +3,12 @@
 namespace Fuego::Renderer
 {
 
-Material* Material::CreateMaterial(uint16_t albedo)
+Material* Material::CreateMaterial(uint32_t albedo)
 {
     return new MaterialOpenGL(albedo);
 }
 
-MaterialOpenGL::MaterialOpenGL(uint16_t albedo)
+MaterialOpenGL::MaterialOpenGL(uint32_t albedo)
     : albedo_texture(albedo)
 {
 }

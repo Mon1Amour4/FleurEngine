@@ -18,7 +18,7 @@ public:
     {
         return vertex_shader;
     }
-    inline virtual uint16_t GetObjectID()
+    inline virtual uint32_t GetObjectID()
     {
         return program;
     }
@@ -26,7 +26,7 @@ public:
     void Use() const;
 
 private:
-    uint16_t program;
+    uint32_t program;
     ShaderOpenGL* vertex_shader;
     ShaderOpenGL* pixel_shader;
 

@@ -12,7 +12,7 @@ class MaterialOpenGL : public Material
 
 private:
     friend class Material;
-    MaterialOpenGL(uint16_t albedo);
-    uint16_t albedo_texture;
+    MaterialOpenGL(uint32_t albedo);
+    uint32_t albedo_texture;
 };
 }  // namespace Fuego::Renderer
