@@ -5,10 +5,12 @@
 #include "Camera.h"
 #include "CommandBuffer.h"
 #include "Mesh.h"
+#include "ShaderObject.h"
 
 
 namespace Fuego::Renderer
 {
+ShaderObject* shader_object;
 
 Renderer::Renderer()
     : show_wireframe(false)
@@ -25,12 +27,14 @@ Renderer::Renderer()
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
     _mainVsShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
-    _mainVsShader->AddVar("model");
-    _mainVsShader->AddVar("view");
-    _mainVsShader->AddVar("projection");
-
     _pixelShader = _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel);
-    _pixelShader->AddVar("text_coords");
+
+    shader_object = ShaderObject::CreateShaderObject(*_mainVsShader.get(), *_pixelShader.get());
+    shader_object->GetVertexShader()->AddVar("model");
+    shader_object->GetVertexShader()->AddVar("view");
+    shader_object->GetVertexShader()->AddVar("projection");
+
+    shader_object->GetPixelShader()->AddVar("gSampler");
 
     _buffer = _device->CreateBuffer(0, 0);
 }
@@ -63,9 +67,9 @@ void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, u
     cmd.BindTexture(texture, w, h);
     // cmd.BindIndexBuffer( );
     // cmd.IndexedDraw();
-    _mainVsShader->SetMat4f("model", mesh_pos);
-    _mainVsShader->SetMat4f("view", camera);
-    _mainVsShader->SetMat4f("projection", projection);
+    shader_object->GetVertexShader()->SetMat4f("model", mesh_pos);
+    shader_object->GetVertexShader()->SetMat4f("view", camera);
+    shader_object->GetVertexShader()->SetMat4f("projection", projection);
     cmd.Draw(vertex_count);
     cmd.EndRecording();
     cmd.Submit();
