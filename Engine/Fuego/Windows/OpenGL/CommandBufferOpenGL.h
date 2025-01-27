@@ -14,8 +14,7 @@ public:
     virtual void EndRecording() override;
     virtual void Submit() override;
     virtual void BindRenderTarget(const Surface& texture) override;
-    virtual void BindVertexShader(const Shader& vertexShader) override;
-    virtual void BindPixelShader(const Shader& pixelShader) override;
+    virtual void BindShaderObject(const ShaderObject& obj) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
     virtual void BindVertexBuffer(const Buffer& vertexBuffer) override;
     virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) override;

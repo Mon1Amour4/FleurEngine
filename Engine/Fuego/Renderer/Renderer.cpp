@@ -46,8 +46,6 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
     cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_mainVsShader);
-    cmd.BindPixelShader(*_pixelShader);
     cmd.BindIndexBuffer(indices, sizeof(unsigned int) * indicesCount);
     cmd.IndexedDraw(vertexCount);
     cmd.EndRecording();
@@ -62,8 +60,7 @@ void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, u
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
     cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_mainVsShader);
-    cmd.BindPixelShader(*_pixelShader);
+    cmd.BindShaderObject(*shader_object);
     cmd.BindTexture(texture, w, h);
     // cmd.BindIndexBuffer( );
     // cmd.IndexedDraw();

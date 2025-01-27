@@ -6,6 +6,7 @@
 #include "BufferOpenGL.h"
 #include "Renderer.h"
 #include "Renderer/Surface.h"
+#include "ShaderObjectOpenGL.h"
 #include "ShaderOpenGL.h"
 #include "glad/gl.h"
 
@@ -51,42 +52,6 @@ void CommandBufferOpenGL::Submit()
 void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
 {
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void CommandBufferOpenGL::BindVertexShader(const Shader& vertexShader)
-{
-    auto shaderGL = dynamic_cast<const ShaderOpenGL*>(&vertexShader);
-    if (!_isLinked)
-    {
-        _mainVsShader = shaderGL->GetID();
-    }
-    else
-    {
-        if (_mainVsShader != shaderGL->GetID())
-        {
-            glDeleteShader(_mainVsShader);
-            _mainVsShader = shaderGL->GetID();
-        }
-    }
-}
-
-void CommandBufferOpenGL::BindPixelShader(const Shader& pixelShader)
-{
-    auto shaderGL = dynamic_cast<const ShaderOpenGL*>(&pixelShader);
-    if (!_isLinked)
-    {
-        _pixelShader = shaderGL->GetID();
-
-        _isLinked = true;
-        return;
-    }
-    else
-    {
-        if (_pixelShader != shaderGL->GetID())
-        {
-            _pixelShader = shaderGL->GetID();
-        }
-    }
 }
 
 void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer)
@@ -165,6 +130,12 @@ void CommandBufferOpenGL::Clear()
 {
     glClearColor(1.f, 1.f, 1.f, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void CommandBufferOpenGL::BindShaderObject(const ShaderObject& obj)
+{
+    const ShaderObjectOpenGL& obj_gl = static_cast<const ShaderObjectOpenGL&>(obj);
+    obj_gl.Use();
 }
 
 void CommandBufferOpenGL::BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex)

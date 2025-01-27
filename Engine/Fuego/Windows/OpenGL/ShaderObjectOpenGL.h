@@ -23,6 +23,8 @@ public:
         return program;
     }
 
+    void Use() const;
+
 private:
     uint16_t program;
     ShaderOpenGL* vertex_shader;

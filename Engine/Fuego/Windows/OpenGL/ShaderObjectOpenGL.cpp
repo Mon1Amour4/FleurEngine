@@ -33,6 +33,11 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(Shader& vs, Shader& px)
     vs_gl->BindToShaderObject(*this);
     px_gl->BindToShaderObject(*this);
 
+    glUseProgram(0);
+}
+
+void ShaderObjectOpenGL::Use() const
+{
     glUseProgram(program);
 }
 
