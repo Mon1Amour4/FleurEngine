@@ -3,7 +3,7 @@
 struct Material
 {
     sampler2D albedo_text;
-}
+};
 // Uniforms:
 uniform Material material;
 uniform sampler2D gSampler;
@@ -14,5 +14,5 @@ out vec4 FragColor;
 
 void main()
 {
-    FragColor = texture2D(gSampler, text_coords);
+    FragColor = texture(gSampler, text_coords);
 }
