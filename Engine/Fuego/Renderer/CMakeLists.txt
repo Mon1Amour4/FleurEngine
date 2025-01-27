@@ -15,7 +15,8 @@ set(PROJECT_HEADERS
     Renderer.h
     Mesh.h
     Camera.h
-    Material.h)
+    Material.h
+    ShaderObject.h)
 
 set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp)
 
