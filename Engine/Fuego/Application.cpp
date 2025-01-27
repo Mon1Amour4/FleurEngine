@@ -146,10 +146,9 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
-    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
     d->_renderer->ShowWireFrame();
     d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), nullptr, 0, 0, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
-                           projection);
+                           Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
     // d->_renderer->Clear();
     // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
     // d->_renderer->DrawMesh(data, model->GetVertexCount());

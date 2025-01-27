@@ -17,6 +17,10 @@ Camera::Camera()
     , camera_forward(0.0f, 0.0f, -1.0f)
     , view(glm::mat4(1.0f))
     , dir(glm::vec3(0.0f, 0.0f, 0.0f))
+    , projection(glm::mat4(1.0f))
+    , FOV(60)
+    , near_clip(0.1f)
+    , far_clip(1000.0f)
 
 {
 }
@@ -56,7 +60,7 @@ void Camera::Update()
     }
 
     RotateCamera();
-
+    projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
     view = glm::lookAt(position, position + camera_forward, up);
 }
 
