@@ -27,7 +27,6 @@ public:
 private:
     uint32_t _vao;
     uint32_t _ebo;
-    uint32_t _programID;
     uint32_t _mainVsShader;
     uint32_t _pixelShader;
     bool _isLinked;

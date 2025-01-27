@@ -11,17 +11,8 @@
 
 namespace Fuego::Renderer
 {
-// glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
-// glm::mat4 model = glm::rotate(model_pos, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-// glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
-// int modelLoc;
-// int viewLoc;
-// int projLoc;
-// int samplerLoc;
-
 CommandBufferOpenGL::CommandBufferOpenGL()
-    : _programID(0)
-    , _isFree(true)
+    : _isFree(true)
     , _mainVsShader(-1)
     , _pixelShader(-1)
     , _isLinked(false)
@@ -29,14 +20,12 @@ CommandBufferOpenGL::CommandBufferOpenGL()
     , _ebo(0)
     , _isDataAllocated(false)
 {
-    _programID = glCreateProgram();
     glGenBuffers(1, &_ebo);
     glGenVertexArrays(1, &_vao);
 }
 
 CommandBufferOpenGL::~CommandBufferOpenGL()
 {
-    glDeleteProgram(_programID);
     glDeleteBuffers(1, &_vao);
     glDeleteBuffers(1, &_ebo);
 }
@@ -69,7 +58,6 @@ void CommandBufferOpenGL::BindVertexShader(const Shader& vertexShader)
     auto shaderGL = dynamic_cast<const ShaderOpenGL*>(&vertexShader);
     if (!_isLinked)
     {
-        glAttachShader(_programID, shaderGL->GetID());
         _mainVsShader = shaderGL->GetID();
     }
     else
@@ -89,43 +77,17 @@ void CommandBufferOpenGL::BindPixelShader(const Shader& pixelShader)
     auto shaderGL = dynamic_cast<const ShaderOpenGL*>(&pixelShader);
     if (!_isLinked)
     {
-        glAttachShader(_programID, shaderGL->GetID());
         _pixelShader = shaderGL->GetID();
 
         glLinkProgram(_programID);
-        GLint success;
-        glGetProgramiv(_programID, GL_LINK_STATUS, &success);
-        if (!success)
-        {
-            char infoLog[512];
-            glGetProgramInfoLog(_programID, 512, nullptr, infoLog);
-            FU_CORE_ERROR("[CommandBufferOpenGL] shader linking error: ", infoLog);
-            _isLinked = false;
-            return;
-        }
         _isLinked = true;
-
-        glUseProgram(_programID);
-        // modelLoc = glGetUniformLocation(_programID, "model");
-        // viewLoc = glGetUniformLocation(_programID, "view");
-        // projLoc = glGetUniformLocation(_programID, "projection");
-        // samplerLoc = glGetUniformLocation(_programID, "gSampler");
-        glUseProgram(0);
-
         return;
     }
     else
     {
         if (_pixelShader != shaderGL->GetID())
         {
-            glDetachShader(_programID, _pixelShader);
-            glDeleteShader(_pixelShader);
-            glAttachShader(_programID, shaderGL->GetID());
             _pixelShader = shaderGL->GetID();
-        }
-        else
-        {
-            // model = glm::rotate(model, glm::radians(0.5f), glm::vec3(1.1f, 1.0f, 1.0f));
         }
     }
 }
@@ -188,13 +150,8 @@ void CommandBufferOpenGL::BindTexture(unsigned char* data, int w, int h)
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 {
-    glUseProgram(_programID);
+    // glUseProgram(_programID);
     glBindVertexArray(_vao);
-
-    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
-    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-    // glUniform1i(samplerLoc, 0);
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
     glBindVertexArray(0);
@@ -202,15 +159,8 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 
 void CommandBufferOpenGL::IndexedDraw(uint32_t vertexCount)
 {
-    glUseProgram(_programID);
     glBindVertexArray(_vao);
-
-    // glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    // glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(Camera::GetActiveCamera()->GetView()));
-    // glUniformMatrix4fv(projLoc, 1, GL_FALSE, glm::value_ptr(projection));
-
     glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
-
     glBindVertexArray(0);
 }
 
