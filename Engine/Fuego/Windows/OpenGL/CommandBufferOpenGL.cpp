@@ -64,9 +64,7 @@ void CommandBufferOpenGL::BindVertexShader(const Shader& vertexShader)
     {
         if (_mainVsShader != shaderGL->GetID())
         {
-            glDetachShader(_programID, _mainVsShader);
             glDeleteShader(_mainVsShader);
-            glAttachShader(_programID, shaderGL->GetID());
             _mainVsShader = shaderGL->GetID();
         }
     }
@@ -79,7 +77,6 @@ void CommandBufferOpenGL::BindPixelShader(const Shader& pixelShader)
     {
         _pixelShader = shaderGL->GetID();
 
-        glLinkProgram(_programID);
         _isLinked = true;
         return;
     }
