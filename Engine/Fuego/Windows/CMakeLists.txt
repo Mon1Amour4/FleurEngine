@@ -15,7 +15,8 @@ set(PROJECT_HEADERS
     OpenGL/CommandPoolOpenGL.h
     OpenGL/TextureOpenGL.h
     OpenGL/SurfaceOpenGL.h
-    OpenGl/MaterialOpenGL.h)
+    OpenGl/MaterialOpenGL.h
+    OpenGl/ShaderObjectOpenGL.h)
 
 set(PROJECT_SOURCES
     EventQueueWin.cpp
@@ -31,7 +32,8 @@ set(PROJECT_SOURCES
     OpenGL/CommandPoolOpenGL.cpp
     OpenGL/TextureOpenGL.cpp
     OpenGL/SurfaceOpenGL.cpp
-    OpenGl/MaterialOpenGL.cpp)
+    OpenGl/MaterialOpenGL.cpp
+    OpenGl/ShaderObjectOpenGL.cpp)
 
 set(GLAD_BUILD_DIR ${CMAKE_BINARY_DIR}/Glad)
 set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/../../build/win/output)

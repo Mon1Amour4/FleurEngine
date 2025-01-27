@@ -7,9 +7,10 @@ class Shader;
 class ShaderObject
 {
 public:
-    virtual ~ShaderObject();
+    virtual ~ShaderObject() = default;
 
-    static void CreateShaderObject(Shader& vertex_shader, Shader& pixel_shader);
-    virtual void LinkShaders() = 0;
+    static ShaderObject* CreateShaderObject(Shader& vs, Shader& px);
+    virtual Shader* GetPixelShader() = 0;
+    virtual Shader* GetVertexShader() = 0;
 };
 }  // namespace Fuego::Renderer
