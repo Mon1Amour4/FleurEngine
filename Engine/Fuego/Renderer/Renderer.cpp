@@ -12,6 +12,8 @@ namespace Fuego::Renderer
 {
 ShaderObject* shader_object;
 
+uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
+
 Renderer::Renderer()
     : show_wireframe(false)
     , _camera(std::unique_ptr<Camera>(new Camera()))
@@ -34,7 +36,7 @@ Renderer::Renderer()
     shader_object->GetVertexShader()->AddVar("view");
     shader_object->GetVertexShader()->AddVar("projection");
 
-    shader_object->GetPixelShader()->AddVar("gSampler");
+    shader_object->GetPixelShader()->AddVar("material");
 
     _buffer = _device->CreateBuffer(0, 0);
 }
