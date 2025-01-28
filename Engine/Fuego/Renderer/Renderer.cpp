@@ -36,7 +36,7 @@ Renderer::Renderer()
     shader_object->GetVertexShader()->AddVar("view");
     shader_object->GetVertexShader()->AddVar("projection");
 
-    shader_object->GetPixelShader()->AddVar("material");
+    shader_object->GetPixelShader()->AddVar("material.albedo_text");
 
     _buffer = _device->CreateBuffer(0, 0);
 }
