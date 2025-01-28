@@ -7,6 +7,12 @@
 #include "LayerStack.h"
 #include "Mesh.h"
 #include "Renderer.h"
+#include "Texture.h"
+
+Fuego::Renderer::Texture* engine_texture;
+int w, h, n;
+unsigned char* texture_data;
+
 Fuego::Renderer::Mesh* engine_mesh;
 std::vector<float> mesh_vector;
 namespace Fuego
@@ -39,6 +45,9 @@ Application::Application()
     FS::FileSystem& fs = Application::Get().FileSystem();
     engine_mesh = new Fuego::Renderer::Mesh();
     mesh_vector = engine_mesh->load(fs.GetFullPathTo("!Model.obj").data());
+
+    texture_data = fs.Load_Image("image.jpg", w, h, n);
+    engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
 }
 
 Renderer::Renderer& Application::Renderer()
@@ -147,7 +156,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), nullptr, 0, 0, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), engine_texture, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
                            Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
     // d->_renderer->Clear();
     // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
