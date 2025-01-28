@@ -8,6 +8,7 @@
 #include "Renderer/Surface.h"
 #include "ShaderObjectOpenGL.h"
 #include "ShaderOpenGL.h"
+#include "TextureOpenGL.h"
 #include "glad/gl.h"
 
 namespace Fuego::Renderer
@@ -90,24 +91,12 @@ void CommandBufferOpenGL::BindIndexBuffer(uint32_t indices[], uint32_t size)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::BindTexture(unsigned char* data, int w, int h)
+void CommandBufferOpenGL::BindTexture(Texture* texture)
 {
-    GLenum textureTarget = GL_TEXTURE_2D;
-    glBindTexture(GL_TEXTURE_2D, 0);
-    glGenTextures(1, &_texture);
-    glBindTexture(textureTarget, _texture);
-    glTexImage2D(textureTarget, 0, GL_RGB, w, h, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-    // glBindTexture(textureTarget, texture);
+    TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
 
-    // Configuration of minification/Magnification
-    glTexParameterf(textureTarget, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameterf(textureTarget, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameterf(textureTarget, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameterf(textureTarget, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-    // glBindTexture(texture, 0);
-    glActiveTexture(GL_TEXTURE0);
-    // glBindTexture(_textureTarget, _texture);
+    glActiveTexture(GL_TEXTURE0 + text_gl.GetTextureUnit());
+    glBindTexture(GL_TEXTURE_2D, text_gl.GetTextureID());
 }
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)

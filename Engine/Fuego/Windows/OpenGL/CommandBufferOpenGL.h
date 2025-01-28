@@ -18,7 +18,7 @@ public:
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
     virtual void BindVertexBuffer(const Buffer& vertexBuffer) override;
     virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) override;
-    virtual void BindTexture(unsigned char* data, int w, int h) override;
+    virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
     virtual void IndexedDraw(uint32_t vertexCount) override;
     virtual void Clear() override;
