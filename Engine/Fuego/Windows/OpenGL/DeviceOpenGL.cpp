@@ -10,6 +10,7 @@
 #include "glad/wgl.h"
 #include "glad/gl.h"
 // clang-format on
+#include "Renderer.h"
 
 namespace Fuego::Renderer
 {
@@ -88,6 +89,7 @@ DeviceOpenGL::DeviceOpenGL()
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_textures_units);
     FU_CORE_INFO("  Max texture units: {0}", max_textures_units);
+    Application::Get().Renderer().MAX_TEXTURES_COUNT = (uint32_t)max_textures_units;
     glEnable(GL_DEPTH_TEST);
 }
 

@@ -64,6 +64,8 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
+    static uint32_t MAX_TEXTURES_COUNT;
+
 private:
     bool show_wireframe;
 
