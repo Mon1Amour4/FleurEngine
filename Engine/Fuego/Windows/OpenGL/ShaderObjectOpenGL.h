@@ -1,7 +1,8 @@
 #pragma once
 
+#include "MaterialOpenGL.h"
 #include "ShaderObject.h"
-#include "ShaderOpenGL.h"
+#include "ShaderOpenGl.h"
 
 namespace Fuego::Renderer
 {
@@ -32,5 +33,8 @@ private:
 
     friend class ShaderObject;
     ShaderObjectOpenGL(Shader& vs, Shader& px);
+
+    friend class MaterialOpenGL;
+    void UploadMaterial(Material& material);
 };
 }  // namespace Fuego::Renderer

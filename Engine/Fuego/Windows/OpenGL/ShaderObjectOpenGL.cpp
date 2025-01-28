@@ -36,16 +36,22 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(Shader& vs, Shader& px)
     glUseProgram(0);
 }
 
-void ShaderObjectOpenGL::Use() const
-{
-    glUseProgram(program);
-}
-
 ShaderObjectOpenGL::~ShaderObjectOpenGL()
 {
     glDeleteProgram(program);
     glDeleteShader(vertex_shader->GetID());
     glDeleteShader(pixel_shader->GetID());
+}
+
+void ShaderObjectOpenGL::Use() const
+{
+    glUseProgram(program);
+}
+
+void ShaderObjectOpenGL::UploadMaterial(Material& material)
+{
+    MaterialOpenGL& mat_gl = static_cast<MaterialOpenGL&>(material);
+    pixel_shader->SetText2D("material.albedo_text", mat_gl.GetAlbedoTexture());
 }
 
 }  // namespace Fuego::Renderer
