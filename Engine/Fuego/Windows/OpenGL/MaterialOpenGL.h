@@ -1,18 +1,24 @@
 #pragma once
 
 #include "Material.h"
+#include "TextureOpenGL.h"
 
 namespace Fuego::Renderer
 {
 class MaterialOpenGL : public Material
 {
+public:
     virtual ~MaterialOpenGL() override = default;
 
-    virtual void Bind(Shader& shader) override;
+    virtual void Upload(ShaderObject& shader) override;
+    inline const TextureOpenGL& GetAlbedoTexture() const
+    {
+        return *albedo_texture;
+    }
 
 private:
+    TextureOpenGL* albedo_texture;
     friend class Material;
-    MaterialOpenGL(uint32_t albedo);
-    uint32_t albedo_texture;
+    MaterialOpenGL(Texture* albedo);
 };
 }  // namespace Fuego::Renderer

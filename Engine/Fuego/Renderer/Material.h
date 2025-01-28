@@ -4,16 +4,17 @@
 
 namespace Fuego::Renderer
 {
-class Shader;
+class ShaderObject;
+class Texture;
 
 class Material
 {
 public:
-    static Material* CreateMaterial(uint32_t albedo);
+    static Material* CreateMaterial(Texture* albedo);
 
     virtual ~Material() = default;
 
-    virtual void Bind(Shader& shader) = 0;
+    virtual void Upload(ShaderObject& shader) = 0;
 
 private:
 };
