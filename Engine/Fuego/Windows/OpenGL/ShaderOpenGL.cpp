@@ -3,6 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "ShaderObjectOpenGL.h"
+#include "TextureOpenGL.h"
 
 namespace Fuego::Renderer
 {
@@ -67,7 +68,7 @@ bool ShaderOpenGL::AddVar(const std::string& uniform)
     }
 }
 
-bool ShaderOpenGL::SetVec3f(const std::string& var, glm::vec3 vector)
+bool ShaderOpenGL::SetVec3f(const std::string& var, glm::vec3 vector) const
 {
     auto it = uniforms.find(var);
     if (it != uniforms.end())
@@ -81,12 +82,28 @@ bool ShaderOpenGL::SetVec3f(const std::string& var, glm::vec3 vector)
     }
 }
 
-bool ShaderOpenGL::SetMat4f(const std::string& var, glm::mat4 matrix)
+bool ShaderOpenGL::SetMat4f(const std::string& var, glm::mat4 matrix) const
 {
     auto it = uniforms.find(var);
     if (it != uniforms.end())
     {
         glUniformMatrix4fv(it->second, 1, GL_FALSE, glm::value_ptr(matrix));
+
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+bool ShaderOpenGL::SetText2D(const std::string& var, const Texture& texture) const
+{
+    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
+    auto it = uniforms.find(var);
+    if (it != uniforms.end())
+    {
+        glUniform1i(it->second, text_gl.GetTextureUnit());
 
         return true;
     }
