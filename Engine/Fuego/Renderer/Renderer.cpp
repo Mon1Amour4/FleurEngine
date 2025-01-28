@@ -6,10 +6,12 @@
 #include "CommandBuffer.h"
 #include "Mesh.h"
 #include "ShaderObject.h"
+#include "Texture.h"
 
 
 namespace Fuego::Renderer
 {
+
 ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
@@ -54,8 +56,7 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     cmd.Submit();
 }
 
-void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h, glm::mat4 mesh_pos, glm::mat4 camera,
-                        glm::mat4 projection)
+void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Texture* texture, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection)
 {
     _buffer->BindData<float>(std::span(data.data(), data.size()));
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
@@ -63,7 +64,7 @@ void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, u
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
     cmd.BindVertexBuffer(*_buffer);
     cmd.BindShaderObject(*shader_object);
-    cmd.BindTexture(texture, w, h);
+    cmd.BindTexture(texture);
     // cmd.BindIndexBuffer( );
     // cmd.IndexedDraw();
     shader_object->GetVertexShader()->SetMat4f("model", mesh_pos);
