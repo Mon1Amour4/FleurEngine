@@ -9,6 +9,7 @@
 #include "ShaderObjectOpenGL.h"
 #include "ShaderOpenGL.h"
 #include "TextureOpenGL.h"
+#include "VertexLayout.h"
 #include "glad/gl.h"
 
 namespace Fuego::Renderer
@@ -55,22 +56,21 @@ void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
     // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
-void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer)
+void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer, VertexLayout layout)
 {
     glBindVertexArray(_vao);
 
     const BufferOpenGL& buff = static_cast<const BufferOpenGL&>(vertexBuffer);
     glBindBuffer(GL_ARRAY_BUFFER, buff.GetBufferID());
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Renderer::VertexData), (void*)offsetof(Renderer::VertexData, pos));
-    glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Renderer::VertexData), (void*)offsetof(Renderer::VertexData, textcoord));
-    glEnableVertexAttribArray(1);
-
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, sizeof(Renderer::VertexData), (void*)offsetof(Renderer::VertexData, normal));
-    glEnableVertexAttribArray(2);
-
+    VertexLayout::LayoutIterator* it;
+    for (it = layout.GetIteratorBegin(); !layout.IteratorIsDone(); it = layout.GetNextIterator())
+    {
+        glVertexAttribPointer((GLuint)it->GetIndex(), (GLint)it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE, (GLsizei)layout.GetLayoutSize(),
+                              (void*)it->GetOffset());
+        if (it->GetIsEnabled())
+            glEnableVertexAttribArray(it->GetIndex());
+    }
     glBindVertexArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }

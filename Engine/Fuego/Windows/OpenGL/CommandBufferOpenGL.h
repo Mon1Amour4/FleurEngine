@@ -5,6 +5,7 @@
 namespace Fuego::Renderer
 {
 class Surface;
+class VertexLayout;
 
 class CommandBufferOpenGL : public CommandBuffer
 {
@@ -16,7 +17,7 @@ public:
     virtual void BindRenderTarget(const Surface& texture) override;
     virtual void BindShaderObject(const ShaderObject& obj) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
-    virtual void BindVertexBuffer(const Buffer& vertexBuffer) override;
+    virtual void BindVertexBuffer(const Buffer& vertexBuffer, VertexLayout layout) override;
     virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) override;
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
