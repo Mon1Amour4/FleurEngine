@@ -77,7 +77,7 @@ uint32_t VertexLayout::GetSizeOfDataType(DataType type)
 void VertexLayout::AddAttribute(VertexAttribute attrib)
 {
     attrib.offset = layout_size;
-    layout_size += GetSizeOfDataType(attrib.compontnts_type) * attrib.components_amount;
+    layout_size += GetSizeOfDataType(attrib.components_type) * attrib.components_amount;
     attribs.push_back(attrib);
 }
 void VertexLayout::EnableAttribute(uint16_t attrib_index)
@@ -98,7 +98,7 @@ void VertexLayout::DisableAttribute(uint16_t attrib_index)
 VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled)
     : index(ind)
     , components_amount(comp_amount)
-    , compontnts_type(comp_type)
+    , components_type(comp_type)
     , is_enabled(enabled)
 {
 }

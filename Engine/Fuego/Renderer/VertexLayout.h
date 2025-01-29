@@ -20,7 +20,7 @@ public:
         VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled);
         uint16_t index;
         uint8_t components_amount;
-        DataType compontnts_type;
+        DataType components_type;
         uint16_t offset;
         bool is_enabled;
     };
@@ -38,7 +38,7 @@ public:
         }
         inline uint32_t GetAPIDatatype()
         {
-            return _master->GetAPIDataType(_attrib->compontnts_type);
+            return _master->GetAPIDataType(_attrib->components_type);
         }
         inline uint16_t GetOffset()
         {
