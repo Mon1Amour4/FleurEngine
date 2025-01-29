@@ -6,16 +6,17 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Material.h"
+#include "Mesh.h"
 #include "Shader.h"
 #include "Surface.h"
 #include "Swapchain.h"
+#include "Texture.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
 namespace Fuego::Renderer
 {
-class Mesh;
-class Texture;
 
 class Renderer
 {
@@ -48,7 +49,7 @@ public:
     ~Renderer() = default;
     // TODO replace array of floats to Mesh class
     void DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices[], uint32_t indicesCount);
-    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Texture* texture, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection);
+    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Material* material, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection);
     void Clear();
     void Present();
 
