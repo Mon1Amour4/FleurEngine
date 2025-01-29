@@ -16,9 +16,10 @@ set(PROJECT_HEADERS
     Mesh.h
     Camera.h
     Material.h
-    ShaderObject.h)
+    ShaderObject.h
+    VertexLayout.h)
 
-set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp)
+set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp VertexLayout.cpp)
 
 add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
@@ -26,6 +27,8 @@ if(WIN32)
   target_include_directories(
     Renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
                     ${CMAKE_CURRENT_SOURCE_DIR}/../Windows)
+target_link_libraries(Renderer PRIVATE WindowsDep)
+
 elseif(APPLE)
   target_include_directories(
     Renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
@@ -39,3 +42,4 @@ set_target_properties(
              RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 target_link_libraries(Renderer PRIVATE FuegoInterface)
+
