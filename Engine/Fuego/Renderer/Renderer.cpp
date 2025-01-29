@@ -7,6 +7,7 @@
 #include "Mesh.h"
 #include "ShaderObject.h"
 #include "Texture.h"
+#include "VertexLayout.h"
 
 
 namespace Fuego::Renderer
@@ -49,7 +50,11 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-    cmd.BindVertexBuffer(*_buffer);
+    VertexLayout layout{};
+    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
+    cmd.BindVertexBuffer(*_buffer, layout);
     cmd.BindIndexBuffer(indices, sizeof(unsigned int) * indicesCount);
     cmd.IndexedDraw(vertexCount);
     cmd.EndRecording();
@@ -62,7 +67,11 @@ void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, T
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-    cmd.BindVertexBuffer(*_buffer);
+    VertexLayout layout{};
+    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
+    cmd.BindVertexBuffer(*_buffer, layout);
     cmd.BindShaderObject(*shader_object);
     cmd.BindTexture(texture);
     // cmd.BindIndexBuffer( );
