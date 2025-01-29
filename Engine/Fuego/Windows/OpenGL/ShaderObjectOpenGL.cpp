@@ -51,6 +51,7 @@ void ShaderObjectOpenGL::Use() const
 void ShaderObjectOpenGL::UploadMaterial(Material& material)
 {
     MaterialOpenGL& mat_gl = static_cast<MaterialOpenGL&>(material);
+    pixel_shader->AddVar("material.albedo_text");
     pixel_shader->SetText2D("material.albedo_text", mat_gl.GetAlbedoTexture());
 }
 

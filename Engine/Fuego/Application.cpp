@@ -5,9 +5,7 @@
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
 #include "LayerStack.h"
-#include "Mesh.h"
 #include "Renderer.h"
-#include "Texture.h"
 
 Fuego::Renderer::Texture* engine_texture;
 int w, h, n;
@@ -156,7 +154,9 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), engine_texture, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture);
+
+    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
                            Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
     // d->_renderer->Clear();
     // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
