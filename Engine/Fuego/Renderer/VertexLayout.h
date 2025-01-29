@@ -17,6 +17,7 @@ public:
     };
     struct VertexAttribute
     {
+        VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled);
         uint16_t index;
         uint8_t components_amount;
         DataType compontnts_type;
@@ -62,6 +63,7 @@ public:
     void EnableAttribute(uint16_t attrib_index);
     void DisableAttribute(uint16_t attrib_index);
     uint32_t GetAPIDataType(DataType type);
+    uint32_t GetSizeOfDataType(DataType type);
     inline uint16_t GetLayoutSize()
     {
         return layout_size;

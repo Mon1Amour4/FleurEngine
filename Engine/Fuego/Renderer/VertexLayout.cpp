@@ -6,6 +6,7 @@
 #endif
 namespace Fuego::Renderer
 {
+// Layout:
 VertexLayout::VertexLayout()
     : layout_size(0)
     , _it(nullptr)
@@ -53,10 +54,31 @@ uint32_t VertexLayout::GetAPIDataType(DataType type)
     }
 #endif
 }
+uint32_t VertexLayout::GetSizeOfDataType(DataType type)
+{
+    switch (type)
+    {
+    case DataType::FLOAT:
+        return sizeof(float);
+    case DataType::FLOAT_VEC2:
+        return sizeof(float) * 2;
+    case DataType::FLOAT_VEC3:
+        return sizeof(float) * 3;
+    case DataType::FLOAT_VEC4:
+        return sizeof(float) * 4;
+    case DataType::INSIGNED_BYTE:
+        return sizeof(unsigned char);
+    case DataType::SHORT:
+        return sizeof(short);
+    default:
+        return 0;
+    }
+}
 void VertexLayout::AddAttribute(VertexAttribute attrib)
 {
+    attrib.offset = layout_size;
+    layout_size += GetSizeOfDataType(attrib.compontnts_type) * attrib.components_amount;
     attribs.push_back(attrib);
-    layout_size += sizeof(attrib);
 }
 void VertexLayout::EnableAttribute(uint16_t attrib_index)
 {
@@ -72,7 +94,15 @@ void VertexLayout::DisableAttribute(uint16_t attrib_index)
         attribs[attrib_index].is_enabled = false;
     }
 }
-
+// Attribute:
+VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled)
+    : index(ind)
+    , components_amount(comp_amount)
+    , compontnts_type(comp_type)
+    , is_enabled(enabled)
+{
+}
+// Iterator:
 VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
     : _master(master)
     , _attrib(attrib)
@@ -112,4 +142,5 @@ void VertexLayout::ReleaseIterator()
     delete _it;
     _it = nullptr;
 }
+
 }  // namespace Fuego::Renderer
