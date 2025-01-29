@@ -64,7 +64,7 @@ void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer, VertexLay
     glBindBuffer(GL_ARRAY_BUFFER, buff.GetBufferID());
 
     VertexLayout::LayoutIterator* it;
-    for (it = layout.GetIteratorBegin(); !layout.IteratorIsDone(); it = layout.GetNextIterator())
+    for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
     {
         glVertexAttribPointer((GLuint)it->GetIndex(), (GLint)it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE, (GLsizei)layout.GetLayoutSize(),
                               (void*)it->GetOffset());
