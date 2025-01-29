@@ -122,7 +122,7 @@ VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
 }
 VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 {
-    if (_it->_attrib + 1 < &attribs.back() + 1)
+    if (_it->_attrib + 1 != &attribs.back() + 1)
     {
         _it->_attrib++;
         return _it;
