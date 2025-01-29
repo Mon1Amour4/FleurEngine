@@ -107,9 +107,9 @@ VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribu
     : _master(master)
     , _attrib(attrib)
     , is_done(false)
+    , index(0)
 {
 }
-
 VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
 {
     if (attribs.size() == 0)
@@ -118,20 +118,22 @@ VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
         return nullptr;
     }
     _it = new LayoutIterator(this, &attribs[0]);
+    _it->index = 0;
     return _it;
 }
 VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 {
-    if (_it->_attrib + 1 != &attribs.back() + 1)
+    if (!_it || attribs.empty())
+        return nullptr;
+
+    if (_it->index + 1 < attribs.size())
     {
         _it->_attrib++;
+        _it->index++;
         return _it;
     }
-    else
-    {
-        _it->is_done = true;
-        return nullptr;
-    }
+
+    return nullptr;
 }
 bool VertexLayout::IteratorIsDone()
 {

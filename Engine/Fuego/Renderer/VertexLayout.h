@@ -54,6 +54,7 @@ public:
         VertexAttribute* _attrib;
         VertexLayout* _master;
         bool is_done;
+        uint16_t index;
     };
 
 
