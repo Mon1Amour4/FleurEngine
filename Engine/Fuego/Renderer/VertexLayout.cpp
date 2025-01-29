@@ -8,28 +8,11 @@ namespace Fuego::Renderer
 {
 VertexLayout::VertexLayout()
     : layout_size(0)
+    , _it(nullptr)
 {
     attribs.reserve(3);
 }
-void VertexLayout::AddAttribute(VertexAttribute attrib)
-{
-    attribs.push_back(attrib);
-    layout_size += sizeof(attrib);
-}
-void VertexLayout::EnableAttribute(uint16_t attrib_index)
-{
-    if (attrib_index < attribs.size())
-    {
-        attribs[attrib_index].is_enabled = true;
-    }
-}
-void VertexLayout::DisableAttribute(uint16_t attrib_index)
-{
-    if (attrib_index < attribs.size())
-    {
-        attribs[attrib_index].is_enabled = false;
-    }
-}
+
 uint32_t VertexLayout::GetAPIDataType(DataType type)
 {
 #if defined(FUEGO_PLATFORM_WIN)
@@ -69,5 +52,64 @@ uint32_t VertexLayout::GetAPIDataType(DataType type)
         return 0;
     }
 #endif
+}
+void VertexLayout::AddAttribute(VertexAttribute attrib)
+{
+    attribs.push_back(attrib);
+    layout_size += sizeof(attrib);
+}
+void VertexLayout::EnableAttribute(uint16_t attrib_index)
+{
+    if (attrib_index < attribs.size())
+    {
+        attribs[attrib_index].is_enabled = true;
+    }
+}
+void VertexLayout::DisableAttribute(uint16_t attrib_index)
+{
+    if (attrib_index < attribs.size())
+    {
+        attribs[attrib_index].is_enabled = false;
+    }
+}
+
+VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
+    : _master(master)
+    , _attrib(attrib)
+    , is_done(false)
+{
+}
+
+VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
+{
+    if (attribs.size() == 0)
+    {
+        _it->is_done = true;
+        return nullptr;
+    }
+    _it = new LayoutIterator(this, &attribs[0]);
+    return _it;
+}
+VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
+{
+    if (_it->_attrib + 1 < &attribs.back() + 1)
+    {
+        _it->_attrib++;
+        return _it;
+    }
+    else
+    {
+        _it->is_done = true;
+        return nullptr;
+    }
+}
+bool VertexLayout::IteratorIsDone()
+{
+    return _it->is_done;
+}
+void VertexLayout::ReleaseIterator()
+{
+    delete _it;
+    _it = nullptr;
 }
 }  // namespace Fuego::Renderer
