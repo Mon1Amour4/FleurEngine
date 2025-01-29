@@ -123,8 +123,13 @@ VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
 }
 VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 {
-    if (!_it || attribs.empty())
+    if (!_it)
         return nullptr;
+    if (attribs.empty())
+    {
+        _it->is_done = true;
+        return nullptr;
+    }
 
     if (_it->index + 1 < attribs.size())
     {
@@ -132,12 +137,16 @@ VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
         _it->index++;
         return _it;
     }
+    else
+    {
+        _it->is_done = true;
+    }
 
     return nullptr;
 }
-bool VertexLayout::IteratorIsDone()
+bool VertexLayout::LayoutIterator::IsDone()
 {
-    return _it->is_done;
+    return is_done;
 }
 void VertexLayout::ReleaseIterator()
 {

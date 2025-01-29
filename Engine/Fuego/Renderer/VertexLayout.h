@@ -48,6 +48,7 @@ public:
         {
             return _attrib->is_enabled;
         }
+        bool IsDone();
 
     private:
         friend class VertexLayout;
@@ -69,10 +70,9 @@ public:
     {
         return layout_size;
     }
-
     LayoutIterator* GetIteratorBegin();
     LayoutIterator* GetNextIterator();
-    bool IteratorIsDone();
+
     void ReleaseIterator();
 
 private:
