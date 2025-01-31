@@ -82,8 +82,10 @@ private:
     virtual void SetMousePos(float x, float y) override;
 
     glm::vec2 _mouseDir;
-    Input::KeyInfo _lastKey;
+    // Input::KeyInfo _lastKey;
     Input::MouseInfo _lastMouse;
+    bool pressed_keys[256];
+    bool prev_pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
 

@@ -36,6 +36,7 @@ void Camera::Activate()
 
 void Camera::Update()
 {
+    FU_CORE_INFO("Camera::Update");
     dir = glm::vec3(0.0f);
 
     if (Input::IsKeyPressed(Key::W))
