@@ -50,16 +50,10 @@ public:
     {
         return _mouseDir;
     }
-    inline virtual void GetMouseDelta(OUT float& dx, OUT float& dy) const
-    {
-        dx = delta_mouse.dX;
-        dy = delta_mouse.dY;
-    }
 
 private:
-    float _xPos, _yPos, _currentWidth, _currentHeigth;
-    float window_center_x;
-    float window_center_y;
+    float _currentWidth, _currentHeigth;
+    int window_center_x, window_center_y, _xPos, _yPos;
 
     static DWORD WinThreadMain(_In_ LPVOID lpParameter);
     static LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -78,9 +72,7 @@ private:
     LPDWORD _winThreadID;
     HANDLE _onThreadCreated;
 
-    bool is_first_launch;
-    bool isResizing;
-    bool isPainted;
+    bool is_first_launch, isResizing, isPainted, is_in_focus;
 
     friend class Application;
     virtual inline void SetPainted() override
@@ -95,7 +87,6 @@ private:
     Input::KeyState pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
-    Input::DeltaMousePos delta_mouse;
 
     InteractionMode interaction_mode;
 
