@@ -39,7 +39,6 @@ public:
     {
         return !(_cursorPos.x == x && _cursorPos.y == y);
     }
-    virtual void LockCursorToCenter() override;
 
 
     virtual inline bool IsResizing() const

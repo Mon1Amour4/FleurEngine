@@ -423,11 +423,6 @@ void WindowWin::GetMousePos(OUT float& xPos, OUT float& yPos) const
     yPos = _cursorPos.y;
 }
 
-void WindowWin::LockCursorToCenter()
-{
-    ::SetCursorPos(window_center_x, window_center_y);
-}
-
 std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
 {
     return std::make_unique<WindowWin>(props, eventQueue);
