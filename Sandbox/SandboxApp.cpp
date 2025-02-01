@@ -30,19 +30,16 @@ void SceneLayer::OnAttach()
 {
     scene_meshes.emplace_back(new Fuego::Renderer::Mesh());
     Fuego::FS::FileSystem& fs = Fuego::Application::Get().FileSystem();
-    for (auto mesh : scene_meshes)
+    for (const auto& mesh : scene_meshes)
     {
-        mesh_data.push_back(std::move(mesh->load(fs.GetFullPathTo("Model.obj").data())));
+        mesh_data.emplace_back((mesh->load(fs.GetFullPathTo("Model.obj").data())));
     }
     texture_data = fs.Load_Image("image.jpg", w, h, n);
 }
 
 void SceneLayer::OnDetach()
 {
-    for (auto mesh : scene_meshes)
-    {
-        delete mesh;
-    }
+    scene_meshes.clear();
     mesh_data.clear();
 }
 
