@@ -30,11 +30,7 @@ public:
         MOUSE_MPRESSED,
         MOUSE_SCROLL
     };
-    struct DeltaMousePos
-    {
-        float dX;
-        float dY;
-    };
+
     static inline bool IsKeyPressed(KeyCode keyCode)
     {
         return m_Instance->IsKeyPressedImpl(keyCode);
@@ -62,10 +58,6 @@ public:
     {
         return m_Instance->GetMouseDirImpl();
     }
-    static inline glm::vec2 GetMouseDelta()
-    {
-        return m_Instance->GetMouseDeltaImpl();
-    }
     static inline bool Init(Input* input)
     {
         if (!m_Instance && input != nullptr)
@@ -90,7 +82,6 @@ protected:
     virtual float GetMouseXImpl() const = 0;
     virtual float GetMouseYImpl() const = 0;
     virtual glm::vec2 GetMouseDirImpl() const = 0;
-    virtual glm::vec2 GetMouseDeltaImpl() const = 0;
 
 private:
     static Input* m_Instance;
