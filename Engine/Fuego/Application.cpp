@@ -146,6 +146,9 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
     case Key::D1:
         d->_renderer->ToggleWireFrame();
         break;
+    case Key::D2:
+        d->m_Window->SwitchInteractionMode();
+        break;
     }
     event.SetHandled();
     return true;

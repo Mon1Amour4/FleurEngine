@@ -251,6 +251,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 SetCursorPos(window_center_x, window_center_y);
                 ShowCursor(false);
             }
+            else if (interaction_mode == InteractionMode::EDITOR)
+            {
+                ShowCursor(true);
+            }
         }
 
 

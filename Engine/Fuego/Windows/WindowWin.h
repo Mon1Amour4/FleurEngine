@@ -40,6 +40,14 @@ public:
         return !(_cursorPos.x == x && _cursorPos.y == y);
     }
 
+    inline virtual void SwitchInteractionMode() override
+    {
+        interaction_mode = interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
+    }
+    inline virtual InteractionMode GetInteractionMode() const
+    {
+        return interaction_mode;
+    }
 
     virtual inline bool IsResizing() const
     {
