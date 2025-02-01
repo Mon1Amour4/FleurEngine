@@ -36,7 +36,7 @@ void Camera::Activate()
 
 void Camera::Update()
 {
-    dir = glm::vec3(0.0f);
+    // dir = glm::vec3(0.0f);
 
     if (Input::IsKeyPressed(Key::W))
     {
@@ -67,6 +67,7 @@ void Camera::Update()
 void Camera::RotateCamera()
 {
     glm::vec2 mouse_dir = Input::GetMouseDir();
+    FU_CORE_INFO("moude_dir {}{}", mouse_dir.x, mouse_dir.y);
     yaw += mouse_dir.x * mouse_sensitivity;
     pitch += mouse_dir.y * -1.0f * mouse_sensitivity;
     glm::fclamp(pitch, -89.0f, 89.0f);
@@ -76,6 +77,5 @@ void Camera::RotateCamera()
     direction.y = sin(glm::radians(pitch));
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camera_forward = glm::normalize(direction);
-    // FU_CORE_TRACE("view {0} {1} {2},  pos: {3} {4} {5}", direction.x, direction.y, direction.z, position.x, position.y, position.z);
 }
 }  // namespace Fuego::Renderer

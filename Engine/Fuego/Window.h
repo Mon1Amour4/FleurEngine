@@ -46,6 +46,11 @@ class Surface;
 class Window
 {
 public:
+    enum InteractionMode
+    {
+        EDITOR = 0,
+        GAMING = 1
+    };
     virtual ~Window() = default;
 
     virtual void Update() = 0;
@@ -64,6 +69,7 @@ public:
     virtual void SetMousePos(float x, float y) = 0;
     inline virtual glm::vec2 GetMouseDir() const = 0;
     virtual bool HasMouseMoved(float x, float y) const = 0;
+    virtual void LockCursorToCenter() = 0;
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 };

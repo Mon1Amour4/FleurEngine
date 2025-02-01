@@ -41,4 +41,11 @@ glm::vec2 InputWin::GetMouseDirImpl() const
     const WindowWin& window = reinterpret_cast<const WindowWin&>(Application::Get().GetWindow());
     return window.GetMouseDir();
 }
+glm::vec2 InputWin::GetMouseDeltaImpl() const
+{
+    const WindowWin& window = reinterpret_cast<const WindowWin&>(Application::Get().GetWindow());
+    glm::vec2 delta(0.0f);
+    window.GetMouseDelta(delta.x, delta.y);
+    return delta;
+}
 }  // namespace Fuego

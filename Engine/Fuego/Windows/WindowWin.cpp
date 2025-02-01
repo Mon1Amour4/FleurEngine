@@ -174,8 +174,13 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         RECT r;
         GetWindowRect(hwnd, &r);
+
         _currentWidth = r.right - r.left;
         _currentHeigth = r.bottom - r.top;
+
+        window_center_x - _currentWidth / 2;
+        window_center_y - _currentHeigth / 2;
+
         _xPos = r.left;
         _yPos = r.top;
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
@@ -200,10 +205,29 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_MOUSEMOVE:
     {
-        float x = static_cast<float>(GET_X_LPARAM(lparam));
-        float y = static_cast<float>(GET_Y_LPARAM(lparam));
-        SetMousePos(x, y);
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(x, y)));
+        POINT p;
+        GetCursorPos(&p);
+        ScreenToClient(hwnd, &p);
+
+        if (is_first_launch)
+        {
+            window_center_x = _currentWidth / 2;
+            window_center_y = _currentHeigth / 2;
+
+            _cursorPos.x = window_center_x;
+            _cursorPos.y = window_center_y;
+
+            _prevCursorPos = _cursorPos;
+            is_first_launch = false;
+        }
+
+        FU_CORE_INFO("delta_mouse: {0},{1}", delta_mouse.dX, delta_mouse.dY);
+        SetMousePos(p.x, p.y);
+
+        if (interaction_mode == InteractionMode::GAMING)
+        {
+        }
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
         break;
     }
 
@@ -300,7 +324,6 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     : _eventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
     , _hinstance(GetModuleHandle(nullptr))
     , _props(props)
-    //, _lastKey{Input::KEY_NONE, Key::None}
     , _lastMouse{Input::MOUSE_NONE, Mouse::None}
     , _cursorPos{0.f, 0.f}
     , _winThread{}
@@ -314,6 +337,9 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _yPos(props.y)
     , _prevCursorPos(_cursorPos)
     , pressed_keys{Input::KeyState::KEY_NONE}
+    , delta_mouse{0.0f, 0.0f}
+    , interaction_mode(InteractionMode::GAMING)
+    , is_first_launch(true)
 {
     POINT cursorPos;
     ::GetCursorPos(&cursorPos);
@@ -333,6 +359,8 @@ void WindowWin::Update()
         return;
     }
     _mouseDir = _cursorPos - _prevCursorPos;
+    FU_CORE_INFO("_cursorPos: {0},{1}", _cursorPos.x, _cursorPos.y);
+    FU_CORE_INFO("_prevCursorPos: {0},{1}", _prevCursorPos.x, _prevCursorPos.y);
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
     _prevCursorPos = _cursorPos;
 }
@@ -368,6 +396,11 @@ void WindowWin::GetMousePos(OUT float& xPos, OUT float& yPos) const
     yPos = _cursorPos.y;
 }
 
+void WindowWin::LockCursorToCenter()
+{
+    ::SetCursorPos(window_center_x, window_center_y);
+}
+
 std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
 {
     return std::make_unique<WindowWin>(props, eventQueue);
@@ -375,6 +408,8 @@ std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQ
 
 void WindowWin::SetMousePos(float x, float y)
 {
+    delta_mouse.dX = _cursorPos.x - _prevCursorPos.x;
+    delta_mouse.dY = _cursorPos.y - _prevCursorPos.y;
     _prevCursorPos = _cursorPos;
     _cursorPos.x = x;
     _cursorPos.y = y;
