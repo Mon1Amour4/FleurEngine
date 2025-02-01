@@ -36,8 +36,6 @@ void Camera::Activate()
 
 void Camera::Update()
 {
-    // dir = glm::vec3(0.0f);
-
     if (Input::IsKeyPressed(Key::W))
     {
         position += speed * camera_forward;
@@ -54,10 +52,6 @@ void Camera::Update()
     {
         position += glm::normalize(glm::cross(camera_forward, up)) * speed;
     }
-    if (glm::length(dir) > 0.0f)
-    {
-        dir = glm::normalize(dir) * speed;
-    }
 
     RotateCamera();
     projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
@@ -67,7 +61,6 @@ void Camera::Update()
 void Camera::RotateCamera()
 {
     glm::vec2 mouse_dir = Input::GetMouseDir();
-    FU_CORE_INFO("moude_dir {}{}", mouse_dir.x, mouse_dir.y);
     yaw += mouse_dir.x * mouse_sensitivity;
     pitch += mouse_dir.y * -1.0f * mouse_sensitivity;
     glm::fclamp(pitch, -89.0f, 89.0f);

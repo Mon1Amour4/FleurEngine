@@ -389,11 +389,7 @@ void WindowWin::Update()
         FU_CORE_INFO("stop rendering");
         return;
     }
-    _mouseDir = _cursorPos - _prevCursorPos;
-    FU_CORE_INFO("_cursorPos: {0},{1}", _cursorPos.x, _cursorPos.y);
-    FU_CORE_INFO("_prevCursorPos: {0},{1}", _prevCursorPos.x, _prevCursorPos.y);
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
-    _prevCursorPos = _cursorPos;
 }
 
 void WindowWin::SetVSync(bool enabled)
