@@ -271,18 +271,15 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         if (isKeyDown)
         {
-            FU_CORE_INFO("WM_KEYDOWN");
             int repeatCount = (lparam >> 16) & 0xFF;
-            pressed_keys[crossplatform_keycode] = true;
+            bool firstPress = !(lparam & (1 << 30));
+            pressed_keys[crossplatform_keycode] = firstPress ? Input::KeyState::KEY_PRESSED : Input::KeyState::KEY_REPEAT;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, repeatCount)));
-            //_lastKey = {Input::KEY_PRESSED, crossplatform_keycode};
         }
         else
         {
-            FU_CORE_INFO("WM_KEYUP");
-            pressed_keys[crossplatform_keycode] = false;
+            pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_RELEASED;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
-            //_lastKey = {Input::KEY_RELEASED, crossplatform_keycode};
         }
         break;
     }
@@ -316,8 +313,7 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _xPos(props.x)
     , _yPos(props.y)
     , _prevCursorPos(_cursorPos)
-    , pressed_keys{false}
-    , prev_pressed_keys{false}
+    , pressed_keys{Input::KeyState::KEY_NONE}
 {
     POINT cursorPos;
     ::GetCursorPos(&cursorPos);
@@ -339,9 +335,6 @@ void WindowWin::Update()
     _mouseDir = _cursorPos - _prevCursorPos;
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
     _prevCursorPos = _cursorPos;
-    FU_CORE_INFO("WindowWin::Update");
-    /* memcpy(prev_pressed_keys, pressed_keys, sizeof(pressed_keys));
-     memset(pressed_keys, false, sizeof(pressed_keys));*/
 }
 
 void WindowWin::SetVSync(bool enabled)
@@ -361,24 +354,7 @@ const void* WindowWin::GetNativeHandle() const
 
 Input::KeyState WindowWin::GetKeyState(KeyCode keyCode) const
 {
-    if (pressed_keys[keyCode] == true)
-    {
-        if (prev_pressed_keys[keyCode] == true)
-        {
-            return Input::KeyState::KEY_REPEAT;
-        }
-        else
-        {
-            return Input::KeyState::KEY_PRESSED;
-        }
-    }
-    else
-    {
-        if (prev_pressed_keys[keyCode] == false)
-        {
-            return Input::KeyState::KEY_RELEASED;
-        }
-    }
+    return pressed_keys[keyCode];
 }
 
 Input::MouseState WindowWin::GetMouseState(MouseCode mouseCode) const

@@ -49,7 +49,7 @@ void SceneLayer::OnDetach()
 void SceneLayer::OnEvent(Fuego::EventVariant& event)
 {
     auto LogEventVisitor =
-        Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); }, [](const Fuego::Event& ev) { FU_TRACE("{0}", ev.ToString()); }};
+        Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); }, [](const Fuego::Event& ev) { /*FU_TRACE("{0}", ev.ToString());*/ }};
 
     std::visit(LogEventVisitor, event);
 }
