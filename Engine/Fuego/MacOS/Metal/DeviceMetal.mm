@@ -10,6 +10,9 @@
 #include <QuartzCore/CAMetalLayer.hpp>
 #include <QuartzCore/QuartzCore.hpp>
 
+#include "Material.h"
+#include "ShaderObject.h"
+
 
 namespace Fuego::Renderer
 {
@@ -78,4 +81,15 @@ std::unique_ptr<Device> Device::CreateDevice()
 {
     return std::make_unique<DeviceMetal>();
 }
+
+// TODO: to remove from here.
+Material* Material::CreateMaterial(Texture* albedo)
+{
+    return nullptr;
+}
+ShaderObject* ShaderObject::CreateShaderObject(Shader& vs, Shader& px)
+{
+    return nullptr;
+}
+
 }  // namespace Fuego::Renderer
