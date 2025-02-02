@@ -10,6 +10,8 @@
 #include "glad/wgl.h"
 #include "glad/gl.h"
 // clang-format on
+#include "Renderer.h"
+
 
 void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
@@ -128,9 +130,7 @@ DeviceOpenGL::DeviceOpenGL()
     }
 
     if (!num_formats)
-    {
         FU_CORE_ERROR("Failed to set the OpenGL 4.6 pixel format.");
-    }
 
     PIXELFORMATDESCRIPTOR pfd;
     DescribePixelFormat(hdc, pixel_format, sizeof(pfd), &pfd);
@@ -149,37 +149,30 @@ DeviceOpenGL::DeviceOpenGL()
     };
     // clang-format on
 
-    ctx = wglCreateContextAttribsARB(hdc, nullptr, ctx_attribs);
+    ctx = wglCreateContextAttribsARB(hdc, 0, ctx_attribs);
     if (!ctx)
-    {
         FU_CORE_ERROR("Failed to create OpenGL 4.6 context.");
-    }
 
     if (!wglMakeCurrent(hdc, ctx))
-    {
         FU_CORE_ERROR("Failed to activate OpenGL 4.6 rendering context.");
-    }
 
     if (!gladLoaderLoadGL())
-    {
-        FU_CORE_ERROR("[OpenGL] can't load OpenGL");
-    }
+        FU_CORE_ERROR("[OpenGL] can't load OoenGL");
 
     FU_CORE_INFO("OpenGL info:");
     FU_CORE_INFO("  Version: {0}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
     FU_CORE_INFO("  GLSL Version: {0}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
     FU_CORE_INFO("  GPU Vendor: {0}", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
     FU_CORE_INFO("  Renderer: {0}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
-
-#if _DEBUG
+    // TODO: if debug then enable OpenGL debug callback:
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(OpenGLDebugCallbackFunc, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_textures_units);
     FU_CORE_INFO("  Max texture units: {0}", max_textures_units);
+    Application::Get().Renderer().MAX_TEXTURES_COUNT = static_cast<uint32_t>(max_textures_units);
     glEnable(GL_DEPTH_TEST);
-#endif
 }
 
 DeviceOpenGL::~DeviceOpenGL()

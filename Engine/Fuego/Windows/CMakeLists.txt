@@ -14,7 +14,9 @@ set(PROJECT_HEADERS
     OpenGL/SwapchainOpenGL.h
     OpenGL/CommandPoolOpenGL.h
     OpenGL/TextureOpenGL.h
-    OpenGL/SurfaceOpenGL.h)
+    OpenGL/SurfaceOpenGL.h
+    OpenGl/MaterialOpenGL.h
+    OpenGl/ShaderObjectOpenGL.h)
 
 set(PROJECT_SOURCES
     EventQueueWin.cpp
@@ -29,7 +31,9 @@ set(PROJECT_SOURCES
     OpenGL/SwapchainOpenGL.cpp
     OpenGL/CommandPoolOpenGL.cpp
     OpenGL/TextureOpenGL.cpp
-    OpenGL/SurfaceOpenGL.cpp)
+    OpenGL/SurfaceOpenGL.cpp
+    OpenGl/MaterialOpenGL.cpp
+    OpenGl/ShaderObjectOpenGL.cpp)
 
 set(GLAD_BUILD_DIR ${CMAKE_BINARY_DIR}/Glad)
 set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/../../build/win/output)
@@ -47,7 +51,7 @@ add_library(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
 target_include_directories(WindowsDep PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_include_directories(
-  WindowsDep PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad/include)
+  WindowsDep PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad/include)
 
-target_link_libraries(WindowsDep PRIVATE Glad)
+target_link_libraries(WindowsDep PUBLIC Glad)
 target_link_libraries(WindowsDep PRIVATE FuegoInterface)

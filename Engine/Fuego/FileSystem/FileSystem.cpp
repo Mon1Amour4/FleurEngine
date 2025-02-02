@@ -1,4 +1,5 @@
 #include "FileSystem.h"
+
 #include "External/stb_image/stb_image.h"
 
 #if defined(FUEGO_PLATFORM_WIN)
@@ -6,9 +7,10 @@
 #endif
 
 #if defined(FUEGO_PLATFORM_MACOS)
-#include "FileSystemPathsMacOS.h"
 #include <limits.h>
 #include <mach-o/dyld.h>
+
+#include "FileSystemPathsMacOS.h"
 #endif
 
 namespace Fuego::FS

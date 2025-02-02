@@ -40,6 +40,14 @@ public:
         return !(_cursorPos.x == x && _cursorPos.y == y);
     }
 
+    inline virtual void SwitchInteractionMode() override
+    {
+        interaction_mode = interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
+    }
+    inline virtual InteractionMode GetInteractionMode() const
+    {
+        return interaction_mode;
+    }
 
     virtual inline bool IsResizing() const override
     {
@@ -51,7 +59,8 @@ public:
     }
 
 private:
-    float _xPos, _yPos, _currentWidth, _currentHeigth;
+    float _currentWidth, _currentHeigth;
+    int window_center_x, window_center_y, _xPos, _yPos;
 
     static DWORD WinThreadMain(_In_ LPVOID lpParameter);
     static LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -70,8 +79,7 @@ private:
     LPDWORD _winThreadID;
     HANDLE _onThreadCreated;
 
-    bool isResizing;
-    bool isPainted;
+    bool is_first_launch, isResizing, isPainted, is_in_focus;
 
     friend class Application;
     virtual inline void SetPainted() override
@@ -82,11 +90,12 @@ private:
     virtual void SetMousePos(float x, float y) override;
 
     glm::vec2 _mouseDir;
-    Input::KeyInfo _lastKey;
     Input::MouseInfo _lastMouse;
+    Input::KeyState pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
 
+    InteractionMode interaction_mode;
 
 protected:
     virtual void SetWindowMode(WPARAM mode);

@@ -63,7 +63,7 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
     SetEvent(window->_onThreadCreated);
 
     MSG msg{};
-    while (GetMessage(&msg, nullptr, 0u, 0u))
+    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
     {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
@@ -149,6 +149,8 @@ void WindowWin::InitOpenGLExtensions()
 
 LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    is_in_focus = GetForegroundWindow() == hwnd;
+
     switch (msg)
     {
     case WM_ACTIVATE:
@@ -172,12 +174,18 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         isResizing = false;
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent()));
 
-        RECT r;
-        GetWindowRect(hwnd, &r);
-        _currentWidth = r.right - r.left;
-        _currentHeigth = r.bottom - r.top;
-        _xPos = r.left;
-        _yPos = r.top;
+        POINT center;
+        center.x = _currentWidth / 2;
+        center.y = _currentHeigth / 2;
+
+        ClientToScreen(hwnd, &center);
+        window_center_x = center.x;
+        window_center_y = center.y;
+        RECT rect;
+        GetClientRect(hwnd, &rect);
+
+        _xPos = rect.left;
+        _yPos = rect.top;
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
         break;
     }
@@ -200,10 +208,57 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_MOUSEMOVE:
     {
-        const float x = static_cast<float>(GET_X_LPARAM(lparam));
-        const float y = static_cast<float>(GET_Y_LPARAM(lparam));
-        SetMousePos(x, y);
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(x, y)));
+        if (is_first_launch)
+        {
+            RECT rect;
+            GetClientRect(hwnd, &rect);
+            POINT center;
+            center.x = _currentWidth / 2;
+            center.y = _currentHeigth / 2;
+            ClientToScreen(hwnd, &center);
+            window_center_x = center.x;
+            window_center_y = center.y;
+
+            _cursorPos.x = window_center_x;
+            _cursorPos.y = window_center_y;
+
+            _prevCursorPos = _cursorPos;
+            is_first_launch = false;
+            SetCursorPos(window_center_x, window_center_y);
+        }
+
+        POINT cursor_pos;
+        GetCursorPos(&cursor_pos);
+
+        RECT client_rect;
+        GetClientRect(hwnd, &client_rect);
+        bool insideWindow =
+            cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
+
+        if (insideWindow && is_in_focus)
+        {
+            if (interaction_mode == InteractionMode::GAMING)
+            {
+                _prevCursorPos.x = window_center_x;
+                _prevCursorPos.y = window_center_y;
+
+                _cursorPos.x = cursor_pos.x;
+                _cursorPos.y = cursor_pos.y;
+
+                _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
+                _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
+
+                SetCursorPos(window_center_x, window_center_y);
+                ShowCursor(false);
+            }
+            else if (interaction_mode == InteractionMode::EDITOR)
+            {
+                ShowCursor(true);
+            }
+        }
+
+
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
         break;
     }
 
@@ -266,13 +321,14 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         if (isKeyDown)
         {
             int repeatCount = (lparam >> 16) & 0xFF;
+            bool firstPress = !(lparam & (1 << 30));
+            pressed_keys[crossplatform_keycode] = firstPress ? Input::KeyState::KEY_PRESSED : Input::KeyState::KEY_REPEAT;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, repeatCount)));
-            _lastKey = {Input::KEY_PRESSED, crossplatform_keycode};
         }
         else
         {
+            pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_RELEASED;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
-            _lastKey = {Input::KEY_RELEASED, crossplatform_keycode};
         }
         break;
     }
@@ -293,7 +349,6 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     : _eventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
     , _hinstance(GetModuleHandle(nullptr))
     , _props(props)
-    , _lastKey{Input::KEY_NONE, Key::None}
     , _lastMouse{Input::MOUSE_NONE, Mouse::None}
     , _cursorPos{0.f, 0.f}
     , _winThread{}
@@ -306,6 +361,10 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _xPos(props.x)
     , _yPos(props.y)
     , _prevCursorPos(_cursorPos)
+    , pressed_keys{Input::KeyState::KEY_NONE}
+    , interaction_mode(InteractionMode::GAMING)
+    , is_first_launch(true)
+    , is_in_focus(true)
 {
     POINT cursorPos;
     ::GetCursorPos(&cursorPos);
@@ -324,9 +383,7 @@ void WindowWin::Update()
         FU_CORE_INFO("stop rendering");
         return;
     }
-    _mouseDir = _cursorPos - _prevCursorPos;
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
-    _prevCursorPos = _cursorPos;
 }
 
 void WindowWin::SetVSync(bool enabled)
@@ -346,7 +403,7 @@ const void* WindowWin::GetNativeHandle() const
 
 Input::KeyState WindowWin::GetKeyState(KeyCode keyCode) const
 {
-    return _lastKey.keyCode == keyCode ? _lastKey.state : Input::KeyState::KEY_NONE;
+    return pressed_keys[keyCode];
 }
 
 Input::MouseState WindowWin::GetMouseState(MouseCode mouseCode) const

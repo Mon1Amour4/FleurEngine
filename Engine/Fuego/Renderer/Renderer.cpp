@@ -4,15 +4,20 @@
 
 #include "Camera.h"
 #include "CommandBuffer.h"
-#include "Mesh.h"
+#include "ShaderObject.h"
+#include "VertexLayout.h"
 
 
 namespace Fuego::Renderer
 {
 
+ShaderObject* shader_object;
+
+uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
+
 Renderer::Renderer()
-    : show_wireframe(false), 
-    _camera(std::unique_ptr<Camera>(new Camera()))
+    : show_wireframe(false)
+    , _camera(std::unique_ptr<Camera>(new Camera()))
 {
     _camera->Activate();
 
@@ -24,8 +29,14 @@ Renderer::Renderer()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    _vertexShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
+    _mainVsShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
     _pixelShader = _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel);
+
+    shader_object = ShaderObject::CreateShaderObject(*_mainVsShader.get(), *_pixelShader.get());
+    shader_object->GetVertexShader()->AddVar("model");
+    shader_object->GetVertexShader()->AddVar("view");
+    shader_object->GetVertexShader()->AddVar("projection");
+
     _buffer = _device->CreateBuffer(0, 0);
 }
 
@@ -35,30 +46,42 @@ void Renderer::DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-    cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_vertexShader);
-    cmd.BindPixelShader(*_pixelShader);
+    VertexLayout layout{};
+    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
+    cmd.BindVertexBuffer(*_buffer, layout);
     cmd.BindIndexBuffer(indices, sizeof(unsigned int) * indicesCount);
     cmd.IndexedDraw(vertexCount);
     cmd.EndRecording();
     cmd.Submit();
 }
 
-void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h)
+void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Material* material, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection)
 {
     _buffer->BindData<float>(std::span(data.data(), data.size()));
     CommandBuffer& cmd = _commandPool->GetCommandBuffer();
     cmd.BeginRecording();
     cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-    cmd.BindVertexBuffer(*_buffer);
-    cmd.BindVertexShader(*_vertexShader);
-    cmd.BindPixelShader(*_pixelShader);
-    cmd.BindTexture(texture, w, h);
-    // cmd.BindIndexBuffer( );
-    // cmd.IndexedDraw();
+    VertexLayout layout{};
+    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
+    cmd.BindVertexBuffer(*_buffer, layout);
+    cmd.BindShaderObject(*shader_object);
+    // cmd.BindTexture(texture);
+    //  cmd.BindIndexBuffer( );
+    //  cmd.IndexedDraw();
+    shader_object->GetVertexShader()->SetMat4f("model", mesh_pos);
+    shader_object->GetVertexShader()->SetMat4f("view", camera);
+    shader_object->GetVertexShader()->SetMat4f("projection", projection);
+
+    material->Upload(*shader_object);
     cmd.Draw(vertex_count);
     cmd.EndRecording();
     cmd.Submit();
+
+    delete material;
 }
 
 void Renderer::Clear()

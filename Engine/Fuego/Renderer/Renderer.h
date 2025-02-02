@@ -6,15 +6,17 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Material.h"
+#include "Mesh.h"
 #include "Shader.h"
 #include "Surface.h"
 #include "Swapchain.h"
+#include "Texture.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
 namespace Fuego::Renderer
 {
-class Mesh;
 
 class Renderer
 {
@@ -27,10 +29,27 @@ public:
         float y = 0.0f;
     };
 
+#pragma pack(push, 1)
+    struct VertexData
+    {
+        glm::vec3 pos;
+        glm::vec2 textcoord;
+        glm::vec3 normal;
+    };
+#pragma pack(pop)
+
+    enum TextureType
+    {
+        ALBEDO = 0,
+        DIFFUSE = 1,
+        SPECULAR = 2
+    };
+
+
     ~Renderer() = default;
     // TODO replace array of floats to Mesh class
     void DrawMesh(float vertices[], uint32_t vertexCount, uint32_t indices[], uint32_t indicesCount);
-    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, unsigned char* texture, int w, int h);
+    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Material* material, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection);
     void Clear();
     void Present();
 
@@ -46,15 +65,7 @@ public:
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
 
-
-#pragma pack(push, 1)
-    struct VertexData
-    {
-        glm::vec3 pos;
-        glm::vec2 textcoord;
-        glm::vec3 normal;
-    };
-#pragma pack(pop)
+    static uint32_t MAX_TEXTURES_COUNT;
 
 private:
     bool show_wireframe;
@@ -65,7 +76,7 @@ private:
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
     std::unique_ptr<Swapchain> _swapchain;
-    std::unique_ptr<Shader> _vertexShader;
+    std::unique_ptr<Shader> _mainVsShader;
     std::unique_ptr<Shader> _pixelShader;
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;

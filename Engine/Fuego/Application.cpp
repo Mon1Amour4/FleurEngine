@@ -1,13 +1,18 @@
 #include "Application.h"
 
+#include "Camera.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
-#include "LayerStack.h"
-#include "Mesh.h"
-#include "Renderer.h"
 #include "KeyCodes.h"
-#include "Camera.h"
+#include "LayerStack.h"
+#include "Renderer.h"
 
+Fuego::Renderer::Texture* engine_texture;
+int w, h, n;
+unsigned char* texture_data;
+
+Fuego::Renderer::Mesh* engine_mesh;
+std::vector<float> mesh_vector;
 namespace Fuego
 {
 class Application::ApplicationImpl
@@ -34,6 +39,13 @@ Application::Application()
 
     d->_renderer.reset(new Renderer::Renderer());
     d->m_Running = true;
+
+    FS::FileSystem& fs = Application::Get().FileSystem();
+    engine_mesh = new Fuego::Renderer::Mesh();
+    mesh_vector = engine_mesh->load(fs.GetFullPathTo("!Model.obj").data());
+
+    texture_data = fs.Load_Image("image.jpg", w, h, n);
+    engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
 }
 
 Renderer::Renderer& Application::Renderer()
@@ -128,13 +140,15 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
     KeyEvent& e = (KeyEvent&)event;
     KeyCode crossplatform_key = e.GetKeyCode();
-    
+
     switch (crossplatform_key)
     {
     case Key::D1:
         d->_renderer->ToggleWireFrame();
         break;
-
+    case Key::D2:
+        d->m_Window->SwitchInteractionMode();
+        break;
     }
     event.SetHandled();
     return true;
@@ -143,12 +157,16 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    //d->_renderer->Clear();
+    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture);
+
+    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+                           Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
+    // d->_renderer->Clear();
     // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
-    //d->_renderer->DrawMesh(data, model->GetVertexCount());
+    // d->_renderer->DrawMesh(data, model->GetVertexCount());
     d->_renderer->Present();
 
-    //event.SetHandled();
+    // event.SetHandled();
     UNUSED(event);
     return true;
 }

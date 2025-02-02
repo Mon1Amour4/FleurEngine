@@ -17,9 +17,12 @@ Camera::Camera()
     , camera_forward(0.0f, 0.0f, -1.0f)
     , view(glm::mat4(1.0f))
     , dir(glm::vec3(0.0f, 0.0f, 0.0f))
+    , projection(glm::mat4(1.0f))
+    , FOV(60)
+    , near_clip(0.1f)
+    , far_clip(1000.0f)
 
 {
-
 }
 
 Camera::~Camera()
@@ -33,8 +36,6 @@ void Camera::Activate()
 
 void Camera::Update()
 {
-    dir = glm::vec3(0.0f);
-
     if (Input::IsKeyPressed(Key::W))
     {
         position += speed * camera_forward;
@@ -51,13 +52,9 @@ void Camera::Update()
     {
         position += glm::normalize(glm::cross(camera_forward, up)) * speed;
     }
-    if (glm::length(dir) > 0.0f)
-    {
-        dir = glm::normalize(dir) * speed;
-    }
 
     RotateCamera();
-
+    projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
     view = glm::lookAt(position, position + camera_forward, up);
 }
 
@@ -73,6 +70,5 @@ void Camera::RotateCamera()
     direction.y = sin(glm::radians(pitch));
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camera_forward = glm::normalize(direction);
-    //FU_CORE_TRACE("view {0} {1} {2},  pos: {3} {4} {5}", direction.x, direction.y, direction.z, position.x, position.y, position.z);
 }
 }  // namespace Fuego::Renderer
