@@ -5,8 +5,6 @@
 
 namespace Fuego
 {
-Input* Input::m_Instance = nullptr;
-
 bool InputMacOS::IsKeyPressedImpl(KeyCode keyCode) const
 {
     UNUSED(keyCode);
