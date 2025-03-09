@@ -33,4 +33,9 @@ float InputMacOS::GetMouseYImpl() const
 {
     return 0.0f;
 }
+
+Input& Input::platform_instance()
+{
+    return InputMacOS::instance();
+}
 }  // namespace Fuego
