@@ -3,9 +3,29 @@
 #include <fupch.h>
 
 #include <list>
+#include <type_traits>
+#include <variant>
 
 #include "glm/glm.hpp"
 
+#pragma region Templates and concepts
+
+template <typename T>
+concept IsNumber = std::is_integral_v<T> || std::is_floating_point_v<T>;
+
+template <typename T>
+concept StringLike = requires(T t) {
+    { t.c_str() } -> std::same_as<const char*>;
+    { std::string(t) } -> std::convertible_to<std::string>;
+};
+
+template <typename T>
+concept IsFUsonObject = IsNumber<T> || StringLike<T>;
+
+// Template section for std::variant:
+template <typename Ty, typename... Types>
+concept IsInVariant = (std::same_as<Ty, Types> || ...);
+#pragma endregion
 
 namespace Fuego::Editor
 {
@@ -34,10 +54,32 @@ public:
     void SaveSceneToFile(const std::string& file_name);
 
 private:
+    template <IsFUsonObject T>
+    struct FUSONObject
+    {
+        std::string key;
+        T value;
+    };
+
     Root* root;
     std::string scene_name;
+    std::string scene_version = "1.0";
     uint16_t objects_amount;
     std::unordered_map<std::string, TreeNode*> objects_map;
+
+    std::string ParseScene() const;
+
+    template <typename... T>
+    std::string GetFormattedFUSONObject(FUSONObject<T>... vars) const;
+    template <typename T>
+    void ProcessVar(const FUSONObject<T>& obj, OUT std::string& str) const;
+
+    template <typename Ty, typename... Types>
+        requires IsInVariant<Ty, Types...>
+    struct FusonVariantHolder
+    {
+        std::variant<std::string, uint64_t, bool, std::optional<Ty>> fuson_variant;
+    };
 };
 class BaseSceneObject
 {
@@ -160,5 +202,4 @@ public:
 private:
     TreeNode* parent;
 };
-
 }  // namespace Fuego::Editor
