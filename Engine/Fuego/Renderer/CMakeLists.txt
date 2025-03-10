@@ -22,10 +22,13 @@ set(PROJECT_HEADERS
     Camera.h
     Material.h
     ShaderObject.h
-    VertexLayout.h
-    ../../Editor/Scene.h)
+    VertexLayout.h)
 
-set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp VertexLayout.cpp ../../Editor/Scene.cpp)
+set(PROJECT_SOURCES
+  Renderer.cpp
+  Mesh.cpp
+  Camera.cpp
+  VertexLayout.cpp)
 
 if(FUEGO_PLATFORM_WIN)
   list(APPEND PRIVATE_LINK_LIBRARIES WindowsDep)
