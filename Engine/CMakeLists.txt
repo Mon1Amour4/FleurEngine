@@ -38,16 +38,20 @@ set(PROJECT_HEADERS
     Fuego.h
     fupch.h
     ${OUT_HEADER_FILES}
+    Editor/Scene.h
 )
 
-set(SOURCES Fuego/Application.cpp
-            Fuego/Log.cpp 
-            Fuego/Layer.cpp
-            Fuego/LayerStack.cpp 
-            Fuego/ImGui/ImGuiLayer.cpp
-            Fuego/FileSystem/FileSystem.cpp
-            External/stb_image/stb_image.cpp
-            ${OUT_SOURCE_FILES})
+set(SOURCES 
+    Fuego/Application.cpp
+    Fuego/Log.cpp 
+    Fuego/Layer.cpp
+    Fuego/LayerStack.cpp 
+    Fuego/ImGui/ImGuiLayer.cpp
+    Fuego/FileSystem/FileSystem.cpp
+    External/stb_image/stb_image.cpp
+    ${OUT_SOURCE_FILES}
+    Editor/Scene.cpp
+)
 
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer )
 
