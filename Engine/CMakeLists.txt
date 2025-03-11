@@ -5,13 +5,6 @@ set(FUEGO_DYNAMIC_LIB
     CACHE BOOL "Build dynamic library (ON/OFF)")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/ProtoFilesMisc.cmake)
-
-set(PROTO_FILES_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/ProtoIn)
-
-GetProtoFiles(PATHS ${PROTO_FILES_DIRECTORIES})
-GetProtoHeaderFiles(PROTO_OUT ${PROTO_PATH})
-GetProtoSourceFiles(PROTO_OUT ${PROTO_PATH})
 
 # Project set up
 set(PROJECT_HEADERS
