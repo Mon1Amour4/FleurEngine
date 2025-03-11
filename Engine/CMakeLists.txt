@@ -5,6 +5,7 @@ set(FUEGO_DYNAMIC_LIB
     CACHE BOOL "Build dynamic library (ON/OFF)")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
+set_target_properties(ImGui PROPERTIES FOLDER "3rd party")
 
 # Project set up
 set(PROJECT_HEADERS
