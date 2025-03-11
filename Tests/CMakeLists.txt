@@ -38,28 +38,31 @@ set(INCLUDE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(TESTS_HEADERS
     ${INCLUDE_FOLDER}/Tests.h
     ${INCLUDE_FOLDER}/ProtoFilesTests.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Engine/Fuego/ProtoOut/SceneObjects.pb.h
+    ${OUT_HEADER_FILES}
 )
 set(TESTS_SOURCES
     ${SRC_FOLDER}/Tests.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/../Engine/Fuego/ProtoOut/SceneObjects.pb.cc
+    ${OUT_SOURCE_FILES}
 )
 
 
 set(CMAKE_INSTALL_PREFIX ${GOOGLE_TEST_BUILD} CACHE PATH "Install path prefix" FORCE)
 
 add_subdirectory(${GOOGLE_TEST_ROOT} ${GOOGLE_TEST_BUILD})
+
 set_target_properties(gtest_main gtest PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/lib
     LIBRARY_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/lib
-    RUNTIME_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/bin )
+    RUNTIME_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/bin
+)
 
 add_subdirectory(${CORE_LIB_TESTS_ROOT} ${CORE_LIB_TESTS_BUILD})
+
 set_target_properties(CoreLibTests PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${CORE_LIB_TESTS_BUILD}/lib
     LIBRARY_OUTPUT_DIRECTORY ${CORE_LIB_TESTS_BUILD}/lib
-    RUNTIME_OUTPUT_DIRECTORY ${CORE_LIB_TESTS_BUILD}/bin )
-
+    RUNTIME_OUTPUT_DIRECTORY ${CORE_LIB_TESTS_BUILD}/bin
+)
 
 add_executable(Tests ${TESTS_HEADERS} ${TESTS_SOURCES})
 
@@ -78,5 +81,4 @@ target_include_directories(Tests PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${GOOGLE_TEST_ROOT}/googletest/include
         ${FUEGO_ROOT}/CoreLib
-
 )
