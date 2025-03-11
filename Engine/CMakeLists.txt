@@ -130,16 +130,11 @@ set(ENGINE_PUBLIC_INCLUDE_DIRECTORIES
 # An interface library to propagate headers to platform implementations
 
 add_library(FuegoInterface INTERFACE)
-target_include_directories(FuegoInterface
-                           INTERFACE ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})                 
-target_precompile_headers(FuegoInterface INTERFACE
-                          ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
-target_compile_features(FuegoInterface
-                        INTERFACE ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_definitions(
-  FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS} FUEGO_BUILD_LIB)
-target_compile_options(FuegoInterface
-                       INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS})
+target_include_directories(FuegoInterface INTERFACE ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})                 
+target_precompile_headers(FuegoInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
+target_compile_features(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_FEATURES})
+target_compile_definitions(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS} FUEGO_BUILD_LIB)
+target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS})
 # Uncomment the line bellow after CoreLib refactor
 # target_compile_options(FuegoInterface INTERFACE
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS})
