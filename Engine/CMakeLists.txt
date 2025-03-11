@@ -146,7 +146,7 @@ target_compile_options(FuegoInterface
 # An engine library to be used by clients
 add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer )
-target_link_libraries(FuegoEngine PRIVATE protobuf::libprotobuf)
+target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
 target_include_directories(FuegoEngine PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
 
 target_include_directories(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})     
