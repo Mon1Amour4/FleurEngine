@@ -13,8 +13,8 @@ uint32_t TreeNode::GetID()
 }
 
 Scene::Scene(const std::string& scene_name)
-    : scene_name(scene_name)
-    , root(new Root("Root Folder"))
+    : root(new Root("Root Folder"))
+    , scene_name(scene_name)
     , objects_amount(0)
 {
     FU_CORE_TRACE("Scene ctor");
@@ -97,8 +97,8 @@ ModelObject::ModelObject(const std::string& name, glm::vec3 pos, glm::vec3 rot, 
 }
 
 TreeNode::TreeNode(BaseSceneObject* obj, uint16_t node_level)
-    : object(obj)
-    , node_level(node_level)
+    : node_level(node_level)
+    , object(obj)
     , id(GetID())
 {
     FU_CORE_TRACE("TreeNode ctor");
@@ -113,10 +113,10 @@ bool TreeNode::operator==(const TreeNode& other) const
     return this->id == other.id;
 }
 TreeNode::TreeNode(TreeNode&& other) noexcept
-    : object(other.object)
-    , node_level(other.node_level)
-    , id(other.id)
+    : node_level(other.node_level)
+    , object(other.object)
     , children(std::move(other.children))
+    , id(other.id)
 {
     FU_CORE_TRACE("TreeNode move ctor");
     other.object = nullptr;
