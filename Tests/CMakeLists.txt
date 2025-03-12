@@ -1,5 +1,5 @@
 # Tests
-
+#include(${CMAKE_CURRENT_SOURCE_DIR}/../Engine/ProtoFilesMisc.cmake)
 message(STATUS "Fuego tests are ENABLED")
 
 # Googletest configuration
@@ -40,6 +40,7 @@ set(TESTS_HEADERS
     ${INCLUDE_FOLDER}/ProtoFilesTests.hpp
     ${OUT_HEADER_FILES}
 )
+
 set(TESTS_SOURCES
     ${SRC_FOLDER}/Tests.cpp
     ${OUT_SOURCE_FILES}

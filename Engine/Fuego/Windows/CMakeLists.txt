@@ -52,9 +52,10 @@ set_target_properties(Glad PROPERTIES
 
 add_library(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
-target_include_directories(WindowsDep PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_include_directories(
-  WindowsDep PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad/include)
+target_include_directories(WindowsDep PUBLIC 
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad/include
+)
 
 target_link_libraries(WindowsDep PUBLIC Glad)
 target_link_libraries(WindowsDep PRIVATE FuegoInterface)

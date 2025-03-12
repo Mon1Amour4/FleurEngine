@@ -1,5 +1,7 @@
 # Engine
 
+#set( CMAKE_CXX_STANDARD ${CPP_LANG_VER})
+
 set(FUEGO_DYNAMIC_LIB ON CACHE BOOL "Build dynamic library (ON/OFF)")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
@@ -32,7 +34,7 @@ set(PROJECT_HEADERS
     External/stb_image/stb_image.h
     Fuego.h
     fupch.h
-    ${OUT_HEADER_FILES}
+    Fuego/ProtoOut/SceneObjects.pb.h
     Editor/Scene.h
 )
 
@@ -44,7 +46,7 @@ set(SOURCES
     Fuego/ImGui/ImGuiLayer.cpp
     Fuego/FileSystem/FileSystem.cpp
     External/stb_image/stb_image.cpp
-    ${OUT_SOURCE_FILES}
+    Fuego/ProtoOut/SceneObjects.pb.cc
     Editor/Scene.cpp
 )
 
@@ -63,8 +65,7 @@ list(APPEND ENGINE_DEPENDENCIES ImGui Renderer)
 set(PUBLIC_ENGINE_COMPILE_DEFS FUEGO_ENABLE_ASSERTS)
 
 set(PPIVATE_ENGINE_COMPILE_DEFS ${DLL_COMPILE_DEF} FUEGO_BUILD_LIB)
-set(_ITERATOR_DEBUG_LEVEL=0)
-set(PUBLIC_ENGINE_COMPILE_FEATURES cxx_std_20)
+set(_ITERATOR_DEBUG_LEVEL 0)
 
 if(MSVC)
   set(PRIVATE_ENGINE_COMPILE_OPTIONS /W4 /permissive-)
@@ -72,29 +73,14 @@ if(MSVC)
 else()
   set(PRIVATE_ENGINE_COMPILE_OPTIONS -Wall -Wextra -Werror)
 endif()
-
 # End of common
 
-# Abseil-Protobuf
-# if(CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
-#   set(absl_DIR "${ABSEIL_INSTALLED_DEBUG}")
-#   set(protobuf_DIR "${PROTOBUF_INSTALLED_DEBUG}")
-#   set(utf8_range_DIR "${UTF8_INSTALLED_DEBUG}")
-# elseif(CMAKE_CONFIGURATION_TYPES MATCHES "Release")
-#   set(absl_DIR "${ABSEIL_INSTALLED_RELEASE}")
-#   set(protobuf_DIR "${PROTOBUF_INSTALLED_RELEASE}")
-#   set(utf8_range_DIR "${UTF8_INSTALLED_RELEASE}")
-# endif()
-
-# find_package(absl CONFIG REQUIRED)
-# find_package(protobuf CONFIG REQUIRED)
-# find_package(utf8_range CONFIG REQUIRED)
-# End of Abseil-Protobuf
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  set(CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebugDLL)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
 elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-  set(CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
 endif()
+
 if(WIN32)
   list(APPEND ENGINE_DEPENDENCIES WindowsDep)
   set(PLATFORM_SUBDIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Windows)
@@ -103,9 +89,6 @@ elseif(APPLE)
   set(PLATFORM_SUBDIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/MacOS)
 endif()
 # End Project set up
-
-set( ABSEIL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/External/abseil/abseil_installed)
-set( CMAKE_CXX_STANDARD ${CPP_LANG_VER})
 
 add_subdirectory( ${PLATFORM_SUBDIRECTORIES} )
 add_subdirectory( ${RENDERER_PATH} )
@@ -122,7 +105,6 @@ set(ENGINE_PUBLIC_INCLUDE_DIRECTORIES
 )
 
 # An interface library to propagate headers to platform implementations
-
 add_library(FuegoInterface INTERFACE)
 target_include_directories(FuegoInterface INTERFACE ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})                 
 target_precompile_headers(FuegoInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
@@ -134,8 +116,9 @@ target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS}
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS})
 # An engine library to be used by clients
 add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
+
 target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer )
-#target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
+target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
 target_include_directories(FuegoEngine PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
 
 target_include_directories(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})     
