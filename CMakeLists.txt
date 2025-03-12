@@ -1,5 +1,6 @@
 include(${CMAKE_CURRENT_SOURCE_DIR}/Engine/ProtoFilesMisc.cmake)
 
+set(CPP_LANG_VER 20)
 set(PROTO_FILES_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Fuego/ProtoIn)
 GetProtoFiles(PATHS ${PROTO_FILES_DIRECTORIES})
 GetProtoHeaderFiles(PROTO_OUT ${PROTO_PATH})
