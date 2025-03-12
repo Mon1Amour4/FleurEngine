@@ -247,6 +247,9 @@ def generate_project(platform, enable_test):
 
 #Engine    
     print(f"{build_log} Engine Project generation...")
+
+    engine_release_args = ( ' -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL'
+                           f' -D_ITERATOR_DEBUG_LEVEL=0')
     
     engine_arguments = (f' -DABSEIL_INSTALLED_DEBUG="{abseil_installed_debug_cmake}"'
                         f' -DABSEIL_INSTALLED_RELEASE="{abseil_installed_release_cmake}"'
@@ -263,7 +266,7 @@ def generate_project(platform, enable_test):
     #run_command(f'cmake --build {build_dir} --config Debug --target install --parallel 16 --verbose')
 
     # Release
-    run_command(f'cmake -S "{root_folder}" -B "{build_dir}" -G "{generator}" {engine_arguments}')
+    run_command(f'cmake -S "{root_folder}" -B "{build_dir}" -G "{generator}" {engine_arguments} {engine_release_args}')
     run_command(f'cmake --build {build_dir} --config Release --target install --parallel 16 --verbose')
 
     print(f"{build_log} Project generation for {platform} completed successfully.")
