@@ -117,10 +117,10 @@ def generate_project(platform, enable_test):
         os.chdir(abseil_root) 
         # Debug
         print(f"{build_log} Creating debug solution for Abseil in: {abseil_build_debug}")
-        #run_command(f'cmake -B {abseil_build_debug} -G "{generator}" {abseil_common_build_arguments} {abseil_debug_build_arguments}')
+        run_command(f'cmake -B {abseil_build_debug} -G "{generator}" {abseil_common_build_arguments} {abseil_debug_build_arguments}')
 
         print(f"{build_log} Building debug Abseil from: {abseil_build_debug} to: {abseil_installed_debug}")
-        #run_command(f'cmake --build {abseil_build_debug} --config Debug --target install --parallel 16')
+        run_command(f'cmake --build {abseil_build_debug} --config Debug --target install --parallel 16')
 
         print(f"{build_log} Debug Abseil installed successfully to: {abseil_installed_debug}")
 
@@ -204,10 +204,10 @@ def generate_project(platform, enable_test):
     os.chdir(protobuf_root)
     # Debug
     print(f"{build_log} Creating debug solution for Protobuf in: {protobuf_build_debug}")
-    #run_command(f'cmake -B {protobuf_build_debug} -G "{generator}" {protobuf_common_build_arguments} {protobuf_debug_build_arguments}')
+    run_command(f'cmake -B {protobuf_build_debug} -G "{generator}" {protobuf_common_build_arguments} {protobuf_debug_build_arguments}')
 
     print(f"{build_log} Building debug Protobuf from: {protobuf_build_debug} to: {protobuf_installed_debug}")
-    #run_command(f'cmake --build {protobuf_build_debug} --config Debug --target install --parallel 16')
+    run_command(f'cmake --build {protobuf_build_debug} --config Debug --target install --parallel 16')
 
     print(f"{build_log} Debug Protobuf installed successfully to: {protobuf_installed_debug}")
 
@@ -262,8 +262,8 @@ def generate_project(platform, enable_test):
                         f' -DFUEGO_PLATFORM={platfrorm_var}'
                         f' {platform_macro_definition}')
     # Debug
-    #run_command(f'cmake -S "{root_folder}" -B "{build_dir}" -G "{generator}" {engine_arguments}')
-    #run_command(f'cmake --build {build_dir} --config Debug --target install --parallel 16 --verbose')
+    run_command(f'cmake -S "{root_folder}" -B "{build_dir}" -G "{generator}" {engine_arguments}')
+    run_command(f'cmake --build {build_dir} --config Debug --target install --parallel 16 --verbose')
 
     # Release
     run_command(f'cmake -S "{root_folder}" -B "{build_dir}" -G "{generator}" {engine_arguments} {engine_release_args}')
