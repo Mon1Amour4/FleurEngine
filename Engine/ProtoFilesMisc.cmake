@@ -47,7 +47,7 @@ function(GetProtoHeaderFiles)
 endfunction()
 
 function(GetProtoSourceFiles)
-    set(GLOB_EXPRESSION "*.pb.cc" "*.pb.m")
+    set(GLOB_EXPRESSION "*.pb.cc")
     set(OUT_SOURCE_FILES "")
 
     cmake_parse_arguments(ARG "" "PROTO_OUT" "" ${ARGN})

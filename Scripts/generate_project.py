@@ -36,7 +36,7 @@ def generate_project(platform, enable_test):
         platfrorm_var = "macos"
         generator = 'Xcode'
         protoc_compiler_name = "protoc"
-        protoc_language = "objc_out"
+        protoc_language = "cpp_out"
         platform_macro_definition = "-DFUEGO_PLATFORM_MACOS=1"
     elif platform == 'windows':
         build_dir = os.path.join(build_dir, "win")
