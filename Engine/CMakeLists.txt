@@ -1,10 +1,11 @@
 # Engine
 
-set(FUEGO_DYNAMIC_LIB
-    ON
-    CACHE BOOL "Build dynamic library (ON/OFF)")
+set(FUEGO_DYNAMIC_LIB ON CACHE BOOL "Build dynamic library (ON/OFF)")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/abseil.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/protobuf.cmake)
+
 set_target_properties(ImGui PROPERTIES FOLDER "3rd party")
 
 # Project set up
@@ -75,19 +76,19 @@ endif()
 # End of common
 
 # Abseil-Protobuf
-if(CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
-  set(absl_DIR "${ABSEIL_INSTALLED_DEBUG}")
-  set(protobuf_DIR "${PROTOBUF_INSTALLED_DEBUG}")
-  set(utf8_range_DIR "${UTF8_INSTALLED_DEBUG}")
-elseif(CMAKE_CONFIGURATION_TYPES MATCHES "Release")
-  set(absl_DIR "${ABSEIL_INSTALLED_RELEASE}")
-  set(protobuf_DIR "${PROTOBUF_INSTALLED_RELEASE}")
-  set(utf8_range_DIR "${UTF8_INSTALLED_RELEASE}")
-endif()
+# if(CMAKE_CONFIGURATION_TYPES MATCHES "Debug")
+#   set(absl_DIR "${ABSEIL_INSTALLED_DEBUG}")
+#   set(protobuf_DIR "${PROTOBUF_INSTALLED_DEBUG}")
+#   set(utf8_range_DIR "${UTF8_INSTALLED_DEBUG}")
+# elseif(CMAKE_CONFIGURATION_TYPES MATCHES "Release")
+#   set(absl_DIR "${ABSEIL_INSTALLED_RELEASE}")
+#   set(protobuf_DIR "${PROTOBUF_INSTALLED_RELEASE}")
+#   set(utf8_range_DIR "${UTF8_INSTALLED_RELEASE}")
+# endif()
 
-find_package(absl CONFIG REQUIRED)
-find_package(protobuf CONFIG REQUIRED)
-find_package(utf8_range CONFIG REQUIRED)
+# find_package(absl CONFIG REQUIRED)
+# find_package(protobuf CONFIG REQUIRED)
+# find_package(utf8_range CONFIG REQUIRED)
 # End of Abseil-Protobuf
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   set(CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebugDLL)
@@ -104,7 +105,7 @@ endif()
 # End Project set up
 
 set( ABSEIL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/External/abseil/abseil_installed)
-set( CMAKE_CXX_STANDARD 20)
+set( CMAKE_CXX_STANDARD ${CPP_LANG_VER})
 
 add_subdirectory( ${PLATFORM_SUBDIRECTORIES} )
 add_subdirectory( ${RENDERER_PATH} )
@@ -134,7 +135,7 @@ target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS}
 # An engine library to be used by clients
 add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer )
-target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
+#target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
 target_include_directories(FuegoEngine PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
 
 target_include_directories(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})     
