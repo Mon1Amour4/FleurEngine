@@ -38,6 +38,7 @@ set(ABSL_ENABLE_INSTALL ON)
 # Paths:
 set(ABSL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/External/abseil)
 
+
 set(CMAKE_INSTALL_PREFIX ${ABSL_INST})
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -54,4 +55,5 @@ foreach(path ${ABSEIL_BASE})
         set_target_properties(${target} PROPERTIES FOLDER "3rd party/Abseil")
     endforeach()
 endforeach()
+
 

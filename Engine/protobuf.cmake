@@ -26,7 +26,12 @@ endif()
 set(PROT_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/External/protobuf)
 set(absl_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../build/${FUEGO_PLATFORM}/Engine/External/abseil )
 
+set(PROTOC ${CMAKE_CURRENT_SOURCE_DIR}/../build/${FUEGO_PLATFORM}/output/$<CONFIG>/protoc)
+set(PROTO_IN ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/ProtoIn)
+set(PROTO_OUT ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/ProtoOut)
+
 add_subdirectory(${PROT_ROOT})
+
 
 get_directory_property(PROT_TARGETS DIRECTORY ${PROT_ROOT} BUILDSYSTEM_TARGETS)
     foreach(target ${PROT_TARGETS})
@@ -34,6 +39,14 @@ get_directory_property(PROT_TARGETS DIRECTORY ${PROT_ROOT} BUILDSYSTEM_TARGETS)
     endforeach()
 set_target_properties(utf8_range utf8_validity PROPERTIES FOLDER "3rd party/Protobuf")
 
-# Proto
-GetProtoHeaderFiles(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
-GetProtoSourceFiles(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
+set(SCENE_GENERATED_PROTO_SRCS "${PROTO_OUT}/SceneObjects.pb.cc" CACHE STRING "Generated Proto source file")
+set(SCENE_GENERATED_PROTO_HDRS "${PROTO_OUT}/SceneObjects.pb.h" CACHE STRING "Generated Proto source file")
+
+add_custom_command(
+    OUTPUT ${SCENE_GENERATED_PROTO_SRCS} ${SCENE_GENERATED_PROTO_HDRS}
+    COMMAND ${PROTOC} --proto_path=${PROTO_IN} --cpp_out=${PROTO_OUT} SceneObjects.proto
+    DEPENDS ${SCENE_GENERATED_PROTO_HDRS} ${SCENE_GENERATED_PROTO_SRCS}  protobuf::protoc
+    COMMENT "Generating Protocol Buffers sources"
+    VERBATIM
+)
+add_custom_target(ProtoGen DEPENDS ${SCENE_GENERATED_PROTO_SRCS} ${SCENE_GENERATED_PROTO_HDRS})

@@ -10,6 +10,10 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/protobuf.cmake)
 
 set_target_properties(ImGui PROPERTIES FOLDER "3rd party")
 
+# Proto
+GetProtoHeaderFiles(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
+GetProtoSourceFiles(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
+
 # Project set up
 set(PROJECT_HEADERS
     Fuego/Application.h
@@ -34,7 +38,7 @@ set(PROJECT_HEADERS
     External/stb_image/stb_image.h
     Fuego.h
     fupch.h
-    Fuego/ProtoOut/SceneObjects.pb.h
+    ${SCENE_GENERATED_PROTO_HDRS}
     Editor/Scene.h
 )
 
@@ -46,7 +50,7 @@ set(SOURCES
     Fuego/ImGui/ImGuiLayer.cpp
     Fuego/FileSystem/FileSystem.cpp
     External/stb_image/stb_image.cpp
-    Fuego/ProtoOut/SceneObjects.pb.cc
+    ${SCENE_GENERATED_PROTO_SRCS}
     Editor/Scene.cpp
 )
 
@@ -116,6 +120,8 @@ target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS}
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS})
 # An engine library to be used by clients
 add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
+
+add_dependencies(FuegoEngine ProtoGen)
 
 target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer )
 target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)

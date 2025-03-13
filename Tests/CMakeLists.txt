@@ -1,5 +1,6 @@
 # Tests
 #include(${CMAKE_CURRENT_SOURCE_DIR}/../Engine/ProtoFilesMisc.cmake)
+#include(${CMAKE_CURRENT_SOURCE_DIR}/../Engine/protobuf.cmake)
 message(STATUS "Fuego tests are ENABLED")
 
 # Googletest configuration
@@ -38,12 +39,12 @@ set(INCLUDE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/include)
 set(TESTS_HEADERS
     ${INCLUDE_FOLDER}/Tests.h
     ${INCLUDE_FOLDER}/ProtoFilesTests.hpp
-    ${OUT_HEADER_FILES}
+    ${SCENE_GENERATED_PROTO_HDRS}
 )
 
 set(TESTS_SOURCES
     ${SRC_FOLDER}/Tests.cpp
-    ${OUT_SOURCE_FILES}
+    ${SCENE_GENERATED_PROTO_SRCS}
 )
 
 
