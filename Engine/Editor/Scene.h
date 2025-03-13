@@ -137,6 +137,7 @@ public:
     {
         TreeNode::operator=(std::move(other));
         FU_CORE_TRACE("Root move assigment operator");
+        return *this;
     }
 
     Root(const Root& other) = delete;
