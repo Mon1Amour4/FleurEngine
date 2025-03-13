@@ -45,7 +45,7 @@ set(SCENE_GENERATED_PROTO_HDRS "${PROTO_OUT}/SceneObjects.pb.h" CACHE STRING "Ge
 add_custom_command(
     OUTPUT ${SCENE_GENERATED_PROTO_SRCS} ${SCENE_GENERATED_PROTO_HDRS}
     COMMAND ${PROTOC} --proto_path=${PROTO_IN} --cpp_out=${PROTO_OUT} SceneObjects.proto
-    DEPENDS ${SCENE_GENERATED_PROTO_HDRS} ${SCENE_GENERATED_PROTO_SRCS}  protobuf::protoc
+    DEPENDS ${PROTO_IN}/SceneObjects.proto  protobuf::protoc
     COMMENT "Generating Protocol Buffers sources"
     VERBATIM
 )
