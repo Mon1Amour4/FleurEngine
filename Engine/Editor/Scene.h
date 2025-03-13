@@ -133,7 +133,7 @@ public:
     {
         FU_CORE_TRACE("Root mode ctor");
     }
-    Root operator=(Root&& other)
+    Root& operator=(Root&& other)
     {
         TreeNode::operator=(std::move(other));
         FU_CORE_TRACE("Root move assigment operator");
