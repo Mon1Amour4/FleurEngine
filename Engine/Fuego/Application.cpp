@@ -48,8 +48,8 @@ Application::Application()
     engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
     scene = new Fuego::Editor::Scene("First scene");
     Fuego::Editor::TreeNode* root(scene->GetRootNode());
-    scene->AddObject(root, std::move(Fuego::Editor::Node(new Fuego::Editor::ModelObject("Model"), root)));
-    scene->AddObject("Root Folder", std::move(Fuego::Editor::Node(new Fuego::Editor::SceneFolder("Models"), scene->FindNode("Root Folder"))));
+    scene->AddObject(root, Fuego::Editor::Node(new Fuego::Editor::ModelObject("Model"), root));
+    scene->AddObject("Root Folder", Fuego::Editor::Node(new Fuego::Editor::SceneFolder("Models"), scene->FindNode("Root Folder")));
     scene->SaveSceneToFile("Scene_1");
 }
 Application::~Application()
