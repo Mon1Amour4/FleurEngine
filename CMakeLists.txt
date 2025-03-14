@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.24)
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/Engine/ProtoFilesMisc.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.cmake)
 
-set(CPP_LANG_VER 20)
-set(CMAKE_CXX_STANDARD ${CPP_LANG_VER})
+set(CMAKE_CXX_STANDARD ${FU_CPP_LANG_VER})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -20,10 +20,10 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDebugDLL")
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
+if(FU_CONF_DEBUG)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY ${FU_MSVC_RUNTIME_DEBUG})
+elseif(FU_CONF_RELEASE)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY ${FU_MSVC_RUNTIME_RELEASE})
 endif()
 
 set(CMAKE_BUILD_PARALLEL_LEVEL 8)
@@ -57,10 +57,4 @@ endif()
 
 
 
-
-# --- Global vars --- #
-# string:   FUEGO_PLATFORM  ->    macos/win
-# macro defenition          ->    FUEGO_PLATFORM_MACOS/FUEGO_PLATFORM_WIN
-# macro defenition          ->    ENABLE_FUEGO_TEST
-# cmake var integer         ->    CPP_LANG_VER
 
