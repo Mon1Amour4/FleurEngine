@@ -1,7 +1,5 @@
 # Engine
 
-#set( CMAKE_CXX_STANDARD ${CPP_LANG_VER})
-
 set(FUEGO_DYNAMIC_LIB ON CACHE BOOL "Build dynamic library (ON/OFF)")
 
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
