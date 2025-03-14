@@ -54,3 +54,13 @@ add_subdirectory(Sandbox)
 if(ENABLE_FUEGO_TEST)
   add_subdirectory(Tests)
 endif()
+
+
+
+
+# --- Global vars --- #
+# string:   FUEGO_PLATFORM  ->    macos/win
+# macro defenition          ->    FUEGO_PLATFORM_MACOS/FUEGO_PLATFORM_WIN
+# macro defenition          ->    ENABLE_FUEGO_TEST
+# cmake var integer         ->    CPP_LANG_VER
+
