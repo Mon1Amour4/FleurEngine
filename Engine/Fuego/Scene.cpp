@@ -11,6 +11,11 @@ namespace Fuego
 {
 uint32_t Node::s_id = 0;
 
+void Node::RemodeChild(std::list<Node>::iterator it)
+{
+    children.erase(it);
+}
+
 uint32_t Node::GetID()
 {
     // TODO: to think about race conditions. std::atomic / mutex
@@ -24,8 +29,6 @@ Scene::Scene(const std::string& scene_name)
     FU_CORE_TRACE("Scene ctor");
 
     root_obj = AddObject<SceneFolder>(nullptr, "Root Folder");
-    root_node = object_to_node_map[root_obj];
-    
 }
 Scene::~Scene()
 {
@@ -39,6 +42,28 @@ BaseSceneObject* Scene::FindObject(std::string_view object_name) const
     return (it != string_to_object_map.end()) ? it->second : nullptr;
 }
 
+void Scene::RemoveObject(std::string_view object_name)
+{
+    BaseSceneObject* obj = FindObject(object_name);
+    if (!obj)
+        return;
+
+    std::list<Node>::iterator obj_node_it = GetNodeIt(obj);
+    Node* parent_node = obj_node_it->GetParent();
+    if (!parent_node)
+    {
+        children.erase(obj_node_it);
+    }
+    else
+    {
+        parent_node->RemodeChild(obj_node_it);
+    }
+    object_to_node_map.erase(obj);
+    string_to_object_map.erase(object_name);
+    objects_amount--;
+
+}
+
 BaseSceneObject* Scene::Root()
 {
     return static_cast<BaseSceneObject*>(root_obj);
@@ -48,6 +73,12 @@ void Scene::SaveSceneToFile(const std::string& file_name)
     auto& fs = Fuego::Application::Get().FileSystem();
     std::string scene_file_name = file_name + ".fu_scene";
     fs.FUCreateFile(scene_file_name, "Scenes");
+}
+
+std::list<Node>::iterator Scene::GetNodeIt(BaseSceneObject* obj)
+{
+    auto it = object_to_node_map.find(obj);
+    return (it != object_to_node_map.end()) ? it->second : it->second->GetParent()->GetChildren().end();
 }
 
 BaseSceneObject::BaseSceneObject(Scene* master_scene, const std::string& name, bool enabled)

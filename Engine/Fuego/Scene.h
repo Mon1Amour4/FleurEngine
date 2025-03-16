@@ -58,7 +58,10 @@ public:
         FU_CORE_TRACE("Node ctor");
         id = Node::GetID();
     }
-    ~Node() = default;
+    ~Node()
+    {
+        FU_CORE_TRACE("DELETE: {0}", object->GetName());
+    }
 
     std::list<Node>& GetChildren()
     {
@@ -71,17 +74,19 @@ public:
     }
 
     void PrintNode() const;
-    inline const Node* GetParent() const
+    inline Node* GetParent()
     {
         return parent;
     }
 
     
     template <typename T>
-    Node* AddChild(T scene_obj)
+    std::list<Node>::iterator AddChild(T scene_obj)
     {
-        return &children.emplace_back(this, scene_obj);
+        children.emplace_back(this, scene_obj);
+        return std::prev(children.end());
     }
+    void RemodeChild(std::list<Node>::iterator);
 
 private:
     Node* parent;
@@ -111,17 +116,40 @@ public:
     T* AddObject(BaseSceneObject* parent, Args&&... args)
     {
         T* scene_obj = new T(this, std::forward<Args>(args)...);
-        Node* new_node = nullptr;
+
+        std::list<Node>::iterator node_it{};
         if (parent)
         {
-            Node* parent_node = object_to_node_map[parent];
-            new_node = parent_node->AddChild(scene_obj);
+            std::list<Node>::iterator parent_node = object_to_node_map[parent];
+            node_it = parent_node->AddChild(scene_obj);
         }
         else
         {
-            new_node = new Node(nullptr, scene_obj);
+            children.emplace_back(nullptr, scene_obj);
+            node_it = std::prev(children.end());
         }
-        object_to_node_map.emplace(scene_obj, new_node);
+        object_to_node_map.emplace(scene_obj, node_it);
+        string_to_object_map.emplace(scene_obj->GetName(), scene_obj);
+        objects_amount++;
+
+        return scene_obj;
+    }
+
+    template <typename T, typename... Args>
+        requires std::is_base_of_v<BaseSceneObject, T>
+    T* AddObject(std::string_view parent_name, Args&&... args)
+    {
+        BaseSceneObject* parent = FindObject(parent_name);
+        if (!parent)
+            return nullptr;
+
+        T* scene_obj = new T(this, std::forward<Args>(args)...);
+
+        std::list<Node>::iterator parent_it = GetNodeIt(parent);
+
+        std::list<Node>::iterator child_node_it = parent_it->AddChild(scene_obj);
+
+        object_to_node_map.emplace(scene_obj, child_node_it);
         string_to_object_map.emplace(scene_obj->GetName(), scene_obj);
         objects_amount++;
 
@@ -130,18 +158,21 @@ public:
 
     BaseSceneObject* FindObject(std::string_view object_name) const;
 
+    void RemoveObject(std::string_view object_name);
+
     BaseSceneObject* Root();
     void SaveSceneToFile(const std::string& file_name);
 
 private:
 
     SceneFolder* root_obj;
-    Node* root_node;
     std::string scene_name;
     std::string scene_version = "1.0";
     uint16_t objects_amount;
-    std::unordered_map<BaseSceneObject*, Node*> object_to_node_map;
+    std::unordered_map<BaseSceneObject*, std::list<Node>::iterator> object_to_node_map;
     std::unordered_map<std::string_view, BaseSceneObject*> string_to_object_map;
+    std::list<Node>::iterator GetNodeIt(BaseSceneObject* obj);
+    std::list<Node> children;
 };
 
 }  // namespace Fuego::Editor
