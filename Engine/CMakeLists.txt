@@ -37,7 +37,7 @@ set(PROJECT_HEADERS
     Fuego.h
     fupch.h
     ${SCENE_GENERATED_PROTO_HDRS}
-    Editor/Scene.h
+    Fuego/Scene.h
 )
 
 set(SOURCES 
@@ -49,7 +49,7 @@ set(SOURCES
     Fuego/FileSystem/FileSystem.cpp
     External/stb_image/stb_image.cpp
     ${SCENE_GENERATED_PROTO_SRCS}
-    Editor/Scene.cpp
+    Fuego/Scene.cpp
 )
 
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer )
