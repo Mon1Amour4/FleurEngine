@@ -33,16 +33,12 @@ Scene::~Scene()
     delete root_obj;
 }
 
-BaseSceneObject* Scene::FindObject(const std::string& object_name) const
+BaseSceneObject* Scene::FindObject(std::string_view object_name) const
 {
-    // TODO
-    return nullptr;
+    auto it = string_to_object_map.find(object_name);
+    return (it != string_to_object_map.end()) ? it->second : nullptr;
 }
-Node* Scene::FindNode(const std::string& object_name) const
-{
-    // TODO
-    return nullptr;
-}
+
 BaseSceneObject* Scene::Root()
 {
     return static_cast<BaseSceneObject*>(root_obj);

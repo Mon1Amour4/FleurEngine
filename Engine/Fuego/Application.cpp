@@ -51,6 +51,7 @@ Application::Application()
     Fuego::ModelObject* model_1 =  scene->AddObject<Fuego::ModelObject>(scene->Root(), "Model 1");
     Fuego::SceneFolder* folder = scene->AddObject<Fuego::SceneFolder>(scene->Root(), "Folder");
     scene->AddObject<ModelObject>(folder, "Model_2", glm::vec3(25.f, 30.f, 41.f), glm::vec3(5.f, 10.f, 21.f));
+    scene->AddObject<ModelObject>(scene->FindObject("Model_2"), "Model_3");
 }
 Application::~Application()
 {

@@ -122,16 +122,15 @@ public:
             new_node = new Node(nullptr, scene_obj);
         }
         object_to_node_map.emplace(scene_obj, new_node);
+        string_to_object_map.emplace(scene_obj->GetName(), scene_obj);
         objects_amount++;
 
         return scene_obj;
     }
 
-    BaseSceneObject* FindObject(const std::string& object_name) const;
-    Node* FindNode(const std::string& object_name) const;
+    BaseSceneObject* FindObject(std::string_view object_name) const;
 
     BaseSceneObject* Root();
-
     void SaveSceneToFile(const std::string& file_name);
 
 private:
@@ -142,6 +141,7 @@ private:
     std::string scene_version = "1.0";
     uint16_t objects_amount;
     std::unordered_map<BaseSceneObject*, Node*> object_to_node_map;
+    std::unordered_map<std::string_view, BaseSceneObject*> string_to_object_map;
 };
 
 }  // namespace Fuego::Editor
