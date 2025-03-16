@@ -137,7 +137,8 @@ public:
 
 private:
 
-    SceneFolder* root;
+    SceneFolder* root_obj;
+    Node* root_node;
     std::string scene_name;
     std::string scene_version = "1.0";
     uint16_t objects_amount;

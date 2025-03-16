@@ -23,13 +23,14 @@ Scene::Scene(const std::string& scene_name)
 {
     FU_CORE_TRACE("Scene ctor");
 
-    root = AddObject<SceneFolder>(nullptr, "Root Folder");
+    root_obj = AddObject<SceneFolder>(nullptr, "Root Folder");
+    root_node = object_to_node_map[root_obj];
     
 }
 Scene::~Scene()
 {
     FU_CORE_TRACE("Scene destructor");
-    delete root;
+    delete root_obj;
 }
 
 BaseSceneObject* Scene::FindObject(const std::string& object_name) const
@@ -44,7 +45,7 @@ Node* Scene::FindNode(const std::string& object_name) const
 }
 BaseSceneObject* Scene::Root()
 {
-    return static_cast<BaseSceneObject*>(root);
+    return static_cast<BaseSceneObject*>(root_obj);
 }
 void Scene::SaveSceneToFile(const std::string& file_name)
 {
