@@ -12,7 +12,7 @@ class Scene;
 class BaseSceneObject
 {
 public:
-    BaseSceneObject(const std::string& name, bool enabled, Scene* master_scene);
+    BaseSceneObject(Scene* master_scene, const std::string& name, bool enabled);
     virtual ~BaseSceneObject() = default;
 
     inline const std::string& GetName() const
@@ -27,12 +27,12 @@ private:
 class SceneFolder : public BaseSceneObject
 {
 public:
-    SceneFolder(const std::string& folder_name, Scene* master_scene);
+    SceneFolder(Scene* master_scene, const std::string& folder_name);
 };
 class SceneObject : public BaseSceneObject
 {
 public:
-    SceneObject(const std::string& name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f), Scene* master_scene = nullptr);
+    SceneObject(Scene* master_scene, const std::string & name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f));
 
 private:
     glm::vec3 position;
@@ -41,7 +41,7 @@ private:
 class ModelObject : public SceneObject
 {
 public:
-    ModelObject(const std::string& name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f), const Material* mat = nullptr, Scene* master_scene = nullptr);
+    ModelObject(Scene* master_scene, const std::string & name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f), const Material* mat = nullptr);
 
 private:
     const Material* material;
@@ -111,7 +111,7 @@ public:
         requires std::is_base_of_v<BaseSceneObject, T>
     T* AddObject(BaseSceneObject* parent, Args&&... args)
     {
-        T* scene_obj = new T(std::forward<Args>(args)..., this);
+        T* scene_obj = new T(this, std::forward<Args>(args)...);
         Node* new_node = nullptr;
         if (parent)
         {

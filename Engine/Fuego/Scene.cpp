@@ -34,25 +34,16 @@ Scene::~Scene()
 
 BaseSceneObject* Scene::FindObject(const std::string& object_name) const
 {
-   /* auto it = objects_map.find(object_name);
-    if (it != objects_map.end())
-    {
-        return it->second->GetSceneObject();
-    }*/
+    // TODO
     return nullptr;
 }
 Node* Scene::FindNode(const std::string& object_name) const
 {
-    /*auto it = objects_map.find(object_name);
-    if (it != objects_map.end())
-    {
-        return it->second;
-    }*/
+    // TODO
     return nullptr;
 }
 BaseSceneObject* Scene::Root()
 {
-    //return static_cast<SceneFolder*>(root->GetSceneObject());
     return static_cast<BaseSceneObject*>(root);
 }
 void Scene::SaveSceneToFile(const std::string& file_name)
@@ -62,7 +53,7 @@ void Scene::SaveSceneToFile(const std::string& file_name)
     fs.FUCreateFile(scene_file_name, "Scenes");
 }
 
-BaseSceneObject::BaseSceneObject(const std::string& name, bool enabled, Scene* master_scene)
+BaseSceneObject::BaseSceneObject(Scene* master_scene, const std::string& name, bool enabled)
     : name(name)
     , enabled(enabled)
     , master_scene(master_scene)
@@ -70,20 +61,20 @@ BaseSceneObject::BaseSceneObject(const std::string& name, bool enabled, Scene* m
     FU_CORE_INFO("BaseSceneObject: {0} ctor", this->name);
 }
 
-SceneFolder::SceneFolder(const std::string& folder_name, Scene* master_scene)
-    : BaseSceneObject(folder_name, true, master_scene)
+SceneFolder::SceneFolder(Scene* master_scene, const std::string& folder_name)
+    : BaseSceneObject(master_scene, folder_name, true)
 {
     FU_CORE_INFO("SceneFolder: {0} ctor", ((BaseSceneObject*)this)->GetName());
 }
-SceneObject::SceneObject(const std::string& name, glm::vec3 pos, glm::vec3 rot, Scene* master_scene)
-    : BaseSceneObject(name, true, master_scene)
+SceneObject::SceneObject(Scene* master_scene, const std::string& name, glm::vec3 pos, glm::vec3 rot)
+    : BaseSceneObject(master_scene, name, true)
     , position(pos)
     , rotation(rot)
 {
     FU_CORE_INFO("SceneObject: {0} ctor", ((BaseSceneObject*)this)->GetName());
 }
-ModelObject::ModelObject(const std::string& name, glm::vec3 pos, glm::vec3 rot, const Material* mat, Scene* master_scene)
-    : SceneObject(name, pos, rot, master_scene)
+ModelObject::ModelObject(Scene* master_scene, const std::string& name, glm::vec3 pos, glm::vec3 rot, const Material* mat)
+    : SceneObject(master_scene, name, pos, rot)
     , material(mat)
 {
     FU_CORE_INFO("ModelObject: {0} ctor", ((BaseSceneObject*)this)->GetName());
