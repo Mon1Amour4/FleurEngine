@@ -103,10 +103,9 @@ public:
     ~Scene();
 
     /// <summary>
-    /// qq ww
+    /// Pass SceneObject constructor arguments without ptr to Scene, it passes by scene itself
+    /// this is gonna be changed by mixin class soon
     /// </summary>
-    /// <param name="value">eeeee</param>
-    /// <returns>wwww</returns>
     template <typename T, typename... Args>
         requires std::is_base_of_v<BaseSceneObject, T>
     T* AddObject(BaseSceneObject* parent, Args&&... args)
