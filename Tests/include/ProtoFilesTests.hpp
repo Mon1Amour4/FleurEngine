@@ -1,6 +1,8 @@
 #include "gtest/gtest.h"
 #include "SceneObjects.pb.h"
 
+using namespace proto::scene;
+
 void CompareVec3(const Vec3& a, const Vec3& b)
 {
     EXPECT_FLOAT_EQ(a.x(), b.x());

@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+package proto.scene;
+
 message Vec3 {
   float x = 1;
   float y = 2;
