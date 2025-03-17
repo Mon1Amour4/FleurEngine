@@ -23,6 +23,10 @@ private:
     std::string name;
     bool enabled;
     Scene* master_scene;
+
+    static uint32_t GetID();
+    uint32_t id;
+    static uint32_t s_id;
 };
 class SceneFolder : public BaseSceneObject
 {
@@ -56,7 +60,7 @@ public:
         , object(obj)
     {
         FU_CORE_TRACE("Node ctor");
-        id = Node::GetID();
+        
     }
     ~Node()
     {
@@ -90,14 +94,13 @@ public:
 
 private:
     Node* parent;
-    static uint32_t GetID();
+    
 
     BaseSceneObject* object;
 
     std::list<Node> children;
 
-    uint32_t id;
-    static uint32_t s_id;
+
 };
 
 class Scene

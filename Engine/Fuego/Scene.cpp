@@ -9,14 +9,14 @@
 
 namespace Fuego
 {
-uint32_t Node::s_id = 0;
+uint32_t BaseSceneObject::s_id = 0;
 
 void Node::RemodeChild(std::list<Node>::iterator it)
 {
     children.erase(it);
 }
 
-uint32_t Node::GetID()
+uint32_t BaseSceneObject::GetID()
 {
     // TODO: to think about race conditions. std::atomic / mutex
     return ++s_id;
@@ -86,6 +86,7 @@ BaseSceneObject::BaseSceneObject(Scene* master_scene, const std::string& name, b
     , enabled(enabled)
     , master_scene(master_scene)
 {
+    id = BaseSceneObject::GetID();
     FU_CORE_INFO("BaseSceneObject: {0} ctor", this->name);
 }
 
