@@ -106,13 +106,15 @@ TEST(SceneObjectsTest, SceneObjectEmptySerialization)
 TEST(SceneObjectsTest, ModelObjectSerialization)
 {
     ModelObject model;
-    model.mutable_base()->set_name("Model1");
-    model.mutable_base()->set_enabled(false);
-    model.mutable_base()->set_id(99);
+    model.mutable_scene_base()->mutable_base()->set_name("Model1");
+    model.mutable_scene_base()->mutable_base()->set_enabled(false);
+    model.mutable_scene_base()->mutable_base()->set_id(99);
 
-    model.mutable_location()->mutable_position()->set_x(5.0f);
-    model.mutable_location()->mutable_position()->set_y(15.0f);
-    model.mutable_location()->mutable_position()->set_z(25.0f);
+    model.mutable_scene_base()->mutable_position()->set_x(5.0f);
+    model.mutable_scene_base()->mutable_position()->set_y(15.0f);
+    model.mutable_scene_base()->mutable_position()->set_z(25.0f);
+
+    model.set_material("Metal");
 
     std::string serialized;
     ASSERT_TRUE(model.SerializeToString(&serialized));
@@ -120,8 +122,11 @@ TEST(SceneObjectsTest, ModelObjectSerialization)
     ModelObject deserialized;
     ASSERT_TRUE(deserialized.ParseFromString(serialized));
 
-    CompareBaseSceneObject(model.base(), deserialized.base());
-    CompareVec3(model.location().position(), deserialized.location().position());
+    CompareBaseSceneObject(model.scene_base().base(), deserialized.scene_base().base());
+
+    CompareVec3(model.scene_base().position(), deserialized.scene_base().position());
+
+    ASSERT_EQ(model.material(), deserialized.material());
 }
 
 TEST(SceneObjectsTest, InvalidDeserialization)
@@ -141,16 +146,18 @@ TEST(SceneObjectsTest, InvalidDeserialization)
 TEST(SceneObjectsTest, ModelObjectComparison)
 {
     ModelObject a, b;
-    a.mutable_base()->set_name("ObjectA");
-    a.mutable_base()->set_enabled(true);
-    a.mutable_base()->set_id(1);
-    a.mutable_location()->mutable_position()->set_x(10.0f);
+    a.mutable_scene_base()->mutable_base()->set_name("ObjectA");
+    a.mutable_scene_base()->mutable_base()->set_enabled(true);
+    a.mutable_scene_base()->mutable_base()->set_id(1);
+    a.mutable_scene_base()->mutable_position()->set_x(10.0f);
+    a.set_material("Material_1");
 
-    b.mutable_base()->set_name("ObjectA");
-    b.mutable_base()->set_enabled(true);
-    b.mutable_base()->set_id(1);
-    b.mutable_location()->mutable_position()->set_x(10.0f);
+    b.mutable_scene_base()->mutable_base()->set_name("ObjectA");
+    b.mutable_scene_base()->mutable_base()->set_enabled(true);
+    b.mutable_scene_base()->mutable_base()->set_id(1);
+    b.mutable_scene_base()->mutable_position()->set_x(10.0f);
+    b.set_material("Material_1");
 
-    CompareBaseSceneObject(a.base(), b.base());
-    CompareVec3(a.location().position(), b.location().position());
+    CompareBaseSceneObject(a.scene_base().base(), b.scene_base().base());
+    CompareVec3(a.scene_base().position(), b.scene_base().position());
 }
