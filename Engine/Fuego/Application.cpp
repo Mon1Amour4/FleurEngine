@@ -48,11 +48,6 @@ Application::Application()
     engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
 
     scene = new Fuego::Scene("First scene");
-    Fuego::ModelObject* model_1 =  scene->AddObject<Fuego::ModelObject>(scene->Root(), "Model 1");
-    Fuego::SceneFolder* folder = scene->AddObject<Fuego::SceneFolder>(scene->Root(), "Folder");
-    scene->AddObject<ModelObject>(folder, "Model_2", glm::vec3(25.f, 30.f, 41.f), glm::vec3(5.f, 10.f, 21.f));
-    scene->AddObject<ModelObject>("Model_2", "Model_3");
-    scene->RemoveObject("Root Folder");
 }
 Application::~Application()
 {
