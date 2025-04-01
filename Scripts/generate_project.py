@@ -16,16 +16,21 @@ protoc_compiler_name = "none"
 protoc_language = "none"
 
 def main():
-    if len(sys.argv) != 3:
-        print(f"{build_log_error} Arguments more\\less than 3, usage: generate_project.py <platform> <BEnableTests>")
+    if len(sys.argv) < 1:
+        print(f"{build_log_error} Needs to provide at least 1 argument: <platform>, usage: generate_project.py <platform> <enable_tests> <build_dll>")
         sys.exit(1)
 
     platform = sys.argv[1].lower()
-    enable_test = sys.argv[2].lower()
-    generate_project(platform, enable_test)
+    enable_test = "false"
+    build_dll = "true"
+    if len(sys.argv) >= 2:
+        enable_test = sys.argv[2].lower()
+    if len(sys.argv) >= 3:
+        build_dll = sys.argv[3].lower()   
+    generate_project(platform, enable_test, build_dll)
 
 
-def generate_project(platform, enable_test):
+def generate_project(platform, enable_test, build_dll):
     """Generate a project based on the specified platform."""
     root_folder = Path(__file__).parent.parent.resolve()
     build_dir = os.path.join(root_folder, "build")
@@ -46,10 +51,22 @@ def generate_project(platform, enable_test):
         sys.exit(1)
     if enable_test == "true":
         enable_test = "-DENABLE_FUEGO_TEST=ON"
+        print("Tests are On")
     elif enable_test == "false":
+        print("Tests are Off")
         enable_test = "-DENABLE_FUEGO_TEST=OFF"
     else: 
         print(f"{build_log_error} Unsupported argument for tests: {enable_test}")
+        sys.exit(1)
+
+    if build_dll == "true":
+        print("Fuego engine is DLL")
+        build_dll = "-DFUEGO_LIB_TYPE=SHARED"
+    elif build_dll == "false":
+        print("Fuego engine is static")
+        build_dll = "-DFUEGO_LIB_TYPE=STATIC"
+    else: 
+        print(f"{build_log_error} Unsupported argument for build_dll: {build_dll}")
         sys.exit(1)
 
     if os.path.exists(build_dir):
