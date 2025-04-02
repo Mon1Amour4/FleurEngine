@@ -8,14 +8,13 @@
 #include "LayerStack.h"
 #include "Renderer.h"
 
+Fuego::Scene* scene;
 Fuego::Renderer::Texture* engine_texture;
 int w, h, n;
 unsigned char* texture_data;
 
 Fuego::Renderer::Mesh* engine_mesh;
 std::vector<float> mesh_vector;
-Fuego::Scene* scene;
-
 namespace Fuego
 {
 class Application::ApplicationImpl
@@ -42,7 +41,7 @@ Application::Application()
     d->m_Running = true;
     FS::FileSystem& fs = Application::Get().FileSystem();
     engine_mesh = new Fuego::Renderer::Mesh();
-    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("!Model.obj").data());
+    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
 
     texture_data = fs.Load_Image("image.jpg", w, h, n);
     engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
@@ -156,10 +155,7 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
 
     d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
                            Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
-    // d->_renderer->Clear();
-    // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
-    // d->_renderer->DrawMesh(data, model->GetVertexCount());
-    d->_renderer->Present();
+    
 
     // event.SetHandled();
     UNUSED(event);
@@ -188,6 +184,7 @@ void Application::Run()
 {
     while (d->m_Running)
     {
+        d->_renderer->Clear();
         d->m_EventQueue->Update();
         d->m_Window->Update();
         Fuego::Renderer::Camera::GetActiveCamera()->Update();
@@ -203,6 +200,7 @@ void Application::Run()
             OnEvent(*ev);
             d->m_EventQueue->Pop();
         }
+        d->_renderer->Present();
     }
 }
 

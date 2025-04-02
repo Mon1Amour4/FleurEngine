@@ -1,7 +1,5 @@
 # Engine
 
-set(FUEGO_DYNAMIC_LIB ON CACHE BOOL "Build dynamic library (ON/OFF)")
-
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/abseil.cmake)
 include(${CMAKE_CURRENT_SOURCE_DIR}/protobuf.cmake)
@@ -53,13 +51,6 @@ set(SOURCES
 )
 
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer )
-
-if(FUEGO_DYNAMIC_LIB)
-  set(LIB_TYPE SHARED)
-  set(DLL_COMPILE_DEF FUEGO_DYNAMIC_LIB)
-else()
-  set(LIB_TYPE STATIC)
-endif()
 
 # Common setup
 list(APPEND ENGINE_DEPENDENCIES ImGui Renderer)
@@ -117,7 +108,7 @@ target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS}
 # target_compile_options(FuegoInterface INTERFACE
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS})
 # An engine library to be used by clients
-add_library(FuegoEngine ${LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
+add_library(FuegoEngine ${FUEGO_LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
 add_dependencies(FuegoEngine ProtoGen)
 

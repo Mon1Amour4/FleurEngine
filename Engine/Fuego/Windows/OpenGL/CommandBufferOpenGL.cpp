@@ -33,7 +33,7 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 void CommandBufferOpenGL::BeginRecording()
 {
     _isFree = false;
-    Clear();
+   // Clear();
 }
 
 void CommandBufferOpenGL::EndRecording()

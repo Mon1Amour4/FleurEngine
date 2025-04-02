@@ -19,7 +19,7 @@ namespace Fuego
 
 class FUEGO_API Application
 {
-    FUEGO_INTERFACE(Application);
+    FUEGO_INTERFACE(Application)
 
 public:
     Application();
