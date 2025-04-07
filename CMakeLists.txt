@@ -1,11 +1,30 @@
 cmake_minimum_required(VERSION 3.24)
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/Engine/ProtoFilesMisc.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/Configuration.cmake)
+
+set(CMAKE_CXX_STANDARD ${FU_CPP_LANG_VER})
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+set(PROTO_FILES_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Fuego/ProtoIn)
+set(PROTO_OUTPUT_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/Engine/Fuego/ProtoOut)
+
+GetProtoFiles(PATHS ${PROTO_FILES_DIRECTORIES})
+
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Output folders:
 set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/output)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR})
+
+if(FU_CONF_DEBUG)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY ${FU_MSVC_RUNTIME_DEBUG})
+elseif(FU_CONF_RELEASE)
+    set(CMAKE_MSVC_RUNTIME_LIBRARY ${FU_MSVC_RUNTIME_RELEASE})
+endif()
 
 set(CMAKE_BUILD_PARALLEL_LEVEL 8)
 
@@ -32,6 +51,10 @@ endif()
 
 add_subdirectory(Engine)
 add_subdirectory(Sandbox)
-add_subdirectory(CoreLib)
+if(ENABLE_FUEGO_TEST)
+  add_subdirectory(Tests)
+endif()
 
-add_subdirectory(External/googletest)
+
+
+

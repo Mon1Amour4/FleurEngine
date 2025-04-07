@@ -1,6 +1,8 @@
 $currentDir = Get-Location
 Set-Location -Path $PSScriptRoot
 $platform = "windows"
-python3 .\generate_project.py $platform
+$enable_tests = "true"
+$build_dll = "false"
+python .\generate_project.py $platform $enable_tests $build_dll
 Set-Location -Path $currentDir
 Write-Host "Original directory: $currentDir"

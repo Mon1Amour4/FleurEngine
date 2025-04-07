@@ -1,10 +1,14 @@
 ﻿#include "SandboxApp.h"
 
 #include "Camera.h"
+#include "Renderer.h"
 
+std::unique_ptr<Fuego::Renderer::Texture> sandbox_texture;
+int sanbox_w, sanbox_h, sanbox_n;
+unsigned char* sanbox_texture_data;
 
-unsigned char* texture_data;
-int w, h, n;
+Fuego::Renderer::Mesh* sandbox_mesh;
+std::vector<float> sandbox_mesh_vector;
 
 Fuego::Application* Fuego::CreateApplication()
 {
@@ -28,13 +32,13 @@ void SceneLayer::OnUpdate()
 
 void SceneLayer::OnAttach()
 {
-    scene_meshes.emplace_back(new Fuego::Renderer::Mesh());
     Fuego::FS::FileSystem& fs = Fuego::Application::Get().FileSystem();
-    for (const auto& mesh : scene_meshes)
-    {
-        mesh_data.emplace_back((mesh->load(fs.GetFullPathTo("Model.obj").data())));
-    }
-    texture_data = fs.Load_Image("image.jpg", w, h, n);
+    sandbox_mesh = new Fuego::Renderer::Mesh();
+    sandbox_mesh_vector = sandbox_mesh->load(fs.GetFullPathToFile("Model_2.obj").data());
+
+    sanbox_texture_data = fs.Load_Image("image.jpg", sanbox_w, sanbox_h, sanbox_n);
+    Fuego::Renderer::Renderer& renderer = Fuego::Application::Get().Renderer();
+    sandbox_texture = renderer.CreateTexture(sanbox_texture_data, sanbox_w, sanbox_h);
 }
 
 void SceneLayer::OnDetach()
@@ -53,17 +57,13 @@ void SceneLayer::OnEvent(Fuego::EventVariant& event)
 
 bool SceneLayer::OnRenderEvent(Fuego::AppRenderEvent& event)
 {
-    // glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
-    // glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
-    //// FU_TRACE("Client OnRenderEvent");
-    // auto& renderer = Fuego::Application::Get().Renderer();
-    // int i = 0;
-    // for (auto& mesh : mesh_data)
-    //{
-    //     renderer.DrawMesh(mesh, scene_meshes[i]->GetVertexCount(), texture_data, w, h, model_pos,
-    //                       /* Fuego::Renderer::Camera::GetActiveCamera()->GetView(),*/ glm::mat4(1.0f), projection);
-    //     i++;
-    // }
+    glm::mat4 model_pos = glm::translate(glm::mat4(1.0f), glm::vec3(15.0f, 0.0f, -5.0f));
+    glm::mat4 projection = glm::perspective(glm::radians(45.0f), 1280.0F / 720.0F, 0.1f, 100.0f);
+
+    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(sandbox_texture.get());
+    Fuego::Renderer::Renderer& renderer = Fuego::Application::Get().Renderer();
+    renderer.DrawMesh(sandbox_mesh_vector, sandbox_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+                      Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
     UNUSED(event);
     return true;
 }

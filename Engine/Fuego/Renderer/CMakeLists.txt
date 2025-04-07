@@ -1,5 +1,10 @@
 # Renderer dependencies
 
+set(PUBLIC_INCLUDE_DIRECTORIES)
+set(PRIVATE_INCLUDE_DIRECTORIES)
+set(PUBLIC_LINK_LIBRARIES)
+set(PRIVATE_LINK_LIBRARIES FuegoInterface)
+
 set(PROJECT_HEADERS
     Buffer.h
     CommandBuffer.h
@@ -19,27 +24,36 @@ set(PROJECT_HEADERS
     ShaderObject.h
     VertexLayout.h)
 
-set(PROJECT_SOURCES Renderer.cpp Mesh.cpp Camera.cpp VertexLayout.cpp)
+set(PROJECT_SOURCES
+  Renderer.cpp
+  Mesh.cpp
+  Camera.cpp
+  VertexLayout.cpp)
+
+if(FUEGO_PLATFORM_WIN)
+  list(APPEND PRIVATE_LINK_LIBRARIES WindowsDep)
+  list(APPEND PUBLIC_INCLUDE_DIRECTORIES 
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${CMAKE_CURRENT_SOURCE_DIR}/../Windows)
+
+elseif(FUEGO_PLATFORM_MACOS)
+  list(APPEND PRIVATE_LINK_LIBRARIES MacOSDep)
+  list(APPEND PUBLIC_INCLUDE_DIRECTORIES 
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/../MacOS)
+endif()
+
 
 add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
-if(WIN32)
-  target_include_directories(
-    Renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../Windows)
-target_link_libraries(Renderer PRIVATE WindowsDep)
+set_target_properties(Renderer PROPERTIES 
+                      ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+                      LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+                      RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+)
 
-elseif(APPLE)
-  target_include_directories(
-    Renderer PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/../MacOS)
-endif()
+target_link_libraries(Renderer PRIVATE ${PRIVATE_LINK_LIBRARIES})
+target_link_libraries(Renderer PUBLIC ${PUBLIC_LINK_LIBRARIES})
 
-set_target_properties(
-  Renderer
-  PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
-
-target_link_libraries(Renderer PRIVATE FuegoInterface)
-
+target_include_directories(Renderer PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
+target_include_directories(Renderer PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})

@@ -6,8 +6,10 @@
 #include "KeyCodes.h"
 #include "LayerStack.h"
 #include "Renderer.h"
+#include "Scene.h"
 
-Fuego::Renderer::Texture* engine_texture;
+Fuego::Scene* scene;
+std::unique_ptr<Fuego::Renderer::Texture> engine_texture;
 int w, h, n;
 unsigned char* texture_data;
 
@@ -28,7 +30,6 @@ class Application::ApplicationImpl
     static Application* m_Instance;
 };
 Application* Application::ApplicationImpl::m_Instance = nullptr;
-
 Application::Application()
     : d(new ApplicationImpl())
 {
@@ -36,16 +37,21 @@ Application::Application()
     d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
     d->m_EventQueue = EventQueue::CreateEventQueue();
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
-
     d->_renderer.reset(new Renderer::Renderer());
     d->m_Running = true;
-
     FS::FileSystem& fs = Application::Get().FileSystem();
     engine_mesh = new Fuego::Renderer::Mesh();
-    mesh_vector = engine_mesh->load(fs.GetFullPathTo("!Model.obj").data());
+    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
 
     texture_data = fs.Load_Image("image.jpg", w, h, n);
-    engine_texture = Fuego::Renderer::Texture::CreateTexture(texture_data, w, h);
+    engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
+
+    scene = new Fuego::Scene("First scene");
+}
+Application::~Application()
+{
+    delete d;
+    delete scene;
 }
 
 Renderer::Renderer& Application::Renderer()
@@ -53,17 +59,11 @@ Renderer::Renderer& Application::Renderer()
     return *d->_renderer.get();
 }
 
-Application::~Application()
-{
-    delete d;
-}
-
 void Application::PushLayer(Layer* layer)
 {
     d->m_LayerStack.PushLayer(layer);
     layer->OnAttach();
 }
-
 void Application::PushOverlay(Layer* overlay)
 {
     d->m_LayerStack.PushOverlay(overlay);
@@ -108,26 +108,22 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
     event.SetHandled();
     return true;
 }
-
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
     d->_renderer->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }
-
 bool Application::OnStartResizeWindow(WindowStartResizeEvent& event)
 {
     event.SetHandled();
     return true;
 }
-
 bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 {
     event.SetHandled();
     return true;
 }
-
 bool Application::OnValidateWindow(WindowValidateEvent& event)
 {
     d->_renderer->ValidateWindow();
@@ -135,7 +131,6 @@ bool Application::OnValidateWindow(WindowValidateEvent& event)
     event.SetHandled();
     return true;
 }
-
 bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
     KeyEvent& e = (KeyEvent&)event;
@@ -153,24 +148,19 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
     event.SetHandled();
     return true;
 }
-
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture);
+    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture.get());
 
     d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
                            Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
-    // d->_renderer->Clear();
-    // d->_renderer->DrawMesh(mesh, sizeof(mesh) / sizeof(float), indices, sizeof(indices) / sizeof(unsigned int));
-    // d->_renderer->DrawMesh(data, model->GetVertexCount());
-    d->_renderer->Present();
+
 
     // event.SetHandled();
     UNUSED(event);
     return true;
 }
-
 bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
 {
     UNUSED(event);
@@ -185,7 +175,6 @@ Fuego::FS::FileSystem& Application::FileSystem()
 {
     return *d->_fs.get();
 }
-
 Window& Application::GetWindow()
 {
     return *d->m_Window;
@@ -195,6 +184,7 @@ void Application::Run()
 {
     while (d->m_Running)
     {
+        d->_renderer->Clear();
         d->m_EventQueue->Update();
         d->m_Window->Update();
         Fuego::Renderer::Camera::GetActiveCamera()->Update();
@@ -210,6 +200,7 @@ void Application::Run()
             OnEvent(*ev);
             d->m_EventQueue->Pop();
         }
+        d->_renderer->Present();
     }
 }
 
