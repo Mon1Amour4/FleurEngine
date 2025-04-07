@@ -4,8 +4,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(ROOT ${CMAKE_CURRENT_SOURCE_DIR})
 
-set(CORELIB_HEADERS ${ROOT}/CoreLibConcepts.h ${ROOT}/Uptr.h ${ROOT}/Sptr.h
-                    ${ROOT}/DefaultAllocator.h ${ROOT}/CoreLibTests.h)
+set(CORELIB_HEADERS
+    ${ROOT}/CoreLibConcepts.h ${ROOT}/Uptr.h ${ROOT}/Sptr.h
+    ${ROOT}/singleton.hpp ${ROOT}/DefaultAllocator.h ${ROOT}/CoreLibTests.h)
 
 set(CORELIB_SOURCES ${ROOT}/CoreLibTests.cpp)
 set(CORELIB_BULD ${ROOT}/../build/${FUEGO_PLATFORM}/CoreLibTests)
