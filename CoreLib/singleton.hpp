@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 
 namespace Fuego
 {
@@ -10,8 +9,8 @@ class singleton
 public:
     static T& instance()
     {
-        static std::unique_ptr<T> instance = std::make_unique<T>();
-        return *instance;
+        static T instance;
+        return instance;
     }
 
     singleton(const singleton&) = delete;
