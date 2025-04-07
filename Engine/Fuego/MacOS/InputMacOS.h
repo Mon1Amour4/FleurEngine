@@ -5,9 +5,9 @@
 
 namespace Fuego
 {
-class InputMacOS : public Input, public singleton<InputWin>
+class InputMacOS : public Input, public singleton<InputMacOS>
 {
-    friend class singleton<InputWin>;
+    friend class singleton<InputMacOS>;
 
 protected:
     virtual bool IsKeyPressedImpl(KeyCode keyCode) const override;
