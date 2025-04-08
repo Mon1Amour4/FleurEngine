@@ -5,6 +5,7 @@
 #include "Camera.h"
 #include "CommandPool.h"
 #include "CommandQueue.h"
+#include "CommandBuffer.h"
 #include "Device.h"
 #include "Material.h"
 #include "Mesh.h"
@@ -12,6 +13,10 @@
 #include "Surface.h"
 #include "Swapchain.h"
 #include "Texture.h"
+
+#include "ShaderObject.h"
+#include "VertexLayout.h"
+
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 

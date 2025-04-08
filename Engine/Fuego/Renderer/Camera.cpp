@@ -33,6 +33,26 @@ void Camera::Activate()
 {
     active_camera = this;
 }
+mat4 Camera::GetProjection() const
+{
+    return projection;
+}
+mat4 Camera::GetView() const
+{
+    return view;
+}
+const mat4* Camera::GetViewPtr() const
+{
+    return &view;
+}
+vec3 Camera::GetDir() const
+{
+    return dir;
+}
+Camera* Camera::GetActiveCamera()
+{
+    return active_camera;
+}
 
 void Camera::Update()
 {

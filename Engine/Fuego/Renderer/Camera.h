@@ -17,37 +17,20 @@ public:
     FUEGO_NON_COPYABLE_NON_MOVABLE(Camera);
 
 
-    inline mat4 GetView() const
-    {
-        return view;
-    }
-    inline mat4 GetProjection() const
-    {
-        return projection;
-    }
-    inline const mat4* GetViewPtr() const
-    {
-        return &view;
-    }
-
-    inline vec3 GetDir() const
-    {
-        return dir;
-    }
+    mat4 GetView() const;
+    mat4 GetProjection() const;
+    const mat4* GetViewPtr() const;
+    vec3 GetDir() const;
+    static Camera* GetActiveCamera();
 
     void Activate();
-
-    static inline Camera* GetActiveCamera()
-    {
-        return active_camera;
-    }
 
     void Update();
 
 private:
     float speed;
     void RotateCamera();
-    static Camera* active_camera;
+    FUEGO_API static Camera* active_camera;
     vec3 position;
     mat4 view;
     mat4 projection;
