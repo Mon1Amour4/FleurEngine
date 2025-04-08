@@ -33,14 +33,7 @@ void Camera::Activate()
 {
     active_camera = this;
 }
-mat4 Camera::GetProjection() const
-{
-    return projection;
-}
-mat4 Camera::GetView() const
-{
-    return view;
-}
+
 const mat4* Camera::GetViewPtr() const
 {
     return &view;

@@ -10,15 +10,22 @@ namespace Fuego::Renderer
 {
 class Renderer;
 
-class Camera
+class FUEGO_API Camera
 {
 public:
     ~Camera();
     FUEGO_NON_COPYABLE_NON_MOVABLE(Camera);
 
+    inline mat4 GetView() const
+    {
+        return view;
+    }
 
-    mat4 GetView() const;
-    mat4 GetProjection() const;
+    inline mat4 GetProjection() const
+    {
+        return projection;
+    }
+
     const mat4* GetViewPtr() const;
     vec3 GetDir() const;
     static Camera* GetActiveCamera();
@@ -30,7 +37,7 @@ public:
 private:
     float speed;
     void RotateCamera();
-    FUEGO_API static Camera* active_camera;
+    static Camera* active_camera;
     vec3 position;
     mat4 view;
     mat4 projection;
