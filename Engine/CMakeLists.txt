@@ -55,9 +55,16 @@ set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer )
 # Common setup
 list(APPEND ENGINE_DEPENDENCIES ImGui Renderer)
 
-set(PUBLIC_ENGINE_COMPILE_DEFS FUEGO_ENABLE_ASSERTS)
+set(PUBLIC_ENGINE_COMPILE_DEFS 
+    FUEGO_ENABLE_ASSERTS 
+    FUEGO_BUILD_LIB
+)
 
-set(PPIVATE_ENGINE_COMPILE_DEFS ${DLL_COMPILE_DEF} FUEGO_BUILD_LIB)
+if(FUEGO_LIB_TYPE STREQUAL "SHARED")
+  list(APPEND PUBLIC_ENGINE_COMPILE_DEFS FUEGO_DLL_LIB)
+endif()
+
+set(PPIVATE_ENGINE_COMPILE_DEFS )
 set(_ITERATOR_DEBUG_LEVEL 0)
 
 if(MSVC)
@@ -102,12 +109,14 @@ add_library(FuegoInterface INTERFACE)
 target_include_directories(FuegoInterface INTERFACE ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})                 
 target_precompile_headers(FuegoInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
 target_compile_features(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_definitions(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS} FUEGO_BUILD_LIB)
+target_compile_definitions(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS})
 target_compile_options(FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS})
 # Uncomment the line bellow after CoreLib refactor
 # target_compile_options(FuegoInterface INTERFACE
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS})
 # An engine library to be used by clients
+
+
 add_library(FuegoEngine ${FUEGO_LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
 add_dependencies(FuegoEngine ProtoGen)
