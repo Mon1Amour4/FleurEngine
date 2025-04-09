@@ -1,9 +1,17 @@
 # Renderer dependencies
 
-set(PUBLIC_INCLUDE_DIRECTORIES)
+# Assimp
+set(ASSIMP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../External/assimp)
+set(ASSIMP_BUILD_TESTS OFF)
+set(ASSIMP_COVERALLS OFF)
+set(ASSIMP_BUILD_ZLIB ON)
+set(ASSIMP_HUNTER_ENABLED OFF)
+# End of Assimp
+
+set(PUBLIC_INCLUDE_DIRECTORIES ${ASSIMP_PATH}/include)
 set(PRIVATE_INCLUDE_DIRECTORIES)
 set(PUBLIC_LINK_LIBRARIES)
-set(PRIVATE_LINK_LIBRARIES FuegoInterface)
+set(PRIVATE_LINK_LIBRARIES FuegoInterface assimp)
 
 set(PROJECT_HEADERS
     Buffer.h
@@ -44,6 +52,7 @@ elseif(FUEGO_PLATFORM_MACOS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../MacOS)
 endif()
 
+add_subdirectory(${ASSIMP_PATH} ${ASSIMP_PATH})
 
 add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
@@ -58,3 +67,5 @@ target_link_libraries(Renderer PUBLIC ${PUBLIC_LINK_LIBRARIES})
 
 target_include_directories(Renderer PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
 target_include_directories(Renderer PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
+
+set_target_properties(assimp UpdateAssimpLibsDebugSymbolsAndDLLs uninstall zlibstatic PROPERTIES FOLDER "3rd party/Assimp")
