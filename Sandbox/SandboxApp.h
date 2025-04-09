@@ -21,6 +21,5 @@ private:
 
 class SandboxApp : public Fuego::Application
 {
-public:
     SandboxApp();
 };

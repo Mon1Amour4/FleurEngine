@@ -25,29 +25,16 @@ class Application::ApplicationImpl
     std::unique_ptr<Renderer::Renderer> _renderer;
     std::unique_ptr<Fuego::FS::FileSystem> _fs;
 
+    bool initialized = false;
     bool m_Running;
     LayerStack m_LayerStack;
-    static Application* m_Instance;
 };
-Application* Application::ApplicationImpl::m_Instance = nullptr;
+
 Application::Application()
     : d(new ApplicationImpl())
 {
-    ApplicationImpl::m_Instance = this;
-    d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
-    d->m_EventQueue = EventQueue::CreateEventQueue();
-    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
-    d->_renderer.reset(new Renderer::Renderer());
-    d->m_Running = true;
-    FS::FileSystem& fs = Application::Get().FileSystem();
-    engine_mesh = new Fuego::Renderer::Mesh();
-    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
-
-    texture_data = fs.Load_Image("image.jpg", w, h, n);
-    engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
-
-    scene = new Fuego::Scene("First scene");
 }
+
 Application::~Application()
 {
     delete d;
@@ -167,10 +154,6 @@ bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
     return true;
 }
 
-Application& Application::Get()
-{
-    return *Application::ApplicationImpl::m_Instance;
-}
 Fuego::FS::FileSystem& Application::FileSystem()
 {
     return *d->_fs.get();
@@ -180,8 +163,32 @@ Window& Application::GetWindow()
     return *d->m_Window;
 }
 
+void Application::Init()
+{
+    d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
+    d->m_EventQueue = EventQueue::CreateEventQueue();
+    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
+    d->_renderer.reset(new Renderer::Renderer());
+    d->m_Running = true;
+    FS::FileSystem& fs = Application::instance().FileSystem();
+    engine_mesh = new Fuego::Renderer::Mesh();
+    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
+
+    texture_data = fs.Load_Image("image.jpg", w, h, n);
+    engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
+
+    scene = new Fuego::Scene("First scene");
+
+    d->initialized = true;
+}
+
 void Application::Run()
 {
+    if (!d->initialized)
+    {
+        Init();
+    }
+
     while (d->m_Running)
     {
         d->_renderer->Clear();
