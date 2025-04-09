@@ -8,7 +8,7 @@
 #include "CommandQueue.h"
 #include "Device.h"
 #include "Material.h"
-#include "Mesh.h"
+#include "Model.h"
 #include "Shader.h"
 #include "ShaderObject.h"
 #include "Surface.h"
