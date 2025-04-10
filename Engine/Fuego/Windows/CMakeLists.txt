@@ -46,16 +46,16 @@ add_subdirectory(${GLAD_PATH} ${GLAD_BUILD_DIR})
 add_library(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
 target_include_directories(WindowsDep PUBLIC 
-    ${GLAD_PATH}/include
-    ${normalized_glad}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${GLAD_PATH}/include
 )
 
 target_link_libraries(WindowsDep PUBLIC Glad)
 target_link_libraries(WindowsDep PRIVATE FuegoInterface)
 
 set_target_properties(Glad PROPERTIES
-    ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-    LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-    RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-    FOLDER "3rd party"
+        ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+        LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+        RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+        FOLDER "3rd party"
 )
