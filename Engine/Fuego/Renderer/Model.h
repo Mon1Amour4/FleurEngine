@@ -4,15 +4,20 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
+struct aiScene;
+struct aiMesh;
+struct aiMaterial;
+
 namespace Fuego::Renderer
 {
-class Mesh;
-
 class FUEGO_API Model
 {
 public:
-    Model() = default;
+    Model(const aiScene* scene);
     ~Model() = default;
+
+    Model(Model&& other) noexcept;
+    Model& operator=(Model&& other) noexcept;
 
     inline std::string_view GetName() const
     {
@@ -29,44 +34,29 @@ public:
 
 private:
     std::string name;
-    std::vector<Mesh> meshes;
     uint16_t mesh_count;
     uint32_t vertex_count;
-};
 
-class FUEGO_API Mesh
-{
 public:
-    Mesh();
-    ~Mesh() = default;
-
-    std::vector<float> load(const char* name);
-    inline unsigned short int GetVertexCount() const
-    {
-        return vertex_count;
-    }
-
-private:
-    class Face
+    class FUEGO_API Mesh
     {
     public:
-        glm::ivec3 v_indecies;
-        glm::ivec2 tx_indecies;
-        glm::ivec3 n_indecies;
+        Mesh(aiMesh* mesh, aiMaterial** materials);
+        ~Mesh() = default;
 
-        Face(glm::ivec3 v_ind, glm::vec2 tx_ind, glm::vec3 n_ind);
+        inline unsigned short int GetVertexCount() const
+        {
+            return vertex_count;
+        }
+
+    private:
+        std::string mesh_name;
+        std::string material;
+        unsigned short int vertex_count;
     };
 
-    void ParseFace(const std::string_view& line, std::vector<Face>& faces, bool hasTextcoord, bool hasNormals);
-    void ParseVertices(const std::string_view& line, std::vector<glm::vec3>& vertecies, std::vector<glm::vec2>& textcoord, std::vector<glm::vec3>& normals);
-    void ProcessFaces(const std::vector<Face>& faces, std::vector<glm::vec3>& in_vertices, std::vector<glm::vec2>& in_textcoords,
-                      std::vector<glm::vec3>& in_normals, std::vector<float>& output_vector);
-
-    std::string model_name;
-    std::string material;
-    unsigned short int vertex_count;
-    unsigned short int polygons;
-    unsigned short int quads;
-    unsigned short int triangles;
+private:
+    std::vector<std::unique_ptr<Model::Mesh>> meshes;
 };
+
 }  // namespace Fuego::Renderer

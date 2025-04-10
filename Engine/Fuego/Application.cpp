@@ -6,14 +6,21 @@
 #include "Renderer.h"
 #include "Scene.h"
 
+// Temporary TODO: remove
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h> 
+#define ASSIMP_LOAD_FLAGS aiProcess_CalcTangentSpace \
+| aiProcess_Triangulate \
+| aiProcess_JoinIdenticalVertices \
+| aiProcess_SortByPType \
+// 
 
 Fuego::Scene* scene;
 std::unique_ptr<Fuego::Renderer::Texture> engine_texture;
 int w, h, n;
 unsigned char* texture_data;
 
-Fuego::Renderer::Mesh* engine_mesh;
-std::vector<float> mesh_vector;
 namespace Fuego
 {
 class Application::ApplicationImpl
@@ -23,6 +30,7 @@ class Application::ApplicationImpl
     std::unique_ptr<EventQueue> m_EventQueue;
     std::unique_ptr<Renderer::Renderer> _renderer;
     std::unique_ptr<Fuego::FS::FileSystem> _fs;
+    std::vector<std::unique_ptr<Fuego::Renderer::Model>> _models;
 
     bool m_Running;
     LayerStack m_LayerStack;
@@ -38,9 +46,9 @@ Application::Application()
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
     d->_renderer.reset(new Renderer::Renderer());
     d->m_Running = true;
+    d->_models.reserve(10);
     FS::FileSystem& fs = Application::Get().FileSystem();
-    engine_mesh = new Fuego::Renderer::Mesh();
-    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
+    LoadModel("Model.obj");
 
     texture_data = fs.Load_Image("image.jpg", w, h, n);
     engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
@@ -152,8 +160,8 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     d->_renderer->ShowWireFrame();
     Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture.get());
 
-    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
-                           Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
+    //d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
+                           //Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
 
 
     // event.SetHandled();
@@ -177,6 +185,18 @@ Fuego::FS::FileSystem& Application::FileSystem()
 Window& Application::GetWindow()
 {
     return *d->m_Window;
+}
+
+Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
+{
+    Assimp::Importer importer{};
+    const aiScene* scene = importer.ReadFile(d->_fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
+    if (!scene)
+        return nullptr;
+    d->_models.emplace_back(std::make_unique<Fuego::Renderer::Model>(scene));
+    Fuego::Renderer::Model* model = d->_models.back().get(); 
+    
+    return nullptr;
 }
 
 void Application::Run()

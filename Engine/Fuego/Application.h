@@ -16,6 +16,7 @@ class FileSystem;
 namespace Fuego::Renderer
 {
 class Renderer;
+class Model;
 }
 
 namespace Fuego
@@ -53,6 +54,8 @@ public:
     Fuego::Renderer::Renderer& Renderer();
     Fuego::FS::FileSystem& FileSystem();
     Window& GetWindow();
+
+    Fuego::Renderer::Model* LoadModel(std::string_view path);
 };
 
 // Should be defined in a client.

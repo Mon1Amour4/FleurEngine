@@ -1,6 +1,12 @@
 #pragma once
+
 #include <filesystem>
 #include <fstream>
+
+namespace Fuego::Renderer
+{
+class Model;
+}
 
 namespace Fuego::FS
 {
