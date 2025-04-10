@@ -1,4 +1,4 @@
-﻿#include "OpenGL/DeviceOpenGL.h"
+﻿#include "DeviceOpenGL.h"
 
 #include "Application.h"
 #include "BufferOpenGL.h"
