@@ -1,5 +1,9 @@
 # Windows dependencies
 
+set(GLAD_BUILD_DIR ${CMAKE_BINARY_DIR}/Glad)
+file(REAL_PATH ${CMAKE_BINARY_DIR}/../../build/win/output OUTPUT_DIR)
+file(REAL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad GLAD_PATH)
+
 set(PROJECT_HEADERS
     EventQueueWin.h
     InputWin.h
@@ -37,11 +41,17 @@ set(PROJECT_SOURCES
     OpenGl/ShaderObjectOpenGL.cpp
 )
 
-set(GLAD_BUILD_DIR ${CMAKE_BINARY_DIR}/Glad)
-set(OUTPUT_DIR ${CMAKE_BINARY_DIR}/../../build/win/output)
+add_subdirectory(${GLAD_PATH} ${GLAD_BUILD_DIR})
 
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad
-                 ${GLAD_BUILD_DIR})
+add_library(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+
+target_include_directories(WindowsDep PUBLIC 
+    ${GLAD_PATH}/include
+    ${normalized_glad}
+)
+
+target_link_libraries(WindowsDep PUBLIC Glad)
+target_link_libraries(WindowsDep PRIVATE FuegoInterface)
 
 set_target_properties(Glad PROPERTIES
     ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
@@ -49,13 +59,3 @@ set_target_properties(Glad PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
     FOLDER "3rd party"
 )
-
-add_library(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
-
-target_include_directories(WindowsDep PUBLIC 
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad/include
-)
-
-target_link_libraries(WindowsDep PUBLIC Glad)
-target_link_libraries(WindowsDep PRIVATE FuegoInterface)
