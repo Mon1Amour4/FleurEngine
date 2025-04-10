@@ -123,16 +123,22 @@ target_link_libraries(FuegoEngine PUBLIC
     protobuf::libprotobuf
 )
 target_link_libraries(FuegoEngine PRIVATE Renderer)
-target_include_directories(FuegoEngine
-                           PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
 
-target_include_directories(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})
+target_include_directories(FuegoEngine
+    PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES}
+    PRIVATE ${Protobuf_INCLUDE_DIRS}
+)
 
 target_precompile_headers(FuegoEngine PUBLIC
                           ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
-target_compile_definitions(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS})
-target_compile_definitions(FuegoEngine PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS})
-target_compile_features(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_features(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
-target_compile_options(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS})
-target_compile_options(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})
+target_compile_definitions(FuegoEngine 
+    PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS}
+    PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS}
+)
+target_compile_features(FuegoEngine 
+    PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES}
+    PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES}
+)
+target_compile_options(FuegoEngine 
+    PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS}
+    PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})

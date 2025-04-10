@@ -1,7 +1,7 @@
 # Renderer dependencies
 
 # Assimp
-set(ASSIMP_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../External/assimp)
+file(REAL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../External/assimp ASSIMP_PATH)
 set(ASSIMP_BUILD_TESTS OFF)
 set(ASSIMP_COVERALLS OFF)
 set(ASSIMP_BUILD_ZLIB ON)
@@ -62,11 +62,15 @@ set_target_properties(Renderer PROPERTIES
                       RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
 )
 
-target_link_libraries(Renderer PRIVATE ${PRIVATE_LINK_LIBRARIES})
-target_link_libraries(Renderer PUBLIC ${PUBLIC_LINK_LIBRARIES})
+target_link_libraries(Renderer 
+        PRIVATE ${PRIVATE_LINK_LIBRARIES}
+        PUBLIC ${PUBLIC_LINK_LIBRARIES}
+)
 
-target_include_directories(Renderer PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
-target_include_directories(Renderer PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
+target_include_directories(Renderer 
+        PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES}
+        PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES}
+)
 
 set_target_properties(assimp
         UpdateAssimpLibsDebugSymbolsAndDLLs

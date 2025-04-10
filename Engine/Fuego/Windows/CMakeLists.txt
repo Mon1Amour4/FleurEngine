@@ -37,8 +37,8 @@ set(PROJECT_SOURCES
     OpenGL/CommandPoolOpenGL.cpp
     OpenGL/TextureOpenGL.cpp
     OpenGL/SurfaceOpenGL.cpp
-    OpenGl/MaterialOpenGL.cpp
-    OpenGl/ShaderObjectOpenGL.cpp
+    OpenGL/MaterialOpenGL.cpp
+    OpenGL/ShaderObjectOpenGL.cpp
 )
 
 add_subdirectory(${GLAD_PATH} ${GLAD_BUILD_DIR})
@@ -50,8 +50,10 @@ target_include_directories(WindowsDep PUBLIC
         ${GLAD_PATH}/include
 )
 
-target_link_libraries(WindowsDep PUBLIC Glad)
-target_link_libraries(WindowsDep PRIVATE FuegoInterface)
+target_link_libraries(WindowsDep 
+        PUBLIC Glad
+        PRIVATE FuegoInterface
+)
 
 set_target_properties(Glad PROPERTIES
         ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
