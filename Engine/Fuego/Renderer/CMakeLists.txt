@@ -11,7 +11,7 @@ set(ASSIMP_HUNTER_ENABLED OFF)
 set(PUBLIC_INCLUDE_DIRECTORIES ${ASSIMP_PATH}/include)
 set(PRIVATE_INCLUDE_DIRECTORIES)
 set(PUBLIC_LINK_LIBRARIES)
-set(PRIVATE_LINK_LIBRARIES FuegoInterface assimp)
+set(PRIVATE_LINK_LIBRARIES FuegoInterface assimp::assimp)
 
 set(PROJECT_HEADERS
     Buffer.h
@@ -68,4 +68,10 @@ target_link_libraries(Renderer PUBLIC ${PUBLIC_LINK_LIBRARIES})
 target_include_directories(Renderer PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES})
 target_include_directories(Renderer PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
 
-set_target_properties(assimp UpdateAssimpLibsDebugSymbolsAndDLLs uninstall zlibstatic PROPERTIES FOLDER "3rd party/Assimp")
+set_target_properties(assimp
+        UpdateAssimpLibsDebugSymbolsAndDLLs
+        uninstall
+        zlibstatic
+        PROPERTIES FOLDER
+        "3rd party/Assimp"
+)
