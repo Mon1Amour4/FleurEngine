@@ -133,4 +133,11 @@ void Renderer::UpdateViewport()
     _swapchain = _device->CreateSwapchain(*_surface);
 }
 
+VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
+    : pos(pos)
+    , textcoord(text_coord)
+    , normal(normal)
+{
+}
+
 }  // namespace Fuego::Renderer

@@ -21,6 +21,17 @@
 namespace Fuego::Renderer
 {
 
+#pragma pack(push, 1)
+struct VertexData
+{
+    glm::vec3 pos;
+    glm::vec2 textcoord;
+    glm::vec3 normal;
+
+    VertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
+};
+#pragma pack(pop)
+
 class FUEGO_API Renderer
 {
 public:
@@ -31,15 +42,6 @@ public:
         float x = 0.0f;
         float y = 0.0f;
     };
-
-#pragma pack(push, 1)
-    struct VertexData
-    {
-        glm::vec3 pos;
-        glm::vec2 textcoord;
-        glm::vec3 normal;
-    };
-#pragma pack(pop)
 
     enum TextureType
     {
