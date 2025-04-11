@@ -72,7 +72,7 @@ void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer, VertexLay
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void CommandBufferOpenGL::BindIndexBuffer(uint32_t indices[], uint32_t size)
+void CommandBufferOpenGL::BindIndexBuffer(const uint32_t indices[], uint32_t size)
 {
     glBindVertexArray(_vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);

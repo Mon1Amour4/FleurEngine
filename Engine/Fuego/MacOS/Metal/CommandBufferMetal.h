@@ -38,7 +38,7 @@ public:
 
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
     virtual void BindVertexBuffer(const Buffer& vertexBuffer, VertexLayout layout) override;
-    virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) override
+    virtual void BindIndexBuffer(const uint32_t indices[], uint32_t size) override
     {
         UNUSED(indices);
         UNUSED(size);
