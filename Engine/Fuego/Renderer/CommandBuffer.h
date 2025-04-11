@@ -24,7 +24,7 @@ public:
     virtual void BindShaderObject(const ShaderObject& obj) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
     virtual void BindVertexBuffer(const Buffer& vertexBuffer, VertexLayout layout) = 0;
-    virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) = 0;
+    virtual void BindIndexBuffer(const uint32_t indices[], uint32_t size) = 0;
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
     virtual void IndexedDraw(uint32_t vertexCount) = 0;

@@ -159,7 +159,12 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
     Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture.get());
-
+    for (auto it = d->_models.begin(); it != d->_models.end(); ++it) 
+    {
+        Fuego::Renderer::Model* model_ptr = it->get();
+        d->_renderer->DrawMesh(model_ptr->GetVerticesData(), model_ptr->GetVertexCount(), model_ptr->GetIndicesData(), model_ptr->GetIndicesCount());
+    }
+    //d->_renderer->DrawMesh(d->_models)
     //d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
                            //Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
 
@@ -194,9 +199,8 @@ Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
     if (!scene)
         return nullptr;
     d->_models.emplace_back(std::make_unique<Fuego::Renderer::Model>(scene));
-    Fuego::Renderer::Model* model = d->_models.back().get(); 
-    
-    return nullptr;
+    Fuego::Renderer::Model* model = d->_models.back().get();
+    return model;
 }
 
 void Application::Run()
