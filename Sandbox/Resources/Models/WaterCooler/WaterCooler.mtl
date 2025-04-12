@@ -1,0 +1,24 @@
+# Blender 3.6.19 MTL File: 'ToExport.blend'
+# www.blender.org
+
+newmtl BottleMaterial
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 0.816514
+illum 9
+map_Bump -bm 1.000000 Substance/WaterCoolerMaterial_Normal.png
+
+newmtl WaterCoolerMaterial
+Ns 0.000000
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.007273 0.007273 0.007273
+Ni 1.450000
+d 1.000000
+illum 2
+map_Ke Substance/WaterCoolerMaterial_Emissive.hdr
+map_Bump -bm 1.000000 Substance/WaterCoolerMaterial_Normal.png

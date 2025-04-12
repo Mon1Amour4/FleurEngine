@@ -20,10 +20,10 @@ class FileSystem::FileSystemImpl
     friend class FileSystem;
     std::string GetExecutablePath();
     const std::string resource_path = GetExecutablePath() + resource;
-    const std::string shaders_path = shaders;
-    const std::string images_path = images;
-    const std::string models_path = models;
-    const std::string scenes_path = scenes;
+    const std::string shaders_path = "Shaders";
+    const std::string images_path = "Images";
+    const std::string models_path = "Models";
+    const std::string scenes_path = "Scenes";
     const std::vector<std::string_view> _searchPaths = {shaders_path.data(), images_path.data(), models_path.data(), scenes_path.data()};
 };
 
