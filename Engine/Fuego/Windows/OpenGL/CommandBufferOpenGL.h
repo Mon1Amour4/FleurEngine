@@ -21,7 +21,7 @@ public:
     virtual void BindIndexBuffer(const uint32_t indices[], uint32_t size_bytes) override;
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
-    virtual void IndexedDraw(uint32_t index_count) override;
+    virtual void IndexedDraw(uint32_t index_count, const void* indices_ptr_offset) override;
     virtual void Clear() override;
 
 private:

@@ -27,7 +27,7 @@ public:
     virtual void BindIndexBuffer(const uint32_t indices[], uint32_t size) = 0;
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
-    virtual void IndexedDraw(uint32_t vertexCount) = 0;
+    virtual void IndexedDraw(uint32_t vertexCount, const void* indices_ptr_offset) = 0;
     virtual void Clear() = 0;
 };
 

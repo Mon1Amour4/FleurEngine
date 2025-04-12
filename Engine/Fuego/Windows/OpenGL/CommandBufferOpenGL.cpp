@@ -105,10 +105,10 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t index_count)
+void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, const void* indices_ptr_offset)
 {
     glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, indices_ptr_offset);
     glBindVertexArray(0);
 }
 
