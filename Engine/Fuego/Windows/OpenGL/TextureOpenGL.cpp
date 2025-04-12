@@ -8,6 +8,8 @@ TextureOpenGL::TextureOpenGL(unsigned char* buffer, int width, int heigth)
     : texture_unit(0)
     , texture_id(0)
 {
+    FU_CORE_ASSERT(buffer, "Texture buffer is empty");
+
     glBindTexture(GL_TEXTURE_2D, 0);
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);

@@ -159,8 +159,8 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     for (auto it = d->_models.begin(); it != d->_models.end(); ++it)
     {
         Fuego::Renderer::Model* model_ptr = it->get();
-        d->_renderer->DrawModel(model_ptr, glm::mat4(counter));
-        counter++;
+        d->_renderer->DrawModel(model_ptr, glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, counter)));
+        counter += 10.f;
     }
 
     // event.SetHandled();
@@ -209,8 +209,12 @@ bool Application::AddTexture(std::string_view path)
 {
     unsigned char* data = nullptr;
     int width, height, bits;
-    bool res = d->_fs->Load_Image(path.data(), bits, data, width, height);
-    d->_textures.emplace(std::string(path.data()), std::move(d->_renderer->CreateTexture(data, width, height)));
+    bool res = false;
+
+    if (path.data() && path.size() > 0)
+        res = d->_fs->Load_Image(path.data(), bits, data, width, height);
+    if (res)
+        d->_textures.emplace(std::string(path.data()), std::move(d->_renderer->CreateTexture(data, width, height)));
     return res;
 }
 
@@ -218,6 +222,7 @@ const Fuego::Renderer::Texture* Application::GetLoadedTexture(std::string_view n
 {
     if (name.empty())
         return d->_textures.find("fallback.png")->second.get();
+
     auto it = d->_textures.find(name.data());
     if (it != d->_textures.end() && it->second)
         return it->second.get();
