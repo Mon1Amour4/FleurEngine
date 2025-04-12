@@ -1,25 +1,25 @@
 #include "MaterialOpenGL.h"
 
 #include "ShaderObjectOpenGL.h"
+#include <glad/gl.h>
 
 namespace Fuego::Renderer
 {
 
-Material* Material::CreateMaterial(Texture* albedo)
+Material* Material::CreateMaterial(const Texture* albedo)
 {
     return new MaterialOpenGL(albedo);
 }
 
-MaterialOpenGL::MaterialOpenGL(Texture* albedo)
+MaterialOpenGL::MaterialOpenGL(const Texture* albedo)
     : albedo_texture(nullptr)
 {
-    albedo_texture = static_cast<TextureOpenGL*>(albedo);
+    albedo_texture = static_cast<const TextureOpenGL*>(albedo);
 }
 
-void MaterialOpenGL::Upload(ShaderObject& shader)
+void MaterialOpenGL::Use() const
 {
-    ShaderObjectOpenGL& shader_gl = static_cast<ShaderObjectOpenGL&>(shader);
-    shader_gl.UploadMaterial(*this);
+    glBindTexture(GL_TEXTURE_2D, albedo_texture->GetTextureID());
 }
 
 }  // namespace Fuego::Renderer
