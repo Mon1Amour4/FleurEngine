@@ -44,7 +44,9 @@ Application::Application()
     d->m_Running = true;
     d->_models.reserve(10);
     FS::FileSystem& fs = Application::Get().FileSystem();
+    AddTexture("fallback.png");
     LoadModel("Shotgun/Shotgun.obj");
+    LoadModel("WaterCooler/WaterCooler.obj");
 }
 
 Application::~Application()
@@ -214,6 +216,8 @@ bool Application::AddTexture(std::string_view path)
 
 const Fuego::Renderer::Texture* Application::GetLoadedTexture(std::string_view name) const
 {
+    if (name.empty())
+        return d->_textures.find("fallback.png")->second.get();
     auto it = d->_textures.find(name.data());
     if (it != d->_textures.end() && it->second)
         return it->second.get();
