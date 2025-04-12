@@ -20,7 +20,7 @@ class FileSystem::FileSystemImpl
     friend class FileSystem;
     std::string GetExecutablePath();
     const std::string resource_path = GetExecutablePath() + resource;
-    const std::string shaders_path = "Shaders";
+    const std::string shaders_path = shaders_win_path;
     const std::string images_path = "Images";
     const std::string models_path = "Models";
     const std::string scenes_path = "Scenes";
@@ -75,17 +75,35 @@ std::string FileSystem::FileSystemImpl::GetExecutablePath()
 
 const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
 {
+    if (fileName.empty())
+        return std::string();
+
     std::filesystem::path file(fileName);
-    if (std::filesystem::exists(file))
+    std::string extension = file.extension().string();
+
+    extension = file.extension().string();
+    if (extension.compare(".png") == 0 || extension.compare(".jpg") == 0)
     {
-        std::string extension = file.extension().string();
-        if (extension == "png" || extension == "jpg")
+        std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->images_path) / fileName;
+        if (std::filesystem::exists(filePath))
         {
-            std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->images_path) / fileName;
-            if (std::filesystem::exists(filePath))
-            {
-                return filePath.lexically_normal().string();
-            }
+            return filePath.lexically_normal().string();
+        }
+    }
+    else if (extension.compare(".glsl") == 0)
+    {
+        std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->shaders_path) / fileName;
+        if (std::filesystem::exists(filePath))
+        {
+            return filePath.lexically_normal().string();
+        }
+    }
+    else if (extension.compare(".obj") == 0)
+    {
+        std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->models_path) / fileName;
+        if (std::filesystem::exists(filePath))
+        {
+            return filePath.lexically_normal().string();
         }
     }
 
