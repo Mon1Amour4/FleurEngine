@@ -38,13 +38,13 @@ public:
         return indices_count;
     }
 
-    inline const float* GetVerticesData() const
+    inline const VertexData* GetVerticesData() const
     {
-        return (float*)vertices.data();
+        return vertices.data();
     }
     inline const uint32_t* GetIndicesData() const
     {
-        return (uint32_t*)indices.data();
+        return indices.data();
     }
 
 
@@ -93,6 +93,15 @@ public:
         inline uint32_t GetIndexEnd() const
         {
             return index_end;
+        }
+
+        inline uint32_t GetVertexSize() const
+        {
+            return vertex_count * sizeof(float);
+        }
+        inline uint32_t GetIndexSize() const
+        {
+            return indices_count * sizeof(uint32_t);
         }
 
         inline void SetMaterial(Material* material)

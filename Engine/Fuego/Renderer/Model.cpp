@@ -20,9 +20,9 @@ Fuego::Renderer::Model::Model(const aiScene* scene)
     {
         meshes.emplace_back(
             std::make_unique<Fuego::Renderer::Model::Mesh>(scene->mMeshes[i], scene->mMaterials[scene->mMeshes[i]->mMaterialIndex], i, vertices, indices));
-        vertex_count += scene->mMeshes[i]->mNumVertices;
-        indices_count += meshes.back().get()->GetIndicesCount();
         Fuego::Renderer::Model::Mesh* mesh = meshes.back().get();
+        vertex_count += mesh->GetVertexCount();
+        indices_count += mesh->GetIndicesCount();
         if (!Application::Get().IsTextureLoaded(mesh->GetTextureName()))
         {
             Application::Get().AddTexture(mesh->GetTextureName());
@@ -70,12 +70,10 @@ Fuego::Renderer::Model::Mesh::Mesh(aiMesh* mesh, aiMaterial* material, uint16_t 
     , indices_count(0)
     , texture("")
 {
-    if (vertices.size() > 0)
-        vertex_start = vertices.size();
-    if (indices.size() > 0)
-        index_start = indices.size();
+    vertex_start = vertices.size();
+    index_start = indices.size();
 
-    vertices.reserve(vertex_count);
+    vertices.reserve(vertices.size() + vertex_count);
     for (size_t i = 0; i < vertex_count; i++)
     {
         vertices.emplace_back(glm::vec3(mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z));
@@ -88,7 +86,7 @@ Fuego::Renderer::Model::Mesh::Mesh(aiMesh* mesh, aiMaterial* material, uint16_t 
         }
         // TODO: mesh may contain up to 8 different texture,
         // use first one for now, later increase textures up to 8?
-        if (mesh->HasTextureCoords(mesh_index))
+        if (mesh->HasTextureCoords(0))
         {
             vertex.textcoord.x = mesh->mTextureCoords[0]->x;
             vertex.textcoord.y = mesh->mTextureCoords[0]->y;
@@ -97,10 +95,13 @@ Fuego::Renderer::Model::Mesh::Mesh(aiMesh* mesh, aiMaterial* material, uint16_t 
     for (size_t i = 0; i < mesh->mNumFaces; i++)
     {
         aiFace face = mesh->mFaces[i];
-        for (size_t j = 0; j < face.mNumIndices; j++) indices.push_back(face.mIndices[j]);
+        for (size_t j = 0; j < face.mNumIndices; j++)
+        {
+            indices.push_back(face.mIndices[j] + vertex_start);
+        }
         indices_count += face.mNumIndices;
     }
-    vertex_end = indices.size() - 1;
+    vertex_end = vertices.size() - 1;
     index_end = indices.size() - 1;
     aiString path;
     material->GetTexture(aiTextureType_DIFFUSE, 0, &path);
