@@ -24,17 +24,17 @@ public:
         return program;
     }
 
-    void Use() const;
+    virtual void Use() const override;
+    virtual void BindMaterial(Material* material) override;
+    virtual void UseMaterial() const override;
 
 private:
+    MaterialOpenGL* material;
     uint32_t program;
     ShaderOpenGL* vertex_shader;
     ShaderOpenGL* pixel_shader;
 
     friend class ShaderObject;
     ShaderObjectOpenGL(Shader& vs, Shader& px);
-
-    friend class MaterialOpenGL;
-    void UploadMaterial(Material& material) const;
 };
 }  // namespace Fuego::Renderer

@@ -14,6 +14,7 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(Shader& vs, Shader& px)
     : program(glCreateProgram())
     , vertex_shader(nullptr)
     , pixel_shader(nullptr)
+    , material(nullptr)
 {
     auto vs_gl = dynamic_cast<ShaderOpenGL*>(&vs);
     auto px_gl = dynamic_cast<ShaderOpenGL*>(&px);
@@ -50,11 +51,16 @@ void ShaderObjectOpenGL::Use() const
     glUseProgram(program);
 }
 
-void ShaderObjectOpenGL::UploadMaterial(Material& material) const
+void ShaderObjectOpenGL::BindMaterial(Material* material)
 {
-    MaterialOpenGL& mat_gl = dynamic_cast<MaterialOpenGL&>(material);
+    this->material = static_cast<MaterialOpenGL*>(material);
     pixel_shader->AddVar("material.albedo_text");
-    pixel_shader->SetText2D("material.albedo_text", mat_gl.GetAlbedoTexture());
+    pixel_shader->SetText2D("material.albedo_text", this->material->GetAlbedoTexture());
+}
+
+void ShaderObjectOpenGL::UseMaterial() const
+{
+    material->Use();
 }
 
 }  // namespace Fuego::Renderer
