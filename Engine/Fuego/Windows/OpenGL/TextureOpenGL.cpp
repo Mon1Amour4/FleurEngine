@@ -21,6 +21,16 @@ TextureOpenGL::TextureOpenGL(unsigned char* buffer, int width, int heigth)
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+void TextureOpenGL::Bind() const
+{
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+}
+
+void TextureOpenGL::UnBind() const
+{
+    glBindTexture(GL_TEXTURE_2D, 0);
+}
+
 TextureFormat TextureOpenGL::GetTextureFormat() const
 {
     return TextureFormat::R16F;

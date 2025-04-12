@@ -21,7 +21,32 @@ public:
     virtual ~Texture() = default;
 
     virtual TextureFormat GetTextureFormat() const = 0;
-};
+    virtual inline const unsigned char* Data() const
+    {
+        return data;
+    }
+    virtual inline std::string_view Name() const
+    {
+        return name;
+    }
+    virtual inline int Width() const
+    {
+        return width;
+    }
+    virtual inline int Height() const
+    {
+        return height;
+    }
+
+    virtual void Bind() const = 0;
+    virtual void UnBind() const = 0;
+
+private:
+    unsigned char* data;
+    std::string name;
+    int width;
+    int height;
+};  // namespace Fuego::Renderer
 
 class TextureView
 {

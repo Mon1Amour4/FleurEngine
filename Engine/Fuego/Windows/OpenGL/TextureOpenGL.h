@@ -10,6 +10,9 @@ public:
     TextureOpenGL() = default;
     ~TextureOpenGL() = default;
 
+    virtual void Bind() const override;
+    virtual void UnBind() const override;
+
     virtual TextureFormat GetTextureFormat() const override;
     inline uint16_t GetTextureUnit() const
     {
