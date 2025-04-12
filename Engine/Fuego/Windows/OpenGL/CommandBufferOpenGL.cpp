@@ -40,6 +40,7 @@ void CommandBufferOpenGL::EndRecording()
 {
     // Temporary
     // glDeleteTextures(1, &_texture);
+    glBindVertexArray(0);
 }
 
 void CommandBufferOpenGL::Submit()
@@ -109,7 +110,6 @@ void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, const void* indices_
 {
     glBindVertexArray(_vao);
     glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, indices_ptr_offset);
-    glBindVertexArray(0);
 }
 
 void CommandBufferOpenGL::Clear()
