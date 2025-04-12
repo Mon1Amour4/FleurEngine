@@ -58,9 +58,4 @@ void ShaderObjectOpenGL::BindMaterial(Material* material)
     pixel_shader->SetText2D("material.albedo_text", this->material->GetAlbedoTexture());
 }
 
-void ShaderObjectOpenGL::UseMaterial() const
-{
-    material->Use();
-}
-
 }  // namespace Fuego::Renderer

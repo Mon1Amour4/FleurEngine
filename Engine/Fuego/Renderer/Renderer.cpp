@@ -102,7 +102,6 @@ void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
     for (const auto& mesh : *meshes)
     {
         current_shader_obj->BindMaterial(mesh->GetMaterial());
-        current_shader_obj->UseMaterial();
 
         cmd.IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
         cmd.EndRecording();

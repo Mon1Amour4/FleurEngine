@@ -26,7 +26,6 @@ public:
 
     virtual void Use() const override;
     virtual void BindMaterial(Material* material) override;
-    virtual void UseMaterial() const override;
 
 private:
     MaterialOpenGL* material;
