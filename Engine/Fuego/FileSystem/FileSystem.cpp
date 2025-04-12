@@ -44,17 +44,19 @@ std::string FileSystem::OpenFile(const std::string& file, std::fstream::ios_base
 
     return buffer.str();
 }
-unsigned char* FileSystem::Load_Image(const std::string& file, int& x, int& y, int& bits_per_pixel, int image_channels)
+bool FileSystem::Load_Image(IN const std::string& file, IN int& bits_per_pixel, OUT unsigned char*& data, OUT int& x, OUT int& y, int image_channels)
 {
     std::string path = GetFullPathToFile(file);
     stbi_set_flip_vertically_on_load(1);
-    unsigned char* data = stbi_load(path.c_str(), &x, &y, &bits_per_pixel, image_channels);
+    data = stbi_load(path.c_str(), &x, &y, &bits_per_pixel, image_channels);
     if (!data)
     {
         FU_CORE_ERROR("Can't load an image: {0} {1}", path, stbi_failure_reason());
+        return false;
     }
-    return data;
+    return true;
 }
+
 std::string FileSystem::FileSystemImpl::GetExecutablePath()
 {
 #if defined(FUEGO_PLATFORM_WIN)
@@ -70,6 +72,7 @@ std::string FileSystem::FileSystemImpl::GetExecutablePath()
 #endif
     return std::filesystem::path(path).parent_path().string();
 }
+
 const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
 {
     std::filesystem::path file(fileName);
@@ -78,7 +81,7 @@ const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
         std::string extension = file.extension().string();
         if (extension == "png" || extension == "jpg")
         {
-            std::filesystem::path filePath = d->resource_path / std::filesystem::path(images) / fileName;
+            std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->images_path) / fileName;
             if (std::filesystem::exists(filePath))
             {
                 return filePath.lexically_normal().string();
