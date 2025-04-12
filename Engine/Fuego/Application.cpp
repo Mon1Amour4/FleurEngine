@@ -1,4 +1,5 @@
 #include "Application.h"
+
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
@@ -7,19 +8,11 @@
 #include "Scene.h"
 
 // Temporary TODO: remove
-#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
 #include <assimp/scene.h>
-#include <assimp/postprocess.h> 
-#define ASSIMP_LOAD_FLAGS aiProcess_CalcTangentSpace \
-| aiProcess_Triangulate \
-| aiProcess_JoinIdenticalVertices \
-| aiProcess_SortByPType \
-// 
 
-Fuego::Scene* scene;
-std::unique_ptr<Fuego::Renderer::Texture> engine_texture;
-int w, h, n;
-unsigned char* texture_data;
+#include <assimp/Importer.hpp>
+#define ASSIMP_LOAD_FLAGS aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType  //
 
 namespace Fuego
 {
@@ -31,12 +24,15 @@ class Application::ApplicationImpl
     std::unique_ptr<Renderer::Renderer> _renderer;
     std::unique_ptr<Fuego::FS::FileSystem> _fs;
     std::vector<std::unique_ptr<Fuego::Renderer::Model>> _models;
+    std::unordered_map<std::string, std::unique_ptr<Fuego::Renderer::Texture>> _textures;
 
     bool m_Running;
     LayerStack m_LayerStack;
     static Application* m_Instance;
 };
+
 Application* Application::ApplicationImpl::m_Instance = nullptr;
+
 Application::Application()
     : d(new ApplicationImpl())
 {
@@ -48,17 +44,12 @@ Application::Application()
     d->m_Running = true;
     d->_models.reserve(10);
     FS::FileSystem& fs = Application::Get().FileSystem();
-    LoadModel("Model.obj");
-
-    texture_data = fs.Load_Image("image.jpg", w, h, n);
-    engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
-
-    scene = new Fuego::Scene("First scene");
+    LoadModel("Shotgun/Shotgun.obj");
 }
+
 Application::~Application()
 {
     delete d;
-    delete scene;
 }
 
 Renderer::Renderer& Application::Renderer()
@@ -158,16 +149,15 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture.get());
-    for (auto it = d->_models.begin(); it != d->_models.end(); ++it) 
+    // TODO: As for now we use just one opaque shader, but we must think about different passes
+    // using different shaders with blending and probably using pre-passes
+    d->_renderer->SetShaderObject(d->_renderer->opaque_shader.get());
+    d->_renderer->CurrentShaderObject()->Use();
+    for (auto it = d->_models.begin(); it != d->_models.end(); ++it)
     {
         Fuego::Renderer::Model* model_ptr = it->get();
-        d->_renderer->DrawMesh(model_ptr->GetVerticesData(), model_ptr->GetVertexCount(), model_ptr->GetIndicesData(), model_ptr->GetIndicesCount());
+        d->_renderer->DrawModel(model_ptr);
     }
-    //d->_renderer->DrawMesh(d->_models)
-    //d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
-                           //Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
-
 
     // event.SetHandled();
     UNUSED(event);
@@ -183,10 +173,12 @@ Application& Application::Get()
 {
     return *Application::ApplicationImpl::m_Instance;
 }
+
 Fuego::FS::FileSystem& Application::FileSystem()
 {
     return *d->_fs.get();
 }
+
 Window& Application::GetWindow()
 {
     return *d->m_Window;
@@ -201,6 +193,29 @@ Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
     d->_models.emplace_back(std::make_unique<Fuego::Renderer::Model>(scene));
     Fuego::Renderer::Model* model = d->_models.back().get();
     return model;
+}
+
+bool Application::IsTextureLoaded(std::string_view texture) const
+{
+    auto it = d->_textures.find(texture.data());
+    return it != d->_textures.end();
+}
+
+bool Application::AddTexture(std::string_view path)
+{
+    unsigned char* data = nullptr;
+    int width, height, bits;
+    bool res = d->_fs->Load_Image(path.data(), bits, data, width, height);
+    d->_textures.emplace(std::string(path.data()), std::move(d->_renderer->CreateTexture(data, width, height)));
+    return res;
+}
+
+const Fuego::Renderer::Texture* Application::GetLoadedTexture(std::string_view name) const
+{
+    auto it = d->_textures.find(name.data());
+    if (it != d->_textures.end() && it->second)
+        return it->second.get();
+    return nullptr;
 }
 
 void Application::Run()
@@ -226,6 +241,5 @@ void Application::Run()
         d->_renderer->Present();
     }
 }
-
 
 }  // namespace Fuego

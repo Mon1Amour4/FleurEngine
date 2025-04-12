@@ -17,7 +17,8 @@ namespace Fuego::Renderer
 {
 class Renderer;
 class Model;
-}
+class Texture;
+}  // namespace Fuego::Renderer
 
 namespace Fuego
 {
@@ -56,6 +57,10 @@ public:
     Window& GetWindow();
 
     Fuego::Renderer::Model* LoadModel(std::string_view path);
+
+    bool IsTextureLoaded(std::string_view) const;
+    bool AddTexture(std::string_view);
+    const Fuego::Renderer::Texture* GetLoadedTexture(std::string_view name) const;
 };
 
 // Should be defined in a client.
