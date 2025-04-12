@@ -88,10 +88,9 @@ private:
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
 
-    Viewport viewport;
 
-    friend class Fuego::Application;
-    Renderer();
-    void ChangeViewport(float x, float y, float w, float h);
+    ShaderObject* current_shader_obj;
+
+    Viewport viewport;
 };
 }  // namespace Fuego::Renderer
