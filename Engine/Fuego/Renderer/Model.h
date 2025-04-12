@@ -1,6 +1,5 @@
 #pragma once
 
-//#include "Renderer.h"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
@@ -8,10 +7,10 @@ struct aiScene;
 struct aiMesh;
 struct aiMaterial;
 
-
 namespace Fuego::Renderer
 {
 struct VertexData;
+class Material;
 
 class FUEGO_API Model
 {
@@ -48,6 +47,7 @@ public:
         return (uint32_t*)indices.data();
     }
 
+
 private:
     std::string name;
     uint16_t mesh_count;
@@ -60,8 +60,13 @@ public:
     class FUEGO_API Mesh
     {
     public:
-        Mesh(aiMesh* mesh, aiMaterial** materials, uint16_t mesh_index, std::vector<Fuego::Renderer::VertexData>& vertices, std::vector<uint32_t>& indices);
+        Mesh(aiMesh* mesh, aiMaterial* material, uint16_t mesh_index, std::vector<Fuego::Renderer::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
+
+        inline std::string_view GetTextureName() const
+        {
+            return texture;
+        }
 
         inline uint16_t GetVertexCount() const
         {
@@ -72,19 +77,58 @@ public:
             return indices_count;
         }
 
+        inline uint32_t GetVertexStart() const
+        {
+            return vertex_start;
+        }
+        inline uint32_t GetVertexEnd() const
+        {
+            return vertex_end;
+        }
+
+        inline uint32_t GetIndexStart() const
+        {
+            return index_start;
+        }
+        inline uint32_t GetIndexEnd() const
+        {
+            return index_end;
+        }
+
+        inline void SetMaterial(Material* material)
+        {
+            this->material.reset(material);
+        }
+
+        inline Material* GetMaterial() const
+        {
+            return material.get();
+        }
+
     private:
         std::string mesh_name;
-        std::string material;
+        std::unique_ptr<Material> material;
 
-        uint32_t start_index;
-        uint32_t end_index;
+        uint32_t vertex_start;
+        uint32_t vertex_end;
+
+        uint32_t index_start;
+        uint32_t index_end;
 
         uint16_t vertex_count;
         uint16_t indices_count;
+
+        std::string texture;
     };
 
 private:
     std::vector<std::unique_ptr<Model::Mesh>> meshes;
+
+public:
+    const std::vector<std::unique_ptr<Fuego::Renderer::Model::Mesh>>* GetMeshesPtr() const
+    {
+        return &meshes;
+    }
 };
 
 }  // namespace Fuego::Renderer
