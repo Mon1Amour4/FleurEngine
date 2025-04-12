@@ -33,13 +33,13 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 void CommandBufferOpenGL::BeginRecording()
 {
     _isFree = false;
-   // Clear();
+    // Clear();
 }
 
 void CommandBufferOpenGL::EndRecording()
 {
     // Temporary
-    glDeleteTextures(1, &_texture);
+    // glDeleteTextures(1, &_texture);
 }
 
 void CommandBufferOpenGL::Submit()
@@ -72,18 +72,18 @@ void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer, VertexLay
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void CommandBufferOpenGL::BindIndexBuffer(const uint32_t indices[], uint32_t size)
+void CommandBufferOpenGL::BindIndexBuffer(const uint32_t indices[], uint32_t size_bytes)
 {
     glBindVertexArray(_vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
     if (!_isDataAllocated)
     {
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_bytes, indices, GL_DYNAMIC_DRAW);
         _isDataAllocated = true;
     }
     else
     {
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size, indices);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size_bytes, indices);
     }
     glBindVertexArray(0);
 }
@@ -105,10 +105,10 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t vertexCount)
+void CommandBufferOpenGL::IndexedDraw(uint32_t index_count)
 {
     glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
+    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, 0);
     glBindVertexArray(0);
 }
 
