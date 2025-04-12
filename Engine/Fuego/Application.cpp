@@ -153,10 +153,12 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     // using different shaders with blending and probably using pre-passes
     d->_renderer->SetShaderObject(d->_renderer->opaque_shader.get());
     d->_renderer->CurrentShaderObject()->Use();
+    float counter = 1.f;
     for (auto it = d->_models.begin(); it != d->_models.end(); ++it)
     {
         Fuego::Renderer::Model* model_ptr = it->get();
-        d->_renderer->DrawModel(model_ptr);
+        d->_renderer->DrawModel(model_ptr, glm::mat4(counter));
+        counter++;
     }
 
     // event.SetHandled();

@@ -78,7 +78,7 @@ void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, M
     delete material;
 }
 
-void Renderer::DrawModel(const Model* model)
+void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     const auto* meshes = model->GetMeshesPtr();
 
@@ -91,14 +91,20 @@ void Renderer::DrawModel(const Model* model)
     layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
 
+    current_shader_obj->GetVertexShader()->SetMat4f("model", model_pos);
+    current_shader_obj->GetVertexShader()->SetMat4f("view", _camera->GetView());
+    current_shader_obj->GetVertexShader()->SetMat4f("projection", _camera->GetProjection());
+
+    _buffer->BindData<VertexData>(std::span(model->GetVerticesData(), model->GetVertexCount()));
+    cmd.BindIndexBuffer(model->GetIndicesData(), model->GetIndicesCount() * sizeof(uint32_t));
+    cmd.BindVertexBuffer(*_buffer, layout);
+
     for (const auto& mesh : *meshes)
     {
         current_shader_obj->BindMaterial(mesh->GetMaterial());
         current_shader_obj->UseMaterial();
-        _buffer->BindData<float>(std::span(model->GetVerticesData() + mesh->GetVertexStart(), mesh->GetVertexCount() * sizeof(float)));
-        cmd.BindVertexBuffer(*_buffer, layout);
-        cmd.BindIndexBuffer(model->GetIndicesData() + mesh->GetIndexStart(), mesh->GetIndicesCount() * sizeof(unsigned int));
-        cmd.IndexedDraw(mesh->GetVertexCount());
+
+        cmd.IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
         cmd.EndRecording();
         cmd.Submit();
     }
