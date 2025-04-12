@@ -88,8 +88,8 @@ Fuego::Renderer::Model::Mesh::Mesh(aiMesh* mesh, aiMaterial* material, uint16_t 
         // use first one for now, later increase textures up to 8?
         if (mesh->HasTextureCoords(0))
         {
-            vertex.textcoord.x = mesh->mTextureCoords[0]->x;
-            vertex.textcoord.y = mesh->mTextureCoords[0]->y;
+            vertex.textcoord.x = mesh->mTextureCoords[0][i].x;
+            vertex.textcoord.y = mesh->mTextureCoords[0][i].y;
         }
     }
     for (size_t i = 0; i < mesh->mNumFaces; i++)
