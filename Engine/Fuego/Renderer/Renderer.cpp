@@ -2,6 +2,8 @@
 
 #include <span>
 
+#include "Renderer.h"
+
 namespace Fuego::Renderer
 {
 
@@ -12,6 +14,7 @@ uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 Renderer::Renderer()
     : show_wireframe(false)
     , _camera(std::unique_ptr<Camera>(new Camera()))
+    , current_shader_obj(nullptr)
 {
     _camera->Activate();
 
@@ -26,10 +29,10 @@ Renderer::Renderer()
     _mainVsShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
     _pixelShader = _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel);
 
-    shader_object = ShaderObject::CreateShaderObject(*_mainVsShader.get(), *_pixelShader.get());
-    shader_object->GetVertexShader()->AddVar("model");
-    shader_object->GetVertexShader()->AddVar("view");
-    shader_object->GetVertexShader()->AddVar("projection");
+    opaque_shader.reset(ShaderObject::CreateShaderObject(*_mainVsShader.get(), *_pixelShader.get()));
+    opaque_shader->GetVertexShader()->AddVar("model");
+    opaque_shader->GetVertexShader()->AddVar("view");
+    opaque_shader->GetVertexShader()->AddVar("projection");
 
     _buffer = _device->CreateBuffer(0, 0);
 }

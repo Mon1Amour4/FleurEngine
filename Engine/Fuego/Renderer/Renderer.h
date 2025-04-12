@@ -50,7 +50,7 @@ public:
         SPECULAR = 2
     };
 
-
+    Renderer();
     ~Renderer() = default;
     // TODO replace array of floats to Mesh class
     void DrawMesh(const float vertices[], uint32_t vertexCount, const uint32_t indices[], uint32_t indicesCount);
@@ -73,6 +73,19 @@ public:
     Renderer& operator=(const Renderer&) = delete;
 
     static uint32_t MAX_TEXTURES_COUNT;
+
+    inline const ShaderObject* CurrentShaderObject() const
+    {
+        return current_shader_obj;
+    }
+    inline void SetShaderObject(ShaderObject* obj)
+    {
+        current_shader_obj = obj;
+    }
+
+    void ChangeViewport(float x, float y, float w, float h);
+
+    std::unique_ptr<ShaderObject> opaque_shader;
 
 private:
     bool show_wireframe;
