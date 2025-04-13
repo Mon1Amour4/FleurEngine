@@ -33,8 +33,6 @@ Renderer::Renderer()
     opaque_shader->GetVertexShader()->AddVar("model");
     opaque_shader->GetVertexShader()->AddVar("view");
     opaque_shader->GetVertexShader()->AddVar("projection");
-
-    _buffer = _device->CreateBuffer(0, 0);
 }
 
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
@@ -53,24 +51,28 @@ void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
     current_shader_obj->GetVertexShader()->SetMat4f("view", _camera->GetView());
     current_shader_obj->GetVertexShader()->SetMat4f("projection", _camera->GetProjection());
 
-    _buffer->BindData<VertexData>(std::span(model->GetVerticesData(), model->GetVertexCount()));
-    cmd.BindIndexBuffer(model->GetIndicesData(), model->GetIndicesCount() * sizeof(uint32_t));
-    cmd.BindVertexBuffer(*_buffer, layout);
+    std::unique_ptr<Buffer> buffer = _device->CreateBuffer(0, 0);
+    buffer->BindData<VertexData>(std::span(model->GetVerticesData(), model->GetVertexCount()));
 
+    cmd->BindIndexBuffer(model->GetIndicesData(), model->GetIndicesCount() * sizeof(uint32_t));
+    cmd->BindVertexBuffer(*buffer, layout);
+
+    const auto* meshes = model->GetMeshesPtr();
     for (const auto& mesh : *meshes)
     {
         current_shader_obj->BindMaterial(mesh->GetMaterial());
 
-        cmd.IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
-        cmd.EndRecording();
-        cmd.Submit();
+        cmd->IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
+        cmd->EndRecording();
+        cmd->Submit();
     }
 }
 
 void Renderer::Clear()
 {
-    CommandBuffer& cmd = _commandPool->GetCommandBuffer();
-    cmd.Clear();
+    // CommandBuffer& cmd = _commandPool->GetCommandBuffer();
+    // cmd.Clear();
+    _surface->Clear();
 }
 
 void Renderer::Present()
