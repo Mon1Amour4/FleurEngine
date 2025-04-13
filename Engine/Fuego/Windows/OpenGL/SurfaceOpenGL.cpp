@@ -1,5 +1,7 @@
 #include "SurfaceOpenGL.h"
 
+#include <glad/gl.h>
+
 namespace Fuego::Renderer
 {
 SurfaceOpenGL::SurfaceOpenGL(const void* window)
@@ -31,6 +33,12 @@ const void* SurfaceOpenGL::GetNativeHandle() const
 HDC SurfaceOpenGL::GetHdc() const
 {
     return _hdc;
+}
+
+void SurfaceOpenGL::Clear() const
+{
+    glClearColor(1.f, 1.f, 1.f, 1);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 }  // namespace Fuego::Renderer

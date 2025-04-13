@@ -14,5 +14,7 @@ public:
     virtual Rect GetRect() const = 0;
 
     virtual const void* GetNativeHandle() const = 0;
+
+    virtual void Clear() const = 0;
 };
 }  // namespace Fuego::Renderer

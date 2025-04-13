@@ -14,6 +14,8 @@ public:
     virtual const void* GetNativeHandle() const override;
     HDC GetHdc() const;
 
+    virtual void Clear() const override;
+
 private:
     HWND _window;  // shouldn't be here
     HDC _hdc;      // WIN32: Handle to Device Context
