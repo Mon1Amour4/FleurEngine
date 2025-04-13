@@ -7,6 +7,7 @@ namespace Fuego::Renderer
 class Buffer;
 class CommandQueue;
 class CommandPool;
+class CommandBuffer;
 class Swapchain;
 class Surface;
 class Shader;
@@ -20,6 +21,7 @@ public:
     virtual std::unique_ptr<Buffer> CreateBuffer(size_t size, uint32_t flags) = 0;
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
+    virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer() = 0;
 
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) = 0;
 

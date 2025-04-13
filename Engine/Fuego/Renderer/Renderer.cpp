@@ -39,11 +39,10 @@ Renderer::Renderer()
 
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
-    const auto* meshes = model->GetMeshesPtr();
-
-    CommandBuffer& cmd = _commandPool->GetCommandBuffer();
-    cmd.BeginRecording();
-    cmd.BindRenderTarget(_swapchain->GetScreenTexture());
+    std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();
+    CommandBuffer* cmd = command_buffer.get();
+    cmd->BeginRecording();
+    cmd->BindRenderTarget(_swapchain->GetScreenTexture());
 
     VertexLayout layout{};
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));

@@ -9,6 +9,7 @@ class Buffer;
 class ShaderObject;
 class Texture;
 struct VertexLayout;
+class Device;
 
 class CommandBuffer
 {

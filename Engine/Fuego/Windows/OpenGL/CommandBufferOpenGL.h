@@ -34,7 +34,7 @@ private:
 
     uint32_t _texture;
 
-    friend class CommandPoolOpenGL;
+    friend class DeviceOpenGL;
     bool _isFree;
     CommandBufferOpenGL();
 };

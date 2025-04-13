@@ -2,6 +2,7 @@
 
 #include "Application.h"
 #include "BufferOpenGL.h"
+#include "CommandBufferOpenGL.h"
 #include "CommandPoolOpenGL.h"
 #include "CommandQueueOpenGL.h"
 #include "ShaderOpenGL.h"
@@ -210,6 +211,11 @@ std::unique_ptr<CommandQueue> DeviceOpenGL::CreateCommandQueue()
 std::unique_ptr<CommandPool> DeviceOpenGL::CreateCommandPool(const CommandQueue& queue)
 {
     return std::unique_ptr<CommandPoolOpenGL>(new CommandPoolOpenGL(queue));
+}
+
+std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer()
+{
+    return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL());
 }
 
 std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)

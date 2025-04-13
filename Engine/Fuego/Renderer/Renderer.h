@@ -90,7 +90,6 @@ private:
     bool show_wireframe;
 
     void UpdateViewport();
-    std::unique_ptr<Buffer> _buffer;
     std::unique_ptr<Device> _device;
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
