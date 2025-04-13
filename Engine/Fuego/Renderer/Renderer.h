@@ -52,9 +52,7 @@ public:
 
     Renderer();
     ~Renderer() = default;
-    // TODO replace array of floats to Mesh class
-    void DrawMesh(const float vertices[], uint32_t vertexCount, const uint32_t indices[], uint32_t indicesCount);
-    void DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Material* material, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection);
+
     void DrawModel(const Model* model, glm::mat4 model_pos);
     void Clear();
     void Present();

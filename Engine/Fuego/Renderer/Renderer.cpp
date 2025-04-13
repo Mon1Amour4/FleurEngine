@@ -37,47 +37,6 @@ Renderer::Renderer()
     _buffer = _device->CreateBuffer(0, 0);
 }
 
-void Renderer::DrawMesh(const float vertices[], uint32_t vertexCount, const uint32_t indices[], uint32_t indicesCount)
-{
-    /*CommandBuffer& cmd = _commandPool->GetCommandBuffer();
-    cmd.BeginRecording();
-    cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-
-
-    VertexLayout layout{};
-    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));*/
-}
-
-void Renderer::DrawMesh(const std::vector<float>& data, uint32_t vertex_count, Material* material, glm::mat4 mesh_pos, glm::mat4 camera, glm::mat4 projection)
-{
-    _buffer->BindData<float>(std::span(data.data(), data.size()));
-    CommandBuffer& cmd = _commandPool->GetCommandBuffer();
-    cmd.BeginRecording();
-    cmd.BindRenderTarget(_swapchain->GetScreenTexture());
-
-    VertexLayout layout{};
-    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-
-    cmd.BindVertexBuffer(*_buffer, layout);
-    cmd.BindShaderObject(*shader_object);
-    // cmd.BindTexture(texture);
-    //  cmd.BindIndexBuffer( );
-    //  cmd.IndexedDraw();
-    shader_object->GetVertexShader()->SetMat4f("model", mesh_pos);
-    shader_object->GetVertexShader()->SetMat4f("view", camera);
-    shader_object->GetVertexShader()->SetMat4f("projection", projection);
-
-    cmd.Draw(vertex_count);
-    cmd.EndRecording();
-    cmd.Submit();
-
-    delete material;
-}
-
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     const auto* meshes = model->GetMeshesPtr();
