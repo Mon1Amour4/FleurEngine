@@ -16,6 +16,13 @@
 
 namespace Fuego
 {
+template <>
+Application& singleton<Application>::instance()
+{
+    static Application inst;
+    return inst;
+}
+
 class Application::ApplicationImpl
 {
     friend class Application;
@@ -26,27 +33,14 @@ class Application::ApplicationImpl
     std::vector<std::unique_ptr<Fuego::Renderer::Model>> _models;
     std::unordered_map<std::string, std::unique_ptr<Fuego::Renderer::Texture>> _textures;
 
+    bool initialized = false;
     bool m_Running;
     LayerStack m_LayerStack;
-    static Application* m_Instance;
 };
-
-Application* Application::ApplicationImpl::m_Instance = nullptr;
 
 Application::Application()
     : d(new ApplicationImpl())
 {
-    ApplicationImpl::m_Instance = this;
-    d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
-    d->m_EventQueue = EventQueue::CreateEventQueue();
-    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
-    d->_renderer.reset(new Renderer::Renderer());
-    d->m_Running = true;
-    d->_models.reserve(10);
-    FS::FileSystem& fs = Application::Get().FileSystem();
-    AddTexture("fallback.png");
-    LoadModel("Shotgun/Shotgun.obj");
-    LoadModel("WaterCooler/WaterCooler.obj");
 }
 
 Application::~Application()
@@ -173,11 +167,6 @@ bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
     return true;
 }
 
-Application& Application::Get()
-{
-    return *Application::ApplicationImpl::m_Instance;
-}
-
 Fuego::FS::FileSystem& Application::FileSystem()
 {
     return *d->_fs.get();
@@ -186,6 +175,22 @@ Fuego::FS::FileSystem& Application::FileSystem()
 Window& Application::GetWindow()
 {
     return *d->m_Window;
+}
+
+void Application::Init()
+{
+    d->_fs = std::make_unique<FS::FileSystem>();
+    d->m_EventQueue = EventQueue::CreateEventQueue();
+    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
+    d->_renderer.reset(new Renderer::Renderer());
+    d->m_Running = true;
+    d->_models.reserve(10);
+
+    AddTexture("fallback.png");
+    LoadModel("Shotgun/Shotgun.obj");
+    LoadModel("WaterCooler/WaterCooler.obj");
+
+    d->initialized = true;
 }
 
 Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
@@ -231,6 +236,11 @@ const Fuego::Renderer::Texture* Application::GetLoadedTexture(std::string_view n
 
 void Application::Run()
 {
+    if (!d->initialized)
+    {
+        Init();
+    }
+
     while (d->m_Running)
     {
         d->_renderer->Clear();

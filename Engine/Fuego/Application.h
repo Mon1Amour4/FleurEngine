@@ -6,6 +6,7 @@
 #include "FileSystem/FileSystem.h"
 #include "Layer.h"
 #include "Window.h"
+#include "singleton.hpp"
 
 
 namespace Fuego::FS
@@ -23,15 +24,14 @@ class Texture;
 namespace Fuego
 {
 
-class FUEGO_API Application
+class FUEGO_API Application : public singleton<Application>
 {
+    friend class singleton<Application>;
+
     FUEGO_INTERFACE(Application)
 
 public:
-    Application();
-    virtual ~Application();
-    FUEGO_NON_COPYABLE_NON_MOVABLE(Application)
-
+    void Init();
     void Run();
 
     void PushLayer(Layer* layer);
@@ -51,19 +51,17 @@ public:
     // Input events
     bool OnMouseMoveEvent(MouseMovedEvent& event);
 
-    static Application& Get();
     Fuego::Renderer::Renderer& Renderer();
     Fuego::FS::FileSystem& FileSystem();
     Window& GetWindow();
 
-    Fuego::Renderer::Model* LoadModel(std::string_view path);
-
     bool IsTextureLoaded(std::string_view) const;
     bool AddTexture(std::string_view);
     const Fuego::Renderer::Texture* GetLoadedTexture(std::string_view name) const;
+
+protected:
+    Application();
+    virtual ~Application() override;
+    Renderer::Model* LoadModel(std::string_view path);
 };
-
-// Should be defined in a client.
-Application* CreateApplication();
-
 }  // namespace Fuego

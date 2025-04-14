@@ -90,6 +90,7 @@ add_subdirectory(${RENDERER_PATH})
 
 set(ENGINE_PUBLIC_INCLUDE_DIRECTORIES
     ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}/../CoreLib
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/ProtoOut
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer
@@ -113,32 +114,30 @@ target_compile_options(FuegoInterface
 # Uncomment the line bellow after CoreLib refactor
 # target_compile_options(FuegoInterface INTERFACE
 # ${PRIVATE_ENGINE_COMPILE_OPTIONS}) An engine library to be used by clients
-
 add_library(FuegoEngine ${FUEGO_LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
 add_dependencies(FuegoEngine ProtoGen)
 
-target_link_libraries(FuegoEngine PUBLIC
-    ${ENGINE_DEPENDENCIES}
-    protobuf::libprotobuf
-)
+target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES}
+                                         protobuf::libprotobuf)
 target_link_libraries(FuegoEngine PRIVATE Renderer)
 
-target_include_directories(FuegoEngine
-    PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES}
-    PRIVATE ${Protobuf_INCLUDE_DIRS}
-)
+target_include_directories(
+  FuegoEngine
+  PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES}
+  PRIVATE ${Protobuf_INCLUDE_DIRS})
 
 target_precompile_headers(FuegoEngine PUBLIC
                           ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
-target_compile_definitions(FuegoEngine 
-    PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS}
-    PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS}
-)
-target_compile_features(FuegoEngine 
-    PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES}
-    PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES}
-)
-target_compile_options(FuegoEngine 
-    PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS}
-    PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})
+target_compile_definitions(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS}
+  PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS})
+target_compile_features(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES}
+  PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
+target_compile_options(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS}
+  PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})
