@@ -39,7 +39,6 @@ set(PROJECT_SOURCES
     Model.cpp
     Camera.cpp
     VertexLayout.cpp
-    RenderMarker.cpp
 )
 
 if(FUEGO_PLATFORM_WIN)
