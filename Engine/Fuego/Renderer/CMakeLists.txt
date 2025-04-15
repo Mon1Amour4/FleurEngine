@@ -30,13 +30,16 @@ set(PROJECT_HEADERS
     Camera.h
     Material.h
     ShaderObject.h
-    VertexLayout.h)
+    VertexLayout.h
+    RenderMarker.h
+)
 
 set(PROJECT_SOURCES
     Renderer.cpp
     Model.cpp
     Camera.cpp
     VertexLayout.cpp
+    RenderMarker.cpp
 )
 
 if(FUEGO_PLATFORM_WIN)
