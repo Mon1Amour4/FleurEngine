@@ -26,7 +26,7 @@ CommandBufferOpenGL::CommandBufferOpenGL()
 
 CommandBufferOpenGL::~CommandBufferOpenGL()
 {
-    glDeleteBuffers(1, &_vao);
+    glDeleteVertexArrays(1, &_vao);
     glDeleteBuffers(1, &_ebo);
 }
 
