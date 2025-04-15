@@ -118,9 +118,9 @@ add_library(FuegoEngine ${FUEGO_LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
 add_dependencies(FuegoEngine ProtoGen)
 
-target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES}
-                                         protobuf::libprotobuf)
-target_link_libraries(FuegoEngine PRIVATE Renderer)
+target_link_libraries(FuegoEngine 
+    PUBLIC ${ENGINE_DEPENDENCIES} protobuf::libprotobuf
+    PRIVATE Renderer CoreLib)
 
 target_include_directories(
   FuegoEngine
