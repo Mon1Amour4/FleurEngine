@@ -31,7 +31,6 @@ set(PROJECT_HEADERS
     Material.h
     ShaderObject.h
     VertexLayout.h
-    RenderMarker.h
 )
 
 set(PROJECT_SOURCES
