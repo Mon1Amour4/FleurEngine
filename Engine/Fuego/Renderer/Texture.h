@@ -18,7 +18,11 @@ enum class TextureFormat
 class Texture
 {
 public:
-    virtual ~Texture() = default;
+    virtual ~Texture()
+    {
+        delete data;
+        data = nullptr;
+    }
 
     virtual TextureFormat GetTextureFormat() const = 0;
     virtual inline const unsigned char* Data() const
