@@ -14,6 +14,12 @@ class Device;
 class CommandBuffer
 {
 public:
+    enum ObjectLabel
+    {
+        LABEL_BUFFER = 0,
+        LABEL_SHADER = 1,
+        LABEL_TEXTURE = 2
+    };
     static std::unique_ptr<CommandBuffer> CreateCommandBuffer();
 
     virtual ~CommandBuffer() = default;
@@ -30,6 +36,19 @@ public:
     virtual void Draw(uint32_t vertexCount) = 0;
     virtual void IndexedDraw(uint32_t vertexCount, const void* indices_ptr_offset) = 0;
     virtual void Clear() = 0;
+
+    virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
+    virtual void PopDebugGroup() = 0;
+    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) = 0;
+
+protected:
+    CommandBuffer()
+        : push_debug_group_commands(0)
+    {
+    }
+
+protected:
+    uint16_t push_debug_group_commands;
 };
 
 }  // namespace Fuego::Renderer
