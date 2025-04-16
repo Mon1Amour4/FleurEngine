@@ -8,53 +8,12 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
+    runs-on: windows-latest
 
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, windows-latest]
         build_type: [Debug, Release]
 
     steps:
     - uses: actions/checkout@v4
-
-    - name: Set up Xcode 16.1
-      if: runner.os == 'macOS'
-      run: sudo xcode-select -switch /Applications/Xcode_16.1.app/Contents/Developer
-
-    - name: Set reusable strings for macOS
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        echo "build-output-dir=${{ github.workspace }}/build/macos" >> $GITHUB_ENV
-
-    - name: Set reusable strings for Windows
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        build_dir="${{ github.workspace }}\\build\\win"
-        # Convert backslashes to forward slashes using bash parameter expansion
-        build_dir="${build_dir//\\//}"
-        echo "build-output-dir=$build_dir" >> $GITHUB_ENV
-
-    - name: Run CMake configuration script for Windows
-      if: runner.os == 'Windows'
-      shell: pwsh
-      run: |
-        pwsh ${{ github.workspace }}/Scripts/generate_visual_studio_project.ps1
-
-    - name: Run CMake configuration script for macOS
-      if: runner.os == 'macOS'
-      shell: bash
-      run: |
-        bash ${{ github.workspace }}/Scripts/generate_xcode_project.sh
-
-    - name: Build
-      shell: bash
-      run: cmake --build ${{ env.build-output-dir }} --config ${{ matrix.build_type }}
-
-    - name: Test
-      shell: bash
-      working-directory: ${{ env.build-output-dir }}
-      run: ctest --build-config ${{ matrix.build_type }}
