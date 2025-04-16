@@ -39,6 +39,7 @@ void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();
     CommandBuffer* cmd = command_buffer.get();
+    cmd->PushDebugGroup(0, model->GetName().data());
     cmd->BeginRecording();
     cmd->BindRenderTarget(_swapchain->GetScreenTexture());
 
