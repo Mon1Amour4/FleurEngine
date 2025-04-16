@@ -14,6 +14,7 @@ public:
     virtual std::unique_ptr<Buffer> CreateBuffer(size_t size, uint32_t flags) override;
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() override;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) override;
+    virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer() override;
 
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) override;
 

@@ -7,15 +7,20 @@ namespace Fuego::Renderer
 class ShaderObject;
 class Texture;
 
-class Material
+class FUEGO_API Material
 {
 public:
-    static Material* CreateMaterial(Texture* albedo);
+    static Material* CreateMaterial(const Texture* albedo);
 
     virtual ~Material() = default;
-
-    virtual void Upload(ShaderObject& shader) = 0;
+    
+    virtual void Use() const = 0;
+    virtual inline std::string_view Name() const
+    {
+        return name;
+    }
 
 private:
+    std::string name;
 };
 }  // namespace Fuego::Renderer

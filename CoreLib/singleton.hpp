@@ -7,11 +7,7 @@ template <typename T>
 class singleton
 {
 public:
-    static T& instance()
-    {
-        static T instance;
-        return instance;
-    }
+    static T& instance();
 
     singleton(const singleton&) = delete;
     singleton& operator=(const singleton&) = delete;

@@ -5,6 +5,13 @@
 
 namespace Fuego
 {
+template <>
+InputWin& singleton<InputWin>::instance()
+{
+    static InputWin inst;
+    return inst;
+}
+
 bool InputWin::IsKeyPressedImpl(KeyCode keyCode) const
 {
     const WindowWin& window = reinterpret_cast<const WindowWin&>(Application::instance().GetWindow());

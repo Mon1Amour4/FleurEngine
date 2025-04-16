@@ -13,10 +13,6 @@ public:
 
     virtual void OnEvent(Fuego::EventVariant& event) override;
     bool OnRenderEvent(Fuego::AppRenderEvent& event);
-
-private:
-    std::vector<std::unique_ptr<Fuego::Renderer::Mesh>> scene_meshes;
-    std::vector<std::vector<float>> mesh_data;
 };
 
 class SandboxApp : public Fuego::Application

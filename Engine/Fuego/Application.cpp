@@ -1,6 +1,5 @@
 #include "Application.h"
 
-#include "Camera.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
@@ -8,15 +7,22 @@
 #include "Renderer.h"
 #include "Scene.h"
 
-Fuego::Scene* scene;
-std::unique_ptr<Fuego::Renderer::Texture> engine_texture;
-int w, h, n;
-unsigned char* texture_data;
+// Temporary TODO: remove
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 
-Fuego::Renderer::Mesh* engine_mesh;
-std::vector<float> mesh_vector;
+#include <assimp/Importer.hpp>
+#define ASSIMP_LOAD_FLAGS aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType  //
+
 namespace Fuego
 {
+template <>
+Application& singleton<Application>::instance()
+{
+    static Application inst;
+    return inst;
+}
+
 class Application::ApplicationImpl
 {
     friend class Application;
@@ -24,6 +30,8 @@ class Application::ApplicationImpl
     std::unique_ptr<EventQueue> m_EventQueue;
     std::unique_ptr<Renderer::Renderer> _renderer;
     std::unique_ptr<Fuego::FS::FileSystem> _fs;
+    std::vector<std::unique_ptr<Fuego::Renderer::Model>> _models;
+    std::unordered_map<std::string, std::unique_ptr<Fuego::Renderer::Texture>> _textures;
 
     bool initialized = false;
     bool m_Running;
@@ -38,7 +46,6 @@ Application::Application()
 Application::~Application()
 {
     delete d;
-    delete scene;
 }
 
 Renderer::Renderer& Application::Renderer()
@@ -138,11 +145,17 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     d->_renderer->ShowWireFrame();
-    Fuego::Renderer::Material* material = Fuego::Renderer::Material::CreateMaterial(engine_texture.get());
-
-    d->_renderer->DrawMesh(mesh_vector, engine_mesh->GetVertexCount(), material, glm::mat4(1.0f), Fuego::Renderer::Camera::GetActiveCamera()->GetView(),
-                           Fuego::Renderer::Camera::GetActiveCamera()->GetProjection());
-
+    // TODO: As for now we use just one opaque shader, but we must think about different passes
+    // using different shaders with blending and probably using pre-passes
+    d->_renderer->SetShaderObject(d->_renderer->opaque_shader.get());
+    d->_renderer->CurrentShaderObject()->Use();
+    float counter = 1.f;
+    for (auto it = d->_models.begin(); it != d->_models.end(); ++it)
+    {
+        Fuego::Renderer::Model* model_ptr = it->get();
+        d->_renderer->DrawModel(model_ptr, glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, counter)));
+        counter += 10.f;
+    }
 
     // event.SetHandled();
     UNUSED(event);
@@ -158,6 +171,7 @@ Fuego::FS::FileSystem& Application::FileSystem()
 {
     return *d->_fs.get();
 }
+
 Window& Application::GetWindow()
 {
     return *d->m_Window;
@@ -165,21 +179,59 @@ Window& Application::GetWindow()
 
 void Application::Init()
 {
-    d->_fs = std::unique_ptr<Fuego::FS::FileSystem>(new Fuego::FS::FileSystem());
+    d->_fs = std::make_unique<FS::FileSystem>();
     d->m_EventQueue = EventQueue::CreateEventQueue();
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
     d->_renderer.reset(new Renderer::Renderer());
     d->m_Running = true;
-    FS::FileSystem& fs = Application::instance().FileSystem();
-    engine_mesh = new Fuego::Renderer::Mesh();
-    mesh_vector = engine_mesh->load(fs.GetFullPathToFile("Model.obj").data());
+    d->_models.reserve(10);
 
-    texture_data = fs.Load_Image("image.jpg", w, h, n);
-    engine_texture = d->_renderer->CreateTexture(texture_data, w, h);
-
-    scene = new Fuego::Scene("First scene");
+    AddTexture("fallback.png");
+    LoadModel("Shotgun/Shotgun.obj");
+    LoadModel("WaterCooler/WaterCooler.obj");
 
     d->initialized = true;
+}
+
+Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
+{
+    Assimp::Importer importer{};
+    const aiScene* scene = importer.ReadFile(d->_fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
+    if (!scene)
+        return nullptr;
+    d->_models.emplace_back(std::make_unique<Fuego::Renderer::Model>(scene));
+    Fuego::Renderer::Model* model = d->_models.back().get();
+    return model;
+}
+
+bool Application::IsTextureLoaded(std::string_view texture) const
+{
+    auto it = d->_textures.find(texture.data());
+    return it != d->_textures.end();
+}
+
+bool Application::AddTexture(std::string_view path)
+{
+    unsigned char* data = nullptr;
+    int width, height, bits;
+    bool res = false;
+
+    if (path.data() && path.size() > 0)
+        res = d->_fs->Load_Image(path.data(), bits, data, width, height);
+    if (res)
+        d->_textures.emplace(std::string(path.data()), std::move(d->_renderer->CreateTexture(data, width, height)));
+    return res;
+}
+
+const Fuego::Renderer::Texture* Application::GetLoadedTexture(std::string_view name) const
+{
+    if (name.empty())
+        return d->_textures.find("fallback.png")->second.get();
+
+    auto it = d->_textures.find(name.data());
+    if (it != d->_textures.end() && it->second)
+        return it->second.get();
+    return nullptr;
 }
 
 void Application::Run()
@@ -210,6 +262,5 @@ void Application::Run()
         d->_renderer->Present();
     }
 }
-
 
 }  // namespace Fuego

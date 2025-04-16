@@ -51,11 +51,15 @@ set(SOURCES
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer)
 
 # Common setup
-list(APPEND ENGINE_DEPENDENCIES ImGui Renderer)
+list(APPEND ENGINE_DEPENDENCIES ImGui)
 
-set(PUBLIC_ENGINE_COMPILE_DEFS FUEGO_ENABLE_ASSERTS)
+set(PUBLIC_ENGINE_COMPILE_DEFS FUEGO_ENABLE_ASSERTS FUEGO_BUILD_LIB)
 
-set(PPIVATE_ENGINE_COMPILE_DEFS ${DLL_COMPILE_DEF} FUEGO_BUILD_LIB)
+if(FUEGO_LIB_TYPE STREQUAL "SHARED")
+  list(APPEND PUBLIC_ENGINE_COMPILE_DEFS FUEGO_DLL_LIB)
+endif()
+
+set(PPIVATE_ENGINE_COMPILE_DEFS)
 set(_ITERATOR_DEBUG_LEVEL 0)
 
 if(MSVC)
@@ -103,8 +107,8 @@ target_precompile_headers(FuegoInterface INTERFACE
                           ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
 target_compile_features(FuegoInterface
                         INTERFACE ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_definitions(
-  FuegoInterface INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS} FUEGO_BUILD_LIB)
+target_compile_definitions(FuegoInterface
+                           INTERFACE ${PUBLIC_ENGINE_COMPILE_DEFS})
 target_compile_options(FuegoInterface
                        INTERFACE ${PUBLIC_ENGINE_COMPILE_OPTIONS})
 # Uncomment the line bellow after CoreLib refactor
@@ -114,18 +118,26 @@ add_library(FuegoEngine ${FUEGO_LIB_TYPE} ${SOURCES} ${PROJECT_HEADERS})
 
 add_dependencies(FuegoEngine ProtoGen)
 
-target_link_libraries(FuegoEngine PUBLIC ${ENGINE_DEPENDENCIES} Renderer)
-target_link_libraries(FuegoEngine PUBLIC protobuf::libprotobuf)
-target_include_directories(FuegoEngine
-                           PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES})
+target_link_libraries(FuegoEngine 
+    PUBLIC ${ENGINE_DEPENDENCIES} protobuf::libprotobuf
+    PRIVATE Renderer CoreLib)
 
-target_include_directories(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})
+target_include_directories(
+  FuegoEngine
+  PUBLIC ${ENGINE_PUBLIC_INCLUDE_DIRECTORIES}
+  PRIVATE ${Protobuf_INCLUDE_DIRS})
 
 target_precompile_headers(FuegoEngine PUBLIC
                           ${CMAKE_CURRENT_SOURCE_DIR}/fupch.h)
-target_compile_definitions(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS})
-target_compile_definitions(FuegoEngine PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS})
-target_compile_features(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES})
-target_compile_features(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
-target_compile_options(FuegoEngine PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS})
-target_compile_options(FuegoEngine PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})
+target_compile_definitions(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_DEFS}
+  PRIVATE ${PPIVATE_ENGINE_COMPILE_DEFS})
+target_compile_features(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_FEATURES}
+  PRIVATE ${PRIVATE_ENGINE_COMPILE_FEATURES})
+target_compile_options(
+  FuegoEngine
+  PUBLIC ${PUBLIC_ENGINE_COMPILE_OPTIONS}
+  PRIVATE ${PRIVATE_ENGINE_COMPILE_OPTIONS})

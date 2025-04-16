@@ -14,13 +14,8 @@ public:
 
     virtual ~CommandPoolOpenGL() override = default;
 
-    virtual CommandBuffer& GetCommandBuffer() override;
-
 protected:
     friend class DeviceOpenGL;
     explicit CommandPoolOpenGL(const CommandQueue& queue);
-
-private:
-    std::vector<std::shared_ptr<CommandBufferOpenGL>> _cmdBuffers;
 };
 }  // namespace Fuego::Renderer

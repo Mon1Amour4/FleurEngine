@@ -9,7 +9,5 @@ class CommandPool
 {
 public:
     virtual ~CommandPool() = default;
-
-    virtual CommandBuffer& GetCommandBuffer() = 0;
 };
 }  // namespace Fuego::Renderer

@@ -9,10 +9,16 @@
 #include "singleton.hpp"
 
 
+namespace Fuego::FS
+{
+class FileSystem;
+}
+
 namespace Fuego::Renderer
 {
 class Renderer;
-class FileSystem;
+class Model;
+class Texture;
 }  // namespace Fuego::Renderer
 
 namespace Fuego
@@ -49,8 +55,13 @@ public:
     Fuego::FS::FileSystem& FileSystem();
     Window& GetWindow();
 
+    bool IsTextureLoaded(std::string_view) const;
+    bool AddTexture(std::string_view);
+    const Fuego::Renderer::Texture* GetLoadedTexture(std::string_view name) const;
+
 protected:
     Application();
     virtual ~Application() override;
+    Renderer::Model* LoadModel(std::string_view path);
 };
 }  // namespace Fuego

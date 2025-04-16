@@ -1,6 +1,12 @@
 #pragma once
+
 #include <filesystem>
 #include <fstream>
+
+namespace Fuego::Renderer
+{
+class Model;
+}
 
 namespace Fuego::FS
 {
@@ -13,7 +19,7 @@ public:
     FUEGO_NON_COPYABLE_NON_MOVABLE(FileSystem)
 
     std::string OpenFile(const std::string& file, std::fstream::ios_base::openmode mode = std::fstream::ios_base::in);
-    unsigned char* Load_Image(const std::string& file, int& x, int& y, int& bits_per_pixel, int image_channels = 0);
+    bool Load_Image(IN const std::string& file, IN int& bits_per_pixel, OUT unsigned char*& data, OUT int& x, OUT int& y, int image_channels = 3);
     const std::string GetFullPathToFile(std::string_view file_name) const;
     std::string GetFullPathToFolder(std::string_view folder_name) const;
 

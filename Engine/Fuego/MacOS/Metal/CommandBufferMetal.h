@@ -38,7 +38,7 @@ public:
 
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
     virtual void BindVertexBuffer(const Buffer& vertexBuffer, VertexLayout layout) override;
-    virtual void BindIndexBuffer(uint32_t indices[], uint32_t size) override
+    virtual void BindIndexBuffer(const uint32_t indices[], uint32_t size) override
     {
         UNUSED(indices);
         UNUSED(size);
@@ -51,6 +51,10 @@ public:
     virtual void Clear() override
     {
     }
+
+    virtual void PushDebugGroup(uint32_t id, const char* message) override;
+    virtual void PopDebugGroup() override;
+    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
 
 private:
     MTL::CommandBuffer* _commandBuffer;

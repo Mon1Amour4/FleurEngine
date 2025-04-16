@@ -8,7 +8,10 @@ class TextureOpenGL final : public Texture
 {
 public:
     TextureOpenGL() = default;
-    ~TextureOpenGL() = default;
+    ~TextureOpenGL();
+
+    virtual void Bind() const override;
+    virtual void UnBind() const override;
 
     virtual TextureFormat GetTextureFormat() const override;
     inline uint16_t GetTextureUnit() const

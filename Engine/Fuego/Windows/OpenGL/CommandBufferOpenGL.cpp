@@ -26,20 +26,26 @@ CommandBufferOpenGL::CommandBufferOpenGL()
 
 CommandBufferOpenGL::~CommandBufferOpenGL()
 {
-    glDeleteBuffers(1, &_vao);
+    glDeleteVertexArrays(1, &_vao);
     glDeleteBuffers(1, &_ebo);
+
+    for (size_t i = 0; i < push_debug_group_commands; i++)
+    {
+        PopDebugGroup();
+    }
 }
 
 void CommandBufferOpenGL::BeginRecording()
 {
     _isFree = false;
-   // Clear();
+    // Clear();
 }
 
 void CommandBufferOpenGL::EndRecording()
 {
     // Temporary
-    glDeleteTextures(1, &_texture);
+    // glDeleteTextures(1, &_texture);
+    glBindVertexArray(0);
 }
 
 void CommandBufferOpenGL::Submit()
@@ -72,18 +78,18 @@ void CommandBufferOpenGL::BindVertexBuffer(const Buffer& vertexBuffer, VertexLay
     glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void CommandBufferOpenGL::BindIndexBuffer(uint32_t indices[], uint32_t size)
+void CommandBufferOpenGL::BindIndexBuffer(const uint32_t indices[], uint32_t size_bytes)
 {
     glBindVertexArray(_vao);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
     if (!_isDataAllocated)
     {
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size, indices, GL_DYNAMIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_bytes, indices, GL_DYNAMIC_DRAW);
         _isDataAllocated = true;
     }
     else
     {
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size, indices);
+        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size_bytes, indices);
     }
     glBindVertexArray(0);
 }
@@ -105,17 +111,66 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t vertexCount)
+void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, const void* indices_ptr_offset)
 {
     glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, vertexCount, GL_UNSIGNED_INT, 0);
-    glBindVertexArray(0);
+    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, indices_ptr_offset);
 }
 
 void CommandBufferOpenGL::Clear()
 {
     glClearColor(1.f, 1.f, 1.f, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
+{
+    GLint max_length = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+
+    if (!message || *message == '\n')
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
+
+    size_t length = strlen(message);
+    if (length > max_length)
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
+
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, id, length, message);
+    push_debug_group_commands++;
+}
+
+void CommandBufferOpenGL::PopDebugGroup()
+{
+    glPopDebugGroup();
+    push_debug_group_commands--;
+}
+
+void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* message)
+{
+    GLint max_length = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+
+    if (!message || *message == '\n')
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
+
+    size_t length = strlen(message);
+    if (length > max_length)
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
+
+    GLenum identifier = GL_BUFFER;
+    switch (id)
+    {
+    case Fuego::Renderer::CommandBuffer::LABEL_BUFFER:
+        identifier = GL_BUFFER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_SHADER:
+        identifier = GL_SHADER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_TEXTURE:
+        identifier = GL_TEXTURE;
+        break;
+    }
+    glObjectLabel(identifier, name, length, message);
 }
 
 void CommandBufferOpenGL::BindShaderObject(const ShaderObject& obj)
