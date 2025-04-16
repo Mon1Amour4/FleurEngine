@@ -28,6 +28,11 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 {
     glDeleteVertexArrays(1, &_vao);
     glDeleteBuffers(1, &_ebo);
+
+    for (size_t i = 0; i < push_debug_group_commands; i++)
+    {
+        PopDebugGroup();
+    }
 }
 
 void CommandBufferOpenGL::BeginRecording()
@@ -116,6 +121,56 @@ void CommandBufferOpenGL::Clear()
 {
     glClearColor(1.f, 1.f, 1.f, 1);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+}
+
+void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
+{
+    GLint max_length = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+
+    if (!message || *message == '\n')
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
+
+    size_t length = strlen(message);
+    if (length > max_length)
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
+
+    glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, id, length, message);
+    push_debug_group_commands++;
+}
+
+void CommandBufferOpenGL::PopDebugGroup()
+{
+    glPopDebugGroup();
+    push_debug_group_commands--;
+}
+
+void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* message)
+{
+    GLint max_length = 0;
+    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+
+    if (!message || *message == '\n')
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
+
+    size_t length = strlen(message);
+    if (length > max_length)
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
+
+    GLenum identifier = GL_BUFFER;
+    switch (id)
+    {
+    case Fuego::Renderer::CommandBuffer::LABEL_BUFFER:
+        identifier = GL_BUFFER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_SHADER:
+        identifier = GL_SHADER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_TEXTURE:
+        identifier = GL_TEXTURE;
+        break;
+    }
+    glObjectLabel(identifier, name, length, message);
 }
 
 void CommandBufferOpenGL::BindShaderObject(const ShaderObject& obj)
