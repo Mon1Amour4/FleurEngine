@@ -52,6 +52,10 @@ public:
     {
     }
 
+    virtual void PushDebugGroup(uint32_t id, const char* message) override;
+    virtual void PopDebugGroup() override;
+    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
+
 private:
     MTL::CommandBuffer* _commandBuffer;
     MTL::Device* _device;

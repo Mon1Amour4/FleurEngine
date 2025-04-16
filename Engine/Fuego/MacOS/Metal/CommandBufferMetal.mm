@@ -19,8 +19,42 @@ CommandBufferMetal::CommandBufferMetal(MTL::CommandBuffer* commandBuffer, MTL::D
 CommandBufferMetal::~CommandBufferMetal()
 {
     _commandBuffer->release();
+    for (size_t i = 0; i < push_debug_group_commands; i++)
+    {
+        PopDebugGroup();
+    }
 }
 
+void CommandBufferMetal::PushDebugGroup(uint32_t id, const char* message)
+{
+    UNUSED(id);
+    UNUSED(message);
+    push_debug_group_commands++
+}
+
+void CommandBufferMetal::PopDebugGroup()
+{
+    push_debug_group_commands--;
+}
+
+void CommandBufferMetal::SetLabel(ObjectLabel id, uint32_t name, const char* message)
+{
+    int identifier = GL_BUFFER;
+    switch (id)
+    {
+    case Fuego::Renderer::CommandBuffer::LABEL_BUFFER:
+        identifier = GL_BUFFER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_SHADER:
+        identifier = GL_SHADER;
+        break;
+    case Fuego::Renderer::CommandBuffer::LABEL_TEXTURE:
+        identifier = GL_TEXTURE;
+        break;
+    }
+    UNUSED(name);
+    UNUSED(message);
+}
 void CommandBufferMetal::BindRenderTarget(const Surface& texture)
 {
     _surface = static_cast<const SurfaceMetal*>(&texture);
