@@ -4,11 +4,12 @@
 
 namespace Fuego
 {
-class FUEGO_API WindowResizeEvent : public Event
+
+class FUEGO_API WindowResizeEvent : public EventBase<WindowResizeEvent>
 {
 public:
     WindowResizeEvent(float x, float y, float width, float height)
-        : Event(EVENT_NAME(WindowResizeEvent))
+        : EventBase(EVENT_NAME(WindowResizeEvent))
         , x(x)
         , y(y)
         , _width(width)
@@ -33,91 +34,149 @@ public:
         return y;
     }
 
-    inline std::string ToString() const override
+protected:
+    std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << _name << " w: " << _width << ", h: " << _height;
+        ss << " w: " << _width << ", h: " << _height << ", x: " << x << ", y:" << y;
         return ss.str();
     }
 
 private:
+    friend struct Fuego::EventBase<WindowResizeEvent>;
     float x, y, _width, _height;
 };
 
-class FUEGO_API WindowStartResizeEvent : public Event
+class FUEGO_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent>
 {
 public:
     WindowStartResizeEvent()
-        : Event(EVENT_NAME(WindowStartResizeEvent))
+        : EventBase(EVENT_NAME(WindowStartResizeEvent))
     {
     }
 
-    inline std::string ToString() const override
+protected:
+    std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << _name;
         return ss.str();
     }
+
+private:
+    friend struct Fuego::EventBase<WindowStartResizeEvent>;
 };
 
-class FUEGO_API WindowEndResizeEvent : public Event
+class FUEGO_API WindowEndResizeEvent : public EventBase<WindowEndResizeEvent>
 {
 public:
     WindowEndResizeEvent()
-        : Event(EVENT_NAME(WindowEndResizeEvent))
+        : EventBase(EVENT_NAME(WindowEndResizeEvent))
     {
     }
 
-    inline std::string ToString() const override
+protected:
+    std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << _name;
         return ss.str();
     }
+
+private:
+    friend struct Fuego::EventBase<WindowEndResizeEvent>;
 };
 
-class FUEGO_API WindowValidateEvent : public Event
+class FUEGO_API WindowValidateEvent : public EventBase<WindowValidateEvent>
 {
 public:
     WindowValidateEvent()
-        : Event(EVENT_NAME(WindowValidateEvent))
+        : EventBase(EVENT_NAME(WindowValidateEvent))
     {
     }
+
+protected:
+    std::string ToStringImpl() const
+    {
+        std::stringstream ss;
+        return ss.str();
+    }
+
+private:
+    friend struct Fuego::EventBase<WindowValidateEvent>;
 };
 
-class FUEGO_API WindowCloseEvent : public Event
+class FUEGO_API WindowCloseEvent : public EventBase<WindowCloseEvent>
 {
 public:
     WindowCloseEvent()
-        : Event(EVENT_NAME(WindowCloseEvent))
+        : EventBase(EVENT_NAME(WindowCloseEvent))
     {
     }
+
+protected:
+    std::string ToStringImpl() const
+    {
+        std::stringstream ss;
+        return ss.str();
+    }
+
+private:
+    friend struct Fuego::EventBase<WindowCloseEvent>;
 };
 
-class FUEGO_API AppTickEvent : public Event
+class FUEGO_API AppTickEvent : public EventBase<AppTickEvent>
 {
 public:
     AppTickEvent()
-        : Event(EVENT_NAME(AppTickEvent))
+        : EventBase(EVENT_NAME(AppTickEvent))
     {
     }
+
+protected:
+    std::string ToStringImpl() const
+    {
+        std::stringstream ss;
+        return ss.str();
+    }
+
+private:
+    friend struct Fuego::EventBase<AppTickEvent>;
 };
 
-class FUEGO_API AppUpdateEvent : public Event
+class FUEGO_API AppUpdateEvent : public EventBase<AppUpdateEvent>
 {
 public:
     AppUpdateEvent()
-        : Event(EVENT_NAME(AppUpdateEvent))
+        : EventBase(EVENT_NAME(AppUpdateEvent))
     {
     }
+
+protected:
+    std::string ToStringImpl() const
+    {
+        std::stringstream ss;
+        return ss.str();
+    }
+
+private:
+    friend struct Fuego::EventBase<AppUpdateEvent>;
 };
 
-class FUEGO_API AppRenderEvent : public Event
+class FUEGO_API AppRenderEvent : public EventBase<AppRenderEvent>
 {
 public:
     AppRenderEvent()
-        : Event(EVENT_NAME(AppRenderEvent))
+        : EventBase(EVENT_NAME(AppRenderEvent))
     {
     }
+
+protected:
+    std::string ToStringImpl() const
+    {
+        std::stringstream ss;
+        return ss.str();
+    }
+
+private:
+    friend struct Fuego::EventBase<AppRenderEvent>;
 };
 }  // namespace Fuego
