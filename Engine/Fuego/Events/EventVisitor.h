@@ -10,8 +10,9 @@
 
 namespace Fuego
 {
-using EventVariant = std::variant<Event, WindowResizeEvent, WindowCloseEvent, AppTickEvent, AppUpdateEvent, AppRenderEvent, KeyPressedEvent, KeyReleasedEvent,
-                                  MouseMovedEvent, MouseScrolledEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent>;
+using EventVariant =
+    std::variant<WindowResizeEvent, WindowCloseEvent, AppTickEvent, AppUpdateEvent, AppRenderEvent, KeyPressedEvent, KeyReleasedEvent, MouseMovedEvent,
+                 MouseScrolledEvent, MouseButtonPressedEvent, MouseButtonReleasedEvent, WindowValidateEvent, WindowStartResizeEvent, WindowEndResizeEvent>;
 
 template <class... Ts>
 struct EventVisitor : Ts...
