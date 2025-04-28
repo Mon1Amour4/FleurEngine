@@ -1,44 +1,40 @@
 #pragma once
 
+#include <type_traits>
+
 #include "Core.h"
 
 #define EVENT_NAME(type) (#type)
 
 namespace Fuego
 {
-class FUEGO_API Event
+template <typename Derived>
+struct EventBase
 {
-public:
-    Event() = delete;
-
-    virtual std::string ToString() const
+    std::string ToString() const
     {
-        return _name;
+        std::string derived_string(static_cast<const Derived*>(this)->ToStringImpl());
+        std::stringstream ss;
+        ss << event_name << derived_string;
+        return ss.str();
     }
-
-    virtual bool GetHandled() const
+    bool GetHandled() const
     {
-        return _handled;
+        return handled;
     }
-    virtual void SetHandled()
+    void SetHandled()
     {
-        _handled = true;
+        handled = true;
     }
-
-    virtual ~Event() = default;
 
 protected:
-    explicit Event(const char* name)
-        : _name(name)
+    explicit EventBase(const char* name) noexcept
+        : event_name(name)
+        , handled(false)
     {
     }
-
-    bool _handled = false;
-    const char* _name;
+    const char* event_name;
+    bool handled;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const Event& ev)
-{
-    return os << ev.ToString();
-}
 }  // namespace Fuego
