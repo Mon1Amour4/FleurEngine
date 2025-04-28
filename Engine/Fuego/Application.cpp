@@ -64,17 +64,16 @@ void Application::PushOverlay(Layer* overlay)
 }
 
 void Application::OnEvent(EventVariant& event)
-{
-    // clang-format off
-    auto ApplicationEventVisitor = EventVisitor{[this](WindowCloseEvent&    ev) { OnWindowClose(ev); },
-                                                [this](WindowResizeEvent&   ev) { OnWindowResize(ev); },
-                                                [this](AppRenderEvent&      ev) { OnRenderEvent(ev); },
-                                                [this](WindowStartResizeEvent&    ev) { OnStartResizeWindow(ev); },
-                                                [this](WindowEndResizeEvent&    ev) { OnEndResizeWindow(ev); },
-                                                [this](WindowValidateEvent&    ev) { OnValidateWindow(ev); },
-                                                [this](MouseMovedEvent&    ev) { OnMouseMoveEvent(ev); },
-                                                [this](KeyPressedEvent&    ev) { OnKeyPressEvent(ev); },
-                                                [](Event&){}};
+{  // clang-format off
+    auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); }, 
+                                                [this](WindowStartResizeEvent&   ev) { OnStartResizeWindow(ev); },
+                                                [this](WindowEndResizeEvent&    ev) {OnEndResizeWindow(ev); },
+                                                [this](WindowValidateEvent&    ev) {OnValidateWindow(ev); },
+                                                [this](WindowCloseEvent&    ev) {OnWindowClose(ev); },
+                                                [this](AppRenderEvent&    ev) {OnRenderEvent(ev); },
+                                                [this](KeyPressedEvent&    ev) {OnKeyPressEvent(ev); },
+                                                [](auto&) {}
+        };
     // clang-format on
 
     std::visit(ApplicationEventVisitor, event);
@@ -83,13 +82,7 @@ void Application::OnEvent(EventVariant& event)
     {
         (*--it)->OnEvent(event);
 
-        auto HandledEventVisitor = EventVisitor{[](const Event& ev) -> bool
-                                                {
-                                                    // FU_CORE_TRACE("{0}", ev.ToString());
-                                                    return ev.GetHandled();
-                                                }};
-
-        if (std::visit(HandledEventVisitor, event))
+        if (std::visit([](auto&& e) { return e.GetHandled(); }, event))
         {
             break;
         }
@@ -127,8 +120,7 @@ bool Application::OnValidateWindow(WindowValidateEvent& event)
 }
 bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
-    KeyEvent& e = (KeyEvent&)event;
-    KeyCode crossplatform_key = e.GetKeyCode();
+    KeyCode crossplatform_key = event.GetKeyCode();
 
     switch (crossplatform_key)
     {
@@ -156,8 +148,6 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
         d->_renderer->DrawModel(model_ptr, glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, counter)));
         counter += 10.f;
     }
-
-    // event.SetHandled();
     UNUSED(event);
     return true;
 }
