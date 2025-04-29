@@ -24,7 +24,7 @@ protected:
 class FUEGO_API KeyPressedEvent final : public KeyEvent<KeyPressedEvent>, public EventBase<KeyPressedEvent>
 {
 public:
-    KeyPressedEvent(KeyCode keycode, int repeatCount)
+    KeyPressedEvent(KeyCode keycode, int repeatCount) noexcept
         : EventBase(EVENT_NAME(EventBase))
         , KeyEvent(keycode)
         , _repeatCount(repeatCount)
@@ -52,7 +52,7 @@ private:
 class FUEGO_API KeyReleasedEvent final : public KeyEvent<KeyReleasedEvent>, public EventBase<KeyReleasedEvent>
 {
 public:
-    KeyReleasedEvent(KeyCode keycode)
+    KeyReleasedEvent(KeyCode keycode) noexcept
         : EventBase(EVENT_NAME(KeyReleasedEvent))
         , KeyEvent(keycode)
     {

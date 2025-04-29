@@ -8,7 +8,7 @@ namespace Fuego
 class FUEGO_API WindowResizeEvent : public EventBase<WindowResizeEvent>
 {
 public:
-    WindowResizeEvent(float x, float y, float width, float height)
+    WindowResizeEvent(float x, float y, float width, float height) noexcept
         : EventBase(EVENT_NAME(WindowResizeEvent))
         , x(x)
         , y(y)
@@ -50,7 +50,7 @@ private:
 class FUEGO_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent>
 {
 public:
-    WindowStartResizeEvent()
+    WindowStartResizeEvent() noexcept
         : EventBase(EVENT_NAME(WindowStartResizeEvent))
     {
     }
@@ -69,7 +69,7 @@ private:
 class FUEGO_API WindowEndResizeEvent : public EventBase<WindowEndResizeEvent>
 {
 public:
-    WindowEndResizeEvent()
+    WindowEndResizeEvent() noexcept
         : EventBase(EVENT_NAME(WindowEndResizeEvent))
     {
     }
@@ -88,7 +88,7 @@ private:
 class FUEGO_API WindowValidateEvent : public EventBase<WindowValidateEvent>
 {
 public:
-    WindowValidateEvent()
+    WindowValidateEvent() noexcept
         : EventBase(EVENT_NAME(WindowValidateEvent))
     {
     }
@@ -107,7 +107,7 @@ private:
 class FUEGO_API WindowCloseEvent : public EventBase<WindowCloseEvent>
 {
 public:
-    WindowCloseEvent()
+    WindowCloseEvent() noexcept
         : EventBase(EVENT_NAME(WindowCloseEvent))
     {
     }
@@ -126,7 +126,7 @@ private:
 class FUEGO_API AppTickEvent : public EventBase<AppTickEvent>
 {
 public:
-    AppTickEvent()
+    AppTickEvent() noexcept
         : EventBase(EVENT_NAME(AppTickEvent))
     {
     }
@@ -145,7 +145,7 @@ private:
 class FUEGO_API AppUpdateEvent : public EventBase<AppUpdateEvent>
 {
 public:
-    AppUpdateEvent()
+    AppUpdateEvent() noexcept
         : EventBase(EVENT_NAME(AppUpdateEvent))
     {
     }
@@ -164,7 +164,7 @@ private:
 class FUEGO_API AppRenderEvent : public EventBase<AppRenderEvent>
 {
 public:
-    AppRenderEvent()
+    AppRenderEvent() noexcept
         : EventBase(EVENT_NAME(AppRenderEvent))
     {
     }
