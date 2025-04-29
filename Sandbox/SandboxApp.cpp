@@ -29,7 +29,7 @@ void SceneLayer::OnDetach()
 
 void SceneLayer::OnEvent(Fuego::EventVariant& event)
 {
-    // TODO: FU_CORE is not recognized here
+    // TODO: FU_TRACE is not recognized here
     auto LogEventVisitor = Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); },
                                                [](const Fuego::EventVariant& ev) { /* FU_TRACE("{0}", ev.ToString());*/ }};
 
