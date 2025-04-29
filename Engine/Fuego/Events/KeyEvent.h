@@ -5,32 +5,30 @@
 
 namespace Fuego
 {
-class FUEGO_API KeyEvent
+template <typename Derived>
+struct KeyEvent
 {
-public:
-    inline KeyCode GetKeyCode() const
+    KeyCode GetKeyCode() const
     {
         return _keyCode;
     }
 
 protected:
-    explicit KeyEvent(KeyCode keycode)
+    explicit KeyEvent(KeyCode keycode) noexcept
         : _keyCode(keycode)
     {
     }
-
     KeyCode _keyCode;
 };
 
-class FUEGO_API KeyPressedEvent final : public Event, KeyEvent
+class FUEGO_API KeyPressedEvent final : public KeyEvent<KeyPressedEvent>, public EventBase<KeyPressedEvent>
 {
 public:
-    KeyPressedEvent(KeyCode keycode, int repeatCount)
-        : Event(EVENT_NAME(KeyPressedEvent))
+    KeyPressedEvent(KeyCode keycode, int repeatCount) noexcept
+        : EventBase(EVENT_NAME(EventBase))
         , KeyEvent(keycode)
         , _repeatCount(repeatCount)
     {
-        _name = EVENT_NAME(KeyPressedEvent);
     }
 
     inline int GetRepeatCount() const
@@ -38,31 +36,37 @@ public:
         return _repeatCount;
     }
 
-    inline std::string ToString() const override
+protected:
+    std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << _name << ": " << _keyCode << " (" << _repeatCount << " repeats)";
+        ss << "pressed key button: " << _keyCode << ", repeat count: " << _repeatCount;
         return ss.str();
     }
 
 private:
+    friend struct Fuego::EventBase<KeyPressedEvent>;
     int _repeatCount;
 };
 
-class FUEGO_API KeyReleasedEvent final : public Event, KeyEvent
+class FUEGO_API KeyReleasedEvent final : public KeyEvent<KeyReleasedEvent>, public EventBase<KeyReleasedEvent>
 {
 public:
-    KeyReleasedEvent(KeyCode keycode)
-        : Event(EVENT_NAME(KeyReleasedEvent))
+    KeyReleasedEvent(KeyCode keycode) noexcept
+        : EventBase(EVENT_NAME(KeyReleasedEvent))
         , KeyEvent(keycode)
     {
     }
 
-    inline std::string ToString() const override
+protected:
+    std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << _name << ": " << _keyCode;
+        ss << "released key button: " << _keyCode;
         return ss.str();
     }
+
+private:
+    friend struct Fuego::EventBase<KeyReleasedEvent>;
 };
 }  // namespace Fuego

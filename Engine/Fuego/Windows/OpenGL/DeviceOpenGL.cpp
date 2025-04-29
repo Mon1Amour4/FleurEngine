@@ -19,6 +19,10 @@ void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum sever
 {
     if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
         return;
+
+    if(severity == GL_DEBUG_SEVERITY_NOTIFICATION) 
+        return;
+
     FU_CORE_ERROR("---- OpenGL Debug Message ----");
     switch (source)
     {

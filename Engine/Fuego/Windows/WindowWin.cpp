@@ -61,7 +61,7 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
     SetEvent(window->_onThreadCreated);
 
     MSG msg{};
-    while (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+    while (GetMessage(&msg, nullptr, 0, 0) > 0)
     {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
