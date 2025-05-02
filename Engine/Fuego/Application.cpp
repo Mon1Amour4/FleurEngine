@@ -177,6 +177,7 @@ void Application::Init()
     LoadModel("WaterCooler/WaterCooler.obj");
 
     d->initialized = true;
+    d->m_Running = true;
 }
 
 Fuego::Renderer::Model* Application::LoadModel(std::string_view path)
