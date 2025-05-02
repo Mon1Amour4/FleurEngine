@@ -79,11 +79,12 @@ public:
         return viewport;
     }
 
-    std::unique_ptr<Texture> CreateTexture(unsigned char* buffer, int width, int height) const;
 
-    Renderer(const Renderer&&) = delete;
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
+
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
 
     static uint32_t MAX_TEXTURES_COUNT;
 
