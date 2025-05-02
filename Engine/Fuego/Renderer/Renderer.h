@@ -62,10 +62,7 @@ public:
     // IEngineSubSystem
     virtual void Update(float dlTime) override {};
     virtual void PostUpdate(float dlTime) override {};
-    virtual bool Init() override
-    {
-        return true;
-    };
+    virtual bool Init() override;
     virtual void Release() override {};
 
     void Clear();
