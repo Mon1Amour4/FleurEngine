@@ -17,10 +17,13 @@ using service_variant = std::variant<std::unique_ptr<Fuego::Renderer::Renderer>,
 
 
 template <class T>
-concept is_renderer_service = requires(T t) { T::is_renderer == true; };
+concept is_renderer_service = std::derived_from<T, IRendererService>;
 
 template <class T>
-concept is_file_system_service = requires(T t) { T::is_file_system == true; };
+concept is_file_system_service = std::derived_from<T, IFileSystemService>;
+
+template <class T>
+concept is_one_of = is_renderer_service<T> || is_file_system_service<T>;
 
 template <class T>
 struct CheckRenderer
@@ -40,19 +43,15 @@ class ServiceLocator : public singleton<ServiceLocator>
     friend class singleton<ServiceLocator>;
 
 public:
-    template <class T, template <class> class U>
+    template <is_one_of T>
     std::optional<T*> AddService()
     {
-        if constexpr (U<T>::value == true)
-
+        auto ptr = std::make_unique<T>();
+        service_variant variant = std::move(ptr);
+        auto [it, inserted] = services.try_emplace(std::type_index(typeid(T)), std::move(variant));
+        if (auto pval = std::get_if<std::unique_ptr<T>>(&it->second))
         {
-            auto ptr = std::make_unique<T>();
-            service_variant variant = std::move(ptr);
-            auto [it, inserted] = services.try_emplace(std::type_index(typeid(T)), std::move(variant));
-            if (auto pval = std::get_if<std::unique_ptr<T>>(&it->second))
-            {
-                return pval->get();
-            }
+            return pval->get();
         }
         return std::nullopt;
     };

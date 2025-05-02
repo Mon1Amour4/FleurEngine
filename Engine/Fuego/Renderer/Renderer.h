@@ -33,7 +33,7 @@ struct VertexData
 };
 #pragma pack(pop)
 
-class FUEGO_API Renderer : IRendererService, IEngineSubSystem
+class FUEGO_API Renderer : public IRendererService, public IEngineSubSystem
 {
 public:
     struct Viewport
