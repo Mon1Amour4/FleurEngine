@@ -166,7 +166,9 @@ void Application::Init()
     auto fs = ServiceLocator::instance().AddService<Fuego::FS::FileSystem>();
     if (fs)
         fs.value()->FUCreateFile("test", "test");
-    ServiceLocator::instance().AddService<Fuego::Renderer::Renderer>();
+    auto renderer = ServiceLocator::instance().AddService<Fuego::Renderer::Renderer>();
+    if (renderer)
+        renderer.value()->Init();
 
     d->_models.reserve(10);
 
@@ -228,7 +230,8 @@ void Application::Run()
 
     while (d->m_Running)
     {
-        ServiceLocator::instance().GetService<Fuego::Renderer::Renderer>()->Clear();
+        auto renderer = ServiceLocator::instance().GetService<Fuego::Renderer::Renderer>();
+        renderer->Clear();
         d->m_EventQueue->Update();
         d->m_Window->Update();
         Fuego::Renderer::Camera::GetActiveCamera()->Update();
@@ -244,7 +247,8 @@ void Application::Run()
             OnEvent(*ev);
             d->m_EventQueue->Pop();
         }
-        ServiceLocator::instance().GetService<Fuego::Renderer::Renderer>()->Present();
+        renderer->Update(2);
+        renderer->Present();
     }
 }
 
