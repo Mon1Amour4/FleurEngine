@@ -113,7 +113,7 @@ void Renderer::ChangeViewport(float x, float y, float w, float h)
     viewport.x = x;
     viewport.y = y;
     viewport.width = w;
-    viewport.heigth = h;
+    viewport.height = h;
     UpdateViewport();
 }
 
