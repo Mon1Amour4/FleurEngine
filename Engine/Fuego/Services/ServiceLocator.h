@@ -25,17 +25,6 @@ concept is_file_system_service = std::derived_from<T, IFileSystemService>;
 template <class T>
 concept is_one_of = is_renderer_service<T> || is_file_system_service<T>;
 
-template <class T>
-struct CheckRenderer
-{
-    static constexpr bool value = requires { is_renderer_service<T>; };
-};
-
-template <class T>
-struct CheckFileSystem
-{
-    static constexpr bool value = requires { is_file_system_service<T>; };
-};
 #pragma endregion
 
 class ServiceLocator : public singleton<ServiceLocator>
