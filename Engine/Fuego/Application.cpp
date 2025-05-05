@@ -170,6 +170,10 @@ void Application::Init()
     if (renderer)
         renderer.value()->Init();
 
+    auto thread_pool = ServiceLocator::instance().AddService<Fuego::ThreadPool>();
+    thread_pool.value()->Init();
+    thread_pool.value()->Push(Fuego::ThreadPool::Task(std::packaged_task<void()>([]() { FU_CORE_TRACE("LOG FROM ThreadPool"); })));
+
     d->_models.reserve(10);
 
     AddTexture("fallback.png");
