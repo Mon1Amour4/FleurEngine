@@ -7,14 +7,18 @@
 #include "FileSystem/FileSystem.h"
 #include "Renderer.h"
 #include "Services/ServiceInterfaces.hpp"
+#include "ThreadPool.h"
 #include "singleton.hpp"
 
 namespace Fuego
 {
 
 #pragma region Templates
-using service_variant = std::variant<std::unique_ptr<Fuego::Renderer::Renderer>, std::unique_ptr<Fuego::FS::FileSystem>>;
+using service_variant = std::variant<std::unique_ptr<Fuego::Renderer::Renderer>, std::unique_ptr<Fuego::FS::FileSystem>, std::unique_ptr<Fuego::ThreadPool>>;
 
+
+template <class T>
+concept is_thread_pool = true;
 
 template <class T>
 concept is_renderer_service = std::derived_from<T, IRendererService>;
@@ -23,7 +27,7 @@ template <class T>
 concept is_file_system_service = std::derived_from<T, IFileSystemService>;
 
 template <class T>
-concept is_one_of = is_renderer_service<T> || is_file_system_service<T>;
+concept is_one_of = is_renderer_service<T> || is_file_system_service<T> || is_thread_pool<T>;
 
 #pragma endregion
 
