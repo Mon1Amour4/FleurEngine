@@ -1,7 +1,14 @@
 #include "ThreadPool.h"
 
-Fuego::ThreadPool::ThreadPool(uint16_t workers)
-    : num_workers(workers)
+
+Fuego::ThreadPool& Fuego::singleton<Fuego::ThreadPool>::instance()
+{
+    static ThreadPool inst;
+    return inst;
+}
+
+Fuego::ThreadPool::ThreadPool()
+    : num_workers(std::thread::hardware_concurrency())
     , running(true)
 {
 }
@@ -9,65 +16,68 @@ Fuego::ThreadPool::ThreadPool(uint16_t workers)
 void Fuego::ThreadPool::Init()
 {
     workers.reserve(num_workers);
-    available_workers.assign((num_workers + 7) / 8, 0);
     for (size_t i = 0; i < num_workers; i++)
     {
-        workers.emplace_back();
-    }
+        workers.emplace_back(
+            [this]()
+            {
+                while (running)
+                {
+                    std::unique_lock<std::mutex> ul(queue_mutex);
+                    condition.wait(ul, [this]() { return !tasks.empty() || !running; });
+                    if (!running)
+                        return;
+                    Task task = GetTask();
+                    task();
+                }
+            });
 
-    thread_pool__main();
+        FU_CORE_TRACE("[ThreadPool] Thread created: id: {0}", PrintThreadID(i));
+    }
 }
 
-void Fuego::ThreadPool::Stop()
+void Fuego::ThreadPool::Shutdown()
 {
-    running = false;
+    {
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        running = false;
+    }
+    condition.notify_all();
+    for (size_t i = 0; i < num_workers; i++)
+    {
+        std::thread& thread = workers[i];
+        if (thread.joinable())
+        {
+            FU_CORE_TRACE("[ThreadPool] Thread closed: id: {0}", PrintThreadID(i));
+            thread.join();
+        }
+    }
+    Release();
 }
 
 void Fuego::ThreadPool::Push(Task&& task)
 {
-    std::lock_guard guard(mutex);
+    std::lock_guard guard(queue_mutex);
     tasks.push(std::move(task));
-}
-
-void Fuego::ThreadPool::thread_pool__main()
-{
-    while (running)
-    {
-        if (!tasks.empty())
-        {
-            auto worker = GetFreeWorker();
-            if (worker)
-            {
-            }
-        }
-    };
-
-    Release();
+    condition.notify_one();
 }
 
 void Fuego::ThreadPool::Release()
 {
-    for (size_t i = 0; i < num_workers; i++)
-    {
-        workers[i].join();
-    }
     workers.clear();
     workers.shrink_to_fit();
-    available_workers.clear();
 }
 
-std::thread* Fuego::ThreadPool::GetFreeWorker()
+Fuego::ThreadPool::Task Fuego::ThreadPool::GetTask()
 {
-    const char* sequence = available_workers.data();
-    for (size_t i = 0; i < num_workers; i++)
-    {
-        size_t byte_index = i / 8;
-        size_t bit_index = i % 8;
+    Task task = std::move(tasks.front());
+    tasks.pop();
+    return task;
+}
 
-        if ((sequence[byte_index] & (1 << bit_index)) == 0)
-        {
-            return &workers[i];
-        }
-    }
-    return nullptr;
+std::string Fuego::ThreadPool::PrintThreadID(size_t thread_id) const
+{
+    std::ostringstream ss;
+    ss << workers[thread_id].get_id();
+    return ss.str();
 }
