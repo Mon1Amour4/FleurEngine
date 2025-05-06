@@ -164,15 +164,24 @@ void Application::Init()
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
 
     auto fs = ServiceLocator::instance().AddService<Fuego::FS::FileSystem>();
-    if (fs)
-        fs.value()->FUCreateFile("test", "test");
+    fs.value()->FUCreateFile("test", "test");
     auto renderer = ServiceLocator::instance().AddService<Fuego::Renderer::Renderer>();
-    if (renderer)
-        renderer.value()->Init();
+    renderer.value()->Init();
 
     auto thread_pool = ServiceLocator::instance().AddService<Fuego::ThreadPool>();
     thread_pool.value()->Init();
-    thread_pool.value()->Push(Fuego::ThreadPool::Task(std::packaged_task<void()>([]() { FU_CORE_TRACE("LOG FROM ThreadPool"); })));
+    auto lambda = []() { FU_CORE_TRACE("Asd"); };
+    auto f1 = thread_pool.value()->Submit(lambda);
+    auto f2 = thread_pool.value()->Submit([]() { FU_CORE_TRACE("AAA"); });
+    auto f3 = thread_pool.value()->Submit([](int a, int b) { FU_CORE_TRACE("res: {0}", a + b); }, 5, 5);
+    auto f4 = thread_pool.value()->Submit(
+        []<int>(int a, int b)
+        {
+            int res = a + b;
+            FU_CORE_TRACE("res: {0}", res);
+            return res;
+        },
+        5, 5);
 
     d->_models.reserve(10);
 

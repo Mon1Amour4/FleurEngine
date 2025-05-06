@@ -55,13 +55,6 @@ void Fuego::ThreadPool::Shutdown()
     Release();
 }
 
-void Fuego::ThreadPool::Push(Task&& task)
-{
-    std::lock_guard guard(queue_mutex);
-    tasks.push(std::move(task));
-    condition.notify_one();
-}
-
 void Fuego::ThreadPool::Release()
 {
     workers.clear();

@@ -6,8 +6,12 @@
 
 #include "singleton.hpp"
 
+template <class T, class... Args>
+using Result = std::invoke_result<T, Args...>::type;
+
 namespace Fuego
 {
+
 class ThreadPool : public singleton<ThreadPool>
 {
     friend class singletone;
@@ -15,8 +19,11 @@ class ThreadPool : public singleton<ThreadPool>
 public:
     struct Task
     {
-        Task(std::packaged_task<void()> func)
-            : f(std::move(func)) {};
+        template <typename F>
+        Task(F&& func)
+            : f(std::forward<F>(func))
+        {
+        }
 
         Task(Task&& other) noexcept
             : f(std::move(other.f)) {};
@@ -27,7 +34,7 @@ public:
         };
 
     private:
-        std::packaged_task<void()> f;
+        std::function<void()> f;
     };
 
     ThreadPool();
@@ -36,7 +43,20 @@ public:
 
     void Shutdown();
 
-    void Push(Task&& task);
+    template <class Func, class... Args>
+    auto Submit(Func&& f, Args&&... args) -> std::future<std::invoke_result_t<Func, Args...>>
+    {
+        using return_type = std::invoke_result_t<Func, Args...>;
+
+        auto task = std::make_shared<std::packaged_task<return_type()>>(std::bind(std::forward<Func>(f), std::forward<Args>(args)...));
+
+        std::future<return_type> future = task->get_future();
+
+        std::lock_guard<std::mutex> lock(queue_mutex);
+        tasks.emplace([task]() { (*task)(); });
+        condition.notify_one();
+        return future;
+    }
 
 
 private:
