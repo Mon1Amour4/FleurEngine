@@ -174,14 +174,6 @@ void Application::Init()
     auto f1 = thread_pool.value()->Submit(lambda);
     auto f2 = thread_pool.value()->Submit([]() { FU_CORE_TRACE("AAA"); });
     auto f3 = thread_pool.value()->Submit([](int a, int b) { FU_CORE_TRACE("res: {0}", a + b); }, 5, 5);
-    auto f4 = thread_pool.value()->Submit(
-        []<int>(int a, int b)
-        {
-            int res = a + b;
-            FU_CORE_TRACE("res: {0}", res);
-            return res;
-        },
-        5, 5);
 
     d->_models.reserve(10);
 
