@@ -1,19 +1,12 @@
 #include "ThreadPool.h"
 
-
-Fuego::ThreadPool& Fuego::singleton<Fuego::ThreadPool>::instance()
-{
-    static ThreadPool inst;
-    return inst;
-}
-
 Fuego::ThreadPool::ThreadPool()
     : num_workers(std::thread::hardware_concurrency())
     , running(true)
 {
 }
 
-void Fuego::ThreadPool::Init()
+void Fuego::ThreadPool::OnInit()
 {
     workers.reserve(num_workers);
     for (size_t i = 0; i < num_workers; i++)
@@ -36,7 +29,7 @@ void Fuego::ThreadPool::Init()
     }
 }
 
-void Fuego::ThreadPool::Shutdown()
+void Fuego::ThreadPool::OnShutdown()
 {
     {
         std::lock_guard<std::mutex> lock(queue_mutex);

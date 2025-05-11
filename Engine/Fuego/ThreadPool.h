@@ -4,7 +4,7 @@
 #include <future>
 #include <queue>
 
-#include "singleton.hpp"
+#include "Services/ServiceInterfaces.hpp"
 
 template <class T, class... Args>
 using Result = std::invoke_result<T, Args...>::type;
@@ -12,9 +12,9 @@ using Result = std::invoke_result<T, Args...>::type;
 namespace Fuego
 {
 
-class ThreadPool : public singleton<ThreadPool>
+class ThreadPool : public Service<ThreadPool>
 {
-    friend class singletone;
+    friend class Service<ThreadPool>;
 
 public:
     struct Task
@@ -38,10 +38,6 @@ public:
     };
 
     ThreadPool();
-
-    void Init();
-
-    void Shutdown();
 
     template <class Func, class... Args>
     auto Submit(Func&& f, Args&&... args) -> std::future<std::invoke_result_t<Func, Args...>>
@@ -73,5 +69,9 @@ private:
     Task GetTask();
 
     std::string PrintThreadID(size_t thread_id) const;
+
+protected:
+    void OnInit();
+    void OnShutdown();
 };
 }  // namespace Fuego

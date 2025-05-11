@@ -5,13 +5,14 @@
 #include "FileSystem/FileSystem.h"
 #include "Renderer.h"
 #include "ServiceInterfaces.hpp"
+#include "ThreadPool.h"
 #include "singleton.hpp"
 
 namespace Fuego
 {
 
 #pragma region Templates
-using service_variant = std::variant<std::shared_ptr<Fuego::Graphics::Renderer>, std::shared_ptr<Fuego::FS::FileSystem>>;
+using service_variant = std::variant<std::shared_ptr<Fuego::Graphics::Renderer>, std::shared_ptr<Fuego::FS::FileSystem>, std::shared_ptr<Fuego::ThreadPool>>;
 
 #pragma endregion
 
