@@ -2,7 +2,7 @@
 
 #include <span>
 
-namespace Fuego::Renderer
+namespace Fuego::Graphics
 {
 
 ShaderObject* shader_object;
@@ -16,7 +16,7 @@ Renderer::Renderer()
 {
 }
 
-bool Renderer::Init()
+void Renderer::OnInit()
 {
     _camera.reset(new Camera());
     _camera->Activate();
@@ -29,14 +29,24 @@ bool Renderer::Init()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    _mainVsShader = _device->CreateShader("vs_shader", Shader::ShaderType::Vertex);
-    _pixelShader = _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel);
-
-    opaque_shader.reset(ShaderObject::CreateShaderObject(*_mainVsShader.get(), *_pixelShader.get()));
+    opaque_shader.reset(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
+                                                         _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
     opaque_shader->GetVertexShader()->AddVar("model");
     opaque_shader->GetVertexShader()->AddVar("view");
     opaque_shader->GetVertexShader()->AddVar("projection");
     return true;
+}
+
+void Renderer::OnShutdown()
+{
+    _device->Release();
+    _device.release();
+
+    _surface->Release();
+    _surface.release();
+
+    opaque_shader->Release();
+    opaque_shader.reset();
 }
 
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
@@ -136,4 +146,4 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
 {
 }
 
-}  // namespace Fuego::Renderer
+}  // namespace Fuego::Graphics

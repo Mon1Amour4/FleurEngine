@@ -19,7 +19,7 @@
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
-namespace Fuego::Renderer
+namespace Fuego::Graphics
 {
 
 #pragma pack(push, 1)
@@ -33,7 +33,7 @@ struct VertexData
 };
 #pragma pack(pop)
 
-class FUEGO_API Renderer : public IRendererService, public IEngineSubSystem
+class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
 public:
     struct Viewport
@@ -51,19 +51,18 @@ public:
         SPECULAR = 2
     };
 
+    friend struct Service<Renderer>;
     Renderer();
     ~Renderer() = default;
 
-    // IRendererService
-    virtual void DrawModel(const Model* model, glm::mat4 model_pos) override;
-    virtual void ChangeViewport(float x, float y, float w, float h) override;
-    virtual std::unique_ptr<Texture> CreateTexture(unsigned char* buffer, int width, int height) const override;
+    // IRenderer;
+    void DrawModel(const Model* model, glm::mat4 model_pos);
+    void ChangeViewport(float x, float y, float w, float h);
+    std::unique_ptr<Texture> CreateTexture(unsigned char* buffer, int width, int height) const;
 
-    // IEngineSubSystem
-    virtual void Update(float dlTime) override {};
-    virtual void PostUpdate(float dlTime) override {};
-    virtual bool Init() override;
-    virtual void Release() override {};
+    // IUpdatable
+    void Update(float dlTime) {};
+    void PostUpdate(float dlTime) {};
 
     void Clear();
     void Present();
@@ -105,8 +104,6 @@ private:
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
     std::unique_ptr<Swapchain> _swapchain;
-    std::unique_ptr<Shader> _mainVsShader;
-    std::unique_ptr<Shader> _pixelShader;
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
 
@@ -114,5 +111,10 @@ private:
     ShaderObject* current_shader_obj;
 
     Viewport viewport;
+
+    // Service
+protected:
+    void OnInit();
+    void OnShutdown();
 };
-}  // namespace Fuego::Renderer
+}  // namespace Fuego::Graphics

@@ -5,7 +5,7 @@
 
 #include "Services/ServiceInterfaces.hpp"
 
-namespace Fuego::Renderer
+namespace Fuego::Graphics
 {
 class Model;
 }
@@ -15,9 +15,11 @@ namespace Fuego::FS
 
 class Application;
 
-class FUEGO_API FileSystem : public IFileSystemService
+class FUEGO_API FileSystem : public Service<FileSystem>
 {
 public:
+    friend struct Service<FileSystem>;
+
     FileSystem(FileSystem&&) noexcept = default;
     FileSystem& operator=(FileSystem&&) noexcept = default;
 
@@ -29,10 +31,13 @@ public:
     virtual void FUCreateFile(const std::string& file_name, std::string_view folder) const override;
     virtual void WriteToFile(std::string_view file_name, const char* buffer) override;
 
-
     friend class Application;
     FileSystem();
     ~FileSystem() = default;
     FUEGO_INTERFACE(FileSystem);
+
+private:
+    void OnInit();
+    void OnShutdown();
 };
 }  // namespace Fuego::FS

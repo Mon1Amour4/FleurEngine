@@ -1,33 +1,62 @@
 #pragma once
-#include <glm/ext/matrix_float4x4.hpp>
 
-namespace Fuego::Renderer
+#pragma region Concepts
+
+template <typename Derived>
+concept is_service_interface = requires(Derived t) {
+    { t.Init() } -> std::same_as<void>;
+    { t.Shutdown() } -> std::same_as<void>;
+};
+
+#pragma endregion
+
+namespace Fuego::Graphics
 {
 class Model;
 class Texture;
 class Renderer;
-}  // namespace Fuego::Renderer
+}  // namespace Fuego::Graphics
 
 namespace Fuego
 {
-struct IRendererService
+
+struct IUpdatable
 {
-    virtual void DrawModel(const Fuego::Renderer::Model* model, glm::mat4 model_pos) = 0;
-    virtual void ChangeViewport(float x, float y, float w, float h) = 0;
-    virtual std::unique_ptr<Fuego::Renderer::Texture> CreateTexture(unsigned char* buffer, int width, int height) const = 0;
+    void Update(float dlTime);
+    void PostUpdate(float dlTime);
+    void FixedUpdate();
 };
 
-struct IFileSystemService
+struct IInitializable
 {
-    virtual void FUCreateFile(const std::string& file_name, std::string_view folder) const = 0;
-    virtual void WriteToFile(std::string_view file_name, const char* buffer) = 0;
+    void Init();
+    void Shutdown();
 };
 
-struct IEngineSubSystem
+template <class Derived>
+struct Service : public IInitializable
 {
-    virtual void Update(float dlTime) = 0;
-    virtual void PostUpdate(float dlTime) = 0;
-    virtual bool Init() = 0;
-    virtual void Release() = 0;
+    void Init()
+    {
+        if (is_initialized)
+            return;
+        Derived* derived = static_cast<Derived*>(this);
+        derived->OnInit();
+        is_initialized = true;
+    };
+
+    void Shutdown()
+    {
+        if (shutdown)
+            return;
+        Derived* derived = static_cast<Derived*>(this);
+        derived->OnShutdown();
+        shutdown = true;
+    }
+
+protected:
+    inline static bool is_initialized = false;
+    inline static bool shutdown = false;
 };
+
 }  // namespace Fuego
