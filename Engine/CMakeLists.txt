@@ -37,7 +37,8 @@ set(PROJECT_HEADERS
     ${SCENE_GENERATED_PROTO_HDRS}
     Fuego/Scene.h
     Fuego/Services/ServiceInterfaces.hpp
-    Fuego/Services/ServiceLocator.h)
+    Fuego/Services/ServiceLocator.h
+    Fuego/ThreadPool.h)
 
 set(SOURCES
     Fuego/Application.cpp
@@ -49,7 +50,8 @@ set(SOURCES
     External/stb_image/stb_image.cpp
     ${SCENE_GENERATED_PROTO_SRCS}
     Fuego/Scene.cpp
-    Fuego/Services/ServiceLocator.cpp)
+    Fuego/Services/ServiceLocator.cpp
+    Fuego/ThreadPool.cpp)
 
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer)
 

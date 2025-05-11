@@ -6,8 +6,10 @@
 #include "LayerStack.h"
 #include "Renderer.h"
 #include "Scene.h"
+#include "ThreadPool.h"
 
-// Temporary TODO: remove
+
+// TODO Move this crap out if Application
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 
@@ -16,6 +18,7 @@
 
 namespace Fuego
 {
+
 template <>
 Application& singleton<Application>::instance()
 {
@@ -169,6 +172,9 @@ void Application::Init()
     auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
     renderer.value()->Init();
 
+    auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
+    thread_pool.value()->Init();
+
     d->_models.reserve(10);
 
     AddTexture("fallback.png");
@@ -181,6 +187,7 @@ void Application::Init()
 
 Fuego::Graphics::Model* Application::LoadModel(std::string_view path)
 {
+    // TODO Move this crap out if Application
     Assimp::Importer importer{};
     const aiScene* scene = importer.ReadFile(d->_fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
     if (!scene)
