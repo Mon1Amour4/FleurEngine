@@ -34,7 +34,6 @@ void Renderer::OnInit()
     opaque_shader->GetVertexShader()->AddVar("model");
     opaque_shader->GetVertexShader()->AddVar("view");
     opaque_shader->GetVertexShader()->AddVar("projection");
-    return true;
 }
 
 void Renderer::OnShutdown()
