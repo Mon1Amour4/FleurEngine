@@ -56,6 +56,10 @@ public:
         return _mouseDir;
     }
 
+    inline virtual bool IsActive() const override
+    {
+        return is_in_focus;
+    }
 private:
     float _currentWidth, _currentHeigth;
     int window_center_x, window_center_y, _xPos, _yPos;

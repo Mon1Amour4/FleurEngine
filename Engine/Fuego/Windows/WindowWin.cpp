@@ -138,12 +138,16 @@ void WindowWin::InitOpenGLExtensions()
 
 LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
-    is_in_focus = GetForegroundWindow() == hwnd;
-
     switch (msg)
     {
     case WM_ACTIVATE:
+    {
+        if (LOWORD(wparam) != WA_INACTIVE)
+            is_in_focus = true;
+        else
+            is_in_focus = false;
         break;
+    }
     case WM_PAINT:
     {
         if (!isPainted || isResizing || _props.mode == MINIMIZED)
