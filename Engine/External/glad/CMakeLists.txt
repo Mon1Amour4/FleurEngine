@@ -1,7 +1,7 @@
 # Glad
 
 set(PROJECT_HEADERS 
-        include/glad/gl.h
+        #include/glad/gl.h
         include/glad/wgl.h
         include/KHR/khrplatform.h
 )

@@ -1,6 +1,6 @@
 ﻿#include "WindowWin.h"
 
-#include <glad/gl.h>
+// #include <glad/gl.h>
 #include <glad/wgl.h>
 
 #include "InputWin.h"

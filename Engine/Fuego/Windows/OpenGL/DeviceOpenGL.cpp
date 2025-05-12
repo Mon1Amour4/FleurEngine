@@ -9,7 +9,6 @@
 #include "SwapchainOpenGL.h"
 // clang-format off
 #include "glad/wgl.h"
-#include "glad/gl.h"
 // clang-format on
 #include "Renderer.h"
 #include "TextureOpenGL.h"

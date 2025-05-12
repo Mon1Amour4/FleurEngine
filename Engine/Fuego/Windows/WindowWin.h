@@ -4,7 +4,6 @@
 #include "Input.h"
 #include "Window.h"
 
-
 namespace Fuego
 {
 class SurfaceWindows;
