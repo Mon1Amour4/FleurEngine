@@ -26,9 +26,6 @@ public:
         return _props.Height;
     }
 
-    virtual void SetVSync(bool enabled) override;
-    virtual bool IsVSync() const override;
-
     virtual const void* GetNativeHandle() const override;
 
     LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
