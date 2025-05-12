@@ -7,14 +7,6 @@
 #include "KeyCodesWin.h"
 #include "Log.h"
 
-
-typedef HGLRC WINAPI wglCreateContextAttribsARB_type(HDC hdc, HGLRC hShareContext, const int* attribList);
-wglCreateContextAttribsARB_type* wglCreateContextAttribsARB;
-
-typedef BOOL WINAPI wglChoosePixelFormatARB_type(HDC hdc, const int* piAttribIList, const FLOAT* pfAttribFList, UINT nMaxFormats, int* piFormats,
-                                                 UINT* nNumFormats);
-wglChoosePixelFormatARB_type* wglChoosePixelFormatARB;
-
 namespace Fuego
 {
 
@@ -136,8 +128,7 @@ void WindowWin::InitOpenGLExtensions()
         FU_CORE_ERROR("Failed to activate dummy OpenGL rendering context.");
     }
 
-    wglCreateContextAttribsARB = reinterpret_cast<wglCreateContextAttribsARB_type*>(wglGetProcAddress("wglCreateContextAttribsARB"));
-    wglChoosePixelFormatARB = reinterpret_cast<wglChoosePixelFormatARB_type*>(wglGetProcAddress("wglChoosePixelFormatARB"));
+    gladLoaderLoadWGL(dummy_dc);
 
     wglMakeCurrent(dummy_dc, 0);
     wglDeleteContext(dummy_context);
