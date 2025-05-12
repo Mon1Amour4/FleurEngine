@@ -252,13 +252,13 @@ void Application::Run()
 
 
         renderer->Clear();
-        d->m_EventQueue->Update();
-        d->m_Window->Update();
-        Fuego::Graphics::Camera::GetActiveCamera()->Update();
+        d->m_EventQueue->OnUpdate(dtTime);
+        d->m_Window->OnUpdate(dtTime);
+        Fuego::Graphics::Camera::GetActiveCamera()->OnUpdate(dtTime);
 
         for (auto layer : d->m_LayerStack)
         {
-            layer->OnUpdate();
+            layer->OnUpdate(dtTime);
         }
 
         while (!d->m_EventQueue->Empty())
@@ -267,7 +267,8 @@ void Application::Run()
             OnEvent(*ev);
             d->m_EventQueue->Pop();
         }
-        renderer->Update(2);
+
+        renderer->OnUpdate(dtTime);
         renderer->Present();
     }
 }

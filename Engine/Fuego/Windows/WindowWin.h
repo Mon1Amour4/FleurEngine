@@ -13,7 +13,9 @@ class WindowWin final : public Window
 public:
     WindowWin(const WindowProps& props, EventQueue& eventQueue);
 
-    virtual void Update() override;
+    virtual void OnUpdate(float dlTime) override;
+    virtual void OnPostUpdate(float dlTime) override;
+    virtual void OnFixedUpdate() override;
 
     inline virtual unsigned int GetWidth() const override
     {

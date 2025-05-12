@@ -365,7 +365,7 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     WaitForSingleObject(_onThreadCreated, INFINITE);
 }
 
-void WindowWin::Update()
+void WindowWin::OnUpdate(float dlTime)
 {
     if (isResizing || _props.mode == MINIMIZED)
     {
@@ -375,14 +375,14 @@ void WindowWin::Update()
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
-void WindowWin::SetVSync(bool enabled)
+void WindowWin::OnPostUpdate(float dlTime)
 {
-    UNUSED(enabled);
+    // TODO
 }
 
-bool WindowWin::IsVSync() const
+void WindowWin::OnFixedUpdate()
 {
-    return true;
+    // TODO
 }
 
 const void* WindowWin::GetNativeHandle() const

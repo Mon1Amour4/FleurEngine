@@ -121,6 +121,21 @@ std::unique_ptr<Texture> Renderer::CreateTexture(unsigned char* buffer, int widt
     return _device->CreateTexture(buffer, width, height);
 }
 
+void Renderer::OnUpdate(float dlTime)
+{
+    // TODO
+}
+
+void Renderer::OnPostUpdate(float dlTime)
+{
+    // TODO
+}
+
+void Renderer::OnFixedUpdate()
+{
+    // TODO
+}
+
 void Renderer::ChangeViewport(float x, float y, float w, float h)
 {
     viewport.x = x;

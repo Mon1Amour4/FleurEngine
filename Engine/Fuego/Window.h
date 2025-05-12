@@ -43,7 +43,7 @@ struct WindowProps
 
 class Surface;
 
-class Window
+class Window : public IUpdatable
 {
 public:
     enum InteractionMode
@@ -53,7 +53,9 @@ public:
     };
     virtual ~Window() = default;
 
-    virtual void Update() = 0;
+    virtual void OnUpdate(float dlTime) = 0;
+    virtual void OnPostUpdate(float dlTime) = 0;
+    virtual void OnFixedUpdate() = 0;
 
     virtual unsigned int GetWidth() const = 0;
     virtual unsigned int GetHeight() const = 0;
