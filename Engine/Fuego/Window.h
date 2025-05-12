@@ -74,6 +74,8 @@ public:
     virtual InteractionMode GetInteractionMode() const = 0;
     virtual void SwitchInteractionMode() = 0;
 
+    virtual void SetTitle(std::string title) = 0;
+
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 };
 }  // namespace Fuego

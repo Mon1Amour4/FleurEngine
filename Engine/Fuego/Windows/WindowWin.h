@@ -60,6 +60,9 @@ public:
     {
         return is_in_focus;
     }
+
+    virtual void SetTitle(std::string title) override;
+
 private:
     float _currentWidth, _currentHeigth;
     int window_center_x, window_center_y, _xPos, _yPos;

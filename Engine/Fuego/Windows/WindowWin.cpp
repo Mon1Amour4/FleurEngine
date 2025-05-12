@@ -10,6 +10,11 @@
 namespace Fuego
 {
 
+void WindowWin::SetTitle(std::string title)
+{
+    SetWindowText(_hwnd, std::string(_props.Title + " " + title).c_str());
+}
+
 DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 {
     InitOpenGLExtensions();
