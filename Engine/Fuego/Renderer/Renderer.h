@@ -76,6 +76,8 @@ public:
         return viewport;
     }
 
+    void SetVSync(bool active);
+    bool IsVSync();
 
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
@@ -112,6 +114,8 @@ private:
     ShaderObject* current_shader_obj;
 
     Viewport viewport;
+
+    bool is_vsync;
 
     // Service
 protected:

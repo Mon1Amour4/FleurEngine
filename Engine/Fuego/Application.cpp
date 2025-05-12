@@ -231,6 +231,18 @@ const Fuego::Graphics::Texture* Application::GetLoadedTexture(std::string_view n
     return nullptr;
 }
 
+void Application::SetVSync(bool active) const
+{
+    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
+    renderer.value()->SetVSync(active);
+}
+
+bool Application::IsVSync() const
+{
+    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
+    return renderer.value()->IsVSync();
+}
+
 void Application::Run()
 {
     if (!d->initialized)

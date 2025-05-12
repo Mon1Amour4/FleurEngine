@@ -200,6 +200,14 @@ std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(unsigned char* buffer, int 
     return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(buffer, width, height));
 }
 
+void DeviceOpenGL::SetVSync(bool active) const
+{
+    if (active)
+        wglSwapIntervalEXT(1);
+    else
+        wglSwapIntervalEXT(0);
+}
+
 void DeviceOpenGL::Release()
 {
     if (ctx)

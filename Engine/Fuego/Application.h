@@ -60,6 +60,9 @@ public:
     bool AddTexture(std::string_view);
     const Fuego::Graphics::Texture* GetLoadedTexture(std::string_view name) const;
 
+    void SetVSync(bool active) const;
+    bool IsVSync() const;
+
 protected:
     Application();
     virtual ~Application() override;
