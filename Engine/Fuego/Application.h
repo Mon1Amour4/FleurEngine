@@ -67,7 +67,5 @@ protected:
     Application();
     virtual ~Application() override;
     Graphics::Model* LoadModel(std::string_view path);
-
-    // template<class >
 };
 }  // namespace Fuego
