@@ -16,7 +16,7 @@ Fuego::TimeWin::TimeWin(float fixed_time)
 void Fuego::TimeWin::Tick()
 {
     calc_delta_time();
-    frame++;
+    ++frame;
 }
 
 void Fuego::TimeWin::calc_delta_time()
@@ -24,7 +24,7 @@ void Fuego::TimeWin::calc_delta_time()
     auto now = std::chrono::steady_clock::now();
     delta_time = std::chrono::duration<float>(now - timer).count();
     fps_time += delta_time;
-    fps_frames++;
+    ++fps_frames;
     if (fps_time >= 1.f)
     {
         fps = fps_frames / fps_time;
