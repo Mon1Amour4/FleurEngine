@@ -33,6 +33,107 @@ struct VertexData
 };
 #pragma pack(pop)
 
+enum ImageFormat
+{
+    Grayscale = 0,
+    GrayAlpha = 1,
+    RGB = 2,
+    RGBA = 3
+};
+
+class Image2D
+{
+public:
+    Image2D(std::string name, unsigned char* data, int w, int h, int bpp, ImageFormat format)
+        : name(name)
+        , data(data)
+        , width(w)
+        , height(h)
+        , bpp(bpp)
+        , format(format)
+    {
+    }
+    ~Image2D()
+    {
+        delete data;
+    }
+
+    inline int Width() const
+    {
+        return width;
+    }
+    inline int Height() const
+    {
+        return height;
+    }
+    inline int BBP() const
+    {
+        return bpp;
+    }
+    inline int Format() const
+    {
+        return format;
+    }
+    inline std::string PrintFormat() const
+    {
+        switch (format)
+        {
+        case Fuego::Graphics::Grayscale:
+            return std::string("Grayscale");
+            break;
+        case Fuego::Graphics::GrayAlpha:
+            return std::string("GrayAlpha");
+            break;
+        case Fuego::Graphics::RGB:
+            return std::string("RGB");
+            break;
+        case Fuego::Graphics::RGBA:
+            return std::string("RGBA");
+            break;
+        default:
+            break;
+        }
+    }
+    unsigned char* Data() const
+    {
+        return data;
+    }
+    inline std::string_view Name() const
+    {
+        return name;
+    }
+
+    static int Channels(ImageFormat format)
+    {
+        switch (format)
+        {
+        case Fuego::Graphics::Grayscale:
+            return 1;
+            break;
+        case Fuego::Graphics::GrayAlpha:
+            return 2;
+            break;
+        case Fuego::Graphics::RGB:
+            return 3;
+            break;
+        case Fuego::Graphics::RGBA:
+            return 4;
+            break;
+        default:
+            return 3;
+            break;
+        }
+    }
+
+private:
+    int width;
+    int height;
+    int bpp;
+    ImageFormat format;
+    unsigned char* data;
+    std::string name;
+};
+
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
 public:
