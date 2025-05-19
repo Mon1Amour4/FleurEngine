@@ -32,7 +32,6 @@ class Application::ApplicationImpl
     friend class Application;
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<EventQueue> m_EventQueue;
-    std::unique_ptr<Fuego::FS::FileSystem> _fs;
     std::unique_ptr<Fuego::Time> _time_manager;
 
     bool initialized = false;
@@ -162,7 +161,6 @@ Window& Application::GetWindow()
 
 void Application::Init()
 {
-    d->_fs = std::make_unique<FS::FileSystem>();
     d->m_EventQueue = EventQueue::CreateEventQueue();
     d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
     d->_time_manager = Time::CreateTimeManager(0.025f);
