@@ -4,8 +4,9 @@
 
 namespace Fuego::Graphics
 {
-TextureOpenGL::TextureOpenGL(unsigned char* buffer, int width, int heigth)
-    : texture_unit(0)
+TextureOpenGL::TextureOpenGL(std::string_view name, unsigned char* buffer, int width, int height)
+    : Texture(name, width, height)
+    , texture_unit(0)
     , texture_id(0)
 {
     FU_CORE_ASSERT(buffer, "Texture buffer is empty");
@@ -13,7 +14,7 @@ TextureOpenGL::TextureOpenGL(unsigned char* buffer, int width, int heigth)
     glBindTexture(GL_TEXTURE_2D, 0);
     glGenTextures(1, &texture_id);
     glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, heigth, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, buffer);
 
     glGenerateMipmap(GL_TEXTURE_2D);
 

@@ -28,7 +28,7 @@ private:
     uint32_t texture_id;
     friend class DeviceOpenGL;
 
-    TextureOpenGL(unsigned char* buffer, int width, int heigth);
+    TextureOpenGL(std::string_view name, unsigned char* buffer, int width, int height);
 };
 
 class TextureViewOpenGL

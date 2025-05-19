@@ -45,6 +45,13 @@ public:
     virtual void Bind() const = 0;
     virtual void UnBind() const = 0;
 
+protected:
+    Texture(std::string_view name, int width, int height)
+        : name(name)
+        , width(width)
+        , height(height)
+    {
+    }
 private:
     unsigned char* data;
     std::string name;
