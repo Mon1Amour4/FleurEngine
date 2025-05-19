@@ -20,15 +20,9 @@ class Texture
 public:
     virtual ~Texture()
     {
-        delete data;
-        data = nullptr;
     }
 
     virtual TextureFormat GetTextureFormat() const = 0;
-    virtual inline const unsigned char* Data() const
-    {
-        return data;
-    }
     virtual inline std::string_view Name() const
     {
         return name;
@@ -52,8 +46,8 @@ protected:
         , height(height)
     {
     }
+
 private:
-    unsigned char* data;
     std::string name;
     int width;
     int height;
