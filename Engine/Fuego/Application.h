@@ -23,7 +23,6 @@ class Texture;
 }  // namespace Fuego::Graphics
 
 
-
 namespace Fuego
 {
 
@@ -56,16 +55,11 @@ public:
 
     Window& GetWindow();
 
-    bool IsTextureLoaded(std::string_view) const;
-    bool AddTexture(std::string_view);
-    const Fuego::Graphics::Texture* GetLoadedTexture(std::string_view name) const;
-
     void SetVSync(bool active) const;
     bool IsVSync() const;
 
 protected:
     Application();
     virtual ~Application() override;
-    Graphics::Model* LoadModel(std::string_view path);
 };
 }  // namespace Fuego
