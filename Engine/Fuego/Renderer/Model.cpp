@@ -10,11 +10,13 @@
 #include "fstream"
 
 Fuego::Graphics::Model::Model(const aiScene* scene)
-    : name(scene->mRootNode->mName.C_Str())
+    : name(std::filesystem::path(scene->mRootNode->mName.C_Str()).stem().string())
     , mesh_count(scene->mNumMeshes)
     , vertex_count(0)
     , indices_count(0)
 {
+    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
     meshes.reserve(scene->mNumMeshes);
     for (size_t i = 0; i < scene->mNumMeshes; i++)
     {
@@ -23,11 +25,8 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
         Fuego::Graphics::Model::Mesh* mesh = meshes.back().get();
         vertex_count += mesh->GetVertexCount();
         indices_count += mesh->GetIndicesCount();
-        if (!Application::instance().IsTextureLoaded(mesh->GetTextureName()))
-        {
-            Application::instance().AddTexture(mesh->GetTextureName());
-        }
-        mesh->SetMaterial(Material::CreateMaterial(Application::instance().GetLoadedTexture(mesh->GetTextureName())));
+        auto texture = renderer->CreateTexture(*assets_manager->Load<Image2D>(mesh->GetTextureName()));
+        mesh->SetMaterial(Material::CreateMaterial(texture));
     }
 }
 

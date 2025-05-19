@@ -51,6 +51,28 @@ void Renderer::OnShutdown()
     opaque_shader.reset();
 }
 
+const Texture* Renderer::CreateTexture(const Image2D& img)
+{
+    auto it = textures.find(img.Name().data());
+    if (it != textures.end())
+        return it->second.get();
+
+    auto tex = _device->CreateTexture(img.Name(), img.Data(), img.Width(), img.Height());
+    auto emplaced_text = textures.emplace(img.Name(), std::move(tex)).first->second.get();
+    FU_CORE_INFO("[Renderer] Texture[{0}] was added: name: {1}, width: {2}, height: {3}", textures.size(), emplaced_text->Name(), emplaced_text->Width(), emplaced_text->Height());
+    return emplaced_text;
+}
+const Texture* Renderer::GetLoadedTexture(std::string_view name) const
+{
+    if (name.empty())
+        return textures.find("fallback")->second.get();
+
+    auto it = textures.find(name.data());
+    if (it != textures.end())
+        return it->second.get();
+    else
+        return textures.find("fallback")->second.get();
+}
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();
@@ -128,11 +150,6 @@ void Renderer::SetVSync(bool active)
 bool Renderer::IsVSync()
 {
     return is_vsync;
-}
-
-std::unique_ptr<Texture> Renderer::CreateTexture(unsigned char* buffer, int width, int height) const
-{
-    return _device->CreateTexture(buffer, width, height);
 }
 
 void Renderer::OnUpdate(float dlTime)

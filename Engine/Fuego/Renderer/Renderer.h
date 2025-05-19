@@ -152,14 +152,23 @@ public:
         SPECULAR = 2
     };
 
+
     friend struct Service<Renderer>;
     Renderer();
     ~Renderer() = default;
 
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
+
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
+
+    const Texture* CreateTexture(const Image2D& img);
+    const Texture* GetLoadedTexture(std::string_view name) const;
+
     // IRenderer;
     void DrawModel(const Model* model, glm::mat4 model_pos);
     void ChangeViewport(float x, float y, float w, float h);
-    std::unique_ptr<Texture> CreateTexture(unsigned char* buffer, int width, int height) const;
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -180,11 +189,6 @@ public:
     void SetVSync(bool active);
     bool IsVSync();
 
-    Renderer(const Renderer&) = delete;
-    Renderer& operator=(const Renderer&) = delete;
-
-    Renderer(Renderer&&) noexcept = default;
-    Renderer& operator=(Renderer&&) noexcept = default;
 
     static uint32_t MAX_TEXTURES_COUNT;
 
@@ -196,7 +200,6 @@ public:
     {
         current_shader_obj = obj;
     }
-
 
     std::unique_ptr<ShaderObject> opaque_shader;
 
@@ -217,6 +220,8 @@ private:
     Viewport viewport;
 
     bool is_vsync;
+
+    std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
 
     // Service
 protected:
