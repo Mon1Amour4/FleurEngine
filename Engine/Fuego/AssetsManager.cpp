@@ -45,6 +45,35 @@ std::shared_ptr<Fuego::Graphics::Model> Fuego::AssetsManager::load_model(std::st
     FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), model->GetName());
     return model;
 }
+
+void Fuego::AssetsManager::load_model_async(std::string_view path)
+{
+    std::string file_name = std::filesystem::path(path.data()).filename().replace_extension().string();
+    auto it = models.find(file_name);
+    if (it != models.end())
+        return;
+
+    auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
+
+    Assimp::Importer importer{};
+    void* data = nullptr;
+
+    thread_pool->Submit(
+        [this](std::string_view path)
+        {
+            Assimp::Importer importer{};
+            const aiScene* scene =
+                importer.ReadFile(ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
+            if (scene)
+            {
+                std::string file_name = std::filesystem::path(path.data()).filename().replace_extension().string();
+                std::lock_guard lock(models_async_operations);
+                auto model = models.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Model>(scene)).first->second;
+                ++models_count;
+            }
+        },
+        path);
+}
 std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d(std::string_view path, Fuego::Graphics::ImageFormat format)
 {
     if (path.empty())

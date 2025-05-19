@@ -131,6 +131,8 @@ private:
     uint32_t models_count;
     uint32_t images2d_count;
 
+    std::mutex models_async_operations;
+    std::mutex images2d_async_operations;
 };
 
 
