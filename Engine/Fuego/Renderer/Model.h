@@ -60,13 +60,8 @@ public:
     class FUEGO_API Mesh
     {
     public:
-        Mesh(aiMesh* mesh, aiMaterial* material, uint16_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        Mesh(aiMesh* mesh, const Material* material, uint16_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
-
-        inline std::string_view GetTextureName() const
-        {
-            return texture;
-        }
 
         inline uint16_t GetVertexCount() const
         {
@@ -104,19 +99,19 @@ public:
             return indices_count * sizeof(uint32_t);
         }
 
-        inline void SetMaterial(Material* material)
+        inline void SetMaterial(const Material* material)
         {
-            this->material.reset(material);
+            this->material = material;
         }
-
-        inline Material* GetMaterial() const
+        inline const Material* GetMaterial() const
         {
-            return material.get();
+            return material;
         }
 
     private:
         std::string mesh_name;
-        std::unique_ptr<Material> material;
+
+        const Material* material;
 
         uint32_t vertex_start;
         uint32_t vertex_end;
