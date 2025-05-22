@@ -33,66 +33,39 @@ struct VertexData
 };
 #pragma pack(pop)
 
-enum ImageFormat
-{
-    Grayscale = 0,
-    GrayAlpha = 1,
-    RGB = 2,
-    RGBA = 3
-};
-
 class Image2D
 {
 public:
-    Image2D(std::string name, unsigned char* data, int w, int h, int bpp, ImageFormat format)
+    Image2D(std::string name, unsigned char* data, int w, int h, int bpp, uint16_t channels)
         : name(name)
         , data(data)
         , width(w)
         , height(h)
         , bpp(bpp)
-        , format(format)
+        , channels(channels)
     {
+        FU_CORE_ASSERT(bpp > 0 && channels > 0, "Invalid Image data");
     }
     ~Image2D()
     {
         delete data;
     }
 
-    inline int Width() const
+    inline uint32_t Width() const
     {
         return width;
     }
-    inline int Height() const
+    inline uint32_t Height() const
     {
         return height;
     }
-    inline int BBP() const
+    inline uint16_t BBP() const
     {
         return bpp;
     }
-    inline int Format() const
+    inline uint16_t Channels() const
     {
-        return format;
-    }
-    inline std::string PrintFormat() const
-    {
-        switch (format)
-        {
-        case Fuego::Graphics::Grayscale:
-            return std::string("Grayscale");
-            break;
-        case Fuego::Graphics::GrayAlpha:
-            return std::string("GrayAlpha");
-            break;
-        case Fuego::Graphics::RGB:
-            return std::string("RGB");
-            break;
-        case Fuego::Graphics::RGBA:
-            return std::string("RGBA");
-            break;
-        default:
-            break;
-        }
+        return channels;
     }
     unsigned char* Data() const
     {
@@ -103,33 +76,11 @@ public:
         return name;
     }
 
-    static int Channels(ImageFormat format)
-    {
-        switch (format)
-        {
-        case Fuego::Graphics::Grayscale:
-            return 1;
-            break;
-        case Fuego::Graphics::GrayAlpha:
-            return 2;
-            break;
-        case Fuego::Graphics::RGB:
-            return 3;
-            break;
-        case Fuego::Graphics::RGBA:
-            return 4;
-            break;
-        default:
-            return 3;
-            break;
-        }
-    }
-
 private:
-    int width;
-    int height;
-    int bpp;
-    ImageFormat format;
+    uint32_t width;
+    uint32_t height;
+    uint16_t bpp;
+    uint16_t channels;
     unsigned char* data;
     std::string name;
 };

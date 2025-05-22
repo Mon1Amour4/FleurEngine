@@ -39,9 +39,28 @@ public:
     virtual void Bind() const = 0;
     virtual void UnBind() const = 0;
 
+    static TextureFormat GetTextureFormat(uint16_t channels, uint16_t bpp)
+    {
+        if (channels == 3)
+        {
+            if (bpp <= 8)
+                return TextureFormat::RGB8;
+            else if (bpp == 16)
+                return TextureFormat::RGBA16F;
+        }
+        else if (channels == 4)
+        {
+            if (bpp <= 8)
+                return TextureFormat::RGBA8;
+            else if (bpp == 16)
+                return TextureFormat::RGBA16F;
+        }
+    }
+
 protected:
-    Texture(std::string_view name, int width, int height)
+    Texture(std::string_view name, TextureFormat format, int width, int height)
         : name(name)
+        , format(format)
         , width(width)
         , height(height)
     {
@@ -51,6 +70,7 @@ private:
     std::string name;
     int width;
     int height;
+    TextureFormat format;
 };  // namespace Fuego::Graphics
 
 class TextureView
