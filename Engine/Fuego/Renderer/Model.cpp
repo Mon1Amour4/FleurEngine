@@ -58,7 +58,7 @@ Fuego::Graphics::Model& Fuego::Graphics::Model::operator=(Model&& other) noexcep
     return *this;
 }
 
-Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, aiMaterial* material, uint16_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
+Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
                                    std::vector<uint32_t>& indices)
     : mesh_name(mesh->mName.C_Str())
     , vertex_count(mesh->mNumVertices)

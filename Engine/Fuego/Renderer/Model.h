@@ -25,27 +25,6 @@ public:
     {
         return name;
     }
-    inline uint16_t GetMeshCount() const
-    {
-        return mesh_count;
-    }
-    inline uint16_t GetVertexCount() const
-    {
-        return vertex_count;
-    }
-    inline uint16_t GetIndicesCount() const
-    {
-        return indices_count;
-    }
-
-    inline const VertexData* GetVerticesData() const
-    {
-        return vertices.data();
-    }
-    inline const uint32_t* GetIndicesData() const
-    {
-        return indices.data();
-    }
 
 
 private:
@@ -60,14 +39,14 @@ public:
     class FUEGO_API Mesh
     {
     public:
-        Mesh(aiMesh* mesh, const Material* material, uint16_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
 
-        inline uint16_t GetVertexCount() const
+        inline uint32_t GetVertexCount() const
         {
             return vertex_count;
         }
-        inline uint16_t GetIndicesCount() const
+        inline uint32_t GetIndicesCount() const
         {
             return indices_count;
         }
@@ -119,16 +98,34 @@ public:
         uint32_t index_start;
         uint32_t index_end;
 
-        uint16_t vertex_count;
-        uint16_t indices_count;
-
-        std::string texture;
+        uint32_t vertex_count;
+        uint32_t indices_count;
     };
 
 private:
     std::vector<std::unique_ptr<Model::Mesh>> meshes;
 
 public:
+    inline uint32_t GetMeshCount() const
+    {
+        return mesh_count;
+    }
+    inline uint32_t GetVertexCount() const
+    {
+        return vertex_count;
+    }
+    inline uint32_t GetIndicesCount() const
+    {
+        return indices_count;
+    }
+    inline const VertexData* GetVerticesData() const
+    {
+        return vertices.data();
+    }
+    inline const uint32_t* GetIndicesData() const
+    {
+        return indices.data();
+    }
     const std::vector<std::unique_ptr<Fuego::Graphics::Model::Mesh>>* GetMeshesPtr() const
     {
         return &meshes;
