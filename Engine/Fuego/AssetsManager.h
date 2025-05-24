@@ -24,8 +24,8 @@ public:
     AssetsManager();
     ~AssetsManager();
 
-    template <class Res, typename... Args>
-    std::shared_ptr<Res> Load(std::string_view path, Args... args)
+    template <class Res>
+    std::shared_ptr<Res> Load(std::string_view path)
     {
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
@@ -35,13 +35,7 @@ public:
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            auto format = Fuego::Graphics::ImageFormat::RGB;
-            if constexpr (sizeof...(Args) >= 1)
-            {
-                std::tuple<Args...> tuple(std::forward<Args>(args)...);
-                format = std::get<0>(tuple);
-            }
-            auto img = load_image2d(path, format);
+            auto img = load_image2d(path);
             FU_CORE_ASSERT(img, "[Assets manager] cannot load image2d");
             return img;
         }
@@ -51,12 +45,17 @@ public:
         }
     }
 
-    template <class Res, typename... Args>
-    void LoadAsync(std::string_view path, Args... args)
+    std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels);
+
+    std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp,
+                                                                     uint32_t width, uint32_t height);
+
+    template <class Res>
+    void LoadAsync(std::string_view path)
     {
-        if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
+        if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            load_model_async(path);
+            load_image2d_async(path);
         }
     }
 
@@ -126,13 +125,16 @@ private:
 
     std::shared_ptr<Fuego::Graphics::Model> load_model(std::string_view path);
     void load_model_async(std::string_view path);
-    std::shared_ptr<Fuego::Graphics::Image2D> load_image2d(std::string_view path, Fuego::Graphics::ImageFormat format);
+    std::shared_ptr<Fuego::Graphics::Image2D> load_image2d(std::string_view path);
+    void load_image2d_async(std::string_view path);
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
 
     std::mutex models_async_operations;
     std::mutex images2d_async_operations;
+
+    uint16_t ImageChannels(std::string_view image2d_ext);
 };
 
 
