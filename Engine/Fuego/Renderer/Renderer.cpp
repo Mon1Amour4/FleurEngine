@@ -98,13 +98,15 @@ void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
     cmd->BindVertexBuffer(*buffer, layout);
 
     const auto* meshes = model->GetMeshesPtr();
+
     for (const auto& mesh : *meshes)
     {
+        cmd->PushDebugGroup(0, mesh->Name().data());
         current_shader_obj->BindMaterial(mesh->GetMaterial());
-
         cmd->IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
         cmd->EndRecording();
         cmd->Submit();
+        cmd->PopDebugGroup();
     }
 }
 
