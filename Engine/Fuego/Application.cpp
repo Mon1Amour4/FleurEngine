@@ -141,6 +141,7 @@ Window& Application::GetWindow()
     return *m_Window;
 }
 
+template <class T>
 void Application::Init(ApplicationBootSettings& settings)
 {
     renderer = settings.renderer;
@@ -173,6 +174,8 @@ void Application::Init(ApplicationBootSettings& settings)
     initialized = true;
     m_Running = true;
 }
+
+template FUEGO_API void Application::Init<int>(ApplicationBootSettings&);
 
 void Application::SetVSync(bool active) const
 {

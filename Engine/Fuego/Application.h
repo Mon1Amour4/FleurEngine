@@ -47,8 +47,9 @@ public:
         float fixed_dt = 0.025f;
     };
 
+    template <class T>
+    FUEGO_API void Init(ApplicationBootSettings& settings);
 
-    void Init(ApplicationBootSettings& settings);
     void Run();
 
     void PushLayer(Layer* layer);
