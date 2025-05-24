@@ -25,6 +25,7 @@ class Application::ApplicationImpl
     std::unique_ptr<EventQueue> m_EventQueue;
     std::unique_ptr<Fuego::Time> _time_manager;
 
+    RendererType renderer;
     bool initialized = false;
     bool m_Running;
     LayerStack m_LayerStack;
@@ -155,17 +156,19 @@ Window& Application::GetWindow()
     return *d->m_Window;
 }
 
-void Application::Init()
+void Application::Init(ApplicationBootSettings& settings)
 {
+    d->renderer = settings.renderer;
     d->m_EventQueue = EventQueue::CreateEventQueue();
-    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
-    d->_time_manager = Time::CreateTimeManager(0.025f);
+    d->m_Window = Window::CreateAppWindow(settings.window_props, *d->m_EventQueue);
+    d->_time_manager = Time::CreateTimeManager(settings.fixed_dt);
 
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
 
     auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
     renderer.value()->Init();
+    SetVSync(settings.vsync);
 
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();
@@ -202,7 +205,8 @@ void Application::Run()
 {
     if (!d->initialized)
     {
-        Init();
+        Application::ApplicationBootSettings settings{};
+        Init(settings);
     }
 
     while (d->m_Running)

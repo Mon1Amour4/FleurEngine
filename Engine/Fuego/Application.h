@@ -33,7 +33,22 @@ class FUEGO_API Application : public singleton<Application>
     FUEGO_INTERFACE(Application)
 
 public:
-    void Init();
+    enum class RendererType
+    {
+        OpenGL = 0,
+        Vulkan = 1,
+    };
+
+    struct ApplicationBootSettings
+    {
+        RendererType renderer = RendererType::OpenGL;
+        bool vsync = false;
+        WindowProps window_props = WindowProps{};
+        float fixed_dt = 0.025f;
+    };
+
+
+    void Init(ApplicationBootSettings& settings);
     void Run();
 
     void PushLayer(Layer* layer);
