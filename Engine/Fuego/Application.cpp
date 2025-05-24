@@ -2,9 +2,7 @@
 
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
-#include "FuTime.h"
 #include "KeyCodes.h"
-#include "LayerStack.h"
 #include "Renderer.h"
 #include "Scene.h"
 #include "ThreadPool.h"
@@ -18,37 +16,24 @@ Application& singleton<Application>::instance()
     return inst;
 }
 
-class Application::ApplicationImpl
-{
-    friend class Application;
-    std::unique_ptr<Window> m_Window;
-    std::unique_ptr<EventQueue> m_EventQueue;
-    std::unique_ptr<Fuego::Time> _time_manager;
-
-    RendererType renderer;
-    bool initialized = false;
-    bool m_Running;
-    LayerStack m_LayerStack;
-};
-
 Application::Application()
-    : d(new ApplicationImpl())
+    : initialized(false)
+    , m_Running(false)
 {
 }
 
 Application::~Application()
 {
-    delete d;
 }
 
 void Application::PushLayer(Layer* layer)
 {
-    d->m_LayerStack.PushLayer(layer);
+    m_LayerStack.PushLayer(layer);
     layer->OnAttach();
 }
 void Application::PushOverlay(Layer* overlay)
 {
-    d->m_LayerStack.PushOverlay(overlay);
+    m_LayerStack.PushOverlay(overlay);
 }
 
 void Application::OnEvent(EventVariant& event)
@@ -66,7 +51,7 @@ void Application::OnEvent(EventVariant& event)
 
     std::visit(ApplicationEventVisitor, event);
 
-    for (auto it = d->m_LayerStack.end(); it != d->m_LayerStack.begin();)
+    for (auto it = m_LayerStack.end(); it != m_LayerStack.begin();)
     {
         (*--it)->OnEvent(event);
 
@@ -79,7 +64,7 @@ void Application::OnEvent(EventVariant& event)
 
 bool Application::OnWindowClose(WindowCloseEvent& event)
 {
-    d->m_Running = false;
+    m_Running = false;
     event.SetHandled();
     return true;
 }
@@ -102,7 +87,7 @@ bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 bool Application::OnValidateWindow(WindowValidateEvent& event)
 {
     ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ValidateWindow();
-    d->m_Window->SetPainted();
+    m_Window->SetPainted();
     event.SetHandled();
     return true;
 }
@@ -116,7 +101,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
         ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ToggleWireFrame();
         break;
     case Key::D2:
-        d->m_Window->SwitchInteractionMode();
+        m_Window->SwitchInteractionMode();
         break;
     }
     event.SetHandled();
@@ -153,15 +138,15 @@ bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
 
 Window& Application::GetWindow()
 {
-    return *d->m_Window;
+    return *m_Window;
 }
 
 void Application::Init(ApplicationBootSettings& settings)
 {
-    d->renderer = settings.renderer;
-    d->m_EventQueue = EventQueue::CreateEventQueue();
-    d->m_Window = Window::CreateAppWindow(settings.window_props, *d->m_EventQueue);
-    d->_time_manager = Time::CreateTimeManager(settings.fixed_dt);
+    renderer = settings.renderer;
+    m_EventQueue = EventQueue::CreateEventQueue();
+    m_Window = Window::CreateAppWindow(settings.window_props, *m_EventQueue);
+    _time_manager = Time::CreateTimeManager(settings.fixed_dt);
 
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
@@ -185,8 +170,8 @@ void Application::Init(ApplicationBootSettings& settings)
 
     // assets_manager.value()->Unload<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
 
-    d->initialized = true;
-    d->m_Running = true;
+    initialized = true;
+    m_Running = true;
 }
 
 void Application::SetVSync(bool active) const
@@ -203,40 +188,40 @@ bool Application::IsVSync() const
 
 void Application::Run()
 {
-    if (!d->initialized)
+    if (!initialized)
     {
         Application::ApplicationBootSettings settings{};
         Init(settings);
     }
 
-    while (d->m_Running)
+    while (m_Running)
     {
         auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
 
-        d->_time_manager->Tick();
+        _time_manager->Tick();
 
         char buffer[32];
-        sprintf(buffer, "%d", d->_time_manager->FPS());
-        d->m_Window->SetTitle(buffer);
+        sprintf(buffer, "%d", _time_manager->FPS());
+        m_Window->SetTitle(buffer);
 
-        float dtTime = d->_time_manager->DeltaTime();
+        float dtTime = _time_manager->DeltaTime();
 
 
         renderer->Clear();
-        d->m_EventQueue->OnUpdate(dtTime);
-        d->m_Window->OnUpdate(dtTime);
+        m_EventQueue->OnUpdate(dtTime);
+        m_Window->OnUpdate(dtTime);
         Fuego::Graphics::Camera::GetActiveCamera()->OnUpdate(dtTime);
 
-        for (auto layer : d->m_LayerStack)
+        for (auto layer : m_LayerStack)
         {
             layer->OnUpdate(dtTime);
         }
 
-        while (!d->m_EventQueue->Empty())
+        while (!m_EventQueue->Empty())
         {
-            auto ev = d->m_EventQueue->Front();
+            auto ev = m_EventQueue->Front();
             OnEvent(*ev);
-            d->m_EventQueue->Pop();
+            m_EventQueue->Pop();
         }
 
         renderer->OnUpdate(dtTime);

@@ -4,7 +4,9 @@
 #include "Events/ApplicationEvent.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
+#include "FuTime.h"
 #include "Layer.h"
+#include "LayerStack.h"
 #include "Services/ServiceLocator.h"
 #include "Window.h"
 #include "singleton.hpp"
@@ -29,8 +31,6 @@ namespace Fuego
 class FUEGO_API Application : public singleton<Application>
 {
     friend class singleton<Application>;
-
-    FUEGO_INTERFACE(Application)
 
 public:
     enum class RendererType
@@ -74,6 +74,15 @@ public:
     bool IsVSync() const;
 
 protected:
+    std::unique_ptr<Window> m_Window;
+    std::unique_ptr<EventQueue> m_EventQueue;
+    std::unique_ptr<Time> _time_manager;
+
+    RendererType renderer;
+    bool initialized;
+    bool m_Running;
+    LayerStack m_LayerStack;
+
     Application();
     virtual ~Application() override;
 };
