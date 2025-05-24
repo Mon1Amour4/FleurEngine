@@ -19,9 +19,9 @@ int APIENTRY FuegoMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     settings.renderer = Fuego::Application::RendererType::OpenGL;
     settings.vsync = false;
     settings.fixed_dt = 0.025f;
-    settings.window_props.x = 5;
-    settings.window_props.y = 5;
-    settings.window_props.CanFullscreen = true;
+    settings.window_props.x = 100;
+    settings.window_props.y = 100;
+    settings.window_props.CanFullscreen = false;
 
     Fuego::Application::instance().Init(settings);
     Fuego::Application::instance().Run();
