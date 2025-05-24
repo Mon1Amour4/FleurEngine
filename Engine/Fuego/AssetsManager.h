@@ -128,8 +128,8 @@ private:
     void load_model_async(std::string_view path);
     std::shared_ptr<Fuego::Graphics::Image2D> load_image2d(std::string_view path, Fuego::Graphics::ImageFormat format);
 
-    uint32_t models_count;
-    uint32_t images2d_count;
+    std::atomic<uint32_t> models_count;
+    std::atomic<uint32_t> images2d_count;
 
     std::mutex models_async_operations;
     std::mutex images2d_async_operations;
