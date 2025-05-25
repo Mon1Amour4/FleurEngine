@@ -16,7 +16,7 @@ int APIENTRY FuegoMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     Fuego::Log::Init();
 
     Fuego::Application::ApplicationBootSettings settings{};
-    settings.renderer = Fuego::Application::RendererType::OpenGL;
+    settings.renderer = Fuego::Graphics::GraphicsAPI::OpenGL;
     settings.vsync = false;
     settings.fixed_dt = 0.025f;
     settings.window_props.x = 100;

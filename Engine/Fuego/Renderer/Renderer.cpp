@@ -11,7 +11,7 @@ ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer(GraphicsAPI api)
+Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer toolchain)
     : show_wireframe(false)
     , _camera(nullptr)
     , current_shader_obj(nullptr)
