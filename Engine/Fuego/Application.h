@@ -5,6 +5,7 @@
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "FuTime.h"
+#include "Graphics.hpp"
 #include "Layer.h"
 #include "LayerStack.h"
 #include "Services/ServiceLocator.h"
@@ -33,22 +34,15 @@ class FUEGO_API Application : public singleton<Application>
     friend class singleton<Application>;
 
 public:
-    enum class RendererType
-    {
-        OpenGL = 0,
-        Vulkan = 1,
-    };
-
     struct ApplicationBootSettings
     {
-        RendererType renderer = RendererType::OpenGL;
+        Fuego::Graphics::GraphicsAPI renderer = Fuego::Graphics::GraphicsAPI::OpenGL;
         bool vsync = false;
         WindowProps window_props = WindowProps{};
         float fixed_dt = 0.025f;
     };
 
-    template <class T>
-    FUEGO_API void Init(ApplicationBootSettings& settings);
+    void Init(ApplicationBootSettings& settings);
 
     void Run();
 
@@ -79,7 +73,6 @@ protected:
     std::unique_ptr<EventQueue> m_EventQueue;
     std::unique_ptr<Time> _time_manager;
 
-    RendererType renderer;
     bool initialized;
     bool m_Running;
     LayerStack m_LayerStack;

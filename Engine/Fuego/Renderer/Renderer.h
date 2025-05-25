@@ -7,6 +7,7 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Graphics.hpp"
 #include "Material.h"
 #include "Model.h"
 #include "Services/ServiceInterfaces.hpp"
@@ -21,17 +22,6 @@
 
 namespace Fuego::Graphics
 {
-
-#pragma pack(push, 1)
-struct VertexData
-{
-    glm::vec3 pos;
-    glm::vec2 textcoord;
-    glm::vec3 normal;
-
-    VertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
-};
-#pragma pack(pop)
 
 class Image2D
 {
@@ -88,24 +78,9 @@ private:
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
 public:
-    struct Viewport
-    {
-        float width = 0.0f;
-        float height = 0.0f;
-        float x = 0.0f;
-        float y = 0.0f;
-    };
-
-    enum TextureType
-    {
-        ALBEDO = 0,
-        DIFFUSE = 1,
-        SPECULAR = 2
-    };
-
-
     friend struct Service<Renderer>;
-    Renderer();
+
+    Renderer(GraphicsAPI api);
     ~Renderer() = default;
 
     Renderer(const Renderer&) = delete;
@@ -140,7 +115,6 @@ public:
     void SetVSync(bool active);
     bool IsVSync();
 
-
     static uint32_t MAX_TEXTURES_COUNT;
 
     inline const ShaderObject* CurrentShaderObject() const
@@ -173,7 +147,7 @@ private:
     bool is_vsync;
 
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
-
+    GraphicsAPI renderer;
     // Service
 protected:
     void OnInit();

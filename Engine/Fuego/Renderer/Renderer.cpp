@@ -9,11 +9,12 @@ ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer()
+Renderer::Renderer(GraphicsAPI api)
     : show_wireframe(false)
     , _camera(nullptr)
     , current_shader_obj(nullptr)
     , is_vsync(true)
+    , renderer(api)
 {
 }
 
