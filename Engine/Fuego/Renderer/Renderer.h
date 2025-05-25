@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Application.h"
+#include "ApplicationPipeline.hpp"
 #include "Buffer.h"
 #include "Camera.h"
 #include "CommandBuffer.h"
@@ -80,7 +81,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 public:
     friend struct Service<Renderer>;
 
-    Renderer(GraphicsAPI api);
+    Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer toolchain);
     ~Renderer() = default;
 
     Renderer(const Renderer&) = delete;
@@ -148,6 +149,10 @@ private:
 
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
     GraphicsAPI renderer;
+    Fuego::Pipeline::Toolchain::renderer toolchain;
+    std::queue<const Fuego::Graphics::Image2D*>* images;
+
+    void post_create_texture();
     // Service
 protected:
     void OnInit();

@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include "ApplicationPipeline.hpp"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
@@ -152,9 +153,14 @@ void Application::Init(ApplicationBootSettings& settings)
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
 
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
+    Fuego::Pipeline::Toolchain toolchain{};
+    toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
+    toolchain._assets_manager.post_load = Fuego::Pipeline::PostLoadPipeline::post_load;
+    Fuego::Pipeline::PostLoadPipeline::images_ptr = &toolchain._renderer.images;
+
+    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
-    SetVSync(settings.vsync);
+    renderer.value()->SetVSync(settings.vsync);
 
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();

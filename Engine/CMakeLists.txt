@@ -54,7 +54,8 @@ set(SOURCES
     Fuego/Scene.cpp
     Fuego/Services/ServiceLocator.cpp
     Fuego/ThreadPool.cpp
-    Fuego/AssetsManager.cpp)
+    Fuego/AssetsManager.cpp
+    Fuego/ApplicationPipeline.hpp)
 
 set(RENDERER_PATH ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer)
 
