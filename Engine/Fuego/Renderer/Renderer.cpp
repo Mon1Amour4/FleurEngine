@@ -2,6 +2,8 @@
 
 #include <span>
 
+std::queue<const Fuego::Graphics::Image2D*>* Fuego::Pipeline::PostLoadPipeline::images_ptr = nullptr;
+
 namespace Fuego::Graphics
 {
 
@@ -15,7 +17,20 @@ Renderer::Renderer(GraphicsAPI api)
     , current_shader_obj(nullptr)
     , is_vsync(true)
     , renderer(api)
+    , toolchain(toolchain)
 {
+}
+
+void Renderer::post_create_texture()
+{
+    while (!toolchain.images.empty())
+    {
+        auto img = toolchain.images.front();
+        auto tex = _device->CreateTexture(img->Name(), Texture::GetTextureFormat(img->Channels(), img->BBP()), img->Data(), img->Width(), img->Height());
+        auto emplaced_text = textures.emplace(img->Name(), std::move(tex)).first->second.get();
+        FU_CORE_INFO("[Renderer] Texture[{0}] was added: name: {1}, width: {2}, height: {3}", textures.size(), emplaced_text->Name(), emplaced_text->Width(),
+                     emplaced_text->Height());
+    }
 }
 
 void Renderer::OnInit()
@@ -58,11 +73,7 @@ const Texture* Renderer::CreateTexture(const Image2D& img)
     if (it != textures.end())
         return it->second.get();
 
-    auto tex = _device->CreateTexture(img.Name(), Texture::GetTextureFormat(img.Channels(), img.BBP()), img.Data(), img.Width(), img.Height());
-    auto emplaced_text = textures.emplace(img.Name(), std::move(tex)).first->second.get();
-    FU_CORE_INFO("[Renderer] Texture[{0}] was added: name: {1}, width: {2}, height: {3}", textures.size(), emplaced_text->Name(), emplaced_text->Width(),
-                 emplaced_text->Height());
-    return emplaced_text;
+    toolchain.load_texture(img);
 }
 const Texture* Renderer::GetLoadedTexture(std::string_view name) const
 {
@@ -158,7 +169,7 @@ bool Renderer::IsVSync()
 
 void Renderer::OnUpdate(float dlTime)
 {
-    // TODO
+    post_create_texture();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
