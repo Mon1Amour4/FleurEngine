@@ -12,12 +12,6 @@
 #include "Window.h"
 #include "singleton.hpp"
 
-
-namespace Fuego::FS
-{
-class FileSystem;
-}
-
 namespace Fuego::Graphics
 {
 class Renderer;

@@ -10,7 +10,7 @@
 
 namespace Fuego
 {
-
+template <>
 Application& singleton<Application>::instance()
 {
     static Application inst;
@@ -142,10 +142,8 @@ Window& Application::GetWindow()
     return *m_Window;
 }
 
-template <class T>
 void Application::Init(ApplicationBootSettings& settings)
 {
-    renderer = settings.renderer;
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.window_props, *m_EventQueue);
     _time_manager = Time::CreateTimeManager(settings.fixed_dt);
@@ -181,18 +179,16 @@ void Application::Init(ApplicationBootSettings& settings)
     m_Running = true;
 }
 
-template FUEGO_API void Application::Init<int>(ApplicationBootSettings&);
-
 void Application::SetVSync(bool active) const
 {
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
-    renderer.value()->SetVSync(active);
+    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    renderer->SetVSync(active);
 }
 
 bool Application::IsVSync() const
 {
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
-    return renderer.value()->IsVSync();
+    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    return renderer->IsVSync();
 }
 
 void Application::Run()
