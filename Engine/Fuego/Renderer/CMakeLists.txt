@@ -32,6 +32,7 @@ set(PROJECT_HEADERS
     ShaderObject.h
     VertexLayout.h
     Graphics.hpp
+    Image2D.h
 )
 
 set(PROJECT_SOURCES
@@ -39,6 +40,7 @@ set(PROJECT_SOURCES
     Model.cpp
     Camera.cpp
     VertexLayout.cpp
+    Image2D.cpp
 )
 
 if(FUEGO_PLATFORM_WIN)
