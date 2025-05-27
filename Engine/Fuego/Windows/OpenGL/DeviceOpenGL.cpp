@@ -195,12 +195,12 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height)
+std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
 {
     return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name, format, buffer, width, height));
 }
 
-std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name)
+std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
 {
     return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name));
 }
