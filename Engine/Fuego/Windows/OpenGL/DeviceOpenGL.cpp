@@ -200,6 +200,11 @@ std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, Text
     return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name, format, buffer, width, height));
 }
 
+std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name)
+{
+    return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name));
+}
+
 void DeviceOpenGL::SetVSync(bool active) const
 {
     wglSwapIntervalEXT(active);

@@ -27,6 +27,40 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     glBindTexture(GL_TEXTURE_2D, 0);
+
+    is_created = true;
+}
+
+void TextureOpenGL::PostCreate(const Fuego::Graphics::Image2D& img)
+{
+    FU_CORE_ASSERT(*img.Data() != '\n' || *img.Data() != ' ' || img.IsValid(), "[TextureOpenGL->PostCreate] broken image2d data");
+    Texture::PostCreate(img);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    glGenTextures(1, &texture_id);
+    FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
+
+    glBindTexture(GL_TEXTURE_2D, texture_id);
+    glTexImage2D(GL_TEXTURE_2D, 0, ColorFormat(format), width, height, 0, PixelFormat(format), GL_UNSIGNED_BYTE, img.Data());
+
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    // Configuration of minification/Magnification
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    is_created = true;
+}
+
+TextureOpenGL::TextureOpenGL(std::string_view name)
+    : Texture(name)
+    , texture_unit(0)
+    , texture_id(0)
+{
+    is_created = false;
 }
 
 uint32_t TextureOpenGL::ColorFormat(TextureFormat format)

@@ -7,8 +7,7 @@ namespace Fuego::Graphics
 class TextureOpenGL final : public Texture
 {
 public:
-    TextureOpenGL() = default;
-    ~TextureOpenGL();
+    virtual ~TextureOpenGL() override;
 
     virtual void Bind() const override;
     virtual void UnBind() const override;
@@ -30,9 +29,12 @@ private:
 
     uint16_t texture_unit;
     uint32_t texture_id;
-    friend class DeviceOpenGL;
 
+    friend class DeviceOpenGL;
+    TextureOpenGL(std::string_view name);
     TextureOpenGL(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height);
+
+    virtual void PostCreate(const Fuego::Graphics::Image2D& img) override;
 };
 
 class TextureViewOpenGL

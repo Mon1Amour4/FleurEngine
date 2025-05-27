@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <type_traits>
 
+#include "ApplicationPipeline.hpp"
 #include "Services/ServiceInterfaces.hpp"
 
 namespace Fuego::Graphics
@@ -21,8 +22,13 @@ class AssetsManager : public Service<AssetsManager>
 public:
     friend class Service<AssetsManager>;
 
-    AssetsManager();
+    AssetsManager(Fuego::Pipeline::Toolchain::assets_manager& toolchain);
     ~AssetsManager();
+
+    void Tick()
+    {
+        int a = 5;
+    }
 
     template <class Res>
     std::shared_ptr<Res> Load(std::string_view path)
@@ -51,11 +57,11 @@ public:
                                                                      uint32_t width, uint32_t height);
 
     template <class Res>
-    void LoadAsync(std::string_view path)
+    std::shared_ptr<Res> LoadAsync(std::string_view path)
     {
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            load_image2d_async(path);
+            return load_image2d_async(path);
         }
     }
 
@@ -126,7 +132,7 @@ private:
     std::shared_ptr<Fuego::Graphics::Model> load_model(std::string_view path);
     void load_model_async(std::string_view path);
     std::shared_ptr<Fuego::Graphics::Image2D> load_image2d(std::string_view path);
-    void load_image2d_async(std::string_view path);
+    std::shared_ptr<Fuego::Graphics::Image2D> load_image2d_async(std::string_view path);
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
@@ -135,6 +141,8 @@ private:
     std::mutex images2d_async_operations;
 
     uint16_t ImageChannels(std::string_view image2d_ext);
+
+    Fuego::Pipeline::Toolchain::assets_manager toolchain;
 };
 
 

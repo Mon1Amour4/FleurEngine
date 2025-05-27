@@ -128,6 +128,11 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     if (locked_model_2)
         renderer->DrawModel(locked_model_2.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
 
+    auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza.glb");
+    auto locked_model_3 = model_3.lock();
+    if (locked_model_3)
+        renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+
     UNUSED(event);
     return true;
 }
@@ -153,8 +158,9 @@ void Application::Init(ApplicationBootSettings& settings)
 
     Fuego::Pipeline::Toolchain toolchain{};
     toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
-    toolchain._assets_manager.post_load = Fuego::Pipeline::PostLoadPipeline::post_load;
-    Fuego::Pipeline::PostLoadPipeline::images_ptr = &toolchain._renderer.images;
+    toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
+    Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
+    toolchain._assets_manager.update = Fuego::Pipeline::PostLoadPipeline::assets_manager_update;
 
     auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
@@ -163,17 +169,13 @@ void Application::Init(ApplicationBootSettings& settings)
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();
 
-    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
-    auto fallback_img = assets_manager.value()->Load<Fuego::Graphics::Image2D>("fallback.png", Fuego::Graphics::ImageFormat::RGB);
-    renderer.value()->CreateTexture(*fallback_img);
-    std::chrono::steady_clock::time_point timer = std::chrono::steady_clock::now();
-    assets_manager.value()->LoadAsync<Fuego::Graphics::Model>("Shotgun/Shotgun.obj");
-    assets_manager.value()->LoadAsync<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
-    auto now = std::chrono::steady_clock::now();
-    auto res = now - timer;
-    FU_CORE_INFO("time: {0} ms", std::chrono::duration_cast<std::chrono::milliseconds>(res).count());
+    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    // assets_manager.value()->Unload<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
+    auto fallback_img = assets_manager.value()->LoadAsync<Fuego::Graphics::Image2D>("fallback.png");
+
+    renderer.value()->CreateTexture(*fallback_img);
+
+    assets_manager.value()->Load<Fuego::Graphics::Model>("Sponza/Sponza.glb");
 
     initialized = true;
     m_Running = true;
@@ -202,6 +204,7 @@ void Application::Run()
     while (m_Running)
     {
         auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+        auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
 
         _time_manager->Tick();
 
@@ -229,6 +232,7 @@ void Application::Run()
             m_EventQueue->Pop();
         }
 
+        assets_manager->Tick();
         renderer->OnUpdate(dtTime);
         renderer->Present();
     }

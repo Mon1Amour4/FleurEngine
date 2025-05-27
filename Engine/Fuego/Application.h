@@ -19,7 +19,6 @@ class Model;
 class Texture;
 }  // namespace Fuego::Graphics
 
-
 namespace Fuego
 {
 

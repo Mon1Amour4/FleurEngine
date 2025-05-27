@@ -2,7 +2,8 @@
 
 #include <span>
 
-std::queue<const Fuego::Graphics::Image2D*>* Fuego::Pipeline::PostLoadPipeline::images_ptr = nullptr;
+std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>>* Fuego::Pipeline::PostLoadPipeline::images_ptr = nullptr;
+std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>> Fuego::Pipeline::Toolchain::renderer::images;
 
 namespace Fuego::Graphics
 {
@@ -11,7 +12,7 @@ ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer toolchain)
+Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer& toolchain)
     : show_wireframe(false)
     , _camera(nullptr)
     , current_shader_obj(nullptr)
@@ -19,18 +20,6 @@ Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer toolcha
     , renderer(api)
     , toolchain(toolchain)
 {
-}
-
-void Renderer::post_create_texture()
-{
-    while (!toolchain.images.empty())
-    {
-        auto img = toolchain.images.front();
-        auto tex = _device->CreateTexture(img->Name(), Texture::GetTextureFormat(img->Channels(), img->BBP()), img->Data(), img->Width(), img->Height());
-        auto emplaced_text = textures.emplace(img->Name(), std::move(tex)).first->second.get();
-        FU_CORE_INFO("[Renderer] Texture[{0}] was added: name: {1}, width: {2}, height: {3}", textures.size(), emplaced_text->Name(), emplaced_text->Width(),
-                     emplaced_text->Height());
-    }
 }
 
 void Renderer::OnInit()
@@ -73,8 +62,12 @@ const Texture* Renderer::CreateTexture(const Image2D& img)
     if (it != textures.end())
         return it->second.get();
 
-    toolchain.load_texture(img);
+    auto texture = toolchain.load_texture(&img, _device.get());
+    FU_CORE_INFO("texture img: {0}", (void*)&img);
+    auto emplaced_texture = textures.emplace(std::string(img.Name()), std::move(texture));
+    return emplaced_texture.first->second.get();
 }
+
 const Texture* Renderer::GetLoadedTexture(std::string_view name) const
 {
     if (name.empty())
@@ -169,7 +162,7 @@ bool Renderer::IsVSync()
 
 void Renderer::OnUpdate(float dlTime)
 {
-    post_create_texture();
+    toolchain.update();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
