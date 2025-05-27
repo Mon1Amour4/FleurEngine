@@ -16,7 +16,7 @@ struct Toolchain
 {
     struct renderer
     {
-        std::unique_ptr<Fuego::Graphics::Texture> (*load_texture)(const Fuego::Graphics::Image2D* img, Fuego::Graphics::Device* device){nullptr};
+        std::unique_ptr<Fuego::Graphics::Texture> (*load_texture)(const Fuego::Graphics::Image2D* img, const Fuego::Graphics::Device* device){nullptr};
         void (*update)(){nullptr};
         static std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>> images;
     };
@@ -31,7 +31,7 @@ struct Toolchain
 
 struct PostLoadPipeline
 {
-    static std::unique_ptr<Fuego::Graphics::Texture> load_texture(const Fuego::Graphics::Image2D* img, Fuego::Graphics::Device* device)
+    static std::unique_ptr<Fuego::Graphics::Texture> load_texture(const Fuego::Graphics::Image2D* img, const Fuego::Graphics::Device* device)
     {
         std::unique_ptr<Fuego::Graphics::Texture> texture = device->CreateTexture(img->Name());
         FU_CORE_INFO("ing adress: {0}", (void*)img);
