@@ -52,6 +52,7 @@ public:
     }
 
     std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels);
+    std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels);
 
     std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp,
                                                                      uint32_t width, uint32_t height);

@@ -174,6 +174,44 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
     }
 }
 
+std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b,
+                                                                                           uint16_t channels)
+{
+    if (!data)
+        return std::shared_ptr<Fuego::Graphics::Image2D>();
+
+    std::string file_name = std::filesystem::path(name.data()).filename().string();
+    auto image = images2d.find(file_name);
+    if (image != images2d.end())
+        return image->second;
+
+    images2d_async_operations.lock();
+    auto placed_img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
+    images2d_async_operations.unlock();
+    ++images2d_count;
+
+    auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
+    thread_pool->Submit(
+        [this](std::shared_ptr<Fuego::Graphics::Image2D> img, unsigned char* data, uint32_t size_b, uint16_t channels)
+        {
+            int w, h, bpp = 0;
+            stbi_set_flip_vertically_on_load(1);
+            unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
+
+            if (img_data)
+            {
+                images2d_async_operations.lock();
+                Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, img_data};
+                img->PostCreate(settings);
+                images2d_async_operations.unlock();
+                FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(),
+                             img->Height());
+            }
+        },
+        placed_img, data, size_b, channels);
+    return placed_img;
+}
+
 std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels,
                                                                                        uint16_t bpp, uint32_t width, uint32_t height)
 {

@@ -54,8 +54,8 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
                     std::string name = embeded_texture->mFilename.C_Str();
                     if (embeded_texture->mFilename.length == 0)
                         name = std::string(GetName()) + "_" + "Embeded_txt_" + std::to_string(texture_index);
-                    image = assets_manager->LoadImage2DFromMemory(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
-                                                                  channels);
+                    image = assets_manager->LoadImage2DFromMemoryAsync(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
+                                                                       channels);
                 }
                 else
                     image =
