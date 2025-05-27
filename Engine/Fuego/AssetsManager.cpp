@@ -117,13 +117,10 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
         return it->second;
 
     images2d_async_operations.lock();
-    // shared_ptr
     auto placed_img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
-    FU_CORE_INFO("async placed_img: {0}", (void*)placed_img.get());
-
     images2d_async_operations.unlock();
     ++images2d_count;
-    // TODO we create an empty image return it but we fill it in different thread further
+
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
     thread_pool->Submit(
@@ -142,11 +139,8 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
             images2d_async_operations.lock();
 
             Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, data};
-            FU_CORE_INFO("thread async placed_img: {0}", (void*)img.get());
             img->PostCreate(settings);
-            // auto img = images2d.emplace(std::move(name), std::make_shared<Fuego::Graphics::Image2D>(name.data(), data, w, h, bpp, channels)).first->second;
             images2d_async_operations.unlock();
-            //++images2d_count;
             FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(), img->Height());
         },
         placed_img);
