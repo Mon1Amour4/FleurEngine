@@ -2,8 +2,9 @@
 
 #include <span>
 
-std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>>* Fuego::Pipeline::PostLoadPipeline::images_ptr = nullptr;
-std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>> Fuego::Pipeline::Toolchain::renderer::images;
+std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::images_ptr =
+    nullptr;
+std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::images;
 
 namespace Fuego::Graphics
 {
@@ -56,29 +57,29 @@ void Renderer::OnShutdown()
     opaque_shader.reset();
 }
 
-const Texture* Renderer::CreateTexture(const Image2D& img)
+std::shared_ptr<Texture> Renderer::CreateTexture(std::shared_ptr<Image2D> img)
 {
-    auto it = textures.find(img.Name().data());
+    auto it = textures.find(img->Name().data());
     if (it != textures.end())
-        return it->second.get();
+        return it->second;
 
-    auto texture = toolchain.load_texture(&img, _device.get());
-    FU_CORE_INFO("texture img: {0}", (void*)&img);
-    auto emplaced_texture = textures.emplace(std::string(img.Name()), std::move(texture));
-    return emplaced_texture.first->second.get();
+    auto texture = toolchain.load_texture(img, _device.get());
+    auto emplaced_texture = textures.emplace(std::string(img->Name()), std::move(texture));
+    return emplaced_texture.first->second;
 }
 
-const Texture* Renderer::GetLoadedTexture(std::string_view name) const
+std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view name) const
 {
     if (name.empty())
-        return textures.find("fallback")->second.get();
+        return textures.find("fallback")->second;
 
     auto it = textures.find(name.data());
     if (it != textures.end())
-        return it->second.get();
+        return it->second;
     else
-        return textures.find("fallback")->second.get();
+        return textures.find("fallback")->second;
 }
+
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();

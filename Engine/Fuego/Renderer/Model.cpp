@@ -63,18 +63,20 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
                                                                8, embeded_texture->mWidth, embeded_texture->mHeight);
             }
             else
-                image = assets_manager->Load<Image2D>(path.C_Str());
+                image = assets_manager->LoadAsync<Image2D>(path.C_Str());
 
-            auto texture = renderer->CreateTexture(*image);
-            auto material = Material::CreateMaterial(texture);
+            auto texture = renderer->CreateTexture(image);
+
+            // TODO think about passing raw pointer or shared ptr to material
+            auto material = Material::CreateMaterial(texture.get());
             materials.emplace_back(std::unique_ptr<Material>(material));
-            loaded_textures.emplace(texture_index, texture);
+            loaded_textures.emplace(texture_index, texture.get());
         }
         else
         {
             auto fallback = assets_manager->Get<Image2D>("fallback.png").lock();
-            auto texture = renderer->CreateTexture(*fallback.get());
-            auto material = Material::CreateMaterial(texture);
+            auto texture = renderer->CreateTexture(fallback);
+            auto material = Material::CreateMaterial(texture.get());
             materials.emplace_back(std::unique_ptr<Material>(material));
         }
     }

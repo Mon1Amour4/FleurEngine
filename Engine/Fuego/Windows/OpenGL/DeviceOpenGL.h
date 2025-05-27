@@ -20,8 +20,8 @@ public:
 
     virtual Shader* CreateShader(std::string_view shaderName, Shader::ShaderType type) override;
     virtual std::unique_ptr<Surface> CreateSurface(const void* window) override;
-    virtual std::unique_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const override;
-    virtual std::unique_ptr<Texture> CreateTexture(std::string_view name) const override;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const override;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const override;
 
     virtual void SetVSync(bool active) const override;
 

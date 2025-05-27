@@ -39,8 +39,8 @@ public:
     Renderer(Renderer&&) noexcept = default;
     Renderer& operator=(Renderer&&) noexcept = default;
 
-    const Texture* CreateTexture(const Image2D& img);
-    const Texture* GetLoadedTexture(std::string_view name) const;
+    std::shared_ptr<Texture> CreateTexture(std::shared_ptr<Image2D> img);
+    std::shared_ptr<Texture> GetLoadedTexture(std::string_view name) const;
 
     // IRenderer;
     void DrawModel(const Model* model, glm::mat4 model_pos);
@@ -96,7 +96,7 @@ private:
 
     bool is_vsync;
 
-    std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
+    std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
     GraphicsAPI renderer;
     Fuego::Pipeline::Toolchain::renderer toolchain;
     // Service

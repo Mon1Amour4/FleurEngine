@@ -195,14 +195,14 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
 {
-    return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name, format, buffer, width, height));
+    return std::make_shared<TextureOpenGL>(name, format, buffer, width, height);
 }
 
-std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
 {
-    return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(name));
+    return std::make_shared<TextureOpenGL>(name);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const

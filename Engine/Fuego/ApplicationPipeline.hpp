@@ -16,9 +16,10 @@ struct Toolchain
 {
     struct renderer
     {
-        std::unique_ptr<Fuego::Graphics::Texture> (*load_texture)(const Fuego::Graphics::Image2D* img, const Fuego::Graphics::Device* device){nullptr};
+        std::shared_ptr<Fuego::Graphics::Texture> (*load_texture)(std::shared_ptr<Fuego::Graphics::Image2D> img,
+                                                                  const Fuego::Graphics::Device* device){nullptr};
         void (*update)(){nullptr};
-        static std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>> images;
+        static std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> images;
     };
     struct assets_manager
     {
@@ -31,11 +32,10 @@ struct Toolchain
 
 struct PostLoadPipeline
 {
-    static std::unique_ptr<Fuego::Graphics::Texture> load_texture(const Fuego::Graphics::Image2D* img, const Fuego::Graphics::Device* device)
+    static std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img, const Fuego::Graphics::Device* device)
     {
-        std::unique_ptr<Fuego::Graphics::Texture> texture = device->CreateTexture(img->Name());
-        FU_CORE_INFO("ing adress: {0}", (void*)img);
-        images_ptr->push(std::make_pair(img, texture.get()));
+        std::shared_ptr<Fuego::Graphics::Texture> texture = device->CreateTexture(img->Name());
+        images_ptr->push(std::make_pair(img, texture));
         return texture;
     }
     static void update()
@@ -44,10 +44,9 @@ struct PostLoadPipeline
         {
             auto item = images_ptr->front();
             auto img = item.first;
-            FU_CORE_INFO("ing adress: {0}", (void*)item.first);
             FU_CORE_ASSERT(item.first->IsValid(), "[PostLoadPipeline->update] Image2D is not valid");
 
-            item.second->PostCreate(*img);
+            item.second->PostCreate(*img.get());
             images_ptr->pop();
         }
     }
@@ -55,6 +54,6 @@ struct PostLoadPipeline
     {
         int a = 5;
     }
-    static std::queue<std::pair<const Fuego::Graphics::Image2D*, Fuego::Graphics::Texture*>>* images_ptr;
+    static std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* images_ptr;
 };
 }  // namespace Fuego::Pipeline

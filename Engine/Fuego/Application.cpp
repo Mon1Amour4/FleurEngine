@@ -173,7 +173,7 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto fallback_img = assets_manager.value()->LoadAsync<Fuego::Graphics::Image2D>("fallback.png");
 
-    renderer.value()->CreateTexture(*fallback_img);
+    renderer.value()->CreateTexture(fallback_img);
 
     assets_manager.value()->Load<Fuego::Graphics::Model>("Sponza/Sponza.glb");
 
