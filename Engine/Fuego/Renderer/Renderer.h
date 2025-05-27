@@ -99,8 +99,6 @@ private:
     std::unordered_map<std::string, std::unique_ptr<Texture>> textures;
     GraphicsAPI renderer;
     Fuego::Pipeline::Toolchain::renderer toolchain;
-
-    std::queue<const Fuego::Graphics::Image2D*>* images;
     // Service
 protected:
     void OnInit();
