@@ -10,7 +10,7 @@
 #include "fstream"
 
 Fuego::Graphics::Model::Model(const aiScene* scene)
-    : name(std::filesystem::path(scene->mRootNode->mName.C_Str()).stem().string())
+    : name(std::move(std::filesystem::path(scene->mRootNode->mName.C_Str()).stem().string()))
     , mesh_count(scene->mNumMeshes)
     , vertex_count(0)
     , indices_count(0)
