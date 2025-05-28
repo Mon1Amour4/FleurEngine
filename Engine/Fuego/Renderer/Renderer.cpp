@@ -2,9 +2,9 @@
 
 #include <span>
 
-std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::images_ptr =
+std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::images_ptr =
     nullptr;
-std::queue<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::images;
+std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::images;
 
 namespace Fuego::Graphics
 {
