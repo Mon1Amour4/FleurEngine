@@ -40,7 +40,7 @@ public:
     Renderer& operator=(Renderer&&) noexcept = default;
 
     std::shared_ptr<Texture> CreateTexture(std::shared_ptr<Image2D> img);
-    std::shared_ptr<Texture> GetLoadedTexture(std::string_view name) const;
+    std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
 
     // IRenderer;
     void DrawModel(const Model* model, glm::mat4 model_pos);

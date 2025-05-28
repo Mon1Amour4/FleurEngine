@@ -25,11 +25,9 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
     for (size_t i = 0; i < scene->mNumMaterials; i++)
     {
         aiString path;
-
+        std::shared_ptr<Image2D> image{};
         if (scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
         {
-            std::shared_ptr<Image2D> image{};
-
             if (path.C_Str()[0] == '*')
             {
                 texture_index = atoi(path.C_Str() + 1);
@@ -74,8 +72,7 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
         }
         else
         {
-            auto fallback = assets_manager->Get<Image2D>("fallback.png").lock();
-            auto texture = renderer->CreateTexture(fallback);
+            auto texture = renderer->CreateTexture(image);
             auto material = Material::CreateMaterial(texture.get());
             materials.emplace_back(std::unique_ptr<Material>(material));
         }

@@ -59,19 +59,26 @@ void Renderer::OnShutdown()
 
 std::shared_ptr<Texture> Renderer::CreateTexture(std::shared_ptr<Image2D> img)
 {
-    auto it = textures.find(img->Name().data());
+    if (img == nullptr)
+        return GetLoadedTexture("fallback");
+
+    std::string name = std::filesystem::path(img->Name().data()).stem().string();
+
+    auto it = textures.find(name);
     if (it != textures.end())
         return it->second;
 
     auto texture = toolchain.load_texture(img, _device.get());
-    auto emplaced_texture = textures.emplace(std::string(img->Name()), std::move(texture));
+    auto emplaced_texture = textures.emplace(std::move(name), std::move(texture));
     return emplaced_texture.first->second;
 }
 
-std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view name) const
+std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
 {
-    if (name.empty())
+    if (path.empty())
         return textures.find("fallback")->second;
+
+    std::string name = std::filesystem::path(path.data()).stem().string();
 
     auto it = textures.find(name.data());
     if (it != textures.end())
