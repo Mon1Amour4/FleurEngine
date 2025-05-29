@@ -6,6 +6,35 @@
 namespace Fuego::Graphics
 {
 
+struct GraphicsResourceBase
+{
+    virtual ~GraphicsResourceBase() = default;
+
+    virtual void PostCreate(const void* settings)
+    {
+        is_created = true;
+    }
+
+    virtual inline bool IsValid() const
+    {
+        return is_created;
+    }
+    virtual inline uint16_t Proirity()
+    {
+        return priority;
+    }
+
+protected:
+    GraphicsResourceBase()
+        : is_created(false)
+        , priority(0)
+    {
+    }
+
+    bool is_created;
+    uint16_t priority;
+};
+
 enum GraphicsAPI
 {
     OpenGL = 0,

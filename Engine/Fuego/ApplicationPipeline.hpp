@@ -40,15 +40,17 @@ struct PostLoadPipeline
     }
     static void update()
     {
-        while (!images_ptr->empty())
+        for (auto it = (*images_ptr).begin(); it < (*images_ptr).end();)
         {
-            for (const auto& [img, texture] : *images_ptr)
+            auto img = (*images_ptr).front().first;
+            if (!img->IsValid())
             {
-                if (!img->IsValid())
-                    continue;
-                texture->PostCreate(*img.get());
-                images_ptr->pop_front();
+                ++it;
+                continue;
             }
+            auto texture = (*images_ptr).front().second;
+            texture->PostCreate(reinterpret_cast<const void*>(img.get()));
+            it = (*images_ptr).erase(it);
         }
     }
     static void assets_manager_update()

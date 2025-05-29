@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Graphics.hpp"
 #include "glm/ext.hpp"
 #include "glm/glm.hpp"
 
@@ -12,7 +13,7 @@ namespace Fuego::Graphics
 struct VertexData;
 class Material;
 
-class FUEGO_API Model
+class FUEGO_API Model : public GraphicsResourceBase
 {
 public:
     class FUEGO_API Mesh
@@ -86,6 +87,8 @@ public:
     };
 
     Model(const aiScene* scene);
+    Model(std::string_view name);
+
     ~Model() = default;
 
     Model(Model&& other) noexcept;
@@ -120,7 +123,11 @@ public:
         return &meshes;
     }
 
+    virtual void PostCreate(const void* settings) override;
+
 private:
+    void parse_scene(const aiScene* scene);
+
     std::string name;
     uint32_t mesh_count;
     uint32_t vertex_count;

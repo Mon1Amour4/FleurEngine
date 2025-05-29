@@ -26,13 +26,15 @@ Fuego::Graphics::Image2D::~Image2D()
     delete data;
 }
 
-void Fuego::Graphics::Image2D::PostCreate(Image2DPostCreateion& settings)
+void Fuego::Graphics::Image2D::PostCreate(const void* settings)
 {
-    FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
-    width = settings.width;
-    height = settings.height;
-    bpp = settings.bpp;
-    channels = settings.channels;
-    data = settings.data;
-    is_created = true;
+    GraphicsResourceBase::PostCreate(nullptr);
+
+    const auto& image_settings = *reinterpret_cast<const Image2DPostCreateion*>(settings);
+    FU_CORE_ASSERT(image_settings.data, "[Image2D] data is nullptr");
+    width = image_settings.width;
+    height = image_settings.height;
+    bpp = image_settings.bpp;
+    channels = image_settings.channels;
+    data = image_settings.data;
 }

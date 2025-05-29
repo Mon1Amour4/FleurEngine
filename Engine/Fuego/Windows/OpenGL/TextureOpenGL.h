@@ -36,7 +36,7 @@ private:
     uint32_t texture_id;
 
 
-    virtual void PostCreate(const Fuego::Graphics::Image2D& img) override;
+    virtual void PostCreate(const void* settings) override;
 };
 
 class TextureViewOpenGL
