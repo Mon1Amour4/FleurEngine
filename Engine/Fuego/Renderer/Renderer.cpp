@@ -68,7 +68,9 @@ std::shared_ptr<Texture> Renderer::CreateTexture(std::shared_ptr<Image2D> img)
     if (it != textures.end())
         return it->second;
 
+    texture_queue_mx.lock();
     auto texture = toolchain.load_texture(img, _device.get());
+    texture_queue_mx.unlock();
     auto emplaced_texture = textures.emplace(std::move(name), std::move(texture));
     return emplaced_texture.first->second;
 }
@@ -170,7 +172,9 @@ bool Renderer::IsVSync()
 
 void Renderer::OnUpdate(float dlTime)
 {
+    texture_queue_mx.lock();
     toolchain.update();
+    texture_queue_mx.unlock();
 }
 
 void Renderer::OnPostUpdate(float dlTime)

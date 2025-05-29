@@ -29,7 +29,7 @@ Fuego::AssetsManager::~AssetsManager()
 std::shared_ptr<Fuego::Graphics::Model> Fuego::AssetsManager::load_model(std::string_view path)
 {
     if (path.empty())
-        return std::shared_ptr<Fuego::Graphics::Model>();
+        return std::shared_ptr<Fuego::Graphics::Model>(nullptr);
 
     std::string file_name = std::filesystem::path(path.data()).stem().string();
     auto it = models.find(file_name);
