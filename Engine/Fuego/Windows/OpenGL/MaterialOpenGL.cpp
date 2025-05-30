@@ -1,7 +1,8 @@
 #include "MaterialOpenGL.h"
 
-#include "ShaderObjectOpenGL.h"
 #include <glad/gl.h>
+
+#include "ShaderObjectOpenGL.h"
 
 namespace Fuego::Graphics
 {

@@ -118,17 +118,7 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     renderer->SetShaderObject(renderer->opaque_shader.get());
     renderer->CurrentShaderObject()->Use();
 
-    auto model_1 = assets_manager->Get<Fuego::Graphics::Model>("Shotgun");
-    auto locked_model_1 = model_1.lock();
-    if (locked_model_1)
-        renderer->DrawModel(locked_model_1.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 0.f)));
-
-    auto model_2 = assets_manager->Get<Fuego::Graphics::Model>("WaterCooler");
-    auto locked_model_2 = model_2.lock();
-    if (locked_model_2)
-        renderer->DrawModel(locked_model_2.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
-
-    auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza.glb");
+    auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza");
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
         renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
@@ -171,7 +161,7 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    auto fallback_img = assets_manager.value()->LoadAsync<Fuego::Graphics::Image2D>("fallback.png");
+    auto fallback_img = assets_manager.value()->Load<Fuego::Graphics::Image2D>("fallback.png");
 
     renderer.value()->CreateTexture(fallback_img);
 

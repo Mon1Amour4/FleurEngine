@@ -31,7 +31,7 @@ struct WindowProps
     bool Maximizable = true;
     bool CanFullscreen = true;
 
-    unsigned BackgroundColor = 0xFFFFFFFF;
+    uint32_t BackgroundColor = 0xFFFFFFFF;
     bool Transparent = false;
     bool Frame = true;
     bool HasShadow = true;
