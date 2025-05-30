@@ -99,8 +99,6 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
     GraphicsAPI renderer;
     Fuego::Pipeline::Toolchain::renderer toolchain;
-
-    std::mutex texture_queue_mx;
     // Service
 protected:
     void OnInit();

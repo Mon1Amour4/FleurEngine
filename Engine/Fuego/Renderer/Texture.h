@@ -19,7 +19,7 @@ enum class TextureFormat
     NONE
 };
 
-class Texture : public GraphicsResourceBase
+class Texture
 {
 public:
     virtual ~Texture() = default;
@@ -64,6 +64,13 @@ public:
         return is_created;
     }
 
+    virtual void PostCreate(const Fuego::Graphics::Image2D& img)
+    {
+        width = img.Width();
+        height = img.Height();
+        format = Fuego::Graphics::Texture::GetTextureFormat(img.Channels(), img.BBP());
+        is_created = true;
+    }
 
 protected:
     Texture(std::string_view name, TextureFormat format, int width, int height)

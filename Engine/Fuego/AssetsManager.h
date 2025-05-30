@@ -16,6 +16,7 @@ enum ImageFormat;
 namespace Fuego
 {
 
+
 class AssetsManager : public Service<AssetsManager>
 {
 public:
@@ -30,26 +31,24 @@ public:
     }
 
     template <class Res>
-    std::shared_ptr<Res> Load(std::string_view path, bool async = true)
+    std::shared_ptr<Res> Load(std::string_view path)
     {
-        std::shared_ptr<Res> resource = std::shared_ptr<Res>(nullptr);
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
-            if (async)
-                resource = load_model_async(path);
-            else
-                resource = load_model(path);
-
-            resource = load_model(path);
+            auto model = load_model(path);
+            FU_CORE_ASSERT(model, "[Assets manager] cannot load model")
+            return model;
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            if (async)
-                resource = load_image2d_async(path);
-            else
-                auto img = load_image2d(path);
+            auto img = load_image2d(path);
+            FU_CORE_ASSERT(img, "[Assets manager] cannot load image2d");
+            return img;
         }
-        return resource;
+        else
+        {
+            FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
+        }
     }
 
     std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels);
@@ -57,6 +56,15 @@ public:
 
     std::shared_ptr<Fuego::Graphics::Image2D> LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp,
                                                                      uint32_t width, uint32_t height);
+
+    template <class Res>
+    std::shared_ptr<Res> LoadAsync(std::string_view path)
+    {
+        if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
+        {
+            return load_image2d_async(path);
+        }
+    }
 
     template <class Res>
     std::weak_ptr<Res> Get(std::string_view name)
@@ -123,7 +131,7 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
 
     std::shared_ptr<Fuego::Graphics::Model> load_model(std::string_view path);
-    std::shared_ptr<Fuego::Graphics::Model> load_model_async(std::string_view path);
+    void load_model_async(std::string_view path);
     std::shared_ptr<Fuego::Graphics::Image2D> load_image2d(std::string_view path);
     std::shared_ptr<Fuego::Graphics::Image2D> load_image2d_async(std::string_view path);
 

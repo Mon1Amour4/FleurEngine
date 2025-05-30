@@ -1,11 +1,9 @@
 #pragma once
 #include <fupch.h>
 
-#include "Graphics.hpp"
-
 namespace Fuego::Graphics
 {
-class Image2D : public GraphicsResourceBase
+class Image2D
 {
 public:
     Image2D(std::string name, unsigned char* data, int w, int h, int bpp, uint16_t channels);
@@ -46,7 +44,11 @@ public:
         return name;
     }
 
-    virtual void PostCreate(const void* settings) override;
+    void PostCreate(Image2DPostCreateion& settings);
+    inline bool IsValid() const
+    {
+        return is_created;
+    }
 
 private:
     uint32_t width;
@@ -55,5 +57,6 @@ private:
     uint16_t channels;
     unsigned char* data;
     std::string name;
+    bool is_created;
 };
 }  // namespace Fuego::Graphics

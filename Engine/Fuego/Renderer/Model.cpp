@@ -15,63 +15,8 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
     , vertex_count(0)
     , indices_count(0)
 {
-    parse_scene(scene);
-    is_created = true;
-}
-
-Fuego::Graphics::Model::Model(std::string_view name)
-    : name(name.data())
-    , mesh_count(0)
-    , vertex_count(0)
-    , indices_count(0)
-    , indices(0)
-{
-    is_created = false;
-}
-
-Fuego::Graphics::Model::Model(Model&& other) noexcept
-    : name(std::move(other.name))
-    , mesh_count(other.mesh_count)
-    , vertex_count(other.vertex_count)
-    , meshes(std::move(other.meshes))
-    , indices_count(other.indices_count)
-{
-    other.mesh_count = 0;
-    other.vertex_count = 0;
-}
-
-Fuego::Graphics::Model& Fuego::Graphics::Model::operator=(Model&& other) noexcept
-{
-    if (this != &other)
-    {
-        name = std::move(other.name);
-        mesh_count = other.mesh_count;
-        vertex_count = other.vertex_count;
-        meshes = std::move(other.meshes);
-        indices_count = other.indices_count;
-
-        other.mesh_count = 0;
-        other.vertex_count = 0;
-        other.indices_count = 0;
-    }
-    return *this;
-}
-
-void Fuego::Graphics::Model::PostCreate(const void* settings)
-{
-    const aiScene* scene = reinterpret_cast<const aiScene*>(settings);
-    parse_scene(scene);
-    is_created = true;
-}
-
-void Fuego::Graphics::Model::parse_scene(const aiScene* scene)
-{
-    FU_CORE_ASSERT(scene, "[Model]->parse_scene, scene is corrupted");
-
     auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
     auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
-
-    mesh_count = scene->mNumMeshes;
     meshes.reserve(scene->mNumMeshes);
     materials.reserve(scene->mNumMaterials);
 
@@ -116,7 +61,7 @@ void Fuego::Graphics::Model::parse_scene(const aiScene* scene)
                                                                8, embeded_texture->mWidth, embeded_texture->mHeight);
             }
             else
-                image = assets_manager->Load<Image2D>(path.C_Str());
+                image = assets_manager->LoadAsync<Image2D>(path.C_Str());
 
             auto texture = renderer->CreateTexture(image);
 
@@ -141,6 +86,34 @@ void Fuego::Graphics::Model::parse_scene(const aiScene* scene)
         vertex_count += mesh->GetVertexCount();
         indices_count += mesh->GetIndicesCount();
     }
+}
+
+Fuego::Graphics::Model::Model(Model&& other) noexcept
+    : name(std::move(other.name))
+    , mesh_count(other.mesh_count)
+    , vertex_count(other.vertex_count)
+    , meshes(std::move(other.meshes))
+    , indices_count(other.indices_count)
+{
+    other.mesh_count = 0;
+    other.vertex_count = 0;
+}
+
+Fuego::Graphics::Model& Fuego::Graphics::Model::operator=(Model&& other) noexcept
+{
+    if (this != &other)
+    {
+        name = std::move(other.name);
+        mesh_count = other.mesh_count;
+        vertex_count = other.vertex_count;
+        meshes = std::move(other.meshes);
+        indices_count = other.indices_count;
+
+        other.mesh_count = 0;
+        other.vertex_count = 0;
+        other.indices_count = 0;
+    }
+    return *this;
 }
 
 Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
