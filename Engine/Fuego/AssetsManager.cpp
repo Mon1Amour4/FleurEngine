@@ -107,7 +107,7 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d(std
     uint16_t channels = ImageChannels(std::filesystem::path(file_name).extension().string());
     stbi_set_flip_vertically_on_load(1);
     int w, h, bpp = 0;
-    unsigned char* data = stbi_load(fs->GetFullPathToFile(path.data()).c_str(), &w, &h, &bpp, channels);
+    unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &bpp, channels);
     if (!data)
     {
         FU_CORE_ERROR("Can't load an image: {0} {1}", path, stbi_failure_reason());
