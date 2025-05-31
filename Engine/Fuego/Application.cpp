@@ -150,7 +150,6 @@ void Application::Init(ApplicationBootSettings& settings)
     toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
     toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
     Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
-    toolchain._assets_manager.update = Fuego::Pipeline::PostLoadPipeline::assets_manager_update;
 
     auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
