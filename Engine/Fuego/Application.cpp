@@ -1,25 +1,15 @@
 #include "Application.h"
 
+#include "ApplicationPipeline.hpp"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
-#include "FuTime.h"
 #include "KeyCodes.h"
-#include "LayerStack.h"
 #include "Renderer.h"
 #include "Scene.h"
 #include "ThreadPool.h"
 
-
-// TODO Move this crap out if Application
-#include <assimp/postprocess.h>
-#include <assimp/scene.h>
-
-#include <assimp/Importer.hpp>
-#define ASSIMP_LOAD_FLAGS aiProcess_CalcTangentSpace | aiProcess_Triangulate | aiProcess_JoinIdenticalVertices | aiProcess_SortByPType  //
-
 namespace Fuego
 {
-
 template <>
 Application& singleton<Application>::instance()
 {
@@ -27,39 +17,24 @@ Application& singleton<Application>::instance()
     return inst;
 }
 
-class Application::ApplicationImpl
-{
-    friend class Application;
-    std::unique_ptr<Window> m_Window;
-    std::unique_ptr<EventQueue> m_EventQueue;
-    std::unique_ptr<Fuego::FS::FileSystem> _fs;
-    std::vector<std::unique_ptr<Fuego::Graphics::Model>> _models;
-    std::unordered_map<std::string, std::unique_ptr<Fuego::Graphics::Texture>> _textures;
-    std::unique_ptr<Fuego::Time> _time_manager;
-
-    bool initialized = false;
-    bool m_Running;
-    LayerStack m_LayerStack;
-};
-
 Application::Application()
-    : d(new ApplicationImpl())
+    : initialized(false)
+    , m_Running(false)
 {
 }
 
 Application::~Application()
 {
-    delete d;
 }
 
 void Application::PushLayer(Layer* layer)
 {
-    d->m_LayerStack.PushLayer(layer);
+    m_LayerStack.PushLayer(layer);
     layer->OnAttach();
 }
 void Application::PushOverlay(Layer* overlay)
 {
-    d->m_LayerStack.PushOverlay(overlay);
+    m_LayerStack.PushOverlay(overlay);
 }
 
 void Application::OnEvent(EventVariant& event)
@@ -77,7 +52,7 @@ void Application::OnEvent(EventVariant& event)
 
     std::visit(ApplicationEventVisitor, event);
 
-    for (auto it = d->m_LayerStack.end(); it != d->m_LayerStack.begin();)
+    for (auto it = m_LayerStack.end(); it != m_LayerStack.begin();)
     {
         (*--it)->OnEvent(event);
 
@@ -90,7 +65,7 @@ void Application::OnEvent(EventVariant& event)
 
 bool Application::OnWindowClose(WindowCloseEvent& event)
 {
-    d->m_Running = false;
+    m_Running = false;
     event.SetHandled();
     return true;
 }
@@ -113,7 +88,7 @@ bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 bool Application::OnValidateWindow(WindowValidateEvent& event)
 {
     ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ValidateWindow();
-    d->m_Window->SetPainted();
+    m_Window->SetPainted();
     event.SetHandled();
     return true;
 }
@@ -127,7 +102,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
         ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ToggleWireFrame();
         break;
     case Key::D2:
-        d->m_Window->SwitchInteractionMode();
+        m_Window->SwitchInteractionMode();
         break;
     }
     event.SetHandled();
@@ -136,18 +111,19 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
     renderer->ShowWireFrame();
     // TODO: As for now we use just one opaque shader, but we must think about different passes
     // using different shaders with blending and probably using pre-passes
-    ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->SetShaderObject(renderer->opaque_shader.get());
+    renderer->SetShaderObject(renderer->opaque_shader.get());
     renderer->CurrentShaderObject()->Use();
-    float counter = 1.f;
-    for (auto it = d->_models.begin(); it != d->_models.end(); ++it)
-    {
-        Fuego::Graphics::Model* model_ptr = it->get();
-        renderer->DrawModel(model_ptr, glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, counter)));
-        counter += 10.f;
-    }
+
+    auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza");
+    // auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("WaterCooler");
+    auto locked_model_3 = model_3.lock();
+    if (locked_model_3)
+        renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+
     UNUSED(event);
     return true;
 }
@@ -159,127 +135,95 @@ bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
 
 Window& Application::GetWindow()
 {
-    return *d->m_Window;
+    return *m_Window;
 }
 
-void Application::Init()
+void Application::Init(ApplicationBootSettings& settings)
 {
-    d->_fs = std::make_unique<FS::FileSystem>();
-    d->m_EventQueue = EventQueue::CreateEventQueue();
-    d->m_Window = Window::CreateAppWindow(WindowProps(), *d->m_EventQueue);
-    d->_time_manager = Time::CreateTimeManager(0.025f);
+    m_EventQueue = EventQueue::CreateEventQueue();
+    m_Window = Window::CreateAppWindow(settings.window_props, *m_EventQueue);
+    _time_manager = Time::CreateTimeManager(settings.fixed_dt);
 
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
 
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
+    Fuego::Pipeline::Toolchain toolchain{};
+    toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
+    toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
+    Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
+
+    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
+    renderer.value()->SetVSync(settings.vsync);
 
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();
 
-    d->_models.reserve(10);
+    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    AddTexture("fallback.png");
-    LoadModel("Shotgun/Shotgun.obj");
-    LoadModel("WaterCooler/WaterCooler.obj");
+    auto fallback_img = assets_manager.value()->Load<Fuego::Graphics::Image2D>("fallback.png");
 
-    d->initialized = true;
-    d->m_Running = true;
-}
+    renderer.value()->CreateTexture(fallback_img);
 
-Fuego::Graphics::Model* Application::LoadModel(std::string_view path)
-{
-    // TODO Move this crap out if Application
-    Assimp::Importer importer{};
-    const aiScene* scene = importer.ReadFile(d->_fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
-    if (!scene)
-        return nullptr;
-    d->_models.emplace_back(std::make_unique<Fuego::Graphics::Model>(scene));
-    Fuego::Graphics::Model* model = d->_models.back().get();
-    return model;
-}
+    assets_manager.value()->Load<Fuego::Graphics::Model>("Sponza/Sponza.glb");
+    // assets_manager.value()->Load<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
 
-bool Application::IsTextureLoaded(std::string_view texture) const
-{
-    auto it = d->_textures.find(texture.data());
-    return it != d->_textures.end();
-}
-
-bool Application::AddTexture(std::string_view path)
-{
-    unsigned char* data = nullptr;
-    int width, height, bits;
-    bool res = false;
-
-    if (path.data() && path.size() > 0)
-        res = d->_fs->Load_Image(path.data(), bits, data, width, height);
-    if (res)
-        d->_textures.emplace(std::string(path.data()),
-                             std::move(ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->CreateTexture(data, width, height)));
-    return res;
-}
-
-const Fuego::Graphics::Texture* Application::GetLoadedTexture(std::string_view name) const
-{
-    if (name.empty())
-        return d->_textures.find("fallback.png")->second.get();
-
-    auto it = d->_textures.find(name.data());
-    if (it != d->_textures.end() && it->second)
-        return it->second.get();
-    return nullptr;
+    initialized = true;
+    m_Running = true;
 }
 
 void Application::SetVSync(bool active) const
 {
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
-    renderer.value()->SetVSync(active);
+    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    renderer->SetVSync(active);
 }
 
 bool Application::IsVSync() const
 {
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>();
-    return renderer.value()->IsVSync();
+    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    return renderer->IsVSync();
 }
 
 void Application::Run()
 {
-    if (!d->initialized)
+    if (!initialized)
     {
-        Init();
+        Application::ApplicationBootSettings settings{};
+        Init(settings);
     }
 
-    while (d->m_Running)
+    while (m_Running)
     {
         auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+        auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
 
-        d->_time_manager->Tick();
+        _time_manager->Tick();
 
         char buffer[32];
-        sprintf(buffer, "%d", d->_time_manager->FPS());
-        d->m_Window->SetTitle(buffer);
+        sprintf(buffer, "%d", _time_manager->FPS());
+        m_Window->SetTitle(buffer);
 
-        float dtTime = d->_time_manager->DeltaTime();
+        float dtTime = _time_manager->DeltaTime();
 
 
         renderer->Clear();
-        d->m_EventQueue->OnUpdate(dtTime);
-        d->m_Window->OnUpdate(dtTime);
+        m_EventQueue->OnUpdate(dtTime);
+        m_Window->OnUpdate(dtTime);
         Fuego::Graphics::Camera::GetActiveCamera()->OnUpdate(dtTime);
 
-        for (auto layer : d->m_LayerStack)
+        for (auto layer : m_LayerStack)
         {
             layer->OnUpdate(dtTime);
         }
 
-        while (!d->m_EventQueue->Empty())
+        while (!m_EventQueue->Empty())
         {
-            auto ev = d->m_EventQueue->Front();
+            auto ev = m_EventQueue->Front();
             OnEvent(*ev);
-            d->m_EventQueue->Pop();
+            m_EventQueue->Pop();
         }
 
+        assets_manager->Tick();
         renderer->OnUpdate(dtTime);
         renderer->Present();
     }

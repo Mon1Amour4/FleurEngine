@@ -3,6 +3,6 @@
 template <>
 Fuego::ServiceLocator& Fuego::singleton<Fuego::ServiceLocator>::instance()
 {
-    static ServiceLocator inst;
+    static Fuego::ServiceLocator inst;
     return inst;
 }

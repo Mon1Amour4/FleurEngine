@@ -19,8 +19,8 @@ struct WindowProps
     std::string Title = "Fuego Engine";
     long x = 100;
     long y = 100;
-    unsigned int Width = 1280;
-    unsigned int Height = 720;
+    uint32_t Width = 1280;
+    uint32_t Height = 720;
     WindowMode mode = RESTORED;
 
     bool Centered = true;
@@ -31,7 +31,7 @@ struct WindowProps
     bool Maximizable = true;
     bool CanFullscreen = true;
 
-    unsigned BackgroundColor = 0xFFFFFFFF;
+    uint32_t BackgroundColor = 0xFFFFFFFF;
     bool Transparent = false;
     bool Frame = true;
     bool HasShadow = true;
