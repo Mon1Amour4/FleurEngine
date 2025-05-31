@@ -38,6 +38,11 @@ std::shared_ptr<Fuego::Graphics::Model> Fuego::AssetsManager::load_model(std::st
 
     auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
 
+
+    auto res = fs->GetFullPathToFile(path.data());
+    if (!res)
+        return std::shared_ptr<Fuego::Graphics::Model>{nullptr};
+
     Assimp::Importer importer{};
     const aiScene* scene = importer.ReadFile(fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
     if (!scene)
@@ -66,6 +71,10 @@ void Fuego::AssetsManager::load_model_async(std::string_view path)
         {
             auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
 
+            auto res = fs->GetFullPathToFile(path.data());
+            if (!res)
+                return;
+
             Assimp::Importer importer{};
             const aiScene* scene = importer.ReadFile(fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
             if (scene)
@@ -90,6 +99,10 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d(std
         return image->second;
 
     auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
+
+    auto res = fs->GetFullPathToFile(path.data());
+    if (!res)
+        return std::shared_ptr<Fuego::Graphics::Image2D>{nullptr};
 
     uint16_t channels = ImageChannels(std::filesystem::path(file_name).extension().string());
     stbi_set_flip_vertically_on_load(1);
@@ -131,8 +144,11 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
             uint16_t channels = ImageChannels(std::filesystem::path(img_name).extension().string());
             stbi_set_flip_vertically_on_load(1);
             int w, h, bpp = 0;
-            unsigned char* data = stbi_load(fs->GetFullPathToFile(img_name).c_str(), &w, &h, &bpp, channels);
-            // TODO to think about what to do if  data is corrupted
+            auto res = fs->GetFullPathToFile(img_name);
+            if (!res)
+                return;
+
+            unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &bpp, channels);
             if (!data)
                 return;
 

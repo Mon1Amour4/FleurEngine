@@ -40,17 +40,20 @@ void FileSystem::OnShutdown()
     // TODO
 }
 
-std::string FileSystem::OpenFile(const std::string& file, std::fstream::ios_base::openmode mode)
+std::optional<std::string> FileSystem::OpenFile(const std::string& file, std::fstream::ios_base::openmode mode)
 {
-    std::string path = GetFullPathToFile(file);
-    std::fstream f(path, mode);
+    auto res = GetFullPathToFile(file);
+    if (!res)
+        return std::nullopt;
+
+    std::fstream f(res.value(), mode);
     FU_CORE_ASSERT(f.is_open(), "[FS] failed to open a file");
 
     std::stringstream buffer;
     buffer << f.rdbuf();
     f.close();
 
-    return buffer.str();
+    return std::optional<std::string>(buffer.str());
 }
 
 std::string FileSystem::FileSystemImpl::GetExecutablePath()
@@ -69,21 +72,21 @@ std::string FileSystem::FileSystemImpl::GetExecutablePath()
     return std::filesystem::path(path).parent_path().string();
 }
 
-const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
+std::optional<std::string> FileSystem::GetFullPathToFile(std::string_view fileName) const
 {
     if (fileName.empty())
-        return std::string();
+        return std::nullopt;
 
     std::filesystem::path file(fileName);
     std::string extension = file.extension().string();
-
+    std::string out_name;
     extension = file.extension().string();
     if (extension.compare(".png") == 0 || extension.compare(".jpg") == 0)
     {
         std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->images_path) / fileName;
         if (std::filesystem::exists(filePath))
         {
-            return filePath.lexically_normal().string();
+            out_name = filePath.lexically_normal().string();
         }
     }
     else if (extension.compare(".glsl") == 0)
@@ -91,7 +94,7 @@ const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
         std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->shaders_path) / fileName;
         if (std::filesystem::exists(filePath))
         {
-            return filePath.lexically_normal().string();
+            out_name = filePath.lexically_normal().string();
         }
     }
     else if (extension.compare(".obj") == 0)
@@ -99,7 +102,7 @@ const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
         std::filesystem::path filePath = d->resource_path / std::filesystem::path(d->models_path) / fileName;
         if (std::filesystem::exists(filePath))
         {
-            return filePath.lexically_normal().string();
+            out_name = filePath.lexically_normal().string();
         }
     }
 
@@ -109,13 +112,14 @@ const std::string FileSystem::GetFullPathToFile(std::string_view fileName) const
 
         if (std::filesystem::exists(filePath))
         {
-            return filePath.lexically_normal().string();
+            out_name = filePath.lexically_normal().string();
         }
     }
 
-    return "";
+    return !out_name.empty() ? std::optional<std::string>(out_name) : std::nullopt;
 }
-std::string FileSystem::GetFullPathToFolder(std::string_view folder_name) const
+
+std::optional<std::string> FileSystem::GetFullPathToFolder(std::string_view folder_name) const
 {
     for (const auto& path : d->_searchPaths)
     {
@@ -125,38 +129,37 @@ std::string FileSystem::GetFullPathToFolder(std::string_view folder_name) const
             std::string folder = folder_path.parent_path().filename().string();
             if (folder.compare(folder_name.data()) == 0)
             {
-                return folder_path.string();
+                return std::optional<std::string>(folder_path.string());
             }
         }
     }
-    return "";
+    return std::nullopt;
 }
-void FileSystem::FUCreateFile(const std::string& file_name, std::string_view folder) const
+bool FileSystem::FUCreateFile(const std::string& file_name, std::string_view folder) const
 {
-    const std::filesystem::path path_to_folder = GetFullPathToFolder(folder);
-    if (!std::filesystem::exists(path_to_folder))
-    {
-        FU_CORE_ERROR("Failed to create file");
-        return;
-    }
-    std::ofstream file(path_to_folder / file_name);
+    auto res = GetFullPathToFolder(folder);
+    if (!res)
+        return false;
+
+    std::ofstream file(std::filesystem::path(res.value()) / file_name);
     if (file)
     {
+        return true;
         file.close();
     }
+    else
+        return false;
 }
 void FileSystem::WriteToFile(std::string_view file_name, const char* buffer)
 {
     if (!buffer || file_name.empty())
         return;
 
-    const std::string path_to_folder = GetFullPathToFile(file_name);
-    if (!std::filesystem::exists(path_to_folder))
-    {
-        FU_CORE_ERROR("[FileSystem] File doesn't exist");
+    auto res = GetFullPathToFile(file_name);
+    if (!res)
         return;
-    }
-    std::ofstream file(path_to_folder, std::ios::out | std::ios::trunc);
+
+    std::ofstream file(file_name.data(), std::ios::out | std::ios::trunc);
     if (file)
     {
         file << buffer << std::endl;
