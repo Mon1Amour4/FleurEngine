@@ -44,9 +44,9 @@ std::shared_ptr<Fuego::Graphics::Model> Fuego::AssetsManager::load_model(std::st
         return std::shared_ptr<Fuego::Graphics::Model>{nullptr};
 
     Assimp::Importer importer{};
-    const aiScene* scene = importer.ReadFile(fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
+    const aiScene* scene = importer.ReadFile(res.value(), ASSIMP_LOAD_FLAGS);
     if (!scene)
-        return nullptr;
+        return std::shared_ptr<Fuego::Graphics::Model>{nullptr};
 
     models_async_operations.lock();
     auto model = models.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Model>(scene)).first->second;
@@ -76,17 +76,14 @@ void Fuego::AssetsManager::load_model_async(std::string_view path)
                 return;
 
             Assimp::Importer importer{};
-            const aiScene* scene = importer.ReadFile(fs->GetFullPathToFile(path.data()), ASSIMP_LOAD_FLAGS);
-            if (scene)
-            {
-                std::string file_name = std::filesystem::path(path.data()).filename().replace_extension().string();
-                std::lock_guard lock(models_async_operations);
-                auto model = models.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Model>(scene)).first->second;
-                ++models_count;
-            }
             const aiScene* scene = importer.ReadFile(res.value(), ASSIMP_LOAD_FLAGS);
             if (!scene)
                 return;
+
+            std::string file_name = std::filesystem::path(path.data()).filename().replace_extension().string();
+            std::lock_guard lock(models_async_operations);
+            auto model = models.emplace(file_name, std::make_shared<Fuego::Graphics::Model>(scene)).first->second;
+            ++models_count;
         },
         path);
 }
@@ -97,9 +94,13 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d(std
         return std::shared_ptr<Fuego::Graphics::Image2D>();
 
     std::string file_name = std::filesystem::path(path.data()).filename().string();
-    auto image = images2d.find(file_name);
-    if (image != images2d.end())
-        return image->second;
+
+    {
+        std::lock_guard<std::mutex> lock(images2d_async_operations);
+        auto image = images2d.find(file_name);
+        if (image != images2d.end())
+            return image->second;
+    }
 
     auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
 
@@ -116,10 +117,13 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d(std
         FU_CORE_ERROR("Can't load an image: {0} {1}", path, stbi_failure_reason());
         return nullptr;
     }
-    auto img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name, data, w, h, bpp, channels)).first->second;
-    ++images2d_count;
-    FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(), img->Height());
-    return img;
+
+    {
+        std::lock_guard<std::mutex> lock(images2d_async_operations);
+        auto img = images2d.emplace(file_name, std::make_shared<Fuego::Graphics::Image2D>(file_name, data, w, h, bpp, channels)).first->second;
+        FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
+        return img;
+    }
 }
 
 std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_async(std::string_view path)
@@ -128,14 +132,16 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
         return std::shared_ptr<Fuego::Graphics::Image2D>{nullptr};
 
     std::string file_name = std::filesystem::path(path.data()).filename().string();
-    auto it = images2d.find(file_name);
-    if (it != images2d.end())
-        return it->second;
+    std::shared_ptr<Fuego::Graphics::Image2D> placed_img;
+    {
+        std::lock_guard lock(images2d_async_operations);
+        auto it = images2d.find(file_name);
+        if (it != images2d.end())
+            return it->second;
 
-    images2d_async_operations.lock();
-    auto placed_img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
-    images2d_async_operations.unlock();
-    ++images2d_count;
+        placed_img = images2d.emplace(file_name, std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
+        ++images2d_count;
+    }
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
@@ -143,8 +149,10 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
         [this](std::shared_ptr<Fuego::Graphics::Image2D> img)
         {
             auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
+
             const char* img_name = img->Name().data();
             uint16_t channels = ImageChannels(std::filesystem::path(img_name).extension().string());
+
             stbi_set_flip_vertically_on_load(1);
             int w, h, bpp = 0;
             auto res = fs->GetFullPathToFile(img_name);
@@ -159,12 +167,14 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
                 return;
             }
 
-            images2d_async_operations.lock();
+            {
+                std::lock_guard<std::mutex> guard(images2d_async_operations);
 
-            Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, data};
-            img->PostCreate(settings);
-            images2d_async_operations.unlock();
-            FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(), img->Height());
+                Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, data};
+                img->PostCreate(settings);
+                FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(),
+                             img->Height());
+            }
         },
         placed_img);
     return placed_img;
@@ -175,24 +185,28 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
                                                                                       uint16_t channels)
 {
     if (!data)
-        return std::shared_ptr<Fuego::Graphics::Image2D>();
+        return std::shared_ptr<Fuego::Graphics::Image2D>(nullptr);
 
     std::string file_name = std::filesystem::path(name.data()).filename().string();
-    auto image = images2d.find(file_name);
-    if (image != images2d.end())
-        return image->second;
+
+    {
+        std::lock_guard<std::mutex> lock(images2d_async_operations);
+        auto image = images2d.find(file_name);
+        if (image != images2d.end())
+            return image->second;
+    }
 
     int w, h, bpp = 0;
     stbi_set_flip_vertically_on_load(1);
     unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
 
-    if (img_data)
+    if (!img_data)
+        return std::shared_ptr<Fuego::Graphics::Image2D>(nullptr);
+
     {
-        images2d_async_operations.lock();
-        auto img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name, img_data, w, h, bpp, channels)).first->second;
-        images2d_async_operations.unlock();
-        ++images2d_count;
-        FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(), img->Height());
+        std::lock_guard<std::mutex> lock(images2d_async_operations);
+        auto img = images2d.emplace(file_name, std::make_shared<Fuego::Graphics::Image2D>(file_name, img_data, w, h, bpp, channels)).first->second;
+        FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
         return img;
     }
 }
@@ -204,14 +218,16 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
         return std::shared_ptr<Fuego::Graphics::Image2D>();
 
     std::string file_name = std::filesystem::path(name.data()).filename().string();
-    auto image = images2d.find(file_name);
-    if (image != images2d.end())
-        return image->second;
+    std::shared_ptr<Fuego::Graphics::Image2D> placed_img;
+    {
+        std::lock_guard lock(images2d_async_operations);
+        auto image = images2d.find(file_name);
+        if (image != images2d.end())
+            return image->second;
 
-    images2d_async_operations.lock();
-    auto placed_img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
-    images2d_async_operations.unlock();
-    ++images2d_count;
+        placed_img = images2d.emplace(file_name, std::make_shared<Fuego::Graphics::Image2D>(file_name)).first->second;
+        ++images2d_count;
+    }
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
     thread_pool->Submit(
@@ -219,21 +235,20 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
         {
             if (!data)
                 return;
+
             int w, h, bpp = 0;
             stbi_set_flip_vertically_on_load(1);
             unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
 
-            if (img_data)
-            {
-                images2d_async_operations.lock();
-                Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, img_data};
-                img->PostCreate(settings);
-                images2d_async_operations.unlock();
-                FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(),
-                             img->Height());
-            }
             if (!img_data)
                 return;
+
+            {
+                std::lock_guard<std::mutex> lokc(images2d_async_operations);
+                Fuego::Graphics::Image2D::Image2DPostCreateion settings{w, h, bpp, channels, img_data};
+                img->PostCreate(settings);
+            }
+            FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, width: {1}, height: {2}", img->Name(), img->Width(), img->Height());
         },
         placed_img, data, size_b, channels);
     return placed_img;
@@ -246,16 +261,18 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromR
         return std::shared_ptr<Fuego::Graphics::Image2D>();
 
     std::string file_name = std::filesystem::path(name.data()).filename().string();
-    auto image = images2d.find(file_name);
-    if (image != images2d.end())
-        return image->second;
 
-    images2d_async_operations.lock();
-    auto img = images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name, data, width, height, bpp, channels)).first->second;
-    images2d_async_operations.unlock();
-    ++images2d_count;
-    FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(), img->Height());
-    return img;
+    {
+        std::lock_guard lock(images2d_async_operations);
+        auto image = images2d.find(file_name);
+        if (image != images2d.end())
+            return image->second;
+
+        auto img =
+            images2d.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Image2D>(file_name, data, width, height, bpp, channels)).first->second;
+        FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
+        return img;
+    }
 }
 
 uint16_t Fuego::AssetsManager::ImageChannels(std::string_view image2d_ext)

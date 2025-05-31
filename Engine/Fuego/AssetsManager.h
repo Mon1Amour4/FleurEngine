@@ -70,23 +70,29 @@ public:
     std::weak_ptr<Res> Get(std::string_view name)
     {
         if (name.empty())
-            return std::weak_ptr<Res>{};
+            return std::weak_ptr<Res>{nullptr};
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
-            auto it = models.find(name.data());
-            if (it != models.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
+            {
+                std::lock_guard<std::mutex> lock(models_async_operations);
+                auto it = models.find(name.data());
+                if (it != models.end())
+                    return std::weak_ptr<Res>(it->second);
+                else
+                    return std::weak_ptr<Res>{nullptr};
+            }
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            auto it = images2d.find(name.data());
-            if (it != images2d.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
+            {
+                std::lock_guard<std::mutex> lock(images2d_async_operations);
+                auto it = images2d.find(name.data());
+                if (it != images2d.end())
+                    return std::weak_ptr<Res>(it->second);
+                else
+                    return std::weak_ptr<Res>{nullptr};
+            }
         }
         else
             FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
@@ -102,23 +108,29 @@ public:
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
-            auto it = models.find(name);
-            if (it != models.end())
             {
-                FU_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
-                models.erase(it);
-                --models_count;
+                std::lock_guard<std::mutex> lock(models_async_operations);
+                auto it = models.find(name);
+                if (it != models.end())
+                {
+                    FU_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
+                    models.erase(it);
+                }
             }
+            --models_count;
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            auto it = images2d.find(name);
-            if (it != images2d.end())
             {
-                FU_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
-                images2d.erase(it);
-                --images2d_count;
+                std::lock_guard<std::mutex> lock(images2d_async_operations);
+                auto it = images2d.find(name);
+                if (it != images2d.end())
+                {
+                    FU_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
+                    images2d.erase(it);
+                }
             }
+            --images2d_count;
         }
         else
         {
