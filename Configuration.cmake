@@ -6,6 +6,15 @@ SET(FU_CPP_LANG_VER
     CACHE STRING "C++ Language standard version"
 )
 
+# Iterator Debug Level configuration
+SET(_ITERATOR_DEBUG_LEVEL
+    "0"
+    CACHE STRING "Iterator Debug Level (0=disabled, 1=basic, 2=extended)"
+)
+
+# Add to global definitions
+ADD_DEFINITIONS(-D_ITERATOR_DEBUG_LEVEL=${_ITERATOR_DEBUG_LEVEL})
+
 # MSVC Runtime Library configuration
 SET(FU_MSVC_RUNTIME_DEBUG
     "MultiThreadedDebugDLL"
