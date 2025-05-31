@@ -156,6 +156,7 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
             stbi_set_flip_vertically_on_load(1);
             int w, h, bpp = 0;
             auto res = fs->GetFullPathToFile(img_name);
+            // TODO: Mark as corrupted
             if (!res)
                 return;
 
