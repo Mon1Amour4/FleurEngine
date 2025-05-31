@@ -70,7 +70,7 @@ public:
     std::weak_ptr<Res> Get(std::string_view name)
     {
         if (name.empty())
-            return std::weak_ptr<Res>{nullptr};
+            return std::weak_ptr<Res>{};
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
@@ -80,7 +80,7 @@ public:
                 if (it != models.end())
                     return std::weak_ptr<Res>(it->second);
                 else
-                    return std::weak_ptr<Res>{nullptr};
+                    return std::weak_ptr<Res>{};
             }
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
@@ -91,7 +91,7 @@ public:
                 if (it != images2d.end())
                     return std::weak_ptr<Res>(it->second);
                 else
-                    return std::weak_ptr<Res>{nullptr};
+                    return std::weak_ptr<Res>{};
             }
         }
         else
