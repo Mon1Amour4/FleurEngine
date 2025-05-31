@@ -84,6 +84,9 @@ void Fuego::AssetsManager::load_model_async(std::string_view path)
                 auto model = models.emplace(std::move(file_name), std::make_shared<Fuego::Graphics::Model>(scene)).first->second;
                 ++models_count;
             }
+            const aiScene* scene = importer.ReadFile(res.value(), ASSIMP_LOAD_FLAGS);
+            if (!scene)
+                return;
         },
         path);
 }
@@ -149,8 +152,12 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
                 return;
 
             unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &bpp, channels);
+
             if (!data)
+            {
+                FU_CORE_ERROR("[Img2D]->AssetsManager::load_image2d_async, {0} - data is nullptr", img_name);
                 return;
+            }
 
             images2d_async_operations.lock();
 
@@ -210,6 +217,8 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
     thread_pool->Submit(
         [this](std::shared_ptr<Fuego::Graphics::Image2D> img, unsigned char* data, uint32_t size_b, uint16_t channels)
         {
+            if (!data)
+                return;
             int w, h, bpp = 0;
             stbi_set_flip_vertically_on_load(1);
             unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
@@ -223,6 +232,8 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromM
                 FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", images2d.size(), img->Name(), img->Width(),
                              img->Height());
             }
+            if (!img_data)
+                return;
         },
         placed_img, data, size_b, channels);
     return placed_img;
