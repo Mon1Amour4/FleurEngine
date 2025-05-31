@@ -70,7 +70,11 @@ TARGET_INCLUDE_DIRECTORIES(
   PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES}
 )
 
-SET_TARGET_PROPERTIES(
-  assimp UpdateAssimpLibsDebugSymbolsAndDLLs uninstall zlibstatic
-  PROPERTIES FOLDER "External/Assimp"
-)
+# Set properties only on existing targets
+IF(TARGET assimp)
+  SET_TARGET_PROPERTIES(assimp PROPERTIES FOLDER "External/Assimp")
+ENDIF()
+
+IF(TARGET zlibstatic)
+  SET_TARGET_PROPERTIES(zlibstatic PROPERTIES FOLDER "External/Assimp")
+ENDIF()

@@ -1,21 +1,12 @@
 # Abseil
 
+# Only include components we actually use
 SET(ABSEIL_BASE
     base
-    algorithm
-    cleanup
     container
-    crc
-    debugging
-    flags
-    functional
     hash
     log
     memory
-    meta
-    numeric
-    profiling
-    random
     status
     strings
     synchronization
@@ -32,7 +23,11 @@ SET(ABSL_MSVC_STATIC_RUNTIME OFF)
 SET(ABSL_BUILD_TEST_HELPERS OFF)
 SET(ABSL_USE_EXTERNAL_GOOGLETEST OFF)
 SET(ABSL_USE_GOOGLETEST_HEAD OFF)
-SET(ABSL_ENABLE_INSTALL ON)
+SET(ABSL_ENABLE_INSTALL OFF) # Disable installation
+SET(ABSL_PROPAGATE_CXX_STD ON) # Use our C++ standard
+SET(ABSL_ENABLE_INSTALL OFF) # Disable installation
+SET(ABSL_USE_GOOGLETEST OFF) # Disable tests
+SET(ABSL_USE_ABSL_TESTING OFF) # Disable testing
 
 # Paths:
 SET(ABSL_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/External/abseil)
