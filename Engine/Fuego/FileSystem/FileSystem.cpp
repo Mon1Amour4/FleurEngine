@@ -115,8 +115,12 @@ std::optional<std::string> FileSystem::GetFullPathToFile(std::string_view fileNa
             out_name = filePath.lexically_normal().string();
         }
     }
-
-    return !out_name.empty() ? std::optional<std::string>(out_name) : std::nullopt;
+    if (out_name.empty())
+    {
+        FU_CORE_ERROR("[FileSystem] GetFullPathToFile-> Can't find {0}", fileName);
+        return std::nullopt;
+    }
+    return std::optional<std::string>(out_name);
 }
 
 std::optional<std::string> FileSystem::GetFullPathToFolder(std::string_view folder_name) const
