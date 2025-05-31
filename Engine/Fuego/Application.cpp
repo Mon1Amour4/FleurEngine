@@ -119,6 +119,7 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     renderer->CurrentShaderObject()->Use();
 
     auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza");
+    // auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("WaterCooler");
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
         renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
@@ -165,6 +166,7 @@ void Application::Init(ApplicationBootSettings& settings)
     renderer.value()->CreateTexture(fallback_img);
 
     assets_manager.value()->Load<Fuego::Graphics::Model>("Sponza/Sponza.glb");
+    // assets_manager.value()->Load<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
 
     initialized = true;
     m_Running = true;
