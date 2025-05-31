@@ -195,9 +195,14 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::unique_ptr<Texture> DeviceOpenGL::CreateTexture(unsigned char* buffer, int width, int height)
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
 {
-    return std::unique_ptr<TextureOpenGL>(new TextureOpenGL(buffer, width, height));
+    return std::make_shared<TextureOpenGL>(name, format, buffer, width, height);
+}
+
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
+{
+    return std::make_shared<TextureOpenGL>(name);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const
@@ -242,7 +247,21 @@ std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
 
 Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
 {
-    const std::string shaderCode = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
-    return new ShaderOpenGL(shaderCode.c_str(), type);
+    // TODO: rework shaders
+    if (shaderName.empty())
+    {
+        FU_CORE_ASSERT(false, "Shader");
+        return nullptr;
+    }
+
+    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
+
+    if (!res)
+    {
+        FU_CORE_ASSERT(res, "[Shader]->DeviceOpenGL::CreateShader, cant create name")
+        return nullptr;
+    }
+
+    return new ShaderOpenGL(res.value().c_str(), type);
 }
 }  // namespace Fuego::Graphics

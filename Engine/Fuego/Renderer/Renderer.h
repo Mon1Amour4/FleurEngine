@@ -1,12 +1,15 @@
 #pragma once
 
 #include "Application.h"
+#include "ApplicationPipeline.hpp"
 #include "Buffer.h"
 #include "Camera.h"
 #include "CommandBuffer.h"
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Graphics.hpp"
+#include "Image2D.h"
 #include "Material.h"
 #include "Model.h"
 #include "Services/ServiceInterfaces.hpp"
@@ -22,43 +25,26 @@
 namespace Fuego::Graphics
 {
 
-#pragma pack(push, 1)
-struct VertexData
-{
-    glm::vec3 pos;
-    glm::vec2 textcoord;
-    glm::vec3 normal;
-
-    VertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
-};
-#pragma pack(pop)
-
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
 public:
-    struct Viewport
-    {
-        float width = 0.0f;
-        float height = 0.0f;
-        float x = 0.0f;
-        float y = 0.0f;
-    };
-
-    enum TextureType
-    {
-        ALBEDO = 0,
-        DIFFUSE = 1,
-        SPECULAR = 2
-    };
-
     friend struct Service<Renderer>;
-    Renderer();
+
+    Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer& toolchain);
     ~Renderer() = default;
+
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
+
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
+
+    std::shared_ptr<Texture> CreateTexture(std::shared_ptr<Image2D> img);
+    std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
 
     // IRenderer;
     void DrawModel(const Model* model, glm::mat4 model_pos);
     void ChangeViewport(float x, float y, float w, float h);
-    std::unique_ptr<Texture> CreateTexture(unsigned char* buffer, int width, int height) const;
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -79,12 +65,6 @@ public:
     void SetVSync(bool active);
     bool IsVSync();
 
-    Renderer(const Renderer&) = delete;
-    Renderer& operator=(const Renderer&) = delete;
-
-    Renderer(Renderer&&) noexcept = default;
-    Renderer& operator=(Renderer&&) noexcept = default;
-
     static uint32_t MAX_TEXTURES_COUNT;
 
     inline const ShaderObject* CurrentShaderObject() const
@@ -95,7 +75,6 @@ public:
     {
         current_shader_obj = obj;
     }
-
 
     std::unique_ptr<ShaderObject> opaque_shader;
 
@@ -117,6 +96,9 @@ private:
 
     bool is_vsync;
 
+    std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
+    GraphicsAPI renderer;
+    Fuego::Pipeline::Toolchain::renderer toolchain;
     // Service
 protected:
     void OnInit();

@@ -21,17 +21,16 @@ public:
     {
         template <typename F>
         Task(F&& func)
-            : f(std::forward<F>(func))
-        {
-        }
+            : f(std::forward<F>(func)){};
 
         Task(Task&& other) noexcept
             : f(std::move(other.f)) {};
 
-        void operator()()
+        void operator()() const
         {
             f();
         };
+        ~Task() = default;
 
     private:
         std::function<void()> f;

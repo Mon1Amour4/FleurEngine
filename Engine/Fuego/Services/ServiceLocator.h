@@ -2,6 +2,7 @@
 #include <typeindex>
 #include <unordered_map>
 
+#include "AssetsManager.h"
 #include "FileSystem/FileSystem.h"
 #include "Renderer.h"
 #include "ServiceInterfaces.hpp"
@@ -12,7 +13,8 @@ namespace Fuego
 {
 
 #pragma region Templates
-using service_variant = std::variant<std::shared_ptr<Fuego::Graphics::Renderer>, std::shared_ptr<Fuego::FS::FileSystem>, std::shared_ptr<Fuego::ThreadPool>>;
+using service_variant = std::variant<std::shared_ptr<Fuego::Graphics::Renderer>, std::shared_ptr<Fuego::FS::FileSystem>, std::shared_ptr<Fuego::ThreadPool>,
+                                     std::shared_ptr<Fuego::AssetsManager>>;
 
 #pragma endregion
 
@@ -21,10 +23,11 @@ class ServiceLocator : public singleton<ServiceLocator>
     friend class singleton<ServiceLocator>;
 
 public:
-    template <is_service_interface T>
-    std::optional<std::shared_ptr<T>> Register()
+    template <typename T, typename... Args>
+    std::optional<std::shared_ptr<T>> Register(Args&&... args)
     {
-        auto ptr = std::make_shared<T>();
+        static_assert(std::is_constructible_v<T, Args...>, "Type T is not constructible with provided arguments.");
+        auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
         service_variant variant = ptr;
         auto [it, inserted] = services.try_emplace(std::type_index(typeid(T)), std::move(variant));
         if (inserted)

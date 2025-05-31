@@ -2,6 +2,10 @@
 
 #include <span>
 
+std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::images_ptr =
+    nullptr;
+std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::images;
+
 namespace Fuego::Graphics
 {
 
@@ -9,11 +13,13 @@ ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer()
+Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer& toolchain)
     : show_wireframe(false)
     , _camera(nullptr)
     , current_shader_obj(nullptr)
     , is_vsync(true)
+    , renderer(api)
+    , toolchain(toolchain)
 {
 }
 
@@ -51,6 +57,36 @@ void Renderer::OnShutdown()
     opaque_shader.reset();
 }
 
+std::shared_ptr<Texture> Renderer::CreateTexture(std::shared_ptr<Image2D> img)
+{
+    if (img == nullptr)
+        return GetLoadedTexture("fallback");
+
+    std::string name = std::filesystem::path(img->Name().data()).stem().string();
+
+    auto it = textures.find(name);
+    if (it != textures.end())
+        return it->second;
+
+    auto texture = toolchain.load_texture(img, _device.get());
+    auto emplaced_texture = textures.emplace(std::move(name), texture);
+    return emplaced_texture.first->second;
+}
+
+std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
+{
+    if (path.empty())
+        return textures.find("fallback")->second;
+
+    std::string name = std::filesystem::path(path.data()).stem().string();
+
+    auto it = textures.find(name.data());
+    if (it != textures.end())
+        return it->second;
+    else
+        return textures.find("fallback")->second;
+}
+
 void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
 {
     std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();
@@ -75,13 +111,15 @@ void Renderer::DrawModel(const Model* model, glm::mat4 model_pos)
     cmd->BindVertexBuffer(*buffer, layout);
 
     const auto* meshes = model->GetMeshesPtr();
+
     for (const auto& mesh : *meshes)
     {
+        cmd->PushDebugGroup(0, mesh->Name().data());
         current_shader_obj->BindMaterial(mesh->GetMaterial());
-
         cmd->IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
         cmd->EndRecording();
         cmd->Submit();
+        cmd->PopDebugGroup();
     }
 }
 
@@ -130,14 +168,9 @@ bool Renderer::IsVSync()
     return is_vsync;
 }
 
-std::unique_ptr<Texture> Renderer::CreateTexture(unsigned char* buffer, int width, int height) const
-{
-    return _device->CreateTexture(buffer, width, height);
-}
-
 void Renderer::OnUpdate(float dlTime)
 {
-    // TODO
+    toolchain.update();
 }
 
 void Renderer::OnPostUpdate(float dlTime)

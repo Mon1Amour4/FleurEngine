@@ -7,8 +7,12 @@ namespace Fuego::Graphics
 class TextureOpenGL final : public Texture
 {
 public:
-    TextureOpenGL() = default;
-    ~TextureOpenGL();
+    // TODO move ctors from public to private?
+    friend class DeviceOpenGL;
+    TextureOpenGL(std::string_view name);
+    TextureOpenGL(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height);
+
+    virtual ~TextureOpenGL() override;
 
     virtual void Bind() const override;
     virtual void UnBind() const override;
@@ -24,11 +28,15 @@ public:
     }
 
 private:
+    uint32_t ColorFormat(TextureFormat format);
+    uint32_t PixelFormat(uint16_t channels, bool inverted = false);
+    uint32_t PixelFormat(TextureFormat format, bool inverted = false);
+
     uint16_t texture_unit;
     uint32_t texture_id;
-    friend class DeviceOpenGL;
 
-    TextureOpenGL(unsigned char* buffer, int width, int heigth);
+
+    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img) override;
 };
 
 class TextureViewOpenGL
