@@ -69,7 +69,7 @@ std::shared_ptr<Texture> Renderer::CreateTexture(std::shared_ptr<Image2D> img)
         return it->second;
 
     auto texture = toolchain.load_texture(img, _device.get());
-    auto emplaced_texture = textures.emplace(std::move(name), std::move(texture));
+    auto emplaced_texture = textures.emplace(std::move(name), texture);
     return emplaced_texture.first->second;
 }
 
