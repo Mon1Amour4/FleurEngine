@@ -247,7 +247,21 @@ std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
 
 Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
 {
-    const std::string shaderCode = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
-    return new ShaderOpenGL(shaderCode.c_str(), type);
+    // TODO: rework shaders
+    if (shaderName.empty())
+    {
+        FU_CORE_ASSERT(false, "Shader");
+        return nullptr;
+    }
+
+    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
+
+    if (!res)
+    {
+        FU_CORE_ASSERT(res, "[Shader]->DeviceOpenGL::CreateShader, cant create name")
+        return nullptr;
+    }
+
+    return new ShaderOpenGL(res.value().c_str(), type);
 }
 }  // namespace Fuego::Graphics
