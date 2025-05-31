@@ -64,11 +64,12 @@ public:
         return is_created;
     }
 
-    virtual void PostCreate(const Fuego::Graphics::Image2D& img)
+    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
     {
-        width = img.Width();
-        height = img.Height();
-        format = Fuego::Graphics::Texture::GetTextureFormat(img.Channels(), img.BBP());
+        const auto& image = *img.get();
+        width = image.Width();
+        height = image.Height();
+        format = Fuego::Graphics::Texture::GetTextureFormat(image.Channels(), image.BBP());
         is_created = true;
     }
 

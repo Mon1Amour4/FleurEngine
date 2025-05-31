@@ -31,16 +31,17 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     is_created = true;
 }
 
-void TextureOpenGL::PostCreate(const Fuego::Graphics::Image2D& img)
+void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
 {
-    FU_CORE_ASSERT(*img.Data() != '\n' || *img.Data() != ' ' || img.IsValid(), "[TextureOpenGL->PostCreate] broken image2d data");
+    const auto& image = *img.get();
+    FU_CORE_ASSERT(image.Data()[0] != '\n' || image.Data()[0] != ' ' || image.IsValid(), "[TextureOpenGL->PostCreate] broken image2d data");
     Texture::PostCreate(img);
     glBindTexture(GL_TEXTURE_2D, 0);
     glGenTextures(1, &texture_id);
     FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
 
     glBindTexture(GL_TEXTURE_2D, texture_id);
-    glTexImage2D(GL_TEXTURE_2D, 0, ColorFormat(format), width, height, 0, PixelFormat(format), GL_UNSIGNED_BYTE, img.Data());
+    glTexImage2D(GL_TEXTURE_2D, 0, ColorFormat(format), width, height, 0, PixelFormat(format), GL_UNSIGNED_BYTE, image.Data());
 
     glGenerateMipmap(GL_TEXTURE_2D);
 
