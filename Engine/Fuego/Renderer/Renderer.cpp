@@ -40,9 +40,8 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     auto existing_img = assets_manager->Get<Fuego::Graphics::Image2D>(name);
     if (!existing_img.expired())
         image = existing_img.lock();
-
-    // Image does not exist -> create one
-    image = assets_manager->LoadAsync<Fuego::Graphics::Image2D>(path);
+    else
+        image = assets_manager->LoadAsync<Fuego::Graphics::Image2D>(path);
 
     auto texture = toolchain.load_texture(image, _device.get());
     auto emplaced_texture = textures.emplace(image->Name(), texture);
