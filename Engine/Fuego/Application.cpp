@@ -227,7 +227,6 @@ void Application::Run()
             m_EventQueue->Pop();
         }
 
-        assets_manager->Tick();
         renderer->OnUpdate(dtTime);
         renderer->Present();
     }
