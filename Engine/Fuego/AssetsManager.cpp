@@ -26,13 +26,19 @@ Fuego::AssetsManager::~AssetsManager()
     images2d.clear();
 }
 
+void Fuego::AssetsManager::FreeImage2D(unsigned char* data) const
+{
+    if (data)
+        stbi_image_free(data);
+}
+
 // Models:
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>> Fuego::AssetsManager::load_model(std::string_view path)
 {
     if (path.empty())
         return std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>{nullptr};
 
-    std::string file_name = std::filesystem::path(path.data()).stem().string();
+    std::string file_name = std::filesystem::path(path).stem().string();
     auto it = models.find(file_name);
     if (it != models.end())
         return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Model>>(it->second, ResourceLoadingStatus::SUCCESS, ResourceLoadingFailureReason::NONE);
@@ -193,8 +199,8 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     if (path.empty())
         return std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>{nullptr};
 
-    std::string file_name = std::filesystem::path(path.data()).filename().stem().string();
-    std::string ext = std::filesystem::path(path.data()).extension().string();
+    std::string file_name = std::filesystem::path(path).filename().stem().string();
+    std::string ext = std::filesystem::path(path).extension().string();
     std::shared_ptr<Fuego::Graphics::Image2D> placed_img;
     {
         std::lock_guard lock(images2d_async_operations);
@@ -229,12 +235,11 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
 
             stbi_set_flip_vertically_on_load(1);
             int w, h, bpp = 0;
-            std::string full_name;
-            full_name.reserve(img->Name().size() + img->Ext().size());
-            full_name += img->Name();
-            full_name += img->Ext();
 
-            auto res = fs->GetFullPathToFile(full_name);
+            std::filesystem::path full_path = img->Name();
+            full_path.replace_extension(img->Ext());
+
+            auto res = fs->GetFullPathToFile(full_path.string());
             if (!res)
             {
                 std::lock_guard<std::mutex> lock(images2d_async_operations);

@@ -187,6 +187,8 @@ public:
         }
     }
 
+    void FreeImage2D(unsigned char* data) const;
+
 private:
     std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
     // TODO: What to do with corrupted models?
