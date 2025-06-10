@@ -1,9 +1,9 @@
 BasedOnStyle: Google
 IndentWidth: 4
-ColumnLimit: 160
-AccessModifierOffset: -4
+ColumnLimit: 120
 DerivePointerAlignment: false
 PointerAlignment: Left
+SortIncludes: true
 BreakBeforeBraces: Allman
 BraceWrapping:
   AfterClass: true
@@ -17,12 +17,7 @@ BraceWrapping:
   BeforeElse: true
   IndentBraces: false
 AllowShortIfStatementsOnASingleLine: false
-AlwaysBreakAfterReturnType: None
-AlwaysBreakBeforeMultilineStrings: false
-MaxEmptyLinesToKeep: 2
-AllowShortBlocksOnASingleLine: false
-AllowShortFunctionsOnASingleLine: false
-AlignAfterOpenBracket: true
-IndentCaseLabels: false
-PackConstructorInitializers: Never
+AllowShortFunctionsOnASingleLine: Inline
+IndentCaseLabels: true
+PackConstructorInitializers: NextLine
 BreakConstructorInitializers: BeforeComma
