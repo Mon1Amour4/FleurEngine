@@ -127,8 +127,14 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     auto model_3 = assets_manager->Get<Model>("Sponza");
     // auto model_3 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_3 = model_3.lock();
+    auto locked_model_4 = model_4.lock();
+    auto locked_model_5 = model_5.lock();
     if (locked_model_3)
         renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    if (locked_model_4)
+        renderer->DrawModel(locked_model_4.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    if (locked_model_5)
+        renderer->DrawModel(locked_model_5.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
 
     UNUSED(event);
     return true;
@@ -226,9 +232,12 @@ void Application::Run()
             OnEvent(*ev);
             m_EventQueue->Pop();
         }
-
+        auto time_point = std::chrono::steady_clock::now();
         renderer->OnUpdate(dtTime);
         renderer->Present();
+        auto now = std::chrono::steady_clock::now();
+        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - time_point);
+        FU_CORE_TRACE("Renderer diff: {0}", diff.count());
     }
 }
 

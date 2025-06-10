@@ -5,6 +5,7 @@
 
 #include "ApplicationPipeline.hpp"
 #include "Services/ServiceInterfaces.hpp"
+#include "tbb/concurrent_unordered_map.h"
 
 namespace Fuego::Graphics
 {
@@ -123,25 +124,19 @@ public:
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
-            {
-                std::lock_guard<std::mutex> lock(models_async_operations);
-                auto it = models.find(name.data());
-                if (it != models.end())
-                    return std::weak_ptr<Res>(it->second);
-                else
-                    return std::weak_ptr<Res>{};
-            }
+            auto it = models.find(name.data());
+            if (it != models.end())
+                return std::weak_ptr<Res>(it->second);
+            else
+                return std::weak_ptr<Res>{};
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
-            {
-                std::lock_guard<std::mutex> lock(images2d_async_operations);
-                auto it = images2d.find(name.data());
-                if (it != images2d.end())
-                    return std::weak_ptr<Res>(it->second);
-                else
-                    return std::weak_ptr<Res>{};
-            }
+            auto it = images2d.find(name.data());
+            if (it != images2d.end())
+                return std::weak_ptr<Res>(it->second);
+            else
+                return std::weak_ptr<Res>{};
         }
         else
             FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
@@ -157,45 +152,42 @@ public:
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Model>>::value)
         {
+            auto it = models.find(name);
+            if (it != models.end())
             {
-                std::lock_guard<std::mutex> lock(models_async_operations);
-                auto it = models.find(name);
-                if (it != models.end())
-                {
-                    FU_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
-                    models.erase(it);
-                }
+                FU_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
+                std::mutex mtx;
+                std::lock_guard<std::mutex> lock(mtx);
+                models.unsafe_erase(it);
             }
             --models_count;
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::Image2D>>::value)
         {
+            auto it = images2d.find(name);
+            if (it != images2d.end())
             {
-                std::lock_guard<std::mutex> lock(images2d_async_operations);
-                auto it = images2d.find(name);
-                if (it != images2d.end())
-                {
-                    FU_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
-                    images2d.erase(it);
-                }
+                FU_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
+                std::mutex mtx;
+                std::lock_guard<std::mutex> lock(mtx);
+                images2d.unsafe_erase(it);
             }
             --images2d_count;
         }
         else
-        {
-            FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
-        }
+            FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type");
     }
 
     void FreeImage2D(unsigned char* data) const;
 
 private:
-    std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
-    // TODO: What to do with corrupted models?
-    std::unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>> models_to_load_async;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
+    // std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
+    //  TODO: What to do with corrupted models?
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>> models_to_load_async;
 
-    std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
-    std::unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>> images2d_to_load_async;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>> images2d_to_load_async;
 
     std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>> load_model(std::string_view path);
     std::shared_ptr<ResourceHandle<Fuego::Graphics::Model>> load_model_async(std::string_view path);
@@ -206,8 +198,8 @@ private:
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
 
-    std::mutex models_async_operations;
-    std::mutex images2d_async_operations;
+    // std::mutex models_async_operations;
+    // std::mutex images2d_async_operations;
 
     uint16_t ImageChannels(std::string_view image2d_ext);
 
