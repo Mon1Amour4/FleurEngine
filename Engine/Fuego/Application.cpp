@@ -10,6 +10,11 @@
 
 namespace Fuego
 {
+using Texture = Fuego::Graphics::Texture;
+using Image2D = Fuego::Graphics::Image2D;
+using Model = Fuego::Graphics::Model;
+using Renderer = Fuego::Graphics::Renderer;
+
 template <>
 Application& singleton<Application>::instance()
 {
@@ -71,7 +76,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
+    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }
@@ -87,7 +92,7 @@ bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 }
 bool Application::OnValidateWindow(WindowValidateEvent& event)
 {
-    ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ValidateWindow();
+    ServiceLocator::instance().GetService<Renderer>()->ValidateWindow();
     m_Window->SetPainted();
     event.SetHandled();
     return true;
@@ -99,7 +104,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
     switch (crossplatform_key)
     {
     case Key::D1:
-        ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->ToggleWireFrame();
+        ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
         break;
     case Key::D2:
         m_Window->SwitchInteractionMode();
@@ -111,7 +116,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
-    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    auto renderer = ServiceLocator::instance().GetService<Renderer>();
     auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
     renderer->ShowWireFrame();
     // TODO: As for now we use just one opaque shader, but we must think about different passes
@@ -119,8 +124,8 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     renderer->SetShaderObject(renderer->opaque_shader.get());
     renderer->CurrentShaderObject()->Use();
 
-    auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("Sponza");
-    // auto model_3 = assets_manager->Get<Fuego::Graphics::Model>("WaterCooler");
+    auto model_3 = assets_manager->Get<Model>("Sponza");
+    // auto model_3 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
         renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
@@ -153,7 +158,7 @@ void Application::Init(ApplicationBootSettings& settings)
     toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
     Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
 
-    auto renderer = ServiceLocator::instance().Register<Fuego::Graphics::Renderer>(settings.renderer, toolchain._renderer);
+    auto renderer = ServiceLocator::instance().Register<Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.vsync);
 
@@ -162,11 +167,10 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    auto resource =
-        renderer.value()->CreateGraphicsResource<Fuego::Graphics::Texture>(assets_manager.value()->LoadAsync<Fuego::Graphics::Image2D>("fallback.png"));
+    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->LoadAsync<Image2D>("fallback.png"));
 
-    assets_manager.value()->Load<Fuego::Graphics::Model>("Sponza/Sponza.glb");
-    // assets_manager.value()->Load<Fuego::Graphics::Model>("WaterCooler/WaterCooler.obj");
+    assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
+    // assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
     initialized = true;
     m_Running = true;
@@ -174,13 +178,13 @@ void Application::Init(ApplicationBootSettings& settings)
 
 void Application::SetVSync(bool active) const
 {
-    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    auto renderer = ServiceLocator::instance().GetService<Renderer>();
     renderer->SetVSync(active);
 }
 
 bool Application::IsVSync() const
 {
-    auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+    auto renderer = ServiceLocator::instance().GetService<Renderer>();
     return renderer->IsVSync();
 }
 
@@ -194,7 +198,7 @@ void Application::Run()
 
     while (m_Running)
     {
-        auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
+        auto renderer = ServiceLocator::instance().GetService<Renderer>();
         auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
 
         _time_manager->Tick();
