@@ -25,9 +25,7 @@ Camera::Camera()
 {
 }
 
-Camera::~Camera()
-{
-}
+Camera::~Camera() {}
 
 void Camera::Activate()
 {
