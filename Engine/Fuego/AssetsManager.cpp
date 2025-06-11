@@ -147,6 +147,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
 
     std::string file_name = std::filesystem::path(path).stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
+
     auto image = images2d.find(file_name);
     if (image != images2d.end())
         return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(image->second, ResourceLoadingStatus::SUCCESS,
@@ -179,7 +180,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
 
     std::string file_name = std::filesystem::path(path).filename().stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
-    std::shared_ptr<Fuego::Graphics::Image2D> placed_img;
+
     auto it = images2d.find(file_name);
     if (it != images2d.end())
         return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(it->second, ResourceLoadingStatus::SUCCESS,
@@ -189,14 +190,12 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         if (it != images2d_to_load_async.end() && it->second->Status() != ResourceLoadingStatus::CORRUPTED)
             return it->second;
     }
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> handle{};
-    {
-        handle = images2d_to_load_async
-                     .emplace(file_name, std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(
-                                             std::make_shared<Fuego::Graphics::Image2D>(file_name, ext), ResourceLoadingStatus::TO_BE_LOADED,
-                                             ResourceLoadingFailureReason::NONE))
-                     .first->second;
-    }
+
+    auto handle = images2d_to_load_async
+                      .emplace(file_name, std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(
+                                              std::make_shared<Fuego::Graphics::Image2D>(file_name, ext), ResourceLoadingStatus::TO_BE_LOADED,
+                                              ResourceLoadingFailureReason::NONE))
+                      .first->second;
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
@@ -233,9 +232,11 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
                                                                     data};
             handle->Resource()->PostCreate(settings);
             handle->SetStatus(ResourceLoadingStatus::SUCCESS);
+
             auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
             FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", image->Name());
             ++images2d_count;
+
             auto it = images2d_to_load_async.find(handle->Resource()->Name().data());
             if (it != images2d_to_load_async.end())
             {

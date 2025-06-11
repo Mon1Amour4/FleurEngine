@@ -162,7 +162,7 @@ void Application::Init(ApplicationBootSettings& settings)
     Fuego::Pipeline::Toolchain toolchain{};
     toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
     toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
-    Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
+    Fuego::Pipeline::PostLoadPipeline::pairs_ptr = &Fuego::Pipeline::Toolchain::renderer::pairs;
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
@@ -232,12 +232,8 @@ void Application::Run()
             OnEvent(*ev);
             m_EventQueue->Pop();
         }
-        auto time_point = std::chrono::steady_clock::now();
         renderer->OnUpdate(dtTime);
         renderer->Present();
-        auto now = std::chrono::steady_clock::now();
-        auto diff = std::chrono::duration_cast<std::chrono::milliseconds>(now - time_point);
-        FU_CORE_TRACE("Renderer diff: {0}", diff.count());
     }
 }
 

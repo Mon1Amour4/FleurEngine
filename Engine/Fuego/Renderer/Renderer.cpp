@@ -2,9 +2,9 @@
 
 #include <span>
 
-std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::images_ptr =
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::pairs_ptr =
     nullptr;
-std::deque<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::images;
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::pairs;
 
 namespace Fuego::Graphics
 {
@@ -34,8 +34,8 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     if (it != textures.end())
         return it->second;
 
-    std::shared_ptr<Fuego::Graphics::Image2D> image{nullptr};
     // If not, load Image and then create new texture:
+    std::shared_ptr<Fuego::Graphics::Image2D> image{nullptr};
     auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
     auto existing_img = assets_manager->Get<Fuego::Graphics::Image2D>(name);
     if (!existing_img.expired())

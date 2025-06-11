@@ -166,7 +166,7 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
             else
                 image = assets_manager->LoadAsync<Image2D>(path.C_Str());
 
-            auto texture = renderer->CreateGraphicsResource<Texture>(image->Resource());
+            auto texture = renderer->CreateGraphicsResource<Texture>(image->Resource()->Name());
 
             // TODO think about passing raw pointer or shared ptr to material
             auto material = Material::CreateMaterial(texture.get());
