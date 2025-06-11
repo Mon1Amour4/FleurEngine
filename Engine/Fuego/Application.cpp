@@ -45,6 +45,7 @@ void Application::OnEvent(EventVariant& event)
                                                 [this](WindowCloseEvent&    ev) {OnWindowClose(ev); },
                                                 [this](AppRenderEvent&    ev) {OnRenderEvent(ev); },
                                                 [this](KeyPressedEvent&    ev) {OnKeyPressEvent(ev); },
+                                                [this](MouseScrolledEvent&    ev) {OnMouseWheelScrollEvent(ev); },
                                                 [](auto&) {}
         };
     // clang-format on
@@ -134,6 +135,12 @@ bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
     return true;
 }
 
+bool Application::OnMouseWheelScrollEvent(MouseScrolledEvent& event)
+{
+    m_Window->SetMouseWheelScrollData(event.GetXOffset(), event.GetYOffset());
+    return false;
+}
+
 Window& Application::GetWindow()
 {
     return *m_Window;
@@ -206,7 +213,16 @@ void Application::Run()
         float dtTime = _time_manager->DeltaTime();
 
         renderer->Clear();
+
         m_EventQueue->OnUpdate(dtTime);
+        // TODO Do we need this lookup here or we need t move it to m_EventQueue->OnUpdate?
+        while (!m_EventQueue->Empty())
+        {
+            auto ev = m_EventQueue->Front();
+            OnEvent(*ev);
+            m_EventQueue->Pop();
+        }
+
         m_Window->OnUpdate(dtTime);
         Fuego::Graphics::Camera::GetActiveCamera()->OnUpdate(dtTime);
 
@@ -215,14 +231,9 @@ void Application::Run()
             layer->OnUpdate(dtTime);
         }
 
-        while (!m_EventQueue->Empty())
-        {
-            auto ev = m_EventQueue->Front();
-            OnEvent(*ev);
-            m_EventQueue->Pop();
-        }
         renderer->OnUpdate(dtTime);
         renderer->Present();
+        m_Window->SetMouseWheelScrollData(0.f, 0.f);
     }
 }
 

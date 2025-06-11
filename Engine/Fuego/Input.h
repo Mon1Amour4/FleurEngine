@@ -31,9 +31,11 @@ class FUEGO_API Input
         MOUSE_SCROLL
     };
 
-    static inline bool IsKeyPressed(KeyCode keyCode)
+    static inline bool IsKeyPressed(KeyCode keyCode) { return platform_instance().IsKeyPressedImpl(keyCode); }
+
+    static inline bool IsMouseWheelScrolled(std::pair<float, float>& data)
     {
-        return platform_instance().IsKeyPressedImpl(keyCode);
+        return platform_instance().IsMouseWheelScrolledImpl(data);
     }
 
     static inline bool IsMouseButtonPressed(MouseCode mouseCode)

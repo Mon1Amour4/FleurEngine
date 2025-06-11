@@ -29,6 +29,7 @@ class WindowWin final : public Window
     Input::KeyState GetKeyState(KeyCode keyCode) const;
     Input::MouseState GetMouseState(MouseCode mouseCode) const;
     void GetMousePos(float& xPos, float& yPos) const;
+    std::pair<float, float> GetMouseWheelScrollData() const;
     virtual inline bool HasMouseMoved(float x, float y) const override
     {
         return !(_cursorPos.x == x && _cursorPos.y == y);
@@ -80,6 +81,8 @@ class WindowWin final : public Window
     Input::KeyState pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
+
+    std::pair<float, float> mouse_wheel_data;
 
     InteractionMode interaction_mode;
 

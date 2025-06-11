@@ -31,6 +31,16 @@ std::pair<float, float> InputWin::GetMousePositionImpl() const
     window.GetMousePos(xPos, yPos);
     return {xPos, yPos};
 }
+
+bool InputWin::IsMouseWheelScrolledImpl(std::pair<float, float>& pair) const
+{
+    const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
+    pair = window.GetMouseWheelScrollData();
+    if (pair.first != 0.f || pair.second != 0.f)
+        return true;
+    return false;
+}
+
 float InputWin::GetMouseXImpl() const
 {
     auto [x, y] = GetMousePositionImpl();

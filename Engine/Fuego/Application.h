@@ -55,6 +55,7 @@ class FUEGO_API Application : public singleton<Application>
 
     // Input events
     bool OnMouseMoveEvent(MouseMovedEvent& event);
+    bool OnMouseWheelScrollEvent(MouseScrolledEvent& event);
 
     Window& GetWindow();
 
