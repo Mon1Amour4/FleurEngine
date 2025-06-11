@@ -2,9 +2,10 @@
 
 #include <span>
 
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::pairs_ptr =
-    nullptr;
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::pairs;
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>*
+    Fuego::Pipeline::PostLoadPipeline::pairs_ptr = nullptr;
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>
+    Fuego::Pipeline::Toolchain::renderer::pairs;
 
 namespace Fuego::Graphics
 {
@@ -41,8 +42,8 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     if (!existing_img.expired())
         image = existing_img.lock();
     else
-    {  // TODO rewrite this method because we use handles ?
-        image = assets_manager->LoadAsync<Fuego::Graphics::Image2D>(path)->Resource();
+    {  // TODO rewrite this method because we use handles ? maybe
+        image = assets_manager->Load<Fuego::Graphics::Image2D>(path)->Resource();
     }
 
     auto texture = toolchain.load_texture(image, _device.get());
@@ -79,8 +80,9 @@ void Renderer::OnInit()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    opaque_shader.reset(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
-                                                         _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
+    opaque_shader.reset(
+        ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
+                                         _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
     opaque_shader->GetVertexShader()->AddVar("model");
     opaque_shader->GetVertexShader()->AddVar("view");
     opaque_shader->GetVertexShader()->AddVar("projection");
@@ -226,9 +228,7 @@ void Renderer::UpdateViewport()
 }
 
 VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
-    : pos(pos)
-    , textcoord(text_coord)
-    , normal(normal)
+    : pos(pos), textcoord(text_coord), normal(normal)
 {
 }
 

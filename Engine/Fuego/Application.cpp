@@ -22,15 +22,9 @@ Application& singleton<Application>::instance()
     return inst;
 }
 
-Application::Application()
-    : initialized(false)
-    , m_Running(false)
-{
-}
+Application::Application() : initialized(false), m_Running(false) {}
 
-Application::~Application()
-{
-}
+Application::~Application() {}
 
 void Application::PushLayer(Layer* layer)
 {
@@ -44,7 +38,7 @@ void Application::PushOverlay(Layer* overlay)
 
 void Application::OnEvent(EventVariant& event)
 {  // clang-format off
-    auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); }, 
+    auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); },
                                                 [this](WindowStartResizeEvent&   ev) { OnStartResizeWindow(ev); },
                                                 [this](WindowEndResizeEvent&    ev) {OnEndResizeWindow(ev); },
                                                 [this](WindowValidateEvent&    ev) {OnValidateWindow(ev); },
@@ -76,7 +70,8 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
+    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(),
+                                                                      event.GetHeight());
     event.SetHandled();
     return true;
 }
@@ -103,12 +98,12 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 
     switch (crossplatform_key)
     {
-    case Key::D1:
-        ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
-        break;
-    case Key::D2:
-        m_Window->SwitchInteractionMode();
-        break;
+        case Key::D1:
+            ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
+            break;
+        case Key::D2:
+            m_Window->SwitchInteractionMode();
+            break;
     }
     event.SetHandled();
     return true;
@@ -127,14 +122,8 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     auto model_3 = assets_manager->Get<Model>("Sponza");
     // auto model_3 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_3 = model_3.lock();
-    auto locked_model_4 = model_4.lock();
-    auto locked_model_5 = model_5.lock();
     if (locked_model_3)
         renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
-    if (locked_model_4)
-        renderer->DrawModel(locked_model_4.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
-    if (locked_model_5)
-        renderer->DrawModel(locked_model_5.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
 
     UNUSED(event);
     return true;
@@ -173,7 +162,8 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->LoadAsync<Image2D>("fallback.png"));
+    auto resource = renderer.value()->CreateGraphicsResource<Texture>(
+        assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     // assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
@@ -214,7 +204,6 @@ void Application::Run()
         m_Window->SetTitle(buffer);
 
         float dtTime = _time_manager->DeltaTime();
-
 
         renderer->Clear();
         m_EventQueue->OnUpdate(dtTime);

@@ -15,17 +15,13 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
     , vertex_count(0)
     , indices_count(0)
 {
-    process_model(scene);
+    process_model(scene, false);
 }
 
 Fuego::Graphics::Model::Model(std::string_view model_name)
-    : name(model_name)
-    , mesh_count(0)
-    , vertex_count(0)
-    , indices_count(0)
+    : name(model_name), mesh_count(0), vertex_count(0), indices_count(0)
 {
 }
-
 
 Fuego::Graphics::Model::Model(Model&& other) noexcept
     : name(std::move(other.name))
@@ -55,8 +51,8 @@ Fuego::Graphics::Model& Fuego::Graphics::Model::operator=(Model&& other) noexcep
     return *this;
 }
 
-Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
-                                   std::vector<uint32_t>& indices)
+Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index,
+                                   std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices)
     : mesh_name(mesh->mName.C_Str())
     , vertex_count(mesh->mNumVertices)
     , vertex_start(0)
@@ -95,7 +91,8 @@ Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint3
         for (size_t j = 0; j < face.mNumIndices; j++)
         {
             uint32_t index = face.mIndices[j] + vertex_start;
-            FU_CORE_ASSERT(index >= vertex_start && index < vertex_start + mesh->mNumVertices, "Mesh: index out of range for current mesh vertices");
+            FU_CORE_ASSERT(index >= vertex_start && index < vertex_start + mesh->mNumVertices,
+                           "Mesh: index out of range for current mesh vertices");
             indices.push_back(face.mIndices[j] + vertex_start);
         }
         indices_count += face.mNumIndices;
@@ -151,20 +148,22 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
                     if (embeded_texture->mFilename.length == 0)
                         name = std::string(GetName()) + "_" + "Embeded_txt_" + std::to_string(texture_index);
                     if (async)
-                        image = assets_manager->LoadImage2DFromMemoryAsync(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData),
-                                                                           embeded_texture->mWidth, channels);
+                        image = assets_manager->LoadImage2DFromMemoryAsync(
+                            name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
+                            channels);
                     else
-                        image = assets_manager->LoadImage2DFromMemory(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
-                                                                      channels);
+                        image = assets_manager->LoadImage2DFromMemory(
+                            name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
+                            channels);
                 }
                 else
-                    image =
-                        assets_manager->LoadImage2DFromRawData(embeded_texture->mFilename.C_Str(), reinterpret_cast<unsigned char*>(embeded_texture->pcData), 4,
-                                                               8, embeded_texture->mWidth, embeded_texture->mHeight);
+                    image = assets_manager->LoadImage2DFromRawData(
+                        embeded_texture->mFilename.C_Str(), reinterpret_cast<unsigned char*>(embeded_texture->pcData),
+                        4, 8, embeded_texture->mWidth, embeded_texture->mHeight);
             }
 
             else
-                image = assets_manager->LoadAsync<Image2D>(path.C_Str());
+                image = assets_manager->Load<Image2D>(path.C_Str(), async);
 
             auto texture = renderer->CreateGraphicsResource<Texture>(image->Resource()->Name());
 
@@ -190,8 +189,8 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
 
     for (size_t i = 0; i < scene->mNumMeshes; i++)
     {
-        meshes.emplace_back(
-            std::make_unique<Fuego::Graphics::Model::Mesh>(scene->mMeshes[i], materials[scene->mMeshes[i]->mMaterialIndex].get(), i, vertices, indices));
+        meshes.emplace_back(std::make_unique<Fuego::Graphics::Model::Mesh>(
+            scene->mMeshes[i], materials[scene->mMeshes[i]->mMaterialIndex].get(), i, vertices, indices));
         Fuego::Graphics::Model::Mesh* mesh = meshes.back().get();
         vertex_count += mesh->GetVertexCount();
         indices_count += mesh->GetIndicesCount();
