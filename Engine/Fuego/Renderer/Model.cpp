@@ -119,6 +119,7 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
     std::map<uint32_t, const Texture*> loaded_textures;
     for (size_t i = 0; i < scene->mNumMaterials; i++)
     {
+        uint32_t solid_texture_idx = 0;
         aiString path;
         std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> image{};
         if (scene->mMaterials[i]->GetTexture(aiTextureType_DIFFUSE, 0, &path) == AI_SUCCESS)
@@ -178,6 +179,10 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
             if (scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS)
             {
                 // TODO we need Color class and creation of solid textures from colors
+                std::string name = std::string(scene->mRootNode->mName.C_Str()) + "_Solid_Texture_" +
+                                   std::to_string(solid_texture_idx);
+
+                renderer->CreateGraphicsResource<Texture>(name, TextureFormat::R8, Color(125), 128, 128);
             }
             auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
             // auto texture = renderer->CreateGraphicsResource<Texture>();

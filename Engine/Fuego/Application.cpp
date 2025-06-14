@@ -14,6 +14,7 @@ using Texture = Fuego::Graphics::Texture;
 using Image2D = Fuego::Graphics::Image2D;
 using Model = Fuego::Graphics::Model;
 using Renderer = Fuego::Graphics::Renderer;
+using Color = Fuego::Graphics::Color;
 
 template <>
 Application& singleton<Application>::instance()
@@ -117,14 +118,24 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     renderer->ShowWireFrame();
     // TODO: As for now we use just one opaque shader, but we must think about different passes
     // using different shaders with blending and probably using pre-passes
-    renderer->SetShaderObject(renderer->opaque_shader.get());
-    renderer->CurrentShaderObject()->Use();
+
+    auto model_1 = assets_manager->Get<Model>("WaterCooler");
+    auto locked_model_1 = model_1.lock();
+    if (locked_model_1)
+    {
+        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_1.get(),
+                            glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    }
 
     auto model_3 = assets_manager->Get<Model>("Sponza");
-    // auto model_3 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
-        renderer->DrawModel(locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    {
+        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(),
+                            glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    }
+    auto red_texture = renderer->CreateGraphicsResource<Texture>("red texture", Fuego::Graphics::TextureFormat::R8,
+                                                                 Color(128), 128, 128);
 
     UNUSED(event);
     return true;
@@ -173,7 +184,7 @@ void Application::Init(ApplicationBootSettings& settings)
         assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
-    // assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+    assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
     initialized = true;
     m_Running = true;
