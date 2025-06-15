@@ -35,7 +35,6 @@ class CommandBufferOpenGL final : public CommandBuffer
    private:
     int ConvertUsage(RenderStage& stage) const;
     uint32_t _vao;
-    uint32_t _ebo;
     uint32_t _mainVsShader;
     uint32_t _pixelShader;
     bool _isLinked;

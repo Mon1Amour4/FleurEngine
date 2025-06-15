@@ -224,6 +224,7 @@ void Renderer::OnUpdate(float dlTime)
     // Main Pass
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
+    static_geometry_cmd->BeginRecording();
     static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
 
     static_geometry_cmd->ShaderObject()->Use();

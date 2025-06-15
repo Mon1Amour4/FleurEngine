@@ -16,14 +16,12 @@ namespace Fuego::Graphics
 CommandBufferOpenGL::CommandBufferOpenGL()
     : _mainVsShader(-1), _pixelShader(-1), _isLinked(false), _isDataAllocated(false), _texture(0), _isFree(true)
 {
-    glGenBuffers(1, &_ebo);
-    glGenVertexArrays(1, &_vao);
+    glCreateVertexArrays(1, &_vao);
 }
 
 CommandBufferOpenGL::~CommandBufferOpenGL()
 {
     glDeleteVertexArrays(1, &_vao);
-    glDeleteBuffers(1, &_ebo);
 
     for (size_t i = 0; i < push_debug_group_commands; i++)
     {
@@ -33,20 +31,14 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 
 void CommandBufferOpenGL::BeginRecording()
 {
+    glBindVertexArray(_vao);
     _isFree = false;
-    // Clear();
 }
 
-void CommandBufferOpenGL::EndRecording()
-{
-    // Temporary
-    // glDeleteTextures(1, &_texture);
-    glBindVertexArray(0);
-}
+void CommandBufferOpenGL::EndRecording() {}
 
 void CommandBufferOpenGL::Submit()
 {
-    // TODO Execute gl commands from commands queue
     _isFree = true;
 }
 
@@ -60,19 +52,18 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
     vertex_global_buffer = std::move(vertexBuffer);
     auto buff = static_cast<const BufferOpenGL*>(vertex_global_buffer.get());
 
-    glBindVertexArray(_vao);
-    glBindBuffer(vertex_global_buffer->NativeType(), buff->GetBufferID());
+    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, sizeof(VertexData));
 
     VertexLayout::LayoutIterator* it;
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
     {
-        glVertexAttribPointer((GLuint)it->GetIndex(), (GLint)it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE,
-                              (GLsizei)layout.GetLayoutSize(), (void*)it->GetOffset());
+        GLuint index = static_cast<GLuint>(it->GetIndex());
+        glVertexArrayAttribFormat(_vao, index, it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE,
+                                  static_cast<GLuint>(it->GetOffset()));
+        glVertexArrayAttribBinding(_vao, index, 0);
         if (it->GetIsEnabled())
-            glEnableVertexAttribArray(it->GetIndex());
+            glEnableVertexArrayAttrib(_vao, index);
     }
-    glBindVertexArray(0);
-    glBindBuffer(vertex_global_buffer->NativeType(), 0);
 }
 
 void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
@@ -80,10 +71,7 @@ void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
     index_global_buffer = std::move(buffer);
     auto buff = static_cast<const BufferOpenGL*>(index_global_buffer.get());
 
-    glBindVertexArray(_vao);
-    glBindBuffer(index_global_buffer->NativeType(), buff->GetBufferID());
-
-    glBindVertexArray(0);
+    glVertexArrayElementBuffer(_vao, buff->GetBufferID());
 }
 
 uint32_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes)
@@ -103,7 +91,6 @@ void CommandBufferOpenGL::BindTexture(Texture* texture)
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 {
-    // glUseProgram(_programID);
     glBindVertexArray(_vao);
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
@@ -112,9 +99,8 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 
 void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
 {
-    glBindVertexArray(_vao);
-    auto ptr = reinterpret_cast<void*>(index_offset_bytes);
-    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, ptr, base_vertex);
+    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes),
+                             base_vertex);
 }
 
 void CommandBufferOpenGL::Clear()
@@ -125,17 +111,15 @@ void CommandBufferOpenGL::Clear()
 
 void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
 {
-    GLint max_length = 0;
-    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+    if (!message || !*message || *message == '\n')
+    {
+        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty or invalid");
+        return;
+    }
 
-    if (!message || *message == '\n')
-        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
-
-    size_t length = strlen(message);
-    if (length > max_length)
-        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
-
+    GLsizei length = static_cast<GLsizei>(std::strlen(message));
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, id, length, message);
+
     push_debug_group_commands++;
 }
 
@@ -147,15 +131,13 @@ void CommandBufferOpenGL::PopDebugGroup()
 
 void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* message)
 {
-    GLint max_length = 0;
-    glGetIntegerv(GL_MAX_LABEL_LENGTH, &max_length);
+    if (!message || !*message || *message == '\n')
+    {
+        FU_CORE_INFO("[Render Marker] SetLabel: message is empty or invalid");
+        return;
+    }
 
-    if (!message || *message == '\n')
-        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is empty");
-
-    size_t length = strlen(message);
-    if (length > max_length)
-        FU_CORE_INFO("[Render Marker] PushDebugGroup: message is too long");
+    const GLsizei length = static_cast<GLsizei>(std::strlen(message));
 
     GLenum identifier = GL_BUFFER;
     switch (id)
@@ -169,7 +151,11 @@ void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* me
         case Fuego::Graphics::CommandBuffer::LABEL_TEXTURE:
             identifier = GL_TEXTURE;
             break;
+        default:
+            FU_CORE_WARN("SetLabel: Unknown object label type");
+            return;
     }
+
     glObjectLabel(identifier, name, length, message);
 }
 

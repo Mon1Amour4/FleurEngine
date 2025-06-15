@@ -11,18 +11,12 @@ BufferOpenGL::BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes
 {
     FU_CORE_ASSERT(size_bytes > 0, "Buffer can't be 0 sized");
 
-    glGenBuffers(1, &buffer_object_id);
-
-    buffer_native_type = native_buffer_type(type);
-
-    glBindBuffer(buffer_native_type, buffer_object_id);
-    glBufferData(buffer_native_type, size_bytes, nullptr, native_usage(stage));
-    glBindBuffer(buffer_native_type, 0);
+    glCreateBuffers(1, &buffer_object_id);
+    glNamedBufferData(buffer_object_id, size_bytes, nullptr, native_usage(stage));
 }
 
 BufferOpenGL::~BufferOpenGL()
 {
-    glBindBuffer(buffer_native_type, 0);
     glDeleteBuffers(1, &buffer_object_id);
 }
 
@@ -32,9 +26,7 @@ uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t size_bytes)
 
     uint32_t offset_before_write = last_buffered_idx_to_byte;
 
-    glBindBuffer(buffer_native_type, buffer_object_id);
-    glBufferSubData(buffer_native_type, last_buffered_idx_to_byte, size_bytes, data);
-    glBindBuffer(buffer_native_type, 0);
+    glNamedBufferSubData(buffer_object_id, last_buffered_idx_to_byte, size_bytes, data);
     last_buffered_idx_to_byte += size_bytes;
     return offset_before_write;
 }
