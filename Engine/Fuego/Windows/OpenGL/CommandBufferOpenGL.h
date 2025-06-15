@@ -20,7 +20,8 @@ class CommandBufferOpenGL final : public CommandBuffer
 
     virtual void BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout) override;
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) override;
-    virtual uint32_t UpdateBufferSubData(Buffer::BufferType type, const void* data, size_t size_bytes) override;
+
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) override;
 
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
@@ -45,7 +46,5 @@ class CommandBufferOpenGL final : public CommandBuffer
     friend class DeviceOpenGL;
     bool _isFree;
     CommandBufferOpenGL();
-
-   public:
 };
 }  // namespace Fuego::Graphics

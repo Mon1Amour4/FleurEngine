@@ -152,14 +152,12 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 
             DrawInfo draw{model, model_pos};
 
-            uint32_t byte_offset = static_geometry_cmd->UpdateBufferSubData(
-                Buffer::Vertex, reinterpret_cast<const void*>(model->GetVerticesData()),
-                model->GetVertexCount() * sizeof(VertexData));
+            uint32_t byte_offset = static_geometry_cmd->UpdateBufferSubData<VertexData>(
+                Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
             draw.vertex_global_offset = byte_offset / sizeof(VertexData);
 
-            byte_offset = static_geometry_cmd->UpdateBufferSubData(
-                Buffer::Index, reinterpret_cast<const void*>(model->GetIndicesData()),
-                model->GetIndicesCount() * sizeof(uint32_t));
+            byte_offset = static_geometry_cmd->UpdateBufferSubData<uint32_t>(
+                Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
             draw.index_global_offset = byte_offset / sizeof(uint32_t);
 
             static_geometry_models.emplace(model->GetName().data(), draw);

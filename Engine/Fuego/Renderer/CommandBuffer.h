@@ -40,7 +40,11 @@ class CommandBuffer
 
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) = 0;
 
-    virtual uint32_t UpdateBufferSubData(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
+    template <typename T>
+    uint32_t UpdateBufferSubData(Buffer::BufferType type, std::span<const T> data)
+    {
+        return UpdateBufferSubDataImpl(type, data.data(), data.size_bytes());
+    }
 
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
@@ -54,6 +58,8 @@ class CommandBuffer
     virtual Fuego::Graphics::ShaderObject* ShaderObject() const { return shader_object.get(); }
 
    protected:
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
+
     CommandBuffer() : push_debug_group_commands(0) {};
 
     uint16_t push_debug_group_commands;

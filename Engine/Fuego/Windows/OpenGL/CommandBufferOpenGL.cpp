@@ -86,7 +86,7 @@ void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
     glBindVertexArray(0);
 }
 
-uint32_t CommandBufferOpenGL::UpdateBufferSubData(Buffer::BufferType type, const void* data, size_t size_bytes)
+uint32_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes)
 {
     if (type == Buffer::BufferType::Vertex)
         return vertex_global_buffer->UpdateSubData(data, size_bytes);
