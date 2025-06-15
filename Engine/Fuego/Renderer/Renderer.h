@@ -137,6 +137,8 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
     {
         const Model* model;
         glm::mat4 pos;
+        uint32_t index_global_offset;
+        uint32_t vertex_global_offset;
     };
 
     std::unordered_map<std::string, DrawInfo> static_geometry_models;

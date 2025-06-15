@@ -108,7 +108,10 @@ void Renderer::OnInit()
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
+    static_geometry_cmd->BindVertexBuffer(
+        _device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
+    static_geometry_cmd->BindIndexBuffer(
+        _device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 }
 
 void Renderer::OnShutdown()
@@ -147,50 +150,25 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
                 return;
             }
 
-            static_geometry_cmd->UpdateSubData(reinterpret_cast<const void*>(model->GetVerticesData()),
-                                               model->GetVertexCount() * sizeof(VertexData), 0);
+            DrawInfo draw{model, model_pos};
 
-            static_geometry_cmd->BindIndexBuffer(STATIC_GEOMETRY, model->GetIndicesData(),
-                                                 model->GetIndicesCount() * sizeof(uint32_t));
-            static_geometry_models.emplace(model->GetName().data(), DrawInfo{model, model_pos});
-            static_geometry_models_vector.emplace_back(DrawInfo{model, model_pos});
+            uint32_t byte_offset = static_geometry_cmd->UpdateBufferSubData(
+                Buffer::Vertex, reinterpret_cast<const void*>(model->GetVerticesData()),
+                model->GetVertexCount() * sizeof(VertexData));
+            draw.vertex_global_offset = byte_offset / sizeof(VertexData);
+
+            byte_offset = static_geometry_cmd->UpdateBufferSubData(
+                Buffer::Index, reinterpret_cast<const void*>(model->GetIndicesData()),
+                model->GetIndicesCount() * sizeof(uint32_t));
+            draw.index_global_offset = byte_offset / sizeof(uint32_t);
+
+            static_geometry_models.emplace(model->GetName().data(), draw);
+            static_geometry_models_vector.emplace_back(draw);
             break;
         }
         case DYNAMIC_DRAW:
             break;
     }
-    /*std::unique_ptr<CommandBuffer> command_buffer = _device->CreateCommandBuffer();
-    CommandBuffer* cmd = command_buffer.get();
-    cmd->PushDebugGroup(0, model->GetName().data());
-    cmd->BeginRecording();
-    cmd->BindRenderTarget(_swapchain->GetScreenTexture());
-
-    VertexLayout layout{};
-    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-
-    current_shader_obj->GetVertexShader()->SetMat4f("model", model_pos);
-    current_shader_obj->GetVertexShader()->SetMat4f("view", _camera->GetView());
-    current_shader_obj->GetVertexShader()->SetMat4f("projection", _camera->GetProjection());
-
-    std::unique_ptr<Buffer> buffer = _device->CreateBuffer(0, 0);
-    buffer->UpdateSubData<VertexData>(std::span(model->GetVerticesData(), model->GetVertexCount()));
-
-    cmd->BindIndexBuffer(model->GetIndicesData(), model->GetIndicesCount() * sizeof(uint32_t));
-    cmd->BindVertexBuffer(*buffer, layout);
-
-    const auto* meshes = model->GetMeshesPtr();
-
-    for (const auto& mesh : *meshes)
-    {
-        cmd->PushDebugGroup(0, mesh->Name().data());
-        current_shader_obj->BindMaterial(mesh->GetMaterial());
-        cmd->IndexedDraw(mesh->GetIndicesCount(), (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
-        cmd->EndRecording();
-        cmd->Submit();
-        cmd->PopDebugGroup();
-    }*/
 }
 
 void Renderer::DrawQuad(const Shader* shader, const Texture* texture, uint32_t x, uint32_t y, uint32_t width,
@@ -262,18 +240,26 @@ void Renderer::OnUpdate(float dlTime)
         static_geometry_cmd->ShaderObject()->GetVertexShader()->SetMat4f("projection", _camera->GetProjection());
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
+
+        uint32_t vertex_inner_offset = 0;
+        uint32_t index_inner_offset = 0;
         for (const auto& mesh : *meshes)
         {
             static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
             static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
             static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(),
-                                             (const void*)(mesh->GetIndexStart() * sizeof(uint32_t)));
-            static_geometry_cmd->EndRecording();
-            static_geometry_cmd->Submit();
+                                             (draw_info.index_global_offset + index_inner_offset) * sizeof(uint32_t),
+                                             draw_info.vertex_global_offset);
+            index_inner_offset += mesh->GetIndicesCount();
+            vertex_inner_offset += mesh->GetVertexCount();
             static_geometry_cmd->PopDebugGroup();
         }
         static_geometry_cmd->PopDebugGroup();
+        static_geometry_cmd->EndRecording();
+        static_geometry_cmd->Submit();
     }
+    static_geometry_cmd->PopDebugGroup();
+    static_geometry_cmd->PopDebugGroup();
 }
 
 void Renderer::OnPostUpdate(float dlTime)

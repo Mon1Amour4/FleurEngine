@@ -1,11 +1,11 @@
 #pragma once
 
+#include "Buffer.h"
 #include "Shader.h"
 
 namespace Fuego::Graphics
 {
 enum class TextureFormat;
-class Buffer;
 class CommandQueue;
 class CommandPool;
 class CommandBuffer;
@@ -21,7 +21,7 @@ class Device
     static std::unique_ptr<Device> CreateDevice();
     virtual ~Device() = default;
 
-    virtual std::unique_ptr<Buffer> CreateBuffer(RenderStage stage, size_t size) = 0;
+    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size) = 0;
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
     virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer() = 0;

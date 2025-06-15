@@ -31,17 +31,20 @@ class CommandBuffer
     virtual void BeginRecording() = 0;
     virtual void EndRecording() = 0;
     virtual void Submit() = 0;
+
     virtual void BindRenderTarget(const Surface& texture) = 0;
     virtual void BindShaderObject(std::shared_ptr<Fuego::Graphics::ShaderObject> shader) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
 
     virtual void BindVertexBuffer(std::unique_ptr<Fuego::Graphics::Buffer> vertexBuffer, VertexLayout layout) = 0;
-    virtual void UpdateSubData(const void* data, size_t size_bytes, size_t offset) = 0;
 
-    virtual void BindIndexBuffer(RenderStage stage, const uint32_t indices[], uint32_t size_bytes) = 0;
+    virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) = 0;
+
+    virtual uint32_t UpdateBufferSubData(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
+
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
-    virtual void IndexedDraw(uint32_t vertexCount, const void* indices_ptr_offset) = 0;
+    virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
     virtual void Clear() = 0;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
@@ -56,7 +59,8 @@ class CommandBuffer
     uint16_t push_debug_group_commands;
 
     std::shared_ptr<Fuego::Graphics::ShaderObject> shader_object;
-    std::unique_ptr<Fuego::Graphics::Buffer> buffer;
+    std::unique_ptr<Fuego::Graphics::Buffer> vertex_global_buffer;
+    std::unique_ptr<Fuego::Graphics::Buffer> index_global_buffer;
 };
 
 }  // namespace Fuego::Graphics

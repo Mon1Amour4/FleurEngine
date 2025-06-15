@@ -6,40 +6,50 @@
 namespace Fuego::Graphics
 {
 
-BufferOpenGL::BufferOpenGL(RenderStage stage, size_t size_bytes, size_t offset) : Buffer(size_bytes), _vbo(UINT32_MAX)
+BufferOpenGL::BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes)
+    : Buffer(type, size_bytes), buffer_object_id(UINT32_MAX)
 {
     FU_CORE_ASSERT(size_bytes > 0, "Buffer can't be 0 sized");
 
-    glGenBuffers(1, &_vbo);
+    glGenBuffers(1, &buffer_object_id);
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferData(GL_ARRAY_BUFFER, size_bytes, nullptr, ConvertUsage(stage));
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    buffer_native_type = native_buffer_type(type);
+
+    glBindBuffer(buffer_native_type, buffer_object_id);
+    glBufferData(buffer_native_type, size_bytes, nullptr, native_usage(stage));
+    glBindBuffer(buffer_native_type, 0);
 }
 
 BufferOpenGL::~BufferOpenGL()
 {
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glDeleteBuffers(1, &_vbo);
+    glBindBuffer(buffer_native_type, 0);
+    glDeleteBuffers(1, &buffer_object_id);
 }
 
-void BufferOpenGL::UpdateSubDataImpl(const void* data, size_t size_bytes, size_t offset)
+uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t size_bytes)
 {
-    FU_CORE_ASSERT(last_buffered_idx + size_bytes < end_idx, "Buffer overflow");
+    FU_CORE_ASSERT(last_buffered_idx_to_byte + size_bytes < end_idx, "Buffer overflow");
 
-    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    glBufferSubData(GL_ARRAY_BUFFER, last_buffered_idx + offset, size_bytes, data);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    last_buffered_idx += size_bytes;
-    UNUSED(offset);
+    uint32_t offset_before_write = last_buffered_idx_to_byte;
+
+    glBindBuffer(buffer_native_type, buffer_object_id);
+    glBufferSubData(buffer_native_type, last_buffered_idx_to_byte, size_bytes, data);
+    glBindBuffer(buffer_native_type, 0);
+    last_buffered_idx_to_byte += size_bytes;
+    return offset_before_write;
+}
+
+uint32_t BufferOpenGL::NativeType() const
+{
+    return buffer_native_type;
 }
 
 uint32_t BufferOpenGL::GetBufferID() const
 {
-    return _vbo;
+    return buffer_object_id;
 }
 
-int BufferOpenGL::ConvertUsage(RenderStage& stage) const
+int BufferOpenGL::native_usage(RenderStage& stage) const
 {
     switch (stage)
     {
@@ -48,5 +58,12 @@ int BufferOpenGL::ConvertUsage(RenderStage& stage) const
         case DYNAMIC_DRAW:
             return GL_DYNAMIC_DRAW;
     }
+}
+int BufferOpenGL::native_buffer_type(const BufferType& type) const
+{
+    if (type == BufferType::Vertex)
+        return GL_ARRAY_BUFFER;
+    else
+        return GL_ELEMENT_ARRAY_BUFFER;
 }
 }  // namespace Fuego::Graphics

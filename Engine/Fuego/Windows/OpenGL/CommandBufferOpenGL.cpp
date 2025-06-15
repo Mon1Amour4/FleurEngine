@@ -57,11 +57,11 @@ void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
 {
-    buffer = std::move(vertexBuffer);
-    auto buff = static_cast<const BufferOpenGL*>(buffer.get());
+    vertex_global_buffer = std::move(vertexBuffer);
+    auto buff = static_cast<const BufferOpenGL*>(vertex_global_buffer.get());
 
     glBindVertexArray(_vao);
-    glBindBuffer(GL_ARRAY_BUFFER, buff->GetBufferID());
+    glBindBuffer(vertex_global_buffer->NativeType(), buff->GetBufferID());
 
     VertexLayout::LayoutIterator* it;
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
@@ -72,28 +72,26 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
             glEnableVertexAttribArray(it->GetIndex());
     }
     glBindVertexArray(0);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(vertex_global_buffer->NativeType(), 0);
 }
 
-void CommandBufferOpenGL::UpdateSubData(const void* data, size_t size_bytes, size_t offset)
+void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
 {
-    buffer->UpdateSubData(data, size_bytes, offset);
-}
+    index_global_buffer = std::move(buffer);
+    auto buff = static_cast<const BufferOpenGL*>(index_global_buffer.get());
 
-void CommandBufferOpenGL::BindIndexBuffer(RenderStage stage, const uint32_t indices[], uint32_t size_bytes)
-{
     glBindVertexArray(_vao);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ebo);
-    if (!_isDataAllocated)
-    {
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, size_bytes, indices, ConvertUsage(stage));
-        _isDataAllocated = true;
-    }
-    else
-    {
-        glBufferSubData(GL_ELEMENT_ARRAY_BUFFER, 0, size_bytes, indices);
-    }
+    glBindBuffer(index_global_buffer->NativeType(), buff->GetBufferID());
+
     glBindVertexArray(0);
+}
+
+uint32_t CommandBufferOpenGL::UpdateBufferSubData(Buffer::BufferType type, const void* data, size_t size_bytes)
+{
+    if (type == Buffer::BufferType::Vertex)
+        return vertex_global_buffer->UpdateSubData(data, size_bytes);
+    else
+        return index_global_buffer->UpdateSubData(data, size_bytes);
 }
 
 void CommandBufferOpenGL::BindTexture(Texture* texture)
@@ -113,10 +111,11 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, const void* indices_ptr_offset)
+void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
 {
     glBindVertexArray(_vao);
-    glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, indices_ptr_offset);
+    auto ptr = reinterpret_cast<void*>(index_offset_bytes);
+    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, ptr, base_vertex);
 }
 
 void CommandBufferOpenGL::Clear()
