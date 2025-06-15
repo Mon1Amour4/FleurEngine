@@ -18,16 +18,16 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
     FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
 
-    uint32_t mipmap_levels = 1;
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
     glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, buffer);
 
     glGenerateTextureMipmap(texture_id);
 
-    glTextureParameterf(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     is_created = true;
 }
@@ -41,17 +41,17 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, Color 
     unsigned char* data = new unsigned char[width * height * 4];
     std::fill(data, data + width * height * 4 - 1, color.Data());
 
-    uint32_t mipmap_levels = 1;
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
     glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, data);
 
     glGenerateTextureMipmap(texture_id);
 
     // Configuration of minification/Magnification
-    glTextureParameterf(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     delete data;
     is_created = true;
@@ -62,22 +62,23 @@ void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
     const auto& image = *img.get();
     FU_CORE_ASSERT(image.Data()[0] != '\n' || image.Data()[0] != ' ' || image.IsValid(),
                    "[TextureOpenGL->PostCreate] broken image2d data");
+
     Texture::PostCreate(img);
 
     glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
     FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
 
-    uint32_t mipmap_levels = 1;
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
     glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, image.Data());
 
     glGenerateTextureMipmap(texture_id);
 
     // Configuration of minification/Magnification
-    glTextureParameterf(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameterf(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
     is_created = true;
 }

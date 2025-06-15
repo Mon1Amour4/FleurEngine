@@ -105,6 +105,11 @@ class Texture
     int width;
     int height;
     TextureFormat format;
+
+    uint32_t calculate_mipmap_level(uint32_t width, uint32_t height) const
+    {
+        return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
+    }
 };  // namespace Fuego::Graphics
 
 class TextureView
