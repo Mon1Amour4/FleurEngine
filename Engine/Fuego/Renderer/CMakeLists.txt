@@ -38,42 +38,42 @@ set(PROJECT_HEADERS
 set(PROJECT_SOURCES Renderer.cpp Model.cpp Camera.cpp VertexLayout.cpp Image2D.cpp Color.cpp)
 
 if (FUEGO_PLATFORM_WIN)
-    list(append PRIVATE_LINK_LIBRARIES WindowsDep)
-    list(append PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
+    LIST(APPEND PRIVATE_LINK_LIBRARIES WindowsDep)
+    LIST(APPEND PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
          ${CMAKE_CURRENT_SOURCE_DIR}/../Windows)
 
 elseif (FUEGO_PLATFORM_MACOS)
-    list(append PRIVATE_LINK_LIBRARIES MacOSDep)
-    list(append PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
+    LIST(APPEND PRIVATE_LINK_LIBRARIES MacOSDep)
+    LIST(APPEND PUBLIC_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
          ${CMAKE_CURRENT_SOURCE_DIR}/../MacOS)
 endif ()
 
 add_subdirectory(${ASSIMP_PATH} ${ASSIMP_PATH})
 
-add_library(Renderer static ${PROJECT_HEADERS} ${PROJECT_SOURCES})
+add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 set_target_properties(
     Renderer
-    properties FOLDER "Engine/Renderer"
+    PROPERTIES FOLDER "Engine/Renderer"
                ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
                LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
                RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR})
 
 target_link_libraries(
     Renderer
-    private ${PRIVATE_LINK_LIBRARIES}
-    public ${PUBLIC_LINK_LIBRARIES})
+    PRIVATE ${PRIVATE_LINK_LIBRARIES}
+    PUBLIC ${PUBLIC_LINK_LIBRARIES})
 
 target_include_directories(
     Renderer
-    private ${PRIVATE_INCLUDE_DIRECTORIES}
-    public ${PUBLIC_INCLUDE_DIRECTORIES})
+    PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES}
+    PUBLIC ${PUBLIC_INCLUDE_DIRECTORIES})
 
 # Set properties only on existing targets
-if (target assimp)
-    set_target_properties(assimp properties FOLDER "External/Assimp")
+if (TARGET assimp)
+    set_target_properties(assimp PROPERTIES FOLDER "External/Assimp")
 endif ()
 
-if (target zlibstatic)
-    set_target_properties(zlibstatic properties FOLDER "External/Assimp")
+if (TARGET zlibstatic)
+    set_target_properties(zlibstatic PROPERTIES FOLDER "External/Assimp")
 endif ()
