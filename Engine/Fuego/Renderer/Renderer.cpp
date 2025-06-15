@@ -152,13 +152,11 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 
             DrawInfo draw{model, model_pos};
 
-            uint32_t byte_offset = static_geometry_cmd->UpdateBufferSubData<VertexData>(
+            draw.vertex_global_offset_bytes = static_geometry_cmd->UpdateBufferSubData<VertexData>(
                 Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
-            draw.vertex_global_offset = byte_offset / sizeof(VertexData);
 
-            byte_offset = static_geometry_cmd->UpdateBufferSubData<uint32_t>(
+            draw.index_global_offset_bytes = static_geometry_cmd->UpdateBufferSubData<uint32_t>(
                 Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
-            draw.index_global_offset = byte_offset / sizeof(uint32_t);
 
             static_geometry_models.emplace(model->GetName().data(), draw);
             static_geometry_models_vector.emplace_back(draw);
@@ -239,17 +237,16 @@ void Renderer::OnUpdate(float dlTime)
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
 
-        uint32_t vertex_inner_offset = 0;
-        uint32_t index_inner_offset = 0;
+        uint32_t index_inner_offset_bytes = 0;
         for (const auto& mesh : *meshes)
         {
             static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
             static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
             static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(),
-                                             (draw_info.index_global_offset + index_inner_offset) * sizeof(uint32_t),
-                                             draw_info.vertex_global_offset);
-            index_inner_offset += mesh->GetIndicesCount();
-            vertex_inner_offset += mesh->GetVertexCount();
+                                             draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+
+            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
             static_geometry_cmd->PopDebugGroup();
         }
         static_geometry_cmd->PopDebugGroup();
