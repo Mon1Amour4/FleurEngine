@@ -98,8 +98,7 @@ void CommandBufferOpenGL::BindTexture(Texture* texture)
 {
     TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
 
-    glActiveTexture(GL_TEXTURE0 + text_gl.GetTextureUnit());
-    glBindTexture(GL_TEXTURE_2D, text_gl.GetTextureID());
+    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
 }
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)
