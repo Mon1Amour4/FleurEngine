@@ -22,9 +22,15 @@ Application& singleton<Application>::instance()
     return inst;
 }
 
-Application::Application() : initialized(false), m_Running(false) {}
+Application::Application()
+    : initialized(false)
+    , m_Running(false)
+{
+}
 
-Application::~Application() {}
+Application::~Application()
+{
+}
 
 void Application::PushLayer(Layer* layer)
 {
@@ -70,8 +76,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(),
-                                                                      event.GetHeight());
+    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }
@@ -98,12 +103,12 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 
     switch (crossplatform_key)
     {
-        case Key::D1:
-            ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
-            break;
-        case Key::D2:
-            m_Window->SwitchInteractionMode();
-            break;
+    case Key::D1:
+        ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
+        break;
+    case Key::D2:
+        m_Window->SwitchInteractionMode();
+        break;
     }
     event.SetHandled();
     return true;
@@ -162,8 +167,7 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(
-        assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
+    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     // assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");

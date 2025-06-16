@@ -47,6 +47,7 @@ FILE(MAKE_DIRECTORY "${OUTPUT_DIR}")
 
 # === Glad Configuration ===
 SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
+# cmake-lint: disable=E1126
 FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad" GLAD_PATH)
 
 # === Glad Subdirectory ===
