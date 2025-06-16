@@ -4,7 +4,6 @@
 
 #include "Renderer/Surface.h"
 
-
 namespace MTL
 {
 class Device;

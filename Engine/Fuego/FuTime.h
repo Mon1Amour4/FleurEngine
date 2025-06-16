@@ -31,7 +31,6 @@ public:
         return average_frametime;
     }
 
-
 protected:
     Time(float fixed_time)
         : frame(0)

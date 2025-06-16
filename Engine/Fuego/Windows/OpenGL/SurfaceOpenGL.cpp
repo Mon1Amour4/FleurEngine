@@ -46,7 +46,6 @@ void SurfaceOpenGL::Release()
     if (_hdc)
         ReleaseDC(_window, _hdc);
     _hdc = nullptr;
-
 }
 
 }  // namespace Fuego::Graphics

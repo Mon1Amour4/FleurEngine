@@ -58,7 +58,6 @@ public:
         uint16_t index;
     };
 
-
     VertexLayout();
     ~VertexLayout() = default;
     void AddAttribute(VertexAttribute attrib);

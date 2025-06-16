@@ -17,7 +17,6 @@ public:
         Pixel = 2
     };
 
-
     friend class ShaderObject;
     virtual void BindToShaderObject(ShaderObject& obj) = 0;
     virtual bool AddVar(const std::string& name) = 0;

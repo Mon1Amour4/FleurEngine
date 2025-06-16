@@ -7,7 +7,6 @@
 #include "Log.h"
 #include "MouseCodes.h"
 
-
 @interface WindowEventsObserver : NSObject
 {
 }
