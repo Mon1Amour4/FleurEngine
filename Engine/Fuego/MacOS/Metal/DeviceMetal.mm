@@ -14,7 +14,6 @@
 #include "Material.h"
 #include "ShaderObject.h"
 
-
 namespace Fuego::Renderer
 {
 DeviceMetal::DeviceMetal()

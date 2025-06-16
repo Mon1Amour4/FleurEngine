@@ -13,7 +13,7 @@ public:
     static Material* CreateMaterial(const Texture* albedo);
 
     virtual ~Material() = default;
-    
+
     virtual void Use() const = 0;
     virtual inline std::string_view Name() const
     {

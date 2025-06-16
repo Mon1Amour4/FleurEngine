@@ -2,7 +2,6 @@
 
 #include "Renderer.h"
 
-
 SandboxApp::SandboxApp()
 {
     SceneLayer* scene_layer = new SceneLayer();

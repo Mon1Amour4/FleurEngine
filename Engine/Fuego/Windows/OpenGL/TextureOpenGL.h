@@ -35,7 +35,6 @@ private:
     uint16_t texture_unit;
     uint32_t texture_id;
 
-
     virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img) override;
 };
 

@@ -44,7 +44,7 @@ void Application::PushOverlay(Layer* overlay)
 
 void Application::OnEvent(EventVariant& event)
 {  // clang-format off
-    auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); }, 
+    auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); },
                                                 [this](WindowStartResizeEvent&   ev) { OnStartResizeWindow(ev); },
                                                 [this](WindowEndResizeEvent&    ev) {OnEndResizeWindow(ev); },
                                                 [this](WindowValidateEvent&    ev) {OnValidateWindow(ev); },
@@ -208,7 +208,6 @@ void Application::Run()
         m_Window->SetTitle(buffer);
 
         float dtTime = _time_manager->DeltaTime();
-
 
         renderer->Clear();
         m_EventQueue->OnUpdate(dtTime);

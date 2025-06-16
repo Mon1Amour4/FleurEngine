@@ -4,7 +4,6 @@
 
 #include "Renderer/Device.h"
 
-
 namespace Fuego::Renderer
 {
 class DeviceMetal : public Device

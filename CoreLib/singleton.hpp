@@ -1,6 +1,5 @@
 #pragma once
 
-
 namespace Fuego
 {
 template <typename T>
