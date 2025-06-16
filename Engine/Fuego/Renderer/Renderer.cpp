@@ -97,10 +97,6 @@ void Renderer::OnInit()
         ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
                                          _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
 
-    static_geometry_shader->GetVertexShader()->AddVar("model");
-    static_geometry_shader->GetVertexShader()->AddVar("view");
-    static_geometry_shader->GetVertexShader()->AddVar("projection");
-
     static_geometry_cmd = _device->CreateCommandBuffer();
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
 
@@ -232,9 +228,9 @@ void Renderer::OnUpdate(float dlTime)
     for (const auto& draw_info : static_geometry_models_vector)
     {
         static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        static_geometry_cmd->ShaderObject()->GetVertexShader()->SetMat4f("model", draw_info.pos);
-        static_geometry_cmd->ShaderObject()->GetVertexShader()->SetMat4f("view", _camera->GetView());
-        static_geometry_cmd->ShaderObject()->GetVertexShader()->SetMat4f("projection", _camera->GetProjection());
+        static_geometry_cmd->ShaderObject()->Set("model", draw_info.pos);
+        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
+        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
 
