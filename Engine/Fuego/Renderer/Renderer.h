@@ -53,8 +53,6 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 
     // IRenderer;
     void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
-    void DrawQuad(const Shader* shader, const Texture* texture, uint32_t x, uint32_t y, uint32_t width,
-                  uint32_t height) const;
     void ChangeViewport(float x, float y, float w, float h);
 
     // IUpdatable

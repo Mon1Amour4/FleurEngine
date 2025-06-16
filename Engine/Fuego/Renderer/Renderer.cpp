@@ -58,8 +58,7 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     if (it != textures.end())
         return it->second;
 
-    auto emplaced_texture =
-        textures.emplace(name, _device->CreateTexture(name, TextureFormat::R8, color, width, height));
+    auto emplaced_texture = textures.emplace(name, _device->CreateTexture(name, fmt, color, width, height));
     return emplaced_texture.first->second;
 }
 
@@ -161,11 +160,6 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
         case DYNAMIC_DRAW:
             break;
     }
-}
-
-void Renderer::DrawQuad(const Shader* shader, const Texture* texture, uint32_t x, uint32_t y, uint32_t width,
-                        uint32_t height) const
-{
 }
 
 void Renderer::Clear()

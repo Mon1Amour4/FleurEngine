@@ -36,13 +36,21 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
 }
 
 TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, Color color, int width, int height)
-    : Texture(name, format, width, height)
+    : Texture(name, format, width, height), texture_unit(0), texture_id(0)
 {
     glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
-    FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
+    FU_CORE_ASSERT(texture_id != 0, "Texture didn't create");
 
-    unsigned char* data = new unsigned char[width * height * 4];
-    std::fill(data, data + width * height * 4 - 1, color.Data());
+    uint32_t channels = get_channels(format);
+    size_t size = width * height * channels;
+
+    uint32_t color_data = color.Data();
+
+    unsigned char* data = new unsigned char[size];
+    for (size_t i = 0; i < width * height; ++i)
+    {
+        std::memcpy(data + i * channels, &color_data, channels);
+    }
 
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
@@ -59,7 +67,7 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, Color 
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
-    delete data;
+    delete[] data;
     is_created = true;
 }
 
