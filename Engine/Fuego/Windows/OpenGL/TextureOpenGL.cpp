@@ -29,6 +29,9 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
+    // Set texture name for debug output instead of common material uniform name
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
+
     is_created = true;
 }
 
@@ -52,6 +55,9 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, Color 
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // Set texture name for debug output instead of common material uniform name
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
     delete data;
     is_created = true;
@@ -79,6 +85,9 @@ void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+    // Set texture name for debug output instead of common material uniform name
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
     is_created = true;
 }
