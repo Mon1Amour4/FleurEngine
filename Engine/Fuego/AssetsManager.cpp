@@ -38,7 +38,6 @@ std::shared_ptr<Fuego::Graphics::Model> Fuego::AssetsManager::load_model(std::st
 
     auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
 
-
     auto res = fs->GetFullPathToFile(path);
     if (!res)
         return std::shared_ptr<Fuego::Graphics::Model>{nullptr};
@@ -194,7 +193,6 @@ std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::load_image2d_asy
         placed_img);
     return placed_img;
 }
-
 
 std::shared_ptr<Fuego::Graphics::Image2D> Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b,
                                                                                       uint16_t channels)

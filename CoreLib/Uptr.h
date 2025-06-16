@@ -34,7 +34,8 @@ public:
     /// <summary>
     /// Cleans up after the old pointer and set up on the new one.
     /// </summary>
-    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as previous poiner).</param>
+    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as
+    /// previous poiner).</param>
     void Reset(std::remove_extent_t<T>* ptr = nullptr) noexcept;
 
     /// <summary>
@@ -313,7 +314,8 @@ public:
     /// <summary>
     /// Cleans up after the old pointer and set up on the new one.
     /// </summary>
-    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as previous poiner).</param>
+    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as
+    /// previous poiner).</param>
     void Reset(size_t size = 0, std::remove_extent_t<T>* ptr = nullptr) noexcept;
 
     /// <summary>

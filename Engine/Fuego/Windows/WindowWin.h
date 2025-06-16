@@ -73,7 +73,6 @@ private:
 
     EventQueueWin* _eventQueue;
 
-
     // Window handle
     HWND _hwnd;
     HINSTANCE _hinstance;  // Relates to the Application

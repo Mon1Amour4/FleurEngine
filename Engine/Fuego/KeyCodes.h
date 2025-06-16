@@ -140,7 +140,7 @@ enum : KeyCode
     RightAlt        = 186,
     RightSuper      = 187,
     Menu            = 188,
-    
+
     None            = 500,
     Unknown
     // clang-format on

@@ -16,7 +16,6 @@ enum ImageFormat;
 namespace Fuego
 {
 
-
 class AssetsManager : public Service<AssetsManager>
 {
 public:
@@ -157,6 +156,5 @@ private:
 
     Fuego::Pipeline::Toolchain::assets_manager toolchain;
 };
-
 
 }  // namespace Fuego

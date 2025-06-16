@@ -7,7 +7,6 @@
 #include "CoreLibConcepts.h"
 #include "DefaultAllocator.h"
 
-
 namespace Fuego
 {
 
@@ -46,7 +45,8 @@ public:
     /// <summary>
     /// Cleans up after the old pointer and set up on the new one.
     /// </summary>
-    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as previous poiner).</param>
+    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as
+    /// previous poiner).</param>
     void Reset(std::remove_extent_t<T>* ptr = nullptr);
 
     void Swap(Sptr<T, Allocator>& other) noexcept;
@@ -406,7 +406,8 @@ public:
     /// <summary>
     /// Cleans up after the old pointer and set up on the new one.
     /// </summary>
-    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as previous poiner).</param>
+    /// <param name="ptr">New pointer to be tracked. Will be managed by the previous allocator (the same allocator as
+    /// previous poiner).</param>
     void Reset(size_t size = 0, std::remove_extent_t<T>* ptr = nullptr);
 
     void Swap(Sptr<T, Allocator>& other) noexcept;
@@ -726,7 +727,6 @@ Sptr<T, Allocator> MakeShared(size_t size, Args&&... args)
     return Sp;
 }
 
-
 template <class T, FuegoAllocator Allocator = DefaultAllocator>
 class FUEGO_API Wptr
 {
@@ -862,7 +862,6 @@ inline void Wptr<T, Allocator>::Swap(Wptr<T, Allocator>& other) noexcept
 {
     std::swap(_cb, other._cb);
 }
-
 
 template <ArrayType T, FuegoAllocator Allocator>
 class FUEGO_API Wptr<T, Allocator>

@@ -1,3 +1,2 @@
-#include "ProtoFilesTests.hpp"
 #include "CoreLibTests.h"
-
+#include "ProtoFilesTests.hpp"

@@ -117,7 +117,6 @@ private:
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
 
-
     ShaderObject* current_shader_obj;
 
     Viewport viewport;

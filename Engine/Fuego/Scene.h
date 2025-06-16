@@ -1,7 +1,9 @@
 #pragma once
 
 #include <fupch.h>
+
 #include <list>
+
 #include "glm/glm.hpp"
 
 namespace Fuego
@@ -19,6 +21,7 @@ public:
     {
         return name;
     }
+
 private:
     std::string name;
     bool enabled;
@@ -36,7 +39,7 @@ public:
 class SceneObject : public BaseSceneObject
 {
 public:
-    SceneObject(Scene* master_scene, const std::string & name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f));
+    SceneObject(Scene* master_scene, const std::string& name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f));
 
 private:
     glm::vec3 position;
@@ -45,7 +48,7 @@ private:
 class ModelObject : public SceneObject
 {
 public:
-    ModelObject(Scene* master_scene, const std::string & name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f), const Material* mat = nullptr);
+    ModelObject(Scene* master_scene, const std::string& name, glm::vec3 pos = glm::vec3(0.0f), glm::vec3 rot = glm::vec3(0.0f), const Material* mat = nullptr);
 
 private:
     const Material* material;
@@ -54,13 +57,12 @@ private:
 class Node
 {
 public:
-    template<typename T>
+    template <typename T>
     Node(Node* parent, T* obj)
         : parent(parent)
         , object(obj)
     {
         FU_CORE_TRACE("Node ctor");
-        
     }
     ~Node()
     {
@@ -83,7 +85,6 @@ public:
         return parent;
     }
 
-    
     template <typename T>
     std::list<Node>::iterator AddChild(T scene_obj)
     {
@@ -94,18 +95,14 @@ public:
 
 private:
     Node* parent;
-    
 
     BaseSceneObject* object;
 
     std::list<Node> children;
-
-
 };
 
 class Scene
 {
-
 public:
     Scene(const std::string& new_scene_obj);
     ~Scene();
@@ -167,7 +164,6 @@ public:
     void SaveSceneToFile(const std::string& file_name);
 
 private:
-
     SceneFolder* root_obj;
     std::string scene_name;
     std::string scene_version = "1.0";
@@ -178,4 +174,4 @@ private:
     std::list<Node> children;
 };
 
-}  // namespace Fuego::Editor
+}  // namespace Fuego
