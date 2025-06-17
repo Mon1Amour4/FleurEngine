@@ -36,19 +36,27 @@ class Texture
 
     static TextureFormat GetTextureFormat(uint16_t channels, uint16_t bpp)
     {
-        if (channels == 3)
+        switch (channels)
         {
-            if (bpp <= 8)
-                return TextureFormat::RGB8;
-            else if (bpp == 16)
-                return TextureFormat::RGBA16F;
-        }
-        else if (channels == 4)
-        {
-            if (bpp <= 8)
-                return TextureFormat::RGBA8;
-            else if (bpp == 16)
-                return TextureFormat::RGBA16F;
+            case 1:
+                if (bpp <= 8)
+                    return TextureFormat::R8;
+                break;
+
+            case 2:
+                if (bpp <= 8)
+                    return TextureFormat::RG8;
+                break;
+
+            case 3:
+                if (bpp <= 8)
+                    return TextureFormat::RGB8;
+                break;
+
+            case 4:
+                if (bpp <= 8)
+                    return TextureFormat::RGBA8;
+                break;
         }
     }
 

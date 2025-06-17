@@ -411,7 +411,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         std::memcpy(data + i * channels, &color_data, channels);
     }
     auto img =
-        images2d.emplace(name, std::make_shared<Fuego::Graphics::Image2D>(name, "-", data, width, height, 1, channels))
+        images2d.emplace(name, std::make_shared<Fuego::Graphics::Image2D>(name, "-", data, width, height, 8, channels))
             .first->second;
 
     return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(img, ResourceLoadingStatus::SUCCESS,

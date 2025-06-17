@@ -90,7 +90,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
                     return load_texture(std::forward<Args>(args)...);
                 }
             }
-            else if constexpr (args_amount == 5)
+            else if constexpr (args_amount == 4)
             {
                 return load_texture(std::forward<Args>(args)...);
             }
