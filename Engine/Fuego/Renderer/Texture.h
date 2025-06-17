@@ -65,16 +65,9 @@ class Texture
 
    protected:
     Texture(std::string_view name, TextureFormat format, int width, int height)
-        : name(name), format(format), width(width), height(height), is_created(false)
-    {
-    }
-    Texture(std::string_view name) : name(name), format(TextureFormat::NONE), width(0), height(0), is_created(false) {}
+        : name(name), format(format), width(width), height(height), is_created(false) {};
 
-    Texture(std::string_view name, TextureFormat format, Color color, int width, int height)
-        : name(name), format(format), width(width), height(height), is_created(false)
-    {
-        int a = 5;
-    }
+    Texture(std::string_view name) : name(name), format(TextureFormat::NONE), width(0), height(0), is_created(false) {}
 
     bool is_created;
     std::string name;

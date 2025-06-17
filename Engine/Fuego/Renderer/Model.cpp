@@ -182,7 +182,8 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
                 std::string name = std::string(scene->mRootNode->mName.C_Str()) + "_Solid_Texture_" +
                                    std::to_string(solid_texture_idx);
 
-                renderer->CreateGraphicsResource<Texture>(name, TextureFormat::R8, Color(125), 128, 128);
+                renderer->CreateGraphicsResource<Texture>(name, Color(125), 128, 128);
+                ++solid_texture_idx;
             }
             auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
             // auto texture = renderer->CreateGraphicsResource<Texture>();

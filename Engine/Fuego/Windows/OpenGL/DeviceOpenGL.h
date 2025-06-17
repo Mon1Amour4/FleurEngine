@@ -26,9 +26,6 @@ class DeviceOpenGL final : public Device
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const override;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, Color color, int width,
-                                                   int height) const override;
-
     virtual void SetVSync(bool active) const override;
 
     virtual void Release() override;

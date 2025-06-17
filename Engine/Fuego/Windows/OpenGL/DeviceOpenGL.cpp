@@ -206,12 +206,6 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) cons
     return std::make_shared<TextureOpenGL>(name);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, Color color,
-                                                     int width, int height) const
-{
-    return std::make_shared<TextureOpenGL>(name, format, color, width, height);
-}
-
 void DeviceOpenGL::SetVSync(bool active) const
 {
     wglSwapIntervalEXT(active);

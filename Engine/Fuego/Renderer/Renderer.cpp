@@ -51,14 +51,30 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     return emplaced_texture.first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, TextureFormat fmt, Color color,
-                                                                 int width, int height)
+std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width,
+                                                                 int height)
 {
+    if (name.empty())
+        return GetLoadedTexture("fallback");
+
+    // Try to find first across loaded textures:
     auto it = textures.find(name.data());
     if (it != textures.end())
         return it->second;
 
-    auto emplaced_texture = textures.emplace(name, _device->CreateTexture(name, fmt, color, width, height));
+    // Create image
+    std::shared_ptr<Fuego::Graphics::Image2D> image{nullptr};
+    auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
+    auto existing_img = assets_manager->Get<Fuego::Graphics::Image2D>(name);
+    if (!existing_img.expired())
+        image = existing_img.lock();
+    else
+    {
+        image = assets_manager->LoadImage2DFromColor(name, color, width, height)->Resource();
+    }
+
+    auto texture = toolchain.load_texture(image, _device.get());
+    auto emplaced_texture = textures.emplace(image->Name(), texture);
     return emplaced_texture.first->second;
 }
 

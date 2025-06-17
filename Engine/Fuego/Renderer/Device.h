@@ -35,9 +35,6 @@ class Device
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const = 0;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, Color color, int width,
-                                                   int height) const = 0;
-
     // Yes, I know, raw pointer, so be careful here
     virtual Shader* CreateShader(std::string_view shaderName, Shader::ShaderType type) = 0;
 

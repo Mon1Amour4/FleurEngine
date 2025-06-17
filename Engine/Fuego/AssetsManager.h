@@ -4,6 +4,7 @@
 #include <type_traits>
 
 #include "ApplicationPipeline.hpp"
+#include "Renderer/Color.h"
 #include "Services/ServiceInterfaces.hpp"
 #include "tbb/concurrent_unordered_map.h"
 
@@ -71,6 +72,7 @@ class AssetsManager : public Service<AssetsManager>
                                                                                            unsigned char* data,
                                                                                            uint32_t size_b,
                                                                                            uint16_t channels);
+
     std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemoryAsync(std::string_view name,
                                                                                                 unsigned char* data,
                                                                                                 uint32_t size_b,
@@ -78,6 +80,11 @@ class AssetsManager : public Service<AssetsManager>
 
     std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromRawData(
         std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp, uint32_t width, uint32_t height);
+
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromColor(std::string_view name,
+                                                                                          Fuego::Graphics::Color color,
+                                                                                          uint32_t width,
+                                                                                          uint32_t height);
 
     template <class Res>
     std::shared_ptr<Fuego::ResourceHandle<Res>> Load(std::string_view path, bool async = true)
@@ -184,9 +191,6 @@ class AssetsManager : public Service<AssetsManager>
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
-
-    // std::mutex models_async_operations;
-    // std::mutex images2d_async_operations;
 
     uint16_t ImageChannels(std::string_view image2d_ext);
 

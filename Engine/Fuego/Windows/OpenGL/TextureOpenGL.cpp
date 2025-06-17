@@ -35,46 +35,10 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     is_created = true;
 }
 
-TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, Color color, int width, int height)
-    : Texture(name, format, width, height), texture_unit(0), texture_id(0)
-{
-    glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
-    FU_CORE_ASSERT(texture_id != 0, "Texture didn't create");
-
-    uint32_t channels = get_channels(format);
-    size_t size = width * height * channels;
-
-    uint32_t color_data = color.Data();
-
-    unsigned char* data = new unsigned char[size];
-    for (size_t i = 0; i < width * height; ++i)
-    {
-        std::memcpy(data + i * channels, &color_data, channels);
-    }
-
-    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
-    glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
-    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, data);
-
-    glGenerateTextureMipmap(texture_id);
-
-    // Configuration of minification/Magnification
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
-
-    // Set texture name for debug output instead of common material uniform name
-    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
-
-    delete[] data;
-    is_created = true;
-}
-
 void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
 {
     const auto& image = *img.get();
-    FU_CORE_ASSERT(image.Data()[0] != '\n' || image.Data()[0] != ' ' || image.IsValid(),
+    FU_CORE_ASSERT(image.Data()[0] != '\n' && image.Data()[0] != ' ' && image.IsValid(),
                    "[TextureOpenGL->PostCreate] broken image2d data");
 
     Texture::PostCreate(img);
@@ -188,4 +152,5 @@ TextureFormat TextureOpenGL::GetTextureFormat() const
 {
     return TextureFormat::R16F;
 }
+
 }  // namespace Fuego::Graphics

@@ -11,7 +11,6 @@ class TextureOpenGL final : public Texture
     friend class DeviceOpenGL;
     TextureOpenGL(std::string_view name);
     TextureOpenGL(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height);
-    TextureOpenGL(std::string_view name, TextureFormat format, Color color, int width, int height);
 
     virtual ~TextureOpenGL() override;
 

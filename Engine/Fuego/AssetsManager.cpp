@@ -183,6 +183,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(img, ResourceLoadingStatus::SUCCESS,
                                                                              ResourceLoadingFailureReason::NONE);
 }
+
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::load_image2d_async(
     std::string_view path)
 {  //
@@ -259,6 +260,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         handle);
     return handle;
 }
+
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromMemory(
     std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels)
 {
@@ -289,6 +291,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(img, ResourceLoadingStatus::SUCCESS,
                                                                              ResourceLoadingFailureReason::NONE);
 }
+
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromMemoryAsync(
     std::string_view name, unsigned char* data, uint32_t size_b, uint16_t channels)
 {
@@ -365,6 +368,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         handle, data, size_b, channels);
     return handle;
 }
+
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromRawData(
     std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp, uint32_t width, uint32_t height)
 {
@@ -389,6 +393,31 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(img, ResourceLoadingStatus::SUCCESS,
                                                                              ResourceLoadingFailureReason::NONE);
 }
+
+std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromColor(
+    std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height)
+{
+    if (name.empty())
+        return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(ResourceLoadingStatus::CORRUPTED,
+                                                                                 ResourceLoadingFailureReason::NO_DATA);
+    uint32_t channels = Fuego::Graphics::Color::Channels(color);
+    size_t size = width * height * channels;
+
+    uint32_t color_data = color.Data();
+
+    unsigned char* data = new unsigned char[size];
+    for (size_t i = 0; i < width * height; ++i)
+    {
+        std::memcpy(data + i * channels, &color_data, channels);
+    }
+    auto img =
+        images2d.emplace(name, std::make_shared<Fuego::Graphics::Image2D>(name, "-", data, width, height, 1, channels))
+            .first->second;
+
+    return std::make_shared<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>(img, ResourceLoadingStatus::SUCCESS,
+                                                                             ResourceLoadingFailureReason::NONE);
+}
+
 uint16_t Fuego::AssetsManager::ImageChannels(std::string_view image2d_ext)
 {
     if (image2d_ext.empty() || image2d_ext.size() > 3)

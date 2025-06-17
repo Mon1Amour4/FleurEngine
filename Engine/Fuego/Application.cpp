@@ -134,8 +134,6 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
         renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(),
                             glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
     }
-    auto red_texture = renderer->CreateGraphicsResource<Texture>("red texture", Fuego::Graphics::TextureFormat::R8,
-                                                                 Color(128), 128, 128);
 
     UNUSED(event);
     return true;

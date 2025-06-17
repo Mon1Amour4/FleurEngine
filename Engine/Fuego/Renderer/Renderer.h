@@ -126,8 +126,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 
     std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::string_view path);
 
-    std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::string_view name, TextureFormat fmt, Color color,
-                                                           int width, int height);
+    std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::string_view name, Color color, int width, int height);
 
     std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img);
 
