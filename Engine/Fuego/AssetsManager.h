@@ -17,16 +17,14 @@ enum ImageFormat;
 
 namespace Fuego
 {
-enum class ResourceLoadingFailureReason
+enum Failure
 {
-    NONE,
     WRONG_PATH,
     NO_DATA
 };
 
-enum class ResourceLoadingStatus
+enum LoadingSts
 {
-    NONE,
     TO_BE_LOADED,
     LOADING,
     CORRUPTED,
@@ -37,26 +35,33 @@ template <typename T>
 class ResourceHandle
 {
    public:
-    ResourceHandle(std::shared_ptr<T> resource, ResourceLoadingStatus st, ResourceLoadingFailureReason failure)
-        : obj(resource), status(st), failure(failure) {};
-    ResourceHandle(ResourceLoadingStatus st, ResourceLoadingFailureReason failure) : status(st), failure(failure)
-    {
-        status = ResourceLoadingStatus::CORRUPTED;
-        obj = std::shared_ptr<T>{nullptr};
-    }
+    ResourceHandle(std::shared_ptr<T> resource, LoadingSts status, std::optional<Failure> failure = std::nullopt)
+        : obj(resource), status(status), failure(failure) {};
+
+    ResourceHandle(std::shared_ptr<T> resource) : obj(resource), status(status) {};
 
     ~ResourceHandle() = default;
 
-    ResourceLoadingStatus Status() { return status; }
-    ResourceLoadingFailureReason FailureReason() { return failure; }
-    void SetStatus(ResourceLoadingStatus st) { status = st; }
-    void SetFailureReason(ResourceLoadingFailureReason reason) { failure = reason; }
+    LoadingSts Status() { return status; }
+    std::optional<Failure> FailureReason() { return failure; }
+    void SetCorrupted(Failure failure)
+    {
+        status = CORRUPTED;
+        failure = failure;
+    }
+    void SetSuccess()
+    {
+        status = SUCCESS;
+        failure = std::nullopt;
+    }
+    void SetStatus(LoadingSts st) { status = st; }
+    void SetFailure(Failure fail) { failure = fail; }
     std::shared_ptr<T> Resource() { return obj; }
 
    private:
-    ResourceLoadingStatus status{ResourceLoadingStatus::NONE};
-    ResourceLoadingFailureReason failure{ResourceLoadingFailureReason::NONE};
     std::shared_ptr<T> obj;
+    LoadingSts status{TO_BE_LOADED};
+    std::optional<Failure> failure;
 };
 
 class AssetsManager : public Service<AssetsManager>
@@ -174,7 +179,7 @@ class AssetsManager : public Service<AssetsManager>
 
    private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
-    // std::unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
+
     //  TODO: What to do with corrupted models?
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>>
         models_to_load_async;
@@ -203,8 +208,8 @@ class AssetsManager : public Service<AssetsManager>
         auto it = map.find(key);
         if (it != map.end())
         {
-            handle_out = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(
-                it->second, ResourceLoadingStatus::SUCCESS, ResourceLoadingFailureReason::NONE);
+            handle_out = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(it->second);
+            handle_out->SetSuccess();
             return true;
         }
         return false;
