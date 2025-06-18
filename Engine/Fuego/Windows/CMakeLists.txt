@@ -47,6 +47,7 @@ FILE(MAKE_DIRECTORY "${OUTPUT_DIR}")
 
 # === Glad Configuration ===
 SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
+# cmake-lint: disable=E1126
 FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad" GLAD_PATH)
 
 # === Glad Subdirectory ===
@@ -58,11 +59,14 @@ ADD_LIBRARY(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 # === Target Configuration ===
 TARGET_COMPILE_FEATURES(WindowsDep PUBLIC cxx_std_20)
 
-TARGET_INCLUDE_DIRECTORIES(WindowsDep PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${GLAD_PATH}/include")
+TARGET_INCLUDE_DIRECTORIES(
+  WindowsDep PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${GLAD_PATH}/include"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/External/tbb/include"
+)
 
 TARGET_LINK_LIBRARIES(
   WindowsDep
-  PUBLIC Glad
+  PUBLIC Glad TBB::tbb
   PRIVATE FuegoInterface
 )
 

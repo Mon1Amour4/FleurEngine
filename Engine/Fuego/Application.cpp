@@ -156,7 +156,7 @@ void Application::Init(ApplicationBootSettings& settings)
     Fuego::Pipeline::Toolchain toolchain{};
     toolchain._renderer.load_texture = Fuego::Pipeline::PostLoadPipeline::load_texture;
     toolchain._renderer.update = Fuego::Pipeline::PostLoadPipeline::update;
-    Fuego::Pipeline::PostLoadPipeline::images_ptr = &Fuego::Pipeline::Toolchain::renderer::images;
+    Fuego::Pipeline::PostLoadPipeline::pairs_ptr = &Fuego::Pipeline::Toolchain::renderer::pairs;
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(settings.renderer, toolchain._renderer);
     renderer.value()->Init();
@@ -167,7 +167,7 @@ void Application::Init(ApplicationBootSettings& settings)
 
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>(toolchain._assets_manager);
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->LoadAsync<Image2D>("fallback.png"));
+    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     // assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
@@ -225,8 +225,6 @@ void Application::Run()
             OnEvent(*ev);
             m_EventQueue->Pop();
         }
-
-        assets_manager->Tick();
         renderer->OnUpdate(dtTime);
         renderer->Present();
     }
