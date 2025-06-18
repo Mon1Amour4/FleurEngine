@@ -341,9 +341,6 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data,
                                                                                                               uint32_t channels, uint16_t bpp, uint32_t width,
                                                                                                               uint32_t height)
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data,
-                                                                                                                  uint32_t channels, uint16_t bpp,
-                                                                                                                  uint32_t width, uint32_t height)
 {
     std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle{nullptr};
     if (!data || name.empty())
