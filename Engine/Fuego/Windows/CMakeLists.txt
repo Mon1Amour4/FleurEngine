@@ -1,4 +1,5 @@
 # === Windows Dependencies ===
+CMAKE_MINIMUM_REQUIRED(VERSION 3.24)
 
 # === Source Files ===
 SET(PROJECT_HEADERS
@@ -16,8 +17,8 @@ SET(PROJECT_HEADERS
     OpenGL/CommandPoolOpenGL.h
     OpenGL/TextureOpenGL.h
     OpenGL/SurfaceOpenGL.h
-    OpenGl/MaterialOpenGL.h
-    OpenGl/ShaderObjectOpenGL.h
+    OpenGL/MaterialOpenGL.h
+    OpenGL/ShaderObjectOpenGL.h
     TimeWin.h
 )
 
@@ -41,15 +42,16 @@ SET(PROJECT_SOURCES
 )
 
 # === Output Directory ===
-SET(OUTPUT_DIR ${CMAKE_BINARY_DIR}/output)
-FILE(MAKE_DIRECTORY ${OUTPUT_DIR})
+SET(OUTPUT_DIR "${CMAKE_BINARY_DIR}/output")
+FILE(MAKE_DIRECTORY "${OUTPUT_DIR}")
 
 # === Glad Configuration ===
-SET(GLAD_BUILD_DIR ${CMAKE_BINARY_DIR}/Glad)
-FILE(REAL_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad GLAD_PATH)
+SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
+# cmake-lint: disable=E1126
+FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad" GLAD_PATH)
 
 # === Glad Subdirectory ===
-ADD_SUBDIRECTORY(${GLAD_PATH} ${GLAD_BUILD_DIR})
+ADD_SUBDIRECTORY("${GLAD_PATH}" "${GLAD_BUILD_DIR}")
 
 # === WindowsDep Target ===
 ADD_LIBRARY(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
@@ -57,7 +59,10 @@ ADD_LIBRARY(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 # === Target Configuration ===
 TARGET_COMPILE_FEATURES(WindowsDep PUBLIC cxx_std_20)
 
-TARGET_INCLUDE_DIRECTORIES(WindowsDep PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${GLAD_PATH}/include ${CMAKE_CURRENT_SOURCE_DIR}/External/tbb/include )
+TARGET_INCLUDE_DIRECTORIES(
+  WindowsDep PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${GLAD_PATH}/include"
+                    "${CMAKE_CURRENT_SOURCE_DIR}/External/tbb/include"
+)
 
 TARGET_LINK_LIBRARIES(
   WindowsDep
@@ -69,15 +74,15 @@ TARGET_LINK_LIBRARIES(
 SET_TARGET_PROPERTIES(
   WindowsDep
   PROPERTIES FOLDER "Platform/Windows"
-             ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+             ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
+             LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
+             RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
 )
 
 SET_TARGET_PROPERTIES(
   Glad
   PROPERTIES FOLDER "External/Glad"
-             ARCHIVE_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             LIBRARY_OUTPUT_DIRECTORY ${OUTPUT_DIR}
-             RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_DIR}
+             ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
+             LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
+             RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
 )

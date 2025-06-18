@@ -40,7 +40,7 @@ FOREACH(target ${PROT_TARGETS})
 ENDFOREACH()
 SET_TARGET_PROPERTIES(
   utf8_range utf8_validity
-  PROPERTIES FOLDER "External/Protobuf"
+  PROPERTIES FOLDER "External/Protobuf" COMMENT "Setting folder properties for utf8_range and utf8_validity targets"
 )
 
 SET(SCENE_GENERATED_PROTO_SRCS

@@ -19,7 +19,10 @@ Fuego::Graphics::Model::Model(const aiScene* scene)
 }
 
 Fuego::Graphics::Model::Model(std::string_view model_name)
-    : name(model_name), mesh_count(0), vertex_count(0), indices_count(0)
+    : name(model_name)
+    , mesh_count(0)
+    , vertex_count(0)
+    , indices_count(0)
 {
 }
 
@@ -51,8 +54,8 @@ Fuego::Graphics::Model& Fuego::Graphics::Model::operator=(Model&& other) noexcep
     return *this;
 }
 
-Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index,
-                                   std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices)
+Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
+                                   std::vector<uint32_t>& indices)
     : mesh_name(mesh->mName.C_Str())
     , vertex_count(mesh->mNumVertices)
     , vertex_start(0)
@@ -91,8 +94,7 @@ Fuego::Graphics::Model::Mesh::Mesh(aiMesh* mesh, const Material* material, uint3
         for (size_t j = 0; j < face.mNumIndices; j++)
         {
             uint32_t index = face.mIndices[j] + vertex_start;
-            FU_CORE_ASSERT(index >= vertex_start && index < vertex_start + mesh->mNumVertices,
-                           "Mesh: index out of range for current mesh vertices");
+            FU_CORE_ASSERT(index >= vertex_start && index < vertex_start + mesh->mNumVertices, "Mesh: index out of range for current mesh vertices");
             indices.push_back(face.mIndices[j] + vertex_start);
         }
         indices_count += face.mNumIndices;
@@ -150,18 +152,16 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
                     if (embeded_texture->mFilename.length == 0)
                         name = std::string(GetName()) + "_" + "Embeded_txt_" + std::to_string(texture_index);
                     if (async)
-                        image = assets_manager->LoadImage2DFromMemoryAsync(
-                            name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
-                            channels);
+                        image = assets_manager->LoadImage2DFromMemoryAsync(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData),
+                                                                           embeded_texture->mWidth, channels);
                     else
-                        image = assets_manager->LoadImage2DFromMemory(
-                            name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
-                            channels);
+                        image = assets_manager->LoadImage2DFromMemory(name, reinterpret_cast<unsigned char*>(embeded_texture->pcData), embeded_texture->mWidth,
+                                                                      channels);
                 }
                 else
-                    image = assets_manager->LoadImage2DFromRawData(
-                        embeded_texture->mFilename.C_Str(), reinterpret_cast<unsigned char*>(embeded_texture->pcData),
-                        4, 8, embeded_texture->mWidth, embeded_texture->mHeight);
+                    image =
+                        assets_manager->LoadImage2DFromRawData(embeded_texture->mFilename.C_Str(), reinterpret_cast<unsigned char*>(embeded_texture->pcData), 4,
+                                                               8, embeded_texture->mWidth, embeded_texture->mHeight);
             }
 
             else
@@ -179,11 +179,9 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
             aiColor4D diffuseColor{};
             if (scene->mMaterials[i]->Get(AI_MATKEY_COLOR_DIFFUSE, diffuseColor) == AI_SUCCESS)
             {
-                std::string name = std::string(scene->mRootNode->mName.C_Str()) + "_Solid_Texture_" +
-                                   std::to_string(solid_texture_idx);
+                std::string name = std::string(scene->mRootNode->mName.C_Str()) + "_Solid_Texture_" + std::to_string(solid_texture_idx);
 
-                texture = renderer->CreateGraphicsResource<Texture>(
-                    name, Color(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a), 128, 128);
+                texture = renderer->CreateGraphicsResource<Texture>(name, Color(diffuseColor.r, diffuseColor.g, diffuseColor.b, diffuseColor.a), 128, 128);
                 ++solid_texture_idx;
             }
             auto renderer = ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>();
@@ -195,8 +193,8 @@ void Fuego::Graphics::Model::process_model(const aiScene* scene, bool async)
 
     for (size_t i = 0; i < scene->mNumMeshes; i++)
     {
-        meshes.emplace_back(std::make_unique<Fuego::Graphics::Model::Mesh>(
-            scene->mMeshes[i], materials[scene->mMeshes[i]->mMaterialIndex].get(), i, vertices, indices));
+        meshes.emplace_back(
+            std::make_unique<Fuego::Graphics::Model::Mesh>(scene->mMeshes[i], materials[scene->mMeshes[i]->mMaterialIndex].get(), i, vertices, indices));
         Fuego::Graphics::Model::Mesh* mesh = meshes.back().get();
         vertex_count += mesh->GetVertexCount();
         indices_count += mesh->GetIndicesCount();

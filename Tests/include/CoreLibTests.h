@@ -1,10 +1,8 @@
-﻿#include "gtest/gtest.h"
-
-#include "Sptr.h"
+﻿#include "Sptr.h"
 #include "Uptr.h"
+#include "gtest/gtest.h"
 
 using namespace Fuego;
-
 
 TEST(CoreLibTest, Uptr_DefaultConstructor)
 {
@@ -474,7 +472,6 @@ TEST(CoreLibTest, Uptr_Single_LeadTestMove)
 {
     auto Ptr = MakeUnique<MemLeaker>();
 
-
     Ptr.Reset();
 
     EXPECT_EQ(Counter, 0);
@@ -505,7 +502,6 @@ TEST(CoreLibTest, Sptr_Array_LeakTest)
     Ptr.Reset();
 
     EXPECT_EQ(Counter, 0);
-
 
     std::shared_ptr<int> uptr(new int(3));
 

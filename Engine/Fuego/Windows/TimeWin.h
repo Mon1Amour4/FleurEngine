@@ -4,7 +4,6 @@
 
 #include "FuTime.h"
 
-
 namespace Fuego
 {
 class TimeWin : public Time

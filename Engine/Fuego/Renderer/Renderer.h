@@ -26,8 +26,7 @@
 #pragma region concepts
 template <class Resource>
 concept is_graphic_resource = requires(Resource t) {
-    std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture> ||
-        std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Shader>;
+    std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture> || std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Shader>;
 };
 
 #pragma endregion
@@ -37,7 +36,7 @@ namespace Fuego::Graphics
 
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
-   public:
+public:
     friend struct Service<Renderer>;
 
     Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer& toolchain);
@@ -66,7 +65,10 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
     void ShowWireFrame();
     void ToggleWireFrame();
     void ValidateWindow();
-    inline const Viewport& GetViewport() const { return viewport; }
+    inline const Viewport& GetViewport() const
+    {
+        return viewport;
+    }
 
     void SetVSync(bool active);
     bool IsVSync();
@@ -82,8 +84,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
             if constexpr (args_amount == 1)
             {
                 using FirstArg = std::tuple_element_t<0, std::tuple<Args...>>;
-                if constexpr ((std::is_same_v<std::remove_cv_t<std::remove_reference_t<FirstArg>>,
-                                              std::shared_ptr<Fuego::Graphics::Image2D>>) ||
+                if constexpr ((std::is_same_v<std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::shared_ptr<Fuego::Graphics::Image2D>>) ||
                               (std::is_same_v<FirstArg, std::string_view>) || (std::is_same_v<FirstArg, std::string>) ||
                               (std::is_convertible_v<FirstArg, const char*>))
                 {
@@ -101,7 +102,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
         return std::shared_ptr<Resource>{nullptr};
     }
 
-   private:
+private:
     bool show_wireframe;
 
     void UpdateViewport();
@@ -142,7 +143,7 @@ class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
     std::vector<DrawInfo> static_geometry_models_vector;
 
     // Service
-   protected:
+protected:
     void OnInit();
     void OnShutdown();
 };

@@ -34,16 +34,26 @@ enum LoadingSts
 template <typename T>
 class ResourceHandle
 {
-   public:
+public:
     ResourceHandle(std::shared_ptr<T> resource, LoadingSts status, std::optional<Failure> failure = std::nullopt)
-        : obj(resource), status(status), failure(failure) {};
+        : obj(resource)
+        , status(status)
+        , failure(failure) {};
 
-    ResourceHandle(std::shared_ptr<T> resource) : obj(resource), status(status) {};
+    ResourceHandle(std::shared_ptr<T> resource)
+        : obj(resource)
+        , status(status) {};
 
     ~ResourceHandle() = default;
 
-    LoadingSts Status() { return status; }
-    std::optional<Failure> FailureReason() { return failure; }
+    LoadingSts Status()
+    {
+        return status;
+    }
+    std::optional<Failure> FailureReason()
+    {
+        return failure;
+    }
     void SetCorrupted(Failure failure)
     {
         status = CORRUPTED;
@@ -54,11 +64,20 @@ class ResourceHandle
         status = SUCCESS;
         failure = std::nullopt;
     }
-    void SetStatus(LoadingSts st) { status = st; }
-    void SetFailure(Failure fail) { failure = fail; }
-    std::shared_ptr<T> Resource() { return obj; }
+    void SetStatus(LoadingSts st)
+    {
+        status = st;
+    }
+    void SetFailure(Failure fail)
+    {
+        failure = fail;
+    }
+    std::shared_ptr<T> Resource()
+    {
+        return obj;
+    }
 
-   private:
+private:
     std::shared_ptr<T> obj;
     LoadingSts status{TO_BE_LOADED};
     std::optional<Failure> failure;
@@ -66,29 +85,22 @@ class ResourceHandle
 
 class AssetsManager : public Service<AssetsManager>
 {
-   public:
+public:
     friend class Application;
     friend class Service<AssetsManager>;
 
     AssetsManager(Fuego::Pipeline::Toolchain::assets_manager& toolchain);
     ~AssetsManager();
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemory(std::string_view name,
-                                                                                           unsigned char* data,
-                                                                                           uint32_t size_b,
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b,
                                                                                            uint16_t channels);
-
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemoryAsync(std::string_view name,
-                                                                                                unsigned char* data,
-                                                                                                uint32_t size_b,
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b,
                                                                                                 uint16_t channels);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromRawData(
-        std::string_view name, unsigned char* data, uint32_t channels, uint16_t bpp, uint32_t width, uint32_t height);
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels,
+                                                                                            uint16_t bpp, uint32_t width, uint32_t height);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromColor(std::string_view name,
-                                                                                          Fuego::Graphics::Color color,
-                                                                                          uint32_t width,
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width,
                                                                                           uint32_t height);
 
     template <class Res>
@@ -177,16 +189,14 @@ class AssetsManager : public Service<AssetsManager>
 
     void FreeImage2D(unsigned char* data) const;
 
-   private:
+private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
 
     //  TODO: What to do with corrupted models?
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>>
-        models_to_load_async;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>> models_to_load_async;
 
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>>
-        images2d_to_load_async;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>> images2d_to_load_async;
 
     std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>> load_model(std::string_view path);
     std::shared_ptr<ResourceHandle<Fuego::Graphics::Model>> load_model_async(std::string_view path);
@@ -202,8 +212,7 @@ class AssetsManager : public Service<AssetsManager>
     Fuego::Pipeline::Toolchain::assets_manager toolchain;
 
     template <typename Map>
-    bool is_already_loaded(const Map& map, const std::string& key,
-                           std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& handle_out)
+    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& handle_out)
     {
         auto it = map.find(key);
         if (it != map.end())

@@ -13,8 +13,7 @@
 #include "Renderer.h"
 #include "TextureOpenGL.h"
 
-void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length,
-                             const GLchar* message, const void* userParam)
+void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
     if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
         return;
@@ -25,85 +24,86 @@ void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum sever
     FU_CORE_ERROR("---- OpenGL Debug Message ----");
     switch (source)
     {
-        case GL_DEBUG_SOURCE_API:
-            FU_CORE_ERROR("Source: API");
-            break;
-        case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-            FU_CORE_ERROR("Source: Window System");
-            break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER:
-            FU_CORE_ERROR("Source: Shader Compiler");
-            break;
-        case GL_DEBUG_SOURCE_THIRD_PARTY:
-            FU_CORE_ERROR("Source: Third Party");
-            break;
-        case GL_DEBUG_SOURCE_APPLICATION:
-            FU_CORE_ERROR("Source: Application");
-            break;
-        case GL_DEBUG_SOURCE_OTHER:
-        default:
-            FU_CORE_ERROR("Source: Other");
-            break;
+    case GL_DEBUG_SOURCE_API:
+        FU_CORE_ERROR("Source: API");
+        break;
+    case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
+        FU_CORE_ERROR("Source: Window System");
+        break;
+    case GL_DEBUG_SOURCE_SHADER_COMPILER:
+        FU_CORE_ERROR("Source: Shader Compiler");
+        break;
+    case GL_DEBUG_SOURCE_THIRD_PARTY:
+        FU_CORE_ERROR("Source: Third Party");
+        break;
+    case GL_DEBUG_SOURCE_APPLICATION:
+        FU_CORE_ERROR("Source: Application");
+        break;
+    case GL_DEBUG_SOURCE_OTHER:
+    default:
+        FU_CORE_ERROR("Source: Other");
+        break;
     }
 
     switch (type)
     {
-        case GL_DEBUG_TYPE_ERROR:
-            FU_CORE_ERROR("Type: Error");
-            break;
-        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-            FU_CORE_ERROR("Type: Deprecated Behaviour");
-            break;
-        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-            FU_CORE_ERROR("Type: Undefined Behaviour");
-            break;
-        case GL_DEBUG_TYPE_PORTABILITY:
-            FU_CORE_ERROR("Type: Portability");
-            break;
-        case GL_DEBUG_TYPE_PERFORMANCE:
-            FU_CORE_ERROR("Type: Performance");
-            break;
-        case GL_DEBUG_TYPE_MARKER:
-            FU_CORE_ERROR("Type: Marker");
-            break;
-        case GL_DEBUG_TYPE_PUSH_GROUP:
-            FU_CORE_ERROR("Type: Push Group");
-            break;
-        case GL_DEBUG_TYPE_POP_GROUP:
-            FU_CORE_ERROR("Type: Pop Group");
-            break;
-        case GL_DEBUG_TYPE_OTHER:
-        default:
-            FU_CORE_ERROR("Type: Other");
-            break;
+    case GL_DEBUG_TYPE_ERROR:
+        FU_CORE_ERROR("Type: Error");
+        break;
+    case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+        FU_CORE_ERROR("Type: Deprecated Behaviour");
+        break;
+    case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+        FU_CORE_ERROR("Type: Undefined Behaviour");
+        break;
+    case GL_DEBUG_TYPE_PORTABILITY:
+        FU_CORE_ERROR("Type: Portability");
+        break;
+    case GL_DEBUG_TYPE_PERFORMANCE:
+        FU_CORE_ERROR("Type: Performance");
+        break;
+    case GL_DEBUG_TYPE_MARKER:
+        FU_CORE_ERROR("Type: Marker");
+        break;
+    case GL_DEBUG_TYPE_PUSH_GROUP:
+        FU_CORE_ERROR("Type: Push Group");
+        break;
+    case GL_DEBUG_TYPE_POP_GROUP:
+        FU_CORE_ERROR("Type: Pop Group");
+        break;
+    case GL_DEBUG_TYPE_OTHER:
+    default:
+        FU_CORE_ERROR("Type: Other");
+        break;
     }
 
     switch (severity)
     {
-        case GL_DEBUG_SEVERITY_HIGH:
-            FU_CORE_ERROR("Severity: High");
-            break;
-        case GL_DEBUG_SEVERITY_MEDIUM:
-            FU_CORE_ERROR("Severity: Medium");
-            break;
-        case GL_DEBUG_SEVERITY_LOW:
-            FU_CORE_ERROR("Severity: Low");
-            break;
-        case GL_DEBUG_SEVERITY_NOTIFICATION:
-            FU_CORE_ERROR("Severity: Notification");
-            break;
-        default:
-            break;
+    case GL_DEBUG_SEVERITY_HIGH:
+        FU_CORE_ERROR("Severity: High");
+        break;
+    case GL_DEBUG_SEVERITY_MEDIUM:
+        FU_CORE_ERROR("Severity: Medium");
+        break;
+    case GL_DEBUG_SEVERITY_LOW:
+        FU_CORE_ERROR("Severity: Low");
+        break;
+    case GL_DEBUG_SEVERITY_NOTIFICATION:
+        FU_CORE_ERROR("Severity: Notification");
+        break;
+    default:
+        break;
     }
 
-    FU_CORE_ERROR("Message: {0}, Source: {1}, Type: {2}, ID: {3}, Severity: {4}\n", (const char*)message, source, type,
-                  id, severity);
+    FU_CORE_ERROR("Message: {0}, Source: {1}, Type: {2}, ID: {3}, Severity: {4}\n", (const char*)message, source, type, id, severity);
 }
 
 namespace Fuego::Graphics
 {
 
-DeviceOpenGL::DeviceOpenGL() : ctx(nullptr), max_textures_units(0)
+DeviceOpenGL::DeviceOpenGL()
+    : ctx(nullptr)
+    , max_textures_units(0)
 {
     HWND hwnd = (HWND)Application::instance().GetWindow().GetNativeHandle();
     HDC hdc = GetDC(hwnd);
@@ -175,8 +175,7 @@ DeviceOpenGL::DeviceOpenGL() : ctx(nullptr), max_textures_units(0)
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_textures_units);
     FU_CORE_INFO("  Max texture units: {0}", max_textures_units);
-    ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->MAX_TEXTURES_COUNT =
-        static_cast<uint32_t>(max_textures_units);
+    ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(max_textures_units);
     glEnable(GL_DEPTH_TEST);
 }
 
@@ -195,8 +194,7 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer,
-                                                     int width, int height) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
 {
     return std::make_shared<TextureOpenGL>(name, format, buffer, width, height);
 }
@@ -255,8 +253,7 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
         return nullptr;
     }
 
-    auto res =
-        ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
+    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
 
     if (!res)
     {

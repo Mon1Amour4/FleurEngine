@@ -2,10 +2,9 @@
 
 #include <span>
 
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>*
-    Fuego::Pipeline::PostLoadPipeline::pairs_ptr = nullptr;
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>
-    Fuego::Pipeline::Toolchain::renderer::pairs;
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::pairs_ptr =
+    nullptr;
+std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::pairs;
 
 namespace Fuego::Graphics
 {
@@ -51,8 +50,7 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     return emplaced_texture.first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width,
-                                                                 int height)
+std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width, int height)
 {
     if (name.empty())
         return GetLoadedTexture("fallback");
@@ -108,9 +106,8 @@ void Renderer::OnInit()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    std::shared_ptr<ShaderObject> static_geometry_shader(
-        ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
-                                         _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
+                                                                                          _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
 
     static_geometry_cmd = _device->CreateCommandBuffer();
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
@@ -119,10 +116,8 @@ void Renderer::OnInit()
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    static_geometry_cmd->BindVertexBuffer(
-        _device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
-    static_geometry_cmd->BindIndexBuffer(
-        _device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+    static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
+    static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 }
 
 void Renderer::OnShutdown()
@@ -152,29 +147,29 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 {
     switch (stage)
     {
-        case STATIC_GEOMETRY:
+    case STATIC_GEOMETRY:
+    {
+        auto it = static_geometry_models.find(model->GetName().data());
+        if (it != static_geometry_models.end())
         {
-            auto it = static_geometry_models.find(model->GetName().data());
-            if (it != static_geometry_models.end())
-            {
-                it->second.pos = model_pos;
-                return;
-            }
-
-            DrawInfo draw{model, model_pos};
-
-            draw.vertex_global_offset_bytes = static_geometry_cmd->UpdateBufferSubData<VertexData>(
-                Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
-
-            draw.index_global_offset_bytes = static_geometry_cmd->UpdateBufferSubData<uint32_t>(
-                Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
-
-            static_geometry_models.emplace(model->GetName().data(), draw);
-            static_geometry_models_vector.emplace_back(draw);
-            break;
+            it->second.pos = model_pos;
+            return;
         }
-        case DYNAMIC_DRAW:
-            break;
+
+        DrawInfo draw{model, model_pos};
+
+        draw.vertex_global_offset_bytes =
+            static_geometry_cmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+
+        draw.index_global_offset_bytes =
+            static_geometry_cmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+
+        static_geometry_models.emplace(model->GetName().data(), draw);
+        static_geometry_models_vector.emplace_back(draw);
+        break;
+    }
+    case DYNAMIC_DRAW:
+        break;
     }
 }
 
@@ -249,8 +244,7 @@ void Renderer::OnUpdate(float dlTime)
         {
             static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
             static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
-            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(),
-                                             draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
                                              draw_info.vertex_global_offset_bytes / sizeof(VertexData));
 
             index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
@@ -292,7 +286,9 @@ void Renderer::UpdateViewport()
 }
 
 VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
-    : pos(pos), textcoord(text_coord), normal(normal)
+    : pos(pos)
+    , textcoord(text_coord)
+    , normal(normal)
 {
 }
 

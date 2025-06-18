@@ -53,7 +53,6 @@ public:
         return future;
     }
 
-
 private:
     uint16_t num_workers;
     std::vector<std::thread> workers;
