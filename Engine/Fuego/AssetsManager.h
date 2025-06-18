@@ -195,6 +195,20 @@ class AssetsManager : public Service<AssetsManager>
     uint16_t ImageChannels(std::string_view image2d_ext);
 
     Fuego::Pipeline::Toolchain::assets_manager toolchain;
+
+    template <typename Map>
+    bool is_already_loaded(const Map& map, const std::string& key,
+                           std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& handle_out)
+    {
+        auto it = map.find(key);
+        if (it != map.end())
+        {
+            handle_out = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(
+                it->second, ResourceLoadingStatus::SUCCESS, ResourceLoadingFailureReason::NONE);
+            return true;
+        }
+        return false;
+    }
 };
 
 }  // namespace Fuego
