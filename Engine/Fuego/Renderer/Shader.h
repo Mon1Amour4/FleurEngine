@@ -7,7 +7,7 @@ class Texture;
 
 class Shader
 {
-   public:
+public:
     enum ShaderType
     {
         None = 0,

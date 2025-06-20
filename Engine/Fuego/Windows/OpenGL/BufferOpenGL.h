@@ -8,18 +8,18 @@ enum RenderStage;
 
 class BufferOpenGL final : public Buffer
 {
-   public:
+public:
     virtual ~BufferOpenGL() override;
 
     uint32_t GetBufferID() const;
     virtual uint32_t UpdateSubDataImpl(const void* data, size_t size) override;
     virtual uint32_t NativeType() const override;
 
-   private:
+private:
     uint32_t buffer_object_id;
     uint32_t buffer_native_type;
 
-   protected:
+protected:
     friend class DeviceOpenGL;
     int native_usage(RenderStage& stage) const;
     int native_buffer_type(const BufferType& type) const;

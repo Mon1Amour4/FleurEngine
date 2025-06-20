@@ -17,7 +17,7 @@ enum RenderStage;
 
 class Device
 {
-   public:
+public:
     static std::unique_ptr<Device> CreateDevice();
     virtual ~Device() = default;
 
@@ -30,8 +30,7 @@ class Device
 
     virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer,
-                                                   int width, int height) const = 0;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const = 0;
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const = 0;
 

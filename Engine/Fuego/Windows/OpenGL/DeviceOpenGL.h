@@ -6,7 +6,7 @@ namespace Fuego::Graphics
 {
 class DeviceOpenGL final : public Device
 {
-   public:
+public:
     FUEGO_NON_COPYABLE_NON_MOVABLE(DeviceOpenGL)
 
     virtual ~DeviceOpenGL() override;
@@ -21,8 +21,7 @@ class DeviceOpenGL final : public Device
     virtual Shader* CreateShader(std::string_view shaderName, Shader::ShaderType type) override;
     virtual std::unique_ptr<Surface> CreateSurface(const void* window) override;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer,
-                                                   int width, int height) const override;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const override;
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const override;
 
@@ -30,11 +29,11 @@ class DeviceOpenGL final : public Device
 
     virtual void Release() override;
 
-   protected:
+protected:
     friend class Device;
     DeviceOpenGL();
 
-   private:
+private:
     HGLRC ctx;
     int max_textures_units;
 };

@@ -14,7 +14,12 @@
 namespace Fuego::Graphics
 {
 CommandBufferOpenGL::CommandBufferOpenGL()
-    : _mainVsShader(-1), _pixelShader(-1), _isLinked(false), _isDataAllocated(false), _texture(0), _isFree(true)
+    : _mainVsShader(-1)
+    , _pixelShader(-1)
+    , _isLinked(false)
+    , _isDataAllocated(false)
+    , _texture(0)
+    , _isFree(true)
 {
     glCreateVertexArrays(1, &_vao);
 }
@@ -35,7 +40,9 @@ void CommandBufferOpenGL::BeginRecording()
     _isFree = false;
 }
 
-void CommandBufferOpenGL::EndRecording() {}
+void CommandBufferOpenGL::EndRecording()
+{
+}
 
 void CommandBufferOpenGL::Submit()
 {
@@ -58,8 +65,7 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
     {
         GLuint index = static_cast<GLuint>(it->GetIndex());
-        glVertexArrayAttribFormat(_vao, index, it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE,
-                                  static_cast<GLuint>(it->GetOffset()));
+        glVertexArrayAttribFormat(_vao, index, it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE, static_cast<GLuint>(it->GetOffset()));
         glVertexArrayAttribBinding(_vao, index, 0);
         if (it->GetIsEnabled())
             glEnableVertexArrayAttrib(_vao, index);
@@ -99,8 +105,7 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 
 void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
 {
-    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes),
-                             base_vertex);
+    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes), base_vertex);
 }
 
 void CommandBufferOpenGL::Clear()
@@ -142,18 +147,18 @@ void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* me
     GLenum identifier = GL_BUFFER;
     switch (id)
     {
-        case Fuego::Graphics::CommandBuffer::LABEL_BUFFER:
-            identifier = GL_BUFFER;
-            break;
-        case Fuego::Graphics::CommandBuffer::LABEL_SHADER:
-            identifier = GL_SHADER;
-            break;
-        case Fuego::Graphics::CommandBuffer::LABEL_TEXTURE:
-            identifier = GL_TEXTURE;
-            break;
-        default:
-            FU_CORE_WARN("SetLabel: Unknown object label type");
-            return;
+    case Fuego::Graphics::CommandBuffer::LABEL_BUFFER:
+        identifier = GL_BUFFER;
+        break;
+    case Fuego::Graphics::CommandBuffer::LABEL_SHADER:
+        identifier = GL_SHADER;
+        break;
+    case Fuego::Graphics::CommandBuffer::LABEL_TEXTURE:
+        identifier = GL_TEXTURE;
+        break;
+    default:
+        FU_CORE_WARN("SetLabel: Unknown object label type");
+        return;
     }
 
     glObjectLabel(identifier, name, length, message);
@@ -175,10 +180,10 @@ int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
 {
     switch (stage)
     {
-        case STATIC_GEOMETRY:
-            return GL_STATIC_DRAW;
-        case DYNAMIC_DRAW:
-            return GL_DYNAMIC_DRAW;
+    case STATIC_GEOMETRY:
+        return GL_STATIC_DRAW;
+    case DYNAMIC_DRAW:
+        return GL_DYNAMIC_DRAW;
     }
 }
 

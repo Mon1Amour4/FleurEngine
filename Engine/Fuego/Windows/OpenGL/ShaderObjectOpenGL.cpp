@@ -20,7 +20,10 @@ ShaderObject* ShaderObject::CreateShaderObject(Shader* vs, Shader* px)
 }
 
 ShaderObjectOpenGL::ShaderObjectOpenGL(Shader* vs, Shader* px)
-    : program(glCreateProgram()), vertex_shader(nullptr), pixel_shader(nullptr), material(nullptr)
+    : program(glCreateProgram())
+    , vertex_shader(nullptr)
+    , pixel_shader(nullptr)
+    , material(nullptr)
 {
     vertex_shader.reset(static_cast<ShaderOpenGL*>(vs));
     pixel_shader.reset(static_cast<ShaderOpenGL*>(px));

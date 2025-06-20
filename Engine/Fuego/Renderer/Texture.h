@@ -23,13 +23,22 @@ enum class TextureFormat
 
 class Texture
 {
-   public:
+public:
     virtual ~Texture() = default;
 
     virtual TextureFormat GetTextureFormat() const = 0;
-    virtual inline std::string_view Name() const { return name; }
-    virtual inline int Width() const { return width; }
-    virtual inline int Height() const { return height; }
+    virtual inline std::string_view Name() const
+    {
+        return name;
+    }
+    virtual inline int Width() const
+    {
+        return width;
+    }
+    virtual inline int Height() const
+    {
+        return height;
+    }
 
     virtual void Bind() const = 0;
     virtual void UnBind() const = 0;
@@ -38,29 +47,32 @@ class Texture
     {
         switch (channels)
         {
-            case 1:
-                if (bpp <= 8)
-                    return TextureFormat::R8;
-                break;
+        case 1:
+            if (bpp <= 8)
+                return TextureFormat::R8;
+            break;
 
-            case 2:
-                if (bpp <= 8)
-                    return TextureFormat::RG8;
-                break;
+        case 2:
+            if (bpp <= 8)
+                return TextureFormat::RG8;
+            break;
 
-            case 3:
-                if (bpp <= 8)
-                    return TextureFormat::RGB8;
-                break;
+        case 3:
+            if (bpp <= 8)
+                return TextureFormat::RGB8;
+            break;
 
-            case 4:
-                if (bpp <= 8)
-                    return TextureFormat::RGBA8;
-                break;
+        case 4:
+            if (bpp <= 8)
+                return TextureFormat::RGBA8;
+            break;
         }
     }
 
-    inline bool IsValid() const { return is_created; }
+    inline bool IsValid() const
+    {
+        return is_created;
+    }
 
     virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
     {
@@ -71,11 +83,22 @@ class Texture
         is_created = true;
     }
 
-   protected:
+protected:
     Texture(std::string_view name, TextureFormat format, int width, int height)
-        : name(name), format(format), width(width), height(height), is_created(false) {};
+        : name(name)
+        , format(format)
+        , width(width)
+        , height(height)
+        , is_created(false) {};
 
-    Texture(std::string_view name) : name(name), format(TextureFormat::NONE), width(0), height(0), is_created(false) {}
+    Texture(std::string_view name)
+        : name(name)
+        , format(TextureFormat::NONE)
+        , width(0)
+        , height(0)
+        , is_created(false)
+    {
+    }
 
     bool is_created;
     std::string name;
@@ -91,30 +114,30 @@ class Texture
     {
         switch (format)
         {
-            case Fuego::Graphics::TextureFormat::R8:
-            case Fuego::Graphics::TextureFormat::R16F:
-            case Fuego::Graphics::TextureFormat::R32F:
-                return 1;
+        case Fuego::Graphics::TextureFormat::R8:
+        case Fuego::Graphics::TextureFormat::R16F:
+        case Fuego::Graphics::TextureFormat::R32F:
+            return 1;
 
-            case Fuego::Graphics::TextureFormat::RG8:
-            case Fuego::Graphics::TextureFormat::RG16F:
-                return 2;
+        case Fuego::Graphics::TextureFormat::RG8:
+        case Fuego::Graphics::TextureFormat::RG16F:
+            return 2;
 
-            case Fuego::Graphics::TextureFormat::RGB8:
-            case Fuego::Graphics::TextureFormat::RGB16F:
-                return 3;
+        case Fuego::Graphics::TextureFormat::RGB8:
+        case Fuego::Graphics::TextureFormat::RGB16F:
+            return 3;
 
-            case Fuego::Graphics::TextureFormat::RGBA8:
-            case Fuego::Graphics::TextureFormat::RGBA16F:
-            case Fuego::Graphics::TextureFormat::RGBA32F:
-                return 4;
+        case Fuego::Graphics::TextureFormat::RGBA8:
+        case Fuego::Graphics::TextureFormat::RGBA16F:
+        case Fuego::Graphics::TextureFormat::RGBA32F:
+            return 4;
         }
     }
 };  // namespace Fuego::Graphics
 
 class TextureView
 {
-   public:
+public:
     virtual ~TextureView() = default;
 };
 }  // namespace Fuego::Graphics

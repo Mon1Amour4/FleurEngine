@@ -17,7 +17,7 @@ enum RenderStage;
 
 class CommandBuffer
 {
-   public:
+public:
     enum ObjectLabel
     {
         LABEL_BUFFER = 0,
@@ -55,12 +55,16 @@ class CommandBuffer
     virtual void PopDebugGroup() = 0;
     virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) = 0;
 
-    virtual Fuego::Graphics::ShaderObject* ShaderObject() const { return shader_object.get(); }
+    virtual Fuego::Graphics::ShaderObject* ShaderObject() const
+    {
+        return shader_object.get();
+    }
 
-   protected:
+protected:
     virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
 
-    CommandBuffer() : push_debug_group_commands(0) {};
+    CommandBuffer()
+        : push_debug_group_commands(0) {};
 
     uint16_t push_debug_group_commands;
 

@@ -9,7 +9,7 @@ namespace Fuego
 {
 class FUEGO_API Input
 {
-   public:
+public:
     enum KeyState
     {
         KEY_NONE = 0,
@@ -31,7 +31,10 @@ class FUEGO_API Input
         MOUSE_SCROLL
     };
 
-    static inline bool IsKeyPressed(KeyCode keyCode) { return platform_instance().IsKeyPressedImpl(keyCode); }
+    static inline bool IsKeyPressed(KeyCode keyCode)
+    {
+        return platform_instance().IsKeyPressedImpl(keyCode);
+    }
 
     static inline bool IsMouseWheelScrolled(std::pair<float, float>& data)
     {
@@ -43,13 +46,25 @@ class FUEGO_API Input
         return platform_instance().IsMouseButtonPressedImpl(mouseCode);
     }
 
-    static inline float GetMouseX() { return platform_instance().GetMouseXImpl(); }
+    static inline float GetMouseX()
+    {
+        return platform_instance().GetMouseXImpl();
+    }
 
-    static inline float GetMouseY() { return platform_instance().GetMouseYImpl(); }
+    static inline float GetMouseY()
+    {
+        return platform_instance().GetMouseYImpl();
+    }
 
-    static inline std::pair<float, float> GetMousePosition() { return platform_instance().GetMousePositionImpl(); }
+    static inline std::pair<float, float> GetMousePosition()
+    {
+        return platform_instance().GetMousePositionImpl();
+    }
 
-    static inline glm::vec2 GetMouseDir() { return platform_instance().GetMouseDirImpl(); }
+    static inline glm::vec2 GetMouseDir()
+    {
+        return platform_instance().GetMouseDirImpl();
+    }
 
     struct MouseInfo
     {
@@ -57,7 +72,7 @@ class FUEGO_API Input
         MouseCode mouseCode;
     };
 
-   protected:
+protected:
     [[nodiscard]] virtual bool IsKeyPressedImpl(KeyCode keyCode) const = 0;
 
     virtual bool IsMouseButtonPressedImpl(MouseCode mouseCode) = 0;
@@ -67,7 +82,7 @@ class FUEGO_API Input
     [[nodiscard]] virtual float GetMouseYImpl() const = 0;
     [[nodiscard]] virtual glm::vec2 GetMouseDirImpl() const = 0;
 
-   private:
+private:
     static Input& platform_instance();
 };
 }  // namespace Fuego

@@ -10,7 +10,7 @@ class SurfaceWindows;
 
 class WindowWin final : public Window
 {
-   public:
+public:
     friend class Application;
 
     WindowWin(const WindowProps& props, EventQueue& eventQueue);
@@ -19,8 +19,14 @@ class WindowWin final : public Window
     virtual void OnPostUpdate(float dlTime) override;
     virtual void OnFixedUpdate() override;
 
-    inline virtual unsigned int GetWidth() const override { return _props.Width; }
-    inline virtual unsigned int GetHeight() const override { return _props.Height; }
+    inline virtual unsigned int GetWidth() const override
+    {
+        return _props.Width;
+    }
+    inline virtual unsigned int GetHeight() const override
+    {
+        return _props.Height;
+    }
 
     virtual const void* GetNativeHandle() const override;
 
@@ -37,19 +43,30 @@ class WindowWin final : public Window
 
     inline virtual void SwitchInteractionMode() override
     {
-        interaction_mode =
-            interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
+        interaction_mode = interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
     }
-    inline virtual InteractionMode GetInteractionMode() const { return interaction_mode; }
+    inline virtual InteractionMode GetInteractionMode() const
+    {
+        return interaction_mode;
+    }
 
-    virtual inline bool IsResizing() const override { return isResizing; }
-    inline virtual glm::vec2 GetMouseDir() const override { return _mouseDir; }
+    virtual inline bool IsResizing() const override
+    {
+        return isResizing;
+    }
+    inline virtual glm::vec2 GetMouseDir() const override
+    {
+        return _mouseDir;
+    }
 
-    inline virtual bool IsActive() const override { return is_in_focus; }
+    inline virtual bool IsActive() const override
+    {
+        return is_in_focus;
+    }
 
     virtual void SetTitle(std::string title) override;
 
-   private:
+private:
     float _currentWidth, _currentHeigth;
     int window_center_x, window_center_y, _xPos, _yPos;
 
@@ -71,7 +88,10 @@ class WindowWin final : public Window
 
     bool is_first_launch, isResizing, isPainted, is_in_focus;
 
-    virtual inline void SetPainted() override { isPainted = true; }
+    virtual inline void SetPainted() override
+    {
+        isPainted = true;
+    }
 
     virtual void SetMousePos(float x, float y) override;
     virtual void SetMouseWheelScrollData(float x, float y) override;
@@ -86,7 +106,7 @@ class WindowWin final : public Window
 
     InteractionMode interaction_mode;
 
-   protected:
+protected:
     virtual void SetWindowMode(WPARAM mode);
 };
 

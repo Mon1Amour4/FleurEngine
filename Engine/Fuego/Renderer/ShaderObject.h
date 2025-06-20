@@ -15,7 +15,7 @@ class Material;
 
 class ShaderObject
 {
-   public:
+public:
     virtual ~ShaderObject() = default;
 
     template <typename T>
@@ -41,7 +41,7 @@ class ShaderObject
 
     virtual void Release() = 0;
 
-   protected:
+protected:
     ShaderObject() = default;
     virtual bool set_vec3f_impl(std::string_view name, const glm::vec3& vec) = 0;
     virtual bool set_mat4f_impl(std::string_view name, const glm::mat4& matrix) = 0;

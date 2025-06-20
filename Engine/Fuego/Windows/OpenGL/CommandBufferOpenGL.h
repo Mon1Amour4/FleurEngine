@@ -9,7 +9,7 @@ struct VertexLayout;
 
 class CommandBufferOpenGL final : public CommandBuffer
 {
-   public:
+public:
     virtual ~CommandBufferOpenGL() override;
     virtual void BeginRecording() override;
     virtual void EndRecording() override;
@@ -32,7 +32,7 @@ class CommandBufferOpenGL final : public CommandBuffer
     virtual void PopDebugGroup() override;
     virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
 
-   private:
+private:
     int ConvertUsage(RenderStage& stage) const;
     uint32_t _vao;
     uint32_t _mainVsShader;

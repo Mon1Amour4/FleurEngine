@@ -47,7 +47,7 @@ class Window : public IUpdatable
 {
     friend class Application;
 
-   public:
+public:
     enum InteractionMode
     {
         EDITOR = 0,
@@ -78,7 +78,7 @@ class Window : public IUpdatable
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 
-   private:
+private:
     virtual void SetMousePos(float x, float y) = 0;
     virtual void SetPainted() = 0;
     virtual void SetMouseWheelScrollData(float x, float y) = 0;

@@ -9,7 +9,7 @@ class InputWin final : public Input, public singleton<InputWin>
 {
     friend class singleton<InputWin>;
 
-   protected:
+protected:
     virtual bool IsKeyPressedImpl(KeyCode keyCode) const override;
 
     virtual bool IsMouseButtonPressedImpl(MouseCode mouseCode) override;

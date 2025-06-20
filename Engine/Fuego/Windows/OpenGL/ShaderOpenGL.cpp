@@ -11,17 +11,19 @@ GLint GetShaderType(Shader::ShaderType type)
 {
     switch (type)
     {
-        case Shader::Pixel:
-            return GL_FRAGMENT_SHADER;
-        case Shader::Vertex:
-            return GL_VERTEX_SHADER;
-        default:
-            FU_CORE_ASSERT(false, "[Shader] Invalid shader type:")
-            return 0;
+    case Shader::Pixel:
+        return GL_FRAGMENT_SHADER;
+    case Shader::Vertex:
+        return GL_VERTEX_SHADER;
+    default:
+        FU_CORE_ASSERT(false, "[Shader] Invalid shader type:")
+        return 0;
     }
 }
 
-ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type) : shader_object(0), _type(type)
+ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type)
+    : shader_object(0)
+    , _type(type)
 {
     _shaderID = glCreateShader(GetShaderType(type));
     glShaderSource(_shaderID, 1, &shaderCode, nullptr);

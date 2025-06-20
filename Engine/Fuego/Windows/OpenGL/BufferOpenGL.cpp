@@ -7,7 +7,8 @@ namespace Fuego::Graphics
 {
 
 BufferOpenGL::BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes)
-    : Buffer(type, size_bytes), buffer_object_id(UINT32_MAX)
+    : Buffer(type, size_bytes)
+    , buffer_object_id(UINT32_MAX)
 {
     FU_CORE_ASSERT(size_bytes > 0, "Buffer can't be 0 sized");
 
@@ -45,10 +46,10 @@ int BufferOpenGL::native_usage(RenderStage& stage) const
 {
     switch (stage)
     {
-        case STATIC_GEOMETRY:
-            return GL_STATIC_DRAW;
-        case DYNAMIC_DRAW:
-            return GL_DYNAMIC_DRAW;
+    case STATIC_GEOMETRY:
+        return GL_STATIC_DRAW;
+    case DYNAMIC_DRAW:
+        return GL_DYNAMIC_DRAW;
     }
 }
 int BufferOpenGL::native_buffer_type(const BufferType& type) const
