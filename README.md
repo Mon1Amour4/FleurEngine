@@ -1,6 +1,4 @@
-# GameEngine 🔥🔥🔥
-
-A hot minimalistic game engine.
+# GameEngine
 
 ## Project Health
 
