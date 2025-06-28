@@ -2,10 +2,6 @@
 
 #include <span>
 
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>>* Fuego::Pipeline::PostLoadPipeline::pairs_ptr =
-    nullptr;
-std::list<std::pair<std::shared_ptr<Fuego::Graphics::Image2D>, std::shared_ptr<Fuego::Graphics::Texture>>> Fuego::Pipeline::Toolchain::renderer::pairs;
-
 namespace Fuego::Graphics
 {
 
@@ -13,13 +9,13 @@ ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer(GraphicsAPI api, Fuego::Pipeline::Toolchain::renderer& toolchain)
+Renderer::Renderer(GraphicsAPI api, std::unique_ptr<Fuego::IRendererToolchain> tool)
     : show_wireframe(false)
     , _camera(nullptr)
     , current_shader_obj(nullptr)
     , is_vsync(true)
     , renderer(api)
-    , toolchain(toolchain)
+    , toolchain(std::move(tool))
 {
 }
 
@@ -45,9 +41,8 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
         image = assets_manager->Load<Fuego::Graphics::Image2D>(path)->Resource();
     }
 
-    auto texture = toolchain.load_texture(image, _device.get());
-    auto emplaced_texture = textures.emplace(image->Name(), texture);
-    return emplaced_texture.first->second;
+    auto texture = toolchain->LoadTexture(image, _device.get());
+    return textures.emplace(image->Name(), texture).first->second;
 }
 
 std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width, int height)
@@ -67,13 +62,10 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     if (!existing_img.expired())
         image = existing_img.lock();
     else
-    {
         image = assets_manager->LoadImage2DFromColor(name, color, width, height)->Resource();
-    }
 
-    auto texture = toolchain.load_texture(image, _device.get());
-    auto emplaced_texture = textures.emplace(image->Name(), texture);
-    return emplaced_texture.first->second;
+    auto texture = toolchain->LoadTexture(image, _device.get());
+    return textures.emplace(image->Name(), texture).first->second;
 }
 
 std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img)
@@ -86,9 +78,8 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::shared_ptr
     if (it != textures.end())
         return it->second;
 
-    auto texture = toolchain.load_texture(img, _device.get());
-    auto emplaced_texture = textures.emplace(img->Name(), texture);
-    return emplaced_texture.first->second;
+    auto texture = toolchain->LoadTexture(img, _device.get());
+    return textures.emplace(img->Name(), texture).first->second;
 }
 
 void Renderer::OnInit()
@@ -220,7 +211,7 @@ bool Renderer::IsVSync()
 
 void Renderer::OnUpdate(float dlTime)
 {
-    toolchain.update();
+    toolchain->Update();
 
     // Main Pass
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
