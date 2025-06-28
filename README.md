@@ -1,11 +1,11 @@
-# Fuego 🔥🔥🔥
+# GameEngine 🔥🔥🔥
 
 A hot minimalistic game engine.
 
 ## Project Health
 
-![CI Status](https://github.com/LtSnail/Fuego/actions/workflows/build_validation.yml/badge.svg)
-![License](https://img.shields.io/github/license/LtSnail/Fuego)
+![CI Status](https://github.com//Mon1Amour4/GameEngine/actions/workflows/build_validation.yml/badge.svg)
+![License](https://img.shields.io/github/license//Mon1Amour4/GameEngine)
 
 ## Setup
 1. Install Python 3.13.0.
