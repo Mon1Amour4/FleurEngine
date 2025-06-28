@@ -6,6 +6,8 @@
 struct aiScene;
 struct aiMesh;
 struct aiMaterial;
+struct cgltf_data;
+struct cgltf_mesh;
 
 namespace Fuego::Graphics
 {
@@ -18,7 +20,8 @@ public:
     class FUEGO_API Mesh
     {
     public:
-        Mesh(aiMesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        Mesh(cgltf_mesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
+             std::vector<uint32_t>& indices);
         ~Mesh() = default;
 
         inline uint32_t GetVertexCount() const
@@ -85,7 +88,7 @@ public:
         uint32_t indices_count;
     };
 
-    Model(const aiScene* scene);
+    Model(cgltf_data* data);
     Model(std::string_view model_name);
 
     ~Model() = default;
@@ -122,7 +125,7 @@ public:
         return &meshes;
     }
 
-    void PostLoad(const aiScene* scene);
+    void PostLoad(cgltf_data* data);
 
 private:
     std::string name;
@@ -134,7 +137,7 @@ private:
     std::vector<std::unique_ptr<Material>> materials;
     std::vector<std::unique_ptr<Model::Mesh>> meshes;
 
-    void process_model(const aiScene* scene, bool async = true);
+    void process_model(cgltf_data* data, bool async = true);
 };
 
 }  // namespace Fuego::Graphics
