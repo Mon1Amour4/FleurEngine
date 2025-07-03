@@ -5,3 +5,8 @@ Fuego::Graphics::Cubemap::Cubemap(const Image2D* img_1, const Image2D* img_2, co
     : id(0)
 {
 }
+
+Fuego::Graphics::Cubemap::Cubemap(const Image2D* equirectangular)
+    : id(0)
+{
+}
