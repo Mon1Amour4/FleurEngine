@@ -1,7 +1,7 @@
 # === CoreLib - Independent Utility Library ===
 
 # === Source Files ===
-SET(CORELIB_HEADERS CoreLibConcepts.h Uptr.h Sptr.h singleton.hpp DefaultAllocator.h)
+SET(CORELIB_HEADERS CoreLibConcepts.h Uptr.h Sptr.h singleton.hpp DefaultAllocator.h Bitmap.hpp)
 
 SET(CORELIB_SOURCES CoreLib.cpp)
 
