@@ -1,5 +1,6 @@
 #include "CubemapOpenGL.h"
 
+#include <glm/ext/scalar_constants.hpp>
 #include <glm/ext/vector_float3.hpp>
 #include <glm/geometric.hpp>
 #include <glm/trigonometric.hpp>
@@ -49,6 +50,8 @@ Fuego::Graphics::CubemapOpenGL::CubemapOpenGL(const Image2D* equirectangular)
     FU_CORE_ASSERT(equirectangular->Width() / equirectangular->Height() == 2.0f, "");
 
     float face_size = equirectangular->Width() / 4.f;
+    constexpr float pi = glm::pi<float>();
+
     for (size_t face = 0; face < 6; face++)
     {
         for (size_t coord_u = 0; coord_u < face_size; coord_u++)
@@ -81,9 +84,14 @@ Fuego::Graphics::CubemapOpenGL::CubemapOpenGL(const Image2D* equirectangular)
                     break;
                 }
 
-                glm::vec3 radius = glm::normalize(glm::vec3(-direction.z, direction.x, direction.y));
-                float theta = acos(std::clamp(radius.z, -1.0f, 1.0f));
-                float phi = atan2(radius.y, radius.x);
+                glm::vec3 spherical_dir = glm::normalize(glm::vec3(-direction.z, direction.x, direction.y));
+                float radius = glm::length(spherical_dir);
+                float phi = atan2(spherical_dir.y, spherical_dir.x);
+                float theta = atan2(spherical_dir.z, radius);
+
+
+                float u = static_cast<float>((phi + pi) / (2.f * pi));
+                float v = static_cast<float>((pi / 2.f - theta) / pi);
             }
         }
     }
