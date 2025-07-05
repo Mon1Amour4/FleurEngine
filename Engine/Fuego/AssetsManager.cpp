@@ -157,17 +157,16 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     if (!res)
         return std::make_shared<Fuego::ResourceHandle<Image2D>>(nullptr, CORRUPTED, WRONG_PATH);
 
-    uint16_t channels = ImageChannels(ext);
     stbi_set_flip_vertically_on_load(1);
-    int w, h, bpp = 0;
-    unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &bpp, channels);
+    int w, h, channels = 0;
+    unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &channels, 0);
     if (!data)
     {
         FU_CORE_ERROR("Can't load an image: {0} {1}", path, stbi_failure_reason());
         return std::make_shared<Fuego::ResourceHandle<Image2D>>(nullptr, CORRUPTED, NO_DATA);
     }
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, w, h, bpp, channels)).first->second;
+    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, w, h, channels, 1)).first->second;
     FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
     handle = std::make_shared<Fuego::ResourceHandle<Image2D>>(img, SUCCESS);
     return handle;
@@ -201,10 +200,9 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         {
             auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
             auto img = handle->Resource();
-            uint16_t channels = ImageChannels(img->Ext());
 
             stbi_set_flip_vertically_on_load(1);
-            int w, h, bpp = 0;
+            int w, h, channels = 0;
 
             std::filesystem::path full_path = img->Name();
             full_path.replace_extension(img->Ext());
@@ -216,14 +214,14 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
                 return;
             }
 
-            unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &bpp, channels);
+            unsigned char* data = stbi_load(res.value().c_str(), &w, &h, &channels, 0);
 
             if (!data)
             {
                 handle->SetCorrupted(NO_DATA);
                 return;
             }
-            Fuego::Graphics::Image2D::Image2DPostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(bpp), channels,
+            Fuego::Graphics::Image2D::Image2DPostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1,
                                                                     data};
             handle->Resource()->PostCreate(settings);
 
@@ -243,8 +241,9 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
         handle);
     return handle;
 }
+
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, unsigned char* data,
-                                                                                                             uint32_t size_b, uint16_t channels)
+                                                                                                             uint32_t size_b)
 {
     std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle{nullptr};
     if (!data)
@@ -257,20 +256,20 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     if (loaded)
         return handle;
 
-    int w, h, bpp = 0;
+    int w, h, channels = 0;
     stbi_set_flip_vertically_on_load(0);
-    unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
+    unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &channels, 0);
 
     if (!img_data)
         return std::make_shared<Fuego::ResourceHandle<Image2D>>(nullptr, CORRUPTED, NO_DATA);
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, bpp, channels)).first->second;
+    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
     FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
     return std::make_shared<Fuego::ResourceHandle<Image2D>>(img, SUCCESS);
 }
 
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data,
-                                                                                                                  uint32_t size_b, uint16_t channels)
+                                                                                                                  uint32_t size_b)
 {
     std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle{nullptr};
     if (!data)
@@ -292,7 +291,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
     thread_pool->Submit(
-        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle, unsigned char* data, uint32_t size_b, uint16_t channels)
+        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle, unsigned char* data, uint32_t size_b)
         {
             if (!data)
             {
@@ -300,9 +299,9 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
                 return;
             }
 
-            int w, h, bpp = 0;
+            int w, h, channels = 0;
             stbi_set_flip_vertically_on_load(0);
-            unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &bpp, channels);
+            unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &channels, 0);
 
             if (!img_data)
             {
@@ -318,7 +317,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
                 images2d_to_load_async.unsafe_erase(it);
             }
 
-            Fuego::Graphics::Image2D::Image2DPostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(bpp), channels,
+            Fuego::Graphics::Image2D::Image2DPostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1,
                                                                     img_data};
             handle->Resource()->PostCreate(settings);
             auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
@@ -336,12 +335,12 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
                 }
             }
         },
-        handle, data, size_b, channels);
+        handle, data, size_b);
     return handle;
 }
 
 std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data,
-                                                                                                              uint32_t channels, uint16_t bpp, uint32_t width,
+                                                                                                              uint32_t channels, uint32_t width,
                                                                                                               uint32_t height)
 {
     std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle{nullptr};
@@ -355,7 +354,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     if (loaded)
         return handle;
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, width, height, bpp, channels)).first->second;
+    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, width, height, channels, 1)).first->second;
     FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
     handle = std::make_shared<Fuego::ResourceHandle<Image2D>>(img, SUCCESS);
     return handle;
@@ -377,7 +376,7 @@ std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> Fuego::AssetsMa
     {
         std::memcpy(data + i * channels, &color_data, channels);
     }
-    auto img = images2d.emplace(name, std::make_shared<Image2D>(name, "-", data, width, height, 8, channels)).first->second;
+    auto img = images2d.emplace(name, std::make_shared<Image2D>(name, "-", data, width, height, channels, 1)).first->second;
 
     return std::make_shared<Fuego::ResourceHandle<Image2D>>(img, LoadingSts::SUCCESS);
 }

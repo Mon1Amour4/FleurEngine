@@ -8,7 +8,7 @@ class Color;
 class Image2D
 {
 public:
-    Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, int bpp, uint16_t channels);
+    Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
     Image2D(std::string_view name, std::string_view ext);
     ~Image2D();
 
@@ -16,8 +16,8 @@ public:
     {
         uint32_t width;
         uint32_t height;
-        uint16_t bpp;
         uint16_t channels;
+        uint16_t depth;
         unsigned char* data;
     };
 
@@ -29,9 +29,9 @@ public:
     {
         return height;
     }
-    inline uint16_t BBP() const
+    inline uint16_t Depth() const
     {
-        return bpp;
+        return depth;
     }
     inline uint16_t Channels() const
     {
@@ -49,6 +49,10 @@ public:
     {
         return ext;
     }
+    uint32_t SizeBytes() const
+    {
+        return size_bytes;
+    }
 
     void PostCreate(Image2DPostCreateion& settings);
     inline bool IsValid() const
@@ -59,8 +63,9 @@ public:
 private:
     uint32_t width;
     uint32_t height;
-    uint16_t bpp;
     uint16_t channels;
+    uint16_t depth;
+    uint32_t size_bytes;
     unsigned char* data;
     std::string name;
     bool is_created;

@@ -79,7 +79,7 @@ public:
         const auto& image = *img.get();
         width = image.Width();
         height = image.Height();
-        format = Fuego::Graphics::Texture::GetTextureFormat(image.Channels(), image.BBP());
+        format = Fuego::Graphics::Texture::GetTextureFormat(image.Channels(), image.Depth());
         is_created = true;
     }
 
