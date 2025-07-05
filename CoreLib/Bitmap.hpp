@@ -1,4 +1,5 @@
 #pragma once
+#include <glm/ext/vector_float4.hpp>
 
 namespace Fuego
 {
@@ -64,14 +65,14 @@ struct BitmapFormat_Float
             float_data[offset + 3] = pixel_data.w;
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
+    glm::vec4 GetPixel(uint32_t x, uint32_t y)
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
         uint32_t comp = underlying.Components();
 
         const int offset = comp * (y * underlying.Width() + x);
-        const float* float_data = reinterpret_cast<const float*>(underlying.data.data());
+        const float* float_data = reinterpret_cast<const float*>(underlying.Data());
         return glm::vec4(comp > 0 ? float_data[offset + 0] : 0.0f, comp > 1 ? float_data[offset + 1] : 0.0f, comp > 2 ? float_data[offset + 2] : 0.0f,
                          comp > 3 ? float_data[offset + 3] : 0.0f);
     }
@@ -87,6 +88,15 @@ template <template <typename> class Fmt>
 class Bitmap : public Fmt<Bitmap<Fmt>>
 {
 public:
+    Bitmap() = default;
+    Bitmap(const Fuego::Graphics::Image2D* img)
+        : w(img->Width())
+        , h(img->Height())
+        , comp(img->Channels())
+        , data(img->Width() * img->Height() * img->Channels() * Fmt<Bitmap>::GetBytesPerComponent())
+    {
+        memcpy_s(data.data(), data.size(), img->Data(), img->SizeBytes());
+    }
     Bitmap(uint32_t width, uint32_t height, uint32_t components)
         : w(width)
         , h(height)
