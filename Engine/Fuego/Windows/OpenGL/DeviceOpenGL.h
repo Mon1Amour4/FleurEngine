@@ -25,6 +25,8 @@ public:
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const override;
 
+    virtual std::shared_ptr<Cubemap> CreateCubemap(const Image2D* equirectangular) const override;
+
     virtual void SetVSync(bool active) const override;
 
     virtual void Release() override;

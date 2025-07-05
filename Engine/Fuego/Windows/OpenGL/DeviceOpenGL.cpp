@@ -10,6 +10,7 @@
 // clang-format off
 #include "glad/wgl.h"
 // clang-format on
+#include "CubemapOpenGL.h"
 #include "Renderer.h"
 #include "TextureOpenGL.h"
 
@@ -202,6 +203,11 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, Text
 std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
 {
     return std::make_shared<TextureOpenGL>(name);
+}
+
+std::shared_ptr<Cubemap> DeviceOpenGL::CreateCubemap(const Image2D* equirectangular) const
+{
+    return std::make_shared<CubemapOpenGL>(equirectangular);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const
