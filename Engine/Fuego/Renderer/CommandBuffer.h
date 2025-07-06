@@ -60,6 +60,11 @@ public:
         return shader_object.get();
     }
 
+    virtual void SetDepthWriting(bool enable)
+    {
+        depth_writing = enable;
+    }
+
 protected:
     virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
 
@@ -71,6 +76,8 @@ protected:
     std::shared_ptr<Fuego::Graphics::ShaderObject> shader_object;
     std::unique_ptr<Fuego::Graphics::Buffer> vertex_global_buffer;
     std::unique_ptr<Fuego::Graphics::Buffer> index_global_buffer;
+
+    static bool depth_writing;
 };
 
 }  // namespace Fuego::Graphics

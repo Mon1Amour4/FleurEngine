@@ -32,6 +32,8 @@ public:
     virtual void PopDebugGroup() override;
     virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
 
+    virtual void SetDepthWriting(bool enable) override;
+
 private:
     int ConvertUsage(RenderStage& stage) const;
     uint32_t _vao;

@@ -13,6 +13,8 @@
 
 namespace Fuego::Graphics
 {
+bool CommandBuffer::depth_writing = true;
+
 CommandBufferOpenGL::CommandBufferOpenGL()
     : _mainVsShader(-1)
     , _pixelShader(-1)
@@ -187,4 +189,16 @@ int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
     }
 }
 
+void CommandBufferOpenGL::SetDepthWriting(bool enable)
+{
+    CommandBuffer::SetDepthWriting(enable);
+    uint32_t gl_flag = 0;
+
+    if (enable)
+        gl_flag = GL_TRUE;
+    else
+        gl_flag = GL_FALSE;
+
+    glDepthMask(gl_flag);
+}
 }  // namespace Fuego::Graphics

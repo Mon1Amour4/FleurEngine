@@ -2,9 +2,9 @@
 
 #include <span>
 
+int counter = 0;
 namespace Fuego::Graphics
 {
-
 ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
@@ -234,6 +234,7 @@ void Renderer::OnUpdate(float dlTime)
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
     static_geometry_cmd->BeginRecording();
     static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    static_geometry_cmd->SetDepthWriting(true);
 
     static_geometry_cmd->ShaderObject()->Use();
 
