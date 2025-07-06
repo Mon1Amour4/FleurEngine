@@ -177,6 +177,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
+    assets_manager.value()->Load<Image2D>("skybox.jpg");
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");

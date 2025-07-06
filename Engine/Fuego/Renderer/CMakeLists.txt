@@ -30,6 +30,7 @@ SET(PROJECT_HEADERS
     Color.h
     Toolchain.h
     Cubemap.h
+    Skybox.h
 )
 
 SET(PROJECT_SOURCES
@@ -41,6 +42,7 @@ SET(PROJECT_SOURCES
     Color.cpp
     Toolchain.cpp
     Cubemap.cpp
+    Skybox.cpp
 )
 
 IF(FUEGO_PLATFORM_WIN)

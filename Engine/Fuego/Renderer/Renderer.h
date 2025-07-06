@@ -6,6 +6,7 @@
 #include "CommandBuffer.h"
 #include "CommandPool.h"
 #include "CommandQueue.h"
+#include "Cubemap.h"
 #include "Device.h"
 #include "Graphics.hpp"
 #include "Image2D.h"
@@ -14,6 +15,7 @@
 #include "Services/ServiceInterfaces.hpp"
 #include "Shader.h"
 #include "ShaderObject.h"
+#include "Skybox.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "Texture.h"
@@ -112,8 +114,10 @@ private:
     std::unique_ptr<Swapchain> _swapchain;
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
+    std::unique_ptr<Skybox> _skybox;
 
     std::unique_ptr<CommandBuffer> static_geometry_cmd;
+    std::unique_ptr<CommandBuffer> skybox_cmd;
 
     ShaderObject* current_shader_obj;
 
@@ -144,6 +148,9 @@ private:
     std::vector<DrawInfo> static_geometry_models_vector;
 
     // Service
+
+    void skybox_pass() const;
+
 protected:
     void OnInit();
     void OnShutdown();

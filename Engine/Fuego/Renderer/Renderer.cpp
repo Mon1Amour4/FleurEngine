@@ -107,12 +107,21 @@ void Renderer::OnInit()
     static_geometry_cmd = _device->CreateCommandBuffer();
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
 
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(_device->CreateShader("skybox.vs", Shader::ShaderType::Vertex),
+                                                                                 _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
+    skybox_cmd = _device->CreateCommandBuffer();
+    skybox_cmd->BindShaderObject(skybox_shader);
+
     VertexLayout layout{};
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
     static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
     static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+
+    VertexLayout skybox_layout{};
+    skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 40 * sizeof(float) * 3), skybox_layout);
 }
 
 void Renderer::OnShutdown()
@@ -217,6 +226,9 @@ void Renderer::OnUpdate(float dlTime)
 {
     toolchain->Update();
 
+    // Skybox pass
+    skybox_pass();
+
     // Main Pass
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
@@ -251,6 +263,27 @@ void Renderer::OnUpdate(float dlTime)
     }
     static_geometry_cmd->PopDebugGroup();
     static_geometry_cmd->PopDebugGroup();
+    auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
+
+    auto skybox = assets_manager->Get<Image2D>("skybox");
+    if (!skybox.expired() && counter == 0)
+    {
+        auto cm = _device->CreateCubemap(skybox.lock().get());
+        float skyboxVertices[] = {// positions
+                                  -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
+
+                                  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
+
+                                  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
+
+                                  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
+
+                                  -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
+
+                                  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
+        _skybox.reset(new Skybox(cm, std::span{skyboxVertices}));
+        counter = 1;
+    }
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -285,6 +318,25 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
     , textcoord(text_coord)
     , normal(normal)
 {
+}
+
+void Renderer::skybox_pass() const
+{
+    skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
+    skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
+    skybox_cmd->BeginRecording();
+    skybox_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+
+    skybox_cmd->ShaderObject()->Use();
+
+    skybox_cmd->ShaderObject()->Set("view", _camera->GetView());
+    skybox_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+
+    skybox_cmd->ShaderObject()->BindMaterial(_skybox->GetMaterial());
+    skybox_cmd->Draw(_skybox->GetVertexCount());
+
+    skybox_cmd->PopDebugGroup();
+    skybox_cmd->PopDebugGroup();
 }
 
 }  // namespace Fuego::Graphics
