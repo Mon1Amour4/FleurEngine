@@ -4,7 +4,7 @@
 
 namespace Fuego::Graphics
 {
-class TextureOpenGL final : public Texture
+class TextureOpenGL : public Texture
 {
 public:
     // TODO move ctors from public to private?

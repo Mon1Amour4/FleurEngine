@@ -19,7 +19,7 @@ SET(PROJECT_HEADERS
     OpenGL/SurfaceOpenGL.h
     OpenGL/MaterialOpenGL.h
     OpenGL/ShaderObjectOpenGL.h
-    OpenGL/CubemapOpenGL.h
+    OpenGL/CubemapTextureOpenGL.h
     TimeWin.h
 )
 
@@ -39,7 +39,7 @@ SET(PROJECT_SOURCES
     OpenGL/SurfaceOpenGL.cpp
     OpenGL/MaterialOpenGL.cpp
     OpenGL/ShaderObjectOpenGL.cpp
-    OpenGL/CubemapOpenGL.cpp
+    OpenGL/CubemapTextureOpenGL.cpp
     TimeWin.cpp
 )
 

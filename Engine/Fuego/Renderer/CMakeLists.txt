@@ -29,7 +29,7 @@ SET(PROJECT_HEADERS
     Image2D.h
     Color.h
     Toolchain.h
-    Cubemap.h
+    CubemapTexture.h
     Skybox.h
 )
 
@@ -41,7 +41,7 @@ SET(PROJECT_SOURCES
     Image2D.cpp
     Color.cpp
     Toolchain.cpp
-    Cubemap.cpp
+    CubemapTexture.cpp
     Skybox.cpp
 )
 

@@ -13,8 +13,9 @@ class Swapchain;
 class Surface;
 class Shader;
 class Color;
-class Cubemap;
 class Image2D;
+class CubemapImage;
+class CubemapTexture;
 enum RenderStage;
 
 class Device
@@ -36,7 +37,7 @@ public:
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const = 0;
 
-    virtual std::shared_ptr<Cubemap> CreateCubemap(const Image2D* equirectangular) const = 0;
+    virtual std::shared_ptr<CubemapTexture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
 
     // Yes, I know, raw pointer, so be careful here
     virtual Shader* CreateShader(std::string_view shaderName, Shader::ShaderType type) = 0;
