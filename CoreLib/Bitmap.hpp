@@ -13,7 +13,7 @@ struct BitmapFormat_UnsignedByte
 
         glm::vec4 data = underlying.GetPixel(x, y);
 
-        uint8_t* byte_data = underlying.Data();
+        uint8_t* byte_data = reinterpret_cast<uint8_t*>(underlying.Data());
 
         uint32_t comp = underlying.Components();
         const int offset = comp * (y * underlying.Width() + x);
@@ -27,10 +27,10 @@ struct BitmapFormat_UnsignedByte
             byte_data[offset + 3] = uint8_t(pixel_data.w * 255.0f);
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y)
+    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
-        Derived& underlying = static_cast<Derived&>(*this);
-        uint8_t* byte_data = underlying.Data();
+        const Derived& underlying = static_cast<const Derived&>(*this);
+        const uint8_t* byte_data = reinterpret_cast<const uint8_t*>(underlying.Data());
         uint32_t comp = underlying.Components();
 
         const int offset = comp * (y * underlying.Width() + x);
@@ -38,6 +38,7 @@ struct BitmapFormat_UnsignedByte
                          comp > 2 ? float(byte_data[offset + 2]) / 255.0f : 0.0f, comp > 3 ? float(byte_data[offset + 3]) / 255.0f : 0.0f);
     }
 
+protected:
     uint32_t GetBytesPerComponent() const
     {
         return 1;
@@ -65,7 +66,7 @@ struct BitmapFormat_Float
             float_data[offset + 3] = pixel_data.w;
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y)
+    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
@@ -77,6 +78,7 @@ struct BitmapFormat_Float
                          comp > 3 ? float_data[offset + 3] : 0.0f);
     }
 
+protected:
     uint32_t GetBytesPerComponent() const
     {
         return sizeof(float);
@@ -88,14 +90,54 @@ template <template <typename> class Fmt>
 class Bitmap : public Fmt<Bitmap<Fmt>>
 {
 public:
-    Bitmap() = default;
-    Bitmap(const Fuego::Graphics::Image2D* img)
-        : w(img->Width())
-        , h(img->Height())
-        , comp(img->Channels())
-        , data(img->Width() * img->Height() * img->Channels() * Fmt<Bitmap>::GetBytesPerComponent())
+    Bitmap()
+        : w(0)
+        , h(0)
+        , comp(0)
     {
-        memcpy_s(data.data(), data.size(), img->Data(), img->SizeBytes());
+    }
+
+    ~Bitmap() = default;
+
+    Bitmap<Fmt>(const Bitmap<Fmt>& other) = delete;
+    Bitmap<Fmt>& operator=(const Bitmap<Fmt>& other) = delete;
+
+    Bitmap<Fmt>& operator=(Bitmap<Fmt>&& other) noexcept
+    {
+        if (this != &other)
+        {
+            w = other.w;
+            h = other.h;
+            comp = other.comp;
+            data = std::move(other.data);
+
+            other.w = 0;
+            other.h = 0;
+            other.comp = 0;
+        }
+
+        return *this;
+    }
+
+    Bitmap<Fmt>(Bitmap<Fmt>&& other) noexcept
+    {
+        w = other.w;
+        h = other.h;
+        comp = other.comp;
+        data = std::move(other.data);
+
+        other.w = 0;
+        other.h = 0;
+        other.comp = 0;
+    }
+
+    Bitmap(const void* in_data, uint32_t width, uint32_t height, uint32_t channels)
+        : w(width)
+        , h(height)
+        , comp(channels)
+        , data(width * height * channels * Fmt<Bitmap>::GetBytesPerComponent())
+    {
+        memcpy_s(data.data(), data.size(), in_data, data.size());
     }
     Bitmap(uint32_t width, uint32_t height, uint32_t components)
         : w(width)
@@ -110,7 +152,7 @@ public:
         Fmt<Bitmap>::SetPixel(x, y, pixel_data);
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y)
+    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         return Fmt<Bitmap>::GetPixel(x, y);
     }
@@ -130,9 +172,19 @@ public:
         return comp;
     }
 
-    uint8_t* Data()
+    const void* Data() const
     {
-        return data.data();
+        return reinterpret_cast<const void*>(data.data());
+    }
+    void* Data()
+    {
+        return reinterpret_cast<void*>(data.data());
+    }
+
+
+    uint32_t GetSizeBytes() const
+    {
+        return data.size();
     }
 
 private:
