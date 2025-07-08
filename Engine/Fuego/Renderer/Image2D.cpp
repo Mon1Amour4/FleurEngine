@@ -4,42 +4,6 @@
 #include "Services/ServiceLocator.h"
 
 // Image2D:
-Fuego::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
-    : name(name)
-    , ext(ext)
-    , bitmap(w, h, channels)
-    , width(w)
-    , height(h)
-    , depth(depth)
-    , channels(channels)
-{
-    FU_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
-    memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), data, w * h * channels * depth);
-    is_created = true;
-}
-
-Fuego::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext)
-    : name(name)
-    , ext(ext)
-    , width(0)
-    , height(0)
-    , depth(0)
-    , channels(0)
-{
-    is_created = false;
-}
-
-void Fuego::Graphics::Image2D::PostCreate(Image2DPostCreateion& settings)
-{
-    FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
-    width = settings.width;
-    height = settings.height;
-    depth = settings.depth;
-    channels = settings.channels;
-    bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
-    memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
-    is_created = true;
-}
 
 Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() const
 {
@@ -95,7 +59,7 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 new_bitmap.SetPixel(coord_u, coord_v, color);
             }
         }
-        out_faces[face] = std::move(Image2D(name, std::move(new_bitmap), face_size));
+        out_faces[face] = std::move(Image2D(name, std::move(new_bitmap), face_size, face_size, channels, depth));
     }
     return CubemapImage(name, std::move(out_faces));
 }
@@ -103,9 +67,10 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
 
 // Cubemap:
 Fuego::Graphics::CubemapImage::CubemapImage(std::string_view name, std::array<Image2D, 6>&& in_faces)
-    : name(name)
-    , face_size(in_faces[0].Width())
+    : ImageBase(name, "-", in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth())
+
 {
+    size_bytes = width * height * channels * depth * 6;
     faces = std::move(in_faces);
 }
 
@@ -126,14 +91,4 @@ const Fuego::Graphics::Image2D& Fuego::Graphics::CubemapImage::GetFace(Face face
     case Fuego::Graphics::CubemapImage::Face::Front:
         return faces[5];
     }
-}
-
-uint32_t Fuego::Graphics::CubemapImage::FaceSize() const
-{
-    return face_size;
-}
-
-std::string_view Fuego::Graphics::CubemapImage::Name() const
-{
-    return name;
 }

@@ -31,7 +31,7 @@ struct Viewport
     float y = 0.0f;
 };
 
-enum TextureType
+enum class TextureUsage
 {
     ALBEDO = 0,
     DIFFUSE = 1,

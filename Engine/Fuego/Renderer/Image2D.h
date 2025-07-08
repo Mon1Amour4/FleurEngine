@@ -7,29 +7,126 @@ namespace Fuego::Graphics
 {
 class Color;
 class CubemapImage;
-class Image2D
+
+class ImageBase
 {
 public:
-    Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
-    Image2D(std::string_view name, std::string_view ext);
-    Image2D()
-        : width(0)
-        , height(0)
-        , is_created(false)
-        , channels(0)
-        , depth(0)
-    {
-    }
-    ~Image2D() = default;
-
-    struct Image2DPostCreateion
+    struct ImagePostCreateion
     {
         uint32_t width;
         uint32_t height;
         uint16_t channels;
         uint16_t depth;
-        unsigned char* data;
+        const void* data;
     };
+
+    virtual ~ImageBase() = default;
+
+    virtual void PostCreate(ImagePostCreateion& settings)
+    {
+        FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
+        width = settings.width;
+        height = settings.height;
+        depth = settings.depth;
+        channels = settings.channels;
+    }
+
+    std::string_view Name() const
+    {
+        return name;
+    }
+    inline std::string_view Ext() const
+    {
+        return ext;
+    }
+
+    virtual const void* Data() const = 0;
+    uint32_t SizeBytes() const
+    {
+        return size_bytes;
+    }
+
+    virtual uint32_t Width() const
+    {
+        return width;
+    }
+    virtual uint32_t Height() const
+    {
+        return height;
+    }
+
+    uint16_t Channels() const
+    {
+        return channels;
+    }
+    uint16_t Depth() const
+    {
+        return depth;
+    }
+
+    bool IsValid() const
+    {
+        return is_created;
+    }
+
+protected:
+    ImageBase()
+        : name()
+        , ext()
+        , width(0)
+        , height(0)
+        , channels(0)
+        , depth(0)
+        , size_bytes(0)
+        , is_created(false) {};
+    ImageBase(std::string_view name, std::string_view ext)
+        : name(name)
+        , ext(ext)
+        , width(0)
+        , height(0)
+        , channels(0)
+        , depth(0)
+        , size_bytes(0)
+        , is_created(false) {};
+    ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth)
+        : name(name)
+        , ext(ext)
+        , width(width)
+        , height(height)
+        , channels(channels)
+        , depth(depth)
+        , size_bytes(width * height * channels * depth)
+        , is_created(false) {};
+
+
+    std::string name;
+    std::string ext;
+    uint32_t width;
+    uint32_t height;
+    uint16_t channels;
+    uint16_t depth;
+    uint32_t size_bytes;
+    bool is_created;
+};
+
+class Image2D : public ImageBase
+{
+public:
+    Image2D()
+        : ImageBase() {};
+    Image2D(std::string_view name, std::string_view ext)
+        : ImageBase(name, ext) {};
+    Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
+        : ImageBase(name, ext, w, h, channels, depth)
+        , bitmap(w, h, channels)
+    {
+        FU_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
+        memcpy(bitmap.Data(), data, bitmap.GetSizeBytes());
+        is_created = true;
+    }
+
+    ~Image2D() = default;
+
 
     Image2D& operator=(const Image2D& other) = delete;
     Image2D(const Image2D& other) = delete;
@@ -73,70 +170,32 @@ public:
         other.depth = 0;
     }
 
-    inline uint32_t Width() const
+
+    virtual const void* Data() const override
     {
-        return width;
-    }
-    inline uint32_t Height() const
-    {
-        return height;
-    }
-    inline uint16_t Depth() const
-    {
-        return depth;
-    }
-    inline uint16_t Channels() const
-    {
-        return channels;
-    }
-    const unsigned char* Data() const
-    {
-        return reinterpret_cast<const unsigned char*>(bitmap.Data());
-    }
-    inline std::string_view Name() const
-    {
-        return name;
-    }
-    inline std::string_view Ext() const
-    {
-        return ext;
-    }
-    uint32_t SizeBytes() const
-    {
-        return bitmap.GetSizeBytes();
+        return bitmap.Data();
     }
 
-    void PostCreate(Image2DPostCreateion& settings);
-    inline bool IsValid() const
+    virtual void PostCreate(ImagePostCreateion& settings) override
     {
-        return is_created;
+        ImageBase::PostCreate(settings);
+        bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
+        memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
+        is_created = true;
     }
 
     CubemapImage GenerateCubemapImage() const;
 
 private:
-    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& data, int face_size)
-        : name(name)
-        , bitmap(std::move(data))
-        , width(face_size)
-        , height(face_size)
-        , is_created(true)
-        , ext("")
-        , channels(3)
-        , depth(1)
+    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels, uint16_t depth)
+        : ImageBase(name, "-", w, h, channels, depth)
+        , bitmap(std::move(in_bitmap))
     {
     }
     Bitmap<BitmapFormat_UnsignedByte> bitmap;
-    uint32_t width;
-    uint32_t height;
-    bool is_created;
-    std::string name;
-    std::string ext;
-    uint16_t channels;
-    uint16_t depth;
 };
 
-class CubemapImage
+class CubemapImage : public ImageBase
 {
 public:
     enum class Face
@@ -163,21 +222,17 @@ public:
     // static CubemapImage FromCrossLayout(const Image2D& layout);
 
     const Image2D& GetFace(Face face) const;
-    const std::array<Image2D, 6>& Faces() const;
 
-    uint32_t FaceSize() const;
-    // uint16_t Channels() const;
-    // uint16_t Depth() const;
-    // uint32_t SizeBytes() const;
-    std::string_view Name() const;
+    virtual const void* Data() const override
+    {
+        return reinterpret_cast<const void*>(faces[0].Data());
+    }
 
     // std::shared_ptr<Image2D> AssembledCrossLayout() const;
     // void SaveToDisk(std::string_view directory) const;
 
 private:
-    std::string name;
     std::array<Image2D, 6> faces;
-    uint32_t face_size;
 };
 
 }  // namespace Fuego::Graphics
