@@ -102,6 +102,17 @@ public:
     Bitmap<Fmt>(const Bitmap<Fmt>& other) = delete;
     Bitmap<Fmt>& operator=(const Bitmap<Fmt>& other) = delete;
 
+    Bitmap<Fmt>(Bitmap<Fmt>&& other) noexcept
+    {
+        w = other.w;
+        h = other.h;
+        comp = other.comp;
+        data = std::move(other.data);
+
+        other.w = 0;
+        other.h = 0;
+        other.comp = 0;
+    }
     Bitmap<Fmt>& operator=(Bitmap<Fmt>&& other) noexcept
     {
         if (this != &other)
@@ -117,18 +128,6 @@ public:
         }
 
         return *this;
-    }
-
-    Bitmap<Fmt>(Bitmap<Fmt>&& other) noexcept
-    {
-        w = other.w;
-        h = other.h;
-        comp = other.comp;
-        data = std::move(other.data);
-
-        other.w = 0;
-        other.h = 0;
-        other.comp = 0;
     }
 
     Bitmap(const void* in_data, uint32_t width, uint32_t height, uint32_t channels)
