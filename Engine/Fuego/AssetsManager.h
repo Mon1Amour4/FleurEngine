@@ -7,9 +7,12 @@
 #include "Services/ServiceInterfaces.hpp"
 #include "tbb/concurrent_unordered_map.h"
 
+#define SHARED_RES(Res) std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Res>>
+
 namespace Fuego::Graphics
 {
 class Image2D;
+class CubemapImage;
 class Model;
 enum ImageFormat;
 }  // namespace Fuego::Graphics
@@ -91,14 +94,12 @@ public:
     AssetsManager();
     ~AssetsManager();
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b);
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b);
+    SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b);
+    SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels,
-                                                                                            uint32_t width, uint32_t height);
+    SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width,
-                                                                                          uint32_t height);
+    SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
     std::shared_ptr<Fuego::ResourceHandle<Res>> Load(std::string_view path, bool async = true)
@@ -117,6 +118,13 @@ public:
                 return load_model_async(path);
             else
                 return load_model(path);
+        }
+        else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fuego::Graphics::CubemapImage>)
+        {
+            /*if (async)
+                return load_model_async(path);
+            else*/
+            return load_cubemap_image(path);
         }
         FU_CORE_ASSERT(false, "");
         return std::shared_ptr<Fuego::ResourceHandle<Res>>{};
@@ -140,6 +148,14 @@ public:
         {
             auto it = images2d.find(name.data());
             if (it != images2d.end())
+                return std::weak_ptr<Res>(it->second);
+            else
+                return std::weak_ptr<Res>{};
+        }
+        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fuego::Graphics::CubemapImage>>::value)
+        {
+            auto it = cubemap_images.find(name.data());
+            if (it != cubemap_images.end())
                 return std::weak_ptr<Res>(it->second);
             else
                 return std::weak_ptr<Res>{};
@@ -184,25 +200,26 @@ public:
             FU_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type");
     }
 
-    void FreeImage2D(unsigned char* data) const;
-
 private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::CubemapImage>> cubemap_images;
 
     //  TODO: What to do with corrupted models?
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>>> models_to_load_async;
+    tbb::concurrent_unordered_map<std::string, SHARED_RES(Model)> models_to_load_async;
+    tbb::concurrent_unordered_map<std::string, SHARED_RES(Image2D)> images2d_to_load_async;
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>>> images2d_to_load_async;
+    SHARED_RES(Model) load_model(std::string_view path);
+    SHARED_RES(Model) load_model_async(std::string_view path);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Model>> load_model(std::string_view path);
-    std::shared_ptr<ResourceHandle<Fuego::Graphics::Model>> load_model_async(std::string_view path);
+    SHARED_RES(Image2D) load_image2d(std::string_view path);
+    SHARED_RES(Image2D) load_image2d_async(std::string_view path);
 
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> load_image2d(std::string_view path);
-    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> load_image2d_async(std::string_view path);
+    SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path);
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
+    std::atomic<uint32_t> cubemap_images_count;
 
     uint16_t ImageChannels(std::string_view image2d_ext);
 
