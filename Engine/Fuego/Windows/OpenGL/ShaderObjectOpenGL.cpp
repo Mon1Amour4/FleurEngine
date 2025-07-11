@@ -99,7 +99,7 @@ void ShaderObjectOpenGL::Use() const
 void ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
     this->material = static_cast<const MaterialOpenGL*>(material);
-    Set("material.albedo_text", static_cast<const Texture&>(this->material->GetAlbedoTexture()));
+    Set("material.albedo_text", static_cast<const Texture2D&>(this->material->GetAlbedoTexture()));
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -141,13 +141,13 @@ bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture& texture)
+bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture2D& texture)
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)
         return false;
 
-    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
+    const Texture2DOpenGL& text_gl = static_cast<const Texture2DOpenGL&>(texture);
     glUniform1i(location, text_gl.GetTextureUnit());
     glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
     return true;

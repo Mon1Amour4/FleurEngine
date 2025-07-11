@@ -10,7 +10,7 @@ class MaterialOpenGL : public Material
 public:
     virtual ~MaterialOpenGL() override = default;
 
-    inline const TextureOpenGL& GetAlbedoTexture() const
+    inline const Texture2DOpenGL& GetAlbedoTexture() const
     {
         return *albedo_texture;
     }
@@ -18,8 +18,8 @@ public:
     virtual void Use() const override;
 
 private:
-    const TextureOpenGL* albedo_texture;
+    const Texture2DOpenGL* albedo_texture;
     friend class Material;
-    MaterialOpenGL(const Texture* albedo);
+    MaterialOpenGL(const TextureBase* albedo);
 };
 }  // namespace Fuego::Graphics

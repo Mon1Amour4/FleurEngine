@@ -187,11 +187,10 @@ public:
     CubemapImage GenerateCubemapImage() const;
 
 private:
-    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels, uint16_t depth)
-        : ImageBase(name, "-", w, h, channels, depth)
-        , bitmap(std::move(in_bitmap))
-    {
-    }
+    Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels, uint16_t depth)
+        : ImageBase(name, ext, w, h, channels, depth)
+        , bitmap(std::move(in_bitmap)) {};
+
     Bitmap<BitmapFormat_UnsignedByte> bitmap;
 };
 
@@ -208,7 +207,7 @@ public:
         Back = 5     // -Z
     };
 
-    CubemapImage(std::string_view name, std::array<Image2D, 6>&& faces);
+    CubemapImage(std::array<Image2D, 6>&& faces);
 
 
     // Cross Layout:

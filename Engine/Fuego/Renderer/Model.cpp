@@ -171,12 +171,12 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
     materials.reserve(data->materials_count);
 
     int texture_index = MAXINT;
-    std::map<uint32_t, const Texture*> loaded_textures;
+    std::map<uint32_t, const Texture2D*> loaded_textures;
     for (size_t i = 0; i < materials.capacity(); i++)
     {
         uint32_t solid_texture_idx = 0;
         std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> image{nullptr};
-        std::shared_ptr<Fuego::Graphics::Texture> texture{nullptr};
+        std::shared_ptr<Fuego::Graphics::Texture2D> texture{nullptr};
 
         if ((data->materials + i)->has_pbr_metallic_roughness)
         {
@@ -211,7 +211,7 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
                     // Texture somewhere in folder
                     image = assets_manager->Load<Image2D>(base_color_texture->image->uri, async);
                 }
-                texture = renderer->CreateGraphicsResource<Texture>(image->Resource()->Name());
+                texture = renderer->CreateGraphicsResource<Texture2D>(image->Resource()->Name());
             }
             else
             {
@@ -225,13 +225,14 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
                 std::string solid_texture_name = std::string(name) + "_Solid_Texture_" + std::to_string(solid_texture_idx);
 
                 if (channels == 4)
-                    texture = renderer->CreateGraphicsResource<Texture>(solid_texture_name, Color(*color, *(color + 1), *(color + 2), *(color + 3)), 128, 128);
+                    texture =
+                        renderer->CreateGraphicsResource<Texture2D>(solid_texture_name, Color(*color, *(color + 1), *(color + 2), *(color + 3)), 128, 128);
                 else if (channels == 3)
-                    texture = renderer->CreateGraphicsResource<Texture>(solid_texture_name, Color(*color, *(color + 1), *(color + 2)), 128, 128);
+                    texture = renderer->CreateGraphicsResource<Texture2D>(solid_texture_name, Color(*color, *(color + 1), *(color + 2)), 128, 128);
                 else if (channels == 2)
-                    texture = renderer->CreateGraphicsResource<Texture>(solid_texture_name, Color(*color, *(color + 1)), 128, 128);
+                    texture = renderer->CreateGraphicsResource<Texture2D>(solid_texture_name, Color(*color, *(color + 1)), 128, 128);
                 else
-                    texture = renderer->CreateGraphicsResource<Texture>(solid_texture_name, Color(*color), 128, 128);
+                    texture = renderer->CreateGraphicsResource<Texture2D>(solid_texture_name, Color(*color), 128, 128);
 
                 ++solid_texture_idx;
             }

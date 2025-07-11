@@ -2,7 +2,6 @@
 
 #include <span>
 
-int counter = 0;
 namespace Fuego::Graphics
 {
 ShaderObject* shader_object;
@@ -19,7 +18,7 @@ Renderer::Renderer(GraphicsAPI api, std::unique_ptr<Fuego::IRendererToolchain> t
 {
 }
 
-std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view path)
+std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_view path)
 {
     if (path.empty())
         return GetLoadedTexture("fallback");
@@ -49,7 +48,7 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     return textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width, int height)
+std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_view name, Color color, int width, int height)
 {
     if (name.empty())
         return GetLoadedTexture("fallback");
@@ -72,7 +71,7 @@ std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_vie
     return textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img)
+std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img)
 {
     if (!img)
         return GetLoadedTexture("fallback");
@@ -103,14 +102,9 @@ void Renderer::OnInit()
 
     std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
                                                                                           _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
-
+    // Static geometry
     static_geometry_cmd = _device->CreateCommandBuffer();
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
-
-    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(_device->CreateShader("skybox.vs", Shader::ShaderType::Vertex),
-                                                                                 _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
-    skybox_cmd = _device->CreateCommandBuffer();
-    skybox_cmd->BindShaderObject(skybox_shader);
 
     VertexLayout layout{};
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
@@ -118,6 +112,12 @@ void Renderer::OnInit()
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
     static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
     static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+
+    // Skybox
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(_device->CreateShader("skybox.vs", Shader::ShaderType::Vertex),
+                                                                                 _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
+    skybox_cmd = _device->CreateCommandBuffer();
+    skybox_cmd->BindShaderObject(skybox_shader);
 
     VertexLayout skybox_layout{};
     skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
@@ -133,7 +133,7 @@ void Renderer::OnShutdown()
     _surface.release();
 }
 
-std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
+std::shared_ptr<Texture2D> Renderer::GetLoadedTexture(std::string_view path) const
 {
     if (path.empty())
         return textures.find("fallback")->second;
@@ -226,6 +226,30 @@ void Renderer::OnUpdate(float dlTime)
 {
     toolchain->Update();
 
+    auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
+
+    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+    static int b = 1;
+    if (!cubemap.expired() && b == 1)
+    {
+        auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
+
+        float skyboxVertices[] = {-1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
+
+                                  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
+
+                                  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
+
+                                  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
+
+                                  -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
+
+                                  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
+
+        _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+        b++;
+    }
+
     // Skybox pass
     skybox_pass();
 
@@ -264,27 +288,6 @@ void Renderer::OnUpdate(float dlTime)
     }
     static_geometry_cmd->PopDebugGroup();
     static_geometry_cmd->PopDebugGroup();
-    auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
-
-    auto skybox = assets_manager->Get<Image2D>("skybox");
-    if (!skybox.expired() && counter == 0)
-    {
-        auto cm = _device->CreateCubemap(skybox.lock().get());
-        float skyboxVertices[] = {// positions
-                                  -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f,
-
-                                  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,
-
-                                  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f,
-
-                                  -1.0f, -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f, -1.0f, 1.0f,
-
-                                  -1.0f, 1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  1.0f,  -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f,  -1.0f,
-
-                                  -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
-        _skybox.reset(new Skybox(cm, std::span{skyboxVertices}));
-        counter = 1;
-    }
 }
 
 void Renderer::OnPostUpdate(float dlTime)

@@ -5,12 +5,12 @@
 namespace Fuego::Graphics
 {
 class ShaderObject;
-class Texture;
+class TextureBase;
 
 class FUEGO_API Material
 {
 public:
-    static Material* CreateMaterial(const Texture* albedo);
+    static Material* CreateMaterial(const TextureBase* albedo);
 
     virtual ~Material() = default;
 

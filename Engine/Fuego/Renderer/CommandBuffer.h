@@ -10,7 +10,7 @@ class Shader;
 class DescriptorBuffer;
 class Buffer;
 class ShaderObject;
-class Texture;
+class Texture2D;
 struct VertexLayout;
 class Device;
 enum RenderStage;
@@ -46,7 +46,7 @@ public:
         return UpdateBufferSubDataImpl(type, data.data(), data.size_bytes());
     }
 
-    virtual void BindTexture(Texture* texture) = 0;
+    virtual void BindTexture(Texture2D* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
     virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
     virtual void Clear() = 0;

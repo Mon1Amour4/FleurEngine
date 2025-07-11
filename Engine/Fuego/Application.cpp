@@ -12,6 +12,7 @@ namespace Fuego
 {
 using Texture = Fuego::Graphics::Texture;
 using Image2D = Fuego::Graphics::Image2D;
+using CubemapImage = Fuego::Graphics::CubemapImage;
 using Model = Fuego::Graphics::Model;
 using Renderer = Fuego::Graphics::Renderer;
 using Color = Fuego::Graphics::Color;
@@ -167,6 +168,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
 
+    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
     auto renderer = ServiceLocator::instance().Register<Renderer>(Fuego::Graphics::GraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.vsync);
@@ -174,13 +176,13 @@ void Application::Init(ApplicationBootSettings& settings)
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();
 
-    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
-    assets_manager.value()->Load<Image2D>("skybox.jpg");
+    // assets_manager.value()->Load<Image2D>("skybox.jpg");
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+    assets_manager.value()->Load<CubemapImage>("skybox.jpg");
 
     initialized = true;
     m_Running = true;

@@ -90,9 +90,9 @@ uint32_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::BufferType type, c
         return index_global_buffer->UpdateSubData(data, size_bytes);
 }
 
-void CommandBufferOpenGL::BindTexture(Texture* texture)
+void CommandBufferOpenGL::BindTexture(Texture2D* texture)
 {
-    TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
+    Texture2DOpenGL& text_gl = static_cast<Texture2DOpenGL&>(*texture);
 
     glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
 }

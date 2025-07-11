@@ -59,15 +59,15 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 new_bitmap.SetPixel(coord_u, coord_v, color);
             }
         }
-        out_faces[face] = std::move(Image2D(name, std::move(new_bitmap), face_size, face_size, channels, depth));
+        out_faces[face] = std::move(Image2D(name, ext, std::move(new_bitmap), face_size, face_size, channels, depth));
     }
-    return CubemapImage(name, std::move(out_faces));
+    return CubemapImage(std::move(out_faces));
 }
 
 
 // Cubemap:
-Fuego::Graphics::CubemapImage::CubemapImage(std::string_view name, std::array<Image2D, 6>&& in_faces)
-    : ImageBase(name, "-", in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth())
+Fuego::Graphics::CubemapImage::CubemapImage(std::array<Image2D, 6>&& in_faces)
+    : ImageBase(in_faces[0].Name(), "-", in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth())
 
 {
     size_bytes = width * height * channels * depth * 6;
