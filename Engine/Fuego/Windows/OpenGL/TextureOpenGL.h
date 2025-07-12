@@ -47,6 +47,14 @@ class TextureCubemapOpenGL : public TextureCubemap
 public:
     friend class DeviceOpenGL;
     TextureCubemapOpenGL(const CubemapImage& cubemap);
+    uint32_t GetTextureUnit() const
+    {
+        return base.texture_unit;
+    }
+    uint32_t GetTextureID() const
+    {
+        return base.texture_id;
+    }
 
 private:
     TextureOpenGL base;

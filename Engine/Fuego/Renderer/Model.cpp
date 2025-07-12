@@ -238,7 +238,9 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
             }
 
             // TODO think about passing raw pointer or shared ptr to material
-            auto material = Material::CreateMaterial(texture.get());
+            ShaderComponentContext ctx{};
+            ctx.albedo_text.second = texture.get();
+            auto material = Material::CreateMaterial<OpaqueMaterial>(ctx);
             materials.emplace_back(std::unique_ptr<Material>(material));
             loaded_textures.emplace(texture_index, texture.get());
         }

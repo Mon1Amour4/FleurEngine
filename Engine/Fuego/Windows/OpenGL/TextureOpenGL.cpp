@@ -166,7 +166,7 @@ TextureCubemapOpenGL::TextureCubemapOpenGL(const CubemapImage& cubemap)
                             cubemap.Depth(),                // depth = 1
                             base.get_pixel_format(format),  // format
                             GL_UNSIGNED_BYTE,
-                            reinterpret_cast<const void*>(cubemap.Data())  // pointer to data
+                            reinterpret_cast<const void*>(cubemap.GetFace(static_cast<CubemapImage::Face>(face)).Data())  // pointer to data
         );
     }
 

@@ -1,11 +1,18 @@
 #version 330 core
+
+struct Material
+{
+    samplerCube skybox_cubemap;
+};
+
+uniform Material material;
+
 out vec4 FragColor;
 
 in vec3 TexCoords;
 
-uniform samplerCube skybox;
 
 void main()
 {    
-    FragColor = texture(skybox, TexCoords);
+    FragColor = texture(material.skybox_cubemap, TexCoords);
 }

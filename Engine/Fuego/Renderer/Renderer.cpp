@@ -121,7 +121,7 @@ void Renderer::OnInit()
 
     VertexLayout skybox_layout{};
     skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 40 * sizeof(float) * 3), skybox_layout);
+    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 1024 * sizeof(float) * 3), skybox_layout);
 }
 
 void Renderer::OnShutdown()
@@ -326,6 +326,7 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
 
 void Renderer::skybox_pass() const
 {
+    skybox_cmd->SetDepthWriting(false);
     skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
     skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
     skybox_cmd->BeginRecording();

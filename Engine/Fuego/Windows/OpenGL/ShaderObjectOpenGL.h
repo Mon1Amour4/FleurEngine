@@ -20,12 +20,13 @@ public:
 
     virtual void Use() const override;
     bool AddVar(std::string_view uniform_name, uint32_t id);
+
     virtual void BindMaterial(const Material* material) override;
 
     virtual void Release() override;
 
 private:
-    const MaterialOpenGL* material;
+    const Material* material;
     uint32_t program;
 
     std::unique_ptr<ShaderOpenGL> vertex_shader;
@@ -42,5 +43,6 @@ protected:
     virtual bool set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec) override;
     virtual bool set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix) override;
     virtual bool set_text2d_impl(std::string_view uniform_name, const Texture2D& texture) override;
+    virtual bool set_cubemap_text_impl(std::string_view uniform_name, const TextureCubemap& texture) override;
 };
 }  // namespace Fuego::Graphics

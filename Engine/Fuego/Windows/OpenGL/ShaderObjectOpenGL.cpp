@@ -98,8 +98,8 @@ void ShaderObjectOpenGL::Use() const
 
 void ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
-    this->material = static_cast<const MaterialOpenGL*>(material);
-    Set("material.albedo_text", static_cast<const Texture2D&>(this->material->GetAlbedoTexture()));
+    this->material = material;
+    this->material->SetParameters(*this);
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -145,9 +145,28 @@ bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Te
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)
+    {
+        FU_CORE_ASSERT(false, "");
         return false;
+    }
 
     const Texture2DOpenGL& text_gl = static_cast<const Texture2DOpenGL&>(texture);
+    glUniform1i(location, text_gl.GetTextureUnit());
+    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
+    return true;
+}
+
+bool ShaderObjectOpenGL::set_cubemap_text_impl(std::string_view uniform_name, const TextureCubemap& texture)
+{
+    std::string str = std::string("material.") + std::string(uniform_name);
+    GLint location = find_uniform_location(str);
+    if (location == -1)
+    {
+        FU_CORE_ASSERT(false, "");
+        return false;
+    }
+
+    const TextureCubemapOpenGL& text_gl = static_cast<const TextureCubemapOpenGL&>(texture);
     glUniform1i(location, text_gl.GetTextureUnit());
     glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
     return true;

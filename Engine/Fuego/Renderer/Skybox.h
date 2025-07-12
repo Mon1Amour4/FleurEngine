@@ -18,7 +18,10 @@ public:
         FU_CORE_ASSERT(in_vertices.size() != 0, "");
 
         vertices.assign(in_vertices.begin(), in_vertices.end());
-        material.reset(Material::CreateMaterial(cm.get()));
+        ShaderComponentContext ctx{};
+        ctx.skybox_cubemap_text.second = cm.get();
+        auto skybox_material = Material::CreateMaterial<SkyboxMaterial>(ctx);
+        material.reset(skybox_material);
     }
 
     const Material* GetMaterial() const
@@ -32,7 +35,7 @@ public:
     };
 
 private:
-    std::unique_ptr<Material> material;
+    std::unique_ptr<SkyboxMaterial> material;
     std::shared_ptr<TextureCubemap> cubemap;
     std::vector<float> vertices;
 };

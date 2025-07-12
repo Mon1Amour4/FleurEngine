@@ -7,11 +7,6 @@
 namespace Fuego::Graphics
 {
 
-Material* Material::CreateMaterial(const TextureBase* albedo)
-{
-    return new MaterialOpenGL(albedo);
-}
-
 MaterialOpenGL::MaterialOpenGL(const TextureBase* albedo)
     : albedo_texture(nullptr)
 {
