@@ -6,65 +6,33 @@
 namespace Fuego::Graphics
 {
 
-struct TextureOpenGL
+struct TextureOpenGL : Texture
 {
-    TextureOpenGL() = default;
-    virtual ~TextureOpenGL() = default;
+public:
+    friend class DeviceOpenGL;
+
+    virtual ~TextureOpenGL();
+
+    uint32_t GetTextureUnit() const;
+    uint32_t GetTextureID() const;
+
+    virtual void PostCreate(ImagePostCreation& settings) override;
+
+    TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers);
+    TextureOpenGL(std::string_view name, std::string_view ext, const unsigned char* buffer, TextureFormat format, uint32_t width, uint32_t height,
+                  uint32_t layers);
+
+private:
+    uint32_t texture_unit;
+    uint32_t texture_id;
 
     void set_texture_parameters() const;
     uint32_t get_color_format(TextureFormat format) const;
     uint32_t get_pixel_format(uint16_t channels, bool inverted = false);
     uint32_t get_pixel_format(TextureFormat format, bool inverted = false);
-    uint16_t texture_unit = 0;
-    uint32_t texture_id = 0;
-};
 
-class Texture2DOpenGL : public Texture2D
-{
-public:
-    friend class DeviceOpenGL;
-    Texture2DOpenGL(std::string_view name);
-    Texture2DOpenGL(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height);
-
-    virtual ~Texture2DOpenGL() override;
-
-    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img) override;
-    uint32_t GetTextureUnit() const
-    {
-        return base.texture_unit;
-    }
-    uint32_t GetTextureID() const
-    {
-        return base.texture_id;
-    }
-
-private:
-    TextureOpenGL base;
-};
-
-class TextureCubemapOpenGL : public TextureCubemap
-{
-public:
-    friend class DeviceOpenGL;
-    TextureCubemapOpenGL(const CubemapImage& cubemap);
-    uint32_t GetTextureUnit() const
-    {
-        return base.texture_unit;
-    }
-    uint32_t GetTextureID() const
-    {
-        return base.texture_id;
-    }
-
-private:
-    TextureOpenGL base;
-};
-
-class TextureViewOpenGL
-{
-public:
-    TextureViewOpenGL() = default;
-    ~TextureViewOpenGL() = default;
+    void create_texture_2d(const unsigned char* buffer);
+    void create_cubemap(const unsigned char* buffer);
 };
 
 }  // namespace Fuego::Graphics

@@ -27,7 +27,7 @@
 #pragma region concepts
 template <class Resource>
 concept is_graphic_resource = requires(Resource t) {
-    std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture2D> || std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Shader>;
+    std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture> || std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Shader>;
 };
 
 #pragma endregion
@@ -49,7 +49,7 @@ public:
     Renderer(Renderer&&) noexcept = default;
     Renderer& operator=(Renderer&&) noexcept = default;
 
-    std::shared_ptr<Texture2D> GetLoadedTexture(std::string_view path) const;
+    std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
 
     // IRenderer;
     void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
@@ -80,7 +80,7 @@ public:
     std::shared_ptr<Resource> CreateGraphicsResource(Args&&... args)
     {
         constexpr uint32_t args_amount = sizeof...(Args);
-        if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture2D>)
+        if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fuego::Graphics::Texture>)
         {
             if constexpr (args_amount == 1)
             {
@@ -124,16 +124,16 @@ private:
 
     bool is_vsync;
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture2D>> textures;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> textures;
     GraphicsAPI renderer;
 
     std::unique_ptr<Fuego::IRendererToolchain> toolchain;
 
-    std::shared_ptr<Fuego::Graphics::Texture2D> load_texture(std::string_view path);
+    std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::string_view path);
 
-    std::shared_ptr<Fuego::Graphics::Texture2D> load_texture(std::string_view name, Color color, int width, int height);
+    std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::string_view name, Color color, int width, int height);
 
-    std::shared_ptr<Fuego::Graphics::Texture2D> load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img);
+    std::shared_ptr<Fuego::Graphics::Texture> load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img);
 
     struct DrawInfo
     {

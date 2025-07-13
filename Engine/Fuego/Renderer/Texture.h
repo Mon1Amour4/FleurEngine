@@ -7,6 +7,8 @@
 namespace Fuego::Graphics
 {
 
+class Device;
+
 enum class TextureFormat
 {
     // 8-bit unsigned normalized integer formats
@@ -27,31 +29,23 @@ enum class TextureFormat
     RGB32F,   // 3 channel, 32-bit float
     RGBA32F,  // 4 channel, 32-bit float
 
-    NONE
+
 };
 
-class TextureBase
+class Texture : public ImageBase
 {
+    friend class Device;
+
 public:
-    virtual ~TextureBase() = default;
-    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
-    {
-        const auto& image = *img.get();
-        width = image.Width();
-        height = image.Height();
-        format = GetTextureFormat(image.Channels(), image.Depth());
-        is_created = true;
-    }
+    ~Texture() = default;
 
-    virtual bool IsValid() const = 0;
-
-    virtual inline uint32_t Width() const
+    virtual void PostCreate(ImagePostCreation& settings) override
     {
-        return width;
-    }
-    virtual inline uint32_t Height() const
-    {
-        return height;
+        width = settings.width;
+        height = settings.height;
+        channels = settings.channels;
+        depth = settings.depth;
+        format = GetTextureFormat(settings.channels, settings.depth);
     }
 
     TextureFormat Format() const
@@ -59,38 +53,7 @@ public:
         return format;
     }
 
-    virtual inline std::string_view Name() const
-    {
-        return name;
-    }
-
-    inline uint32_t CalculateMipmapLevels(uint32_t width, uint32_t height)
-    {
-        return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
-    }
-
-    inline uint32_t GetChannels(TextureFormat format)
-    {
-        switch (format)
-        {
-        case TextureFormat::R8:
-        case TextureFormat::R16F:
-        case TextureFormat::R32F:
-            return 1;
-        case TextureFormat::RG8:
-        case TextureFormat::RG16F:
-            return 2;
-        case TextureFormat::RGB8:
-        case TextureFormat::RGB16F:
-            return 3;
-        case TextureFormat::RGBA8:
-        case TextureFormat::RGBA16F:
-        case TextureFormat::RGBA32F:
-            return 4;
-        }
-    }
-
-    inline TextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
+    static TextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
     {
         if (depth <= 1)  // 8-bit unsigned integer formats
         {
@@ -134,83 +97,80 @@ public:
                 return TextureFormat::RGBA32F;
             }
         }
-
+        FU_CORE_ASSERT(false, "Invalid texture format: unsupported channels or depth");
+        return TextureFormat::RGBA8;
     }  // namespace Fuego::Graphics::TextureUtils
-protected:
-    TextureBase(std::string_view name, TextureFormat format, int width, int height)
-        : name(name)
-        , format(format)
-        , width(width)
-        , height(height)
-        , is_created(false) {};
 
-    TextureBase(std::string_view name)
-        : name(name)
-        , format(TextureFormat::NONE)
-        , width(0)
-        , height(0)
-        , is_created(false)
+protected:
+    Texture(std::string_view name, std::string_view ext, TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
+        : ImageBase(name, ext, width, height, format_to_channels(format), format_to_depth(format), layers)
+        , format(format)
+    {
+    }
+    Texture(std::string_view name, std::string_view ext, uint32_t layers)
+        : ImageBase(name, ext, 0, 0, 0, 0, layers)
+        , format(TextureFormat::RGB8)
     {
     }
 
-    bool is_created;
-    std::string name;
-    uint32_t width;
-    uint32_t height;
+    inline uint32_t calculate_mipmap_level(uint32_t width, uint32_t height)
+    {
+        return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
+    }
+
+    uint32_t format_to_channels(TextureFormat format) const
+    {
+        switch (format)
+        {
+        case TextureFormat::R8:
+        case TextureFormat::R16F:
+        case TextureFormat::R32F:
+            return 1;
+        case TextureFormat::RG8:
+        case TextureFormat::RG16F:
+        case TextureFormat::RG32F:
+            return 2;
+        case TextureFormat::RGB8:
+        case TextureFormat::RGB16F:
+        case TextureFormat::RGB32F:
+            return 3;
+        case TextureFormat::RGBA8:
+        case TextureFormat::RGBA16F:
+        case TextureFormat::RGBA32F:
+            return 4;
+        }
+
+        FU_CORE_ASSERT(false, "Unknown format in format_to_channels");
+        return 1;
+    }
+
+    uint32_t format_to_depth(TextureFormat format) const
+    {
+        switch (format)
+        {
+        case TextureFormat::R8:
+        case TextureFormat::RG8:
+        case TextureFormat::RGB8:
+        case TextureFormat::RGBA8:
+            return 1;
+
+        case TextureFormat::R16F:
+        case TextureFormat::RG16F:
+        case TextureFormat::RGB16F:
+        case TextureFormat::RGBA16F:
+            return 2;
+
+        case TextureFormat::R32F:
+        case TextureFormat::RG32F:
+        case TextureFormat::RGB32F:
+        case TextureFormat::RGBA32F:
+            return 4;
+        }
+        FU_CORE_ASSERT(false, "Unknown format in format_to_depth");
+        return 1;
+    }
+
     TextureFormat format;
+};
 
 };  // namespace Fuego::Graphics
-
-class Texture2D : public TextureBase
-{
-public:
-    virtual ~Texture2D() = default;
-
-    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img) override
-    {
-        TextureBase::PostCreate(img);
-    }
-
-    virtual bool IsValid() const override
-    {
-        return is_created;
-    }
-
-protected:
-    Texture2D(std::string_view name, TextureFormat format, int width, int height)
-        : TextureBase(name, format, width, height)
-    {
-        int a = 5;
-    }
-    Texture2D(std::string_view name)
-        : TextureBase(name) {};
-};
-
-class TextureCubemap : public TextureBase
-{
-public:
-    virtual ~TextureCubemap() = default;
-
-    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img) override
-    {
-        TextureBase::PostCreate(img);
-    }
-    virtual bool IsValid() const override
-    {
-        return is_created;
-    }
-
-protected:
-    TextureCubemap(std::string_view name, TextureFormat format, int width, int height)
-        : TextureBase(name, format, width, height) {};
-    TextureCubemap(std::string_view name)
-        : TextureBase(name) {};
-};
-
-class TextureView
-{
-public:
-    virtual ~TextureView() = default;
-};
-
-}  // namespace Fuego::Graphics

@@ -11,7 +11,7 @@ class Skybox
 {
 public:
     template <typename T, std::size_t N>
-    Skybox(std::shared_ptr<TextureCubemap> cm, std::span<T, N> in_vertices)
+    Skybox(std::shared_ptr<Texture> cm, std::span<T, N> in_vertices)
         : cubemap(cm)
 
     {
@@ -36,7 +36,7 @@ public:
 
 private:
     std::unique_ptr<SkyboxMaterial> material;
-    std::shared_ptr<TextureCubemap> cubemap;
+    std::shared_ptr<Texture> cubemap;
     std::vector<float> vertices;
 };
 }  // namespace Fuego::Graphics

@@ -218,8 +218,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view pa
                 handle->SetCorrupted(NO_DATA);
                 return;
             }
-            Fuego::Graphics::Image2D::ImagePostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1,
-                                                                  img_data};
+            Fuego::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1, img_data};
             handle->Resource()->PostCreate(settings);
 
             auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
@@ -316,8 +315,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string
                 images2d_to_load_async.unsafe_erase(it);
             }
 
-            Fuego::Graphics::Image2D::ImagePostCreateion settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1,
-                                                                  img_data};
+            Fuego::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1, img_data};
             handle->Resource()->PostCreate(settings);
             auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
             FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", image->Name());

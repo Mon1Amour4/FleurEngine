@@ -34,11 +34,12 @@ public:
 
     virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
 
-    virtual std::shared_ptr<Texture2D> CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const = 0;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, TextureFormat format, unsigned char* buffer, int width,
+                                                   int height) const = 0;
 
-    virtual std::shared_ptr<Texture2D> CreateTexture(std::string_view name) const = 0;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const = 0;
 
-    virtual std::shared_ptr<TextureCubemap> CreateCubemap(const CubemapImage* equirectangular) const = 0;
+    virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
 
     // Yes, I know, raw pointer, so be careful here
     virtual Shader* CreateShader(std::string_view shaderName, Shader::ShaderType type) = 0;

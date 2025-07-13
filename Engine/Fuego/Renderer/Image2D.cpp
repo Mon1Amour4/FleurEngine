@@ -3,7 +3,117 @@
 #include "Color.h"
 #include "Services/ServiceLocator.h"
 
+// ImageBase
+Fuego::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t layers)
+    : name(name)
+    , extension(ext)
+    , width(0)
+    , height(0)
+    , channels(0)
+    , depth(0)
+    , layers(layers)
+    , size_bytes(0)
+    , is_created(false)
+{
+}
+Fuego::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth,
+                                      uint32_t layers)
+    : name(name)
+    , extension(ext)
+    , width(width)
+    , height(height)
+    , channels(channels)
+    , depth(depth)
+    , layers(layers)
+    , size_bytes(width * height * channels * depth * layers)
+    , is_created(false)
+{
+}
+
 // Image2D:
+Fuego::Graphics::Image2D::Image2D()
+    : ImageBase()
+{
+}
+Fuego::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext)
+    : ImageBase(name, ext, 1)
+{
+}
+Fuego::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
+    : ImageBase(name, ext, w, h, channels, depth, 1)
+    , bitmap(w, h, channels)
+{
+    FU_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
+    memcpy(bitmap.Data(), data, bitmap.GetSizeBytes());
+    is_created = true;
+}
+Fuego::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels,
+                                  uint16_t depth)
+    : ImageBase(name, ext, w, h, channels, depth, 1)
+    , bitmap(std::move(in_bitmap))
+{
+    is_created = true;
+};
+
+Fuego::Graphics::Image2D& Fuego::Graphics::Image2D::operator=(Fuego::Graphics::Image2D&& other) noexcept
+{
+    if (this != &other)
+    {
+        bitmap = std::move(other.bitmap);
+        width = other.width;
+        height = other.height;
+        is_created = other.is_created;
+        name = std::move(other.name);
+        extension = std::move(other.extension);
+        channels = other.channels;
+        depth = other.depth;
+        layers = other.layers;
+
+        other.width = 0;
+        other.height = 0;
+        other.is_created = false;
+        other.channels = 0;
+        other.depth = 0;
+        other.layers = 0;
+    }
+    return *this;
+}
+Fuego::Graphics::Image2D::Image2D(Fuego::Graphics::Image2D&& other) noexcept
+{
+    bitmap = std::move(other.bitmap);
+    width = other.width;
+    height = other.height;
+    is_created = other.is_created;
+    name = std::move(other.name);
+    extension = std::move(other.extension);
+    channels = other.channels;
+    depth = other.depth;
+    layers = other.layers;
+
+    other.width = 0;
+    other.height = 0;
+    other.is_created = false;
+    other.channels = 0;
+    other.depth = 0;
+    other.layers = 0;
+}
+
+const void* Fuego::Graphics::Image2D::Data() const
+{
+    return bitmap.Data();
+}
+
+void Fuego::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
+{
+    FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
+
+    ImageBase::PostCreate(settings);
+
+    bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
+    memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
+
+    is_created = true;
+}
 
 Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() const
 {
@@ -59,18 +169,17 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 new_bitmap.SetPixel(coord_u, coord_v, color);
             }
         }
-        out_faces[face] = std::move(Image2D(name, ext, std::move(new_bitmap), face_size, face_size, channels, depth));
+        out_faces[face] = std::move(Image2D(name, extension, std::move(new_bitmap), face_size, face_size, channels, depth));
     }
     return CubemapImage(std::move(out_faces));
 }
 
 
-// Cubemap:
+// CubemapImage:
 Fuego::Graphics::CubemapImage::CubemapImage(std::array<Image2D, 6>&& in_faces)
-    : ImageBase(in_faces[0].Name(), "-", in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth())
+    : ImageBase(in_faces[0].Name(), in_faces[0].Ext(), in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth(), 6)
 
 {
-    size_bytes = width * height * channels * depth * 6;
     faces = std::move(in_faces);
 }
 
@@ -91,4 +200,27 @@ const Fuego::Graphics::Image2D& Fuego::Graphics::CubemapImage::GetFace(Face face
     case Fuego::Graphics::CubemapImage::Face::Front:
         return faces[5];
     }
+}
+
+const void* Fuego::Graphics::CubemapImage::Data() const
+{
+    return reinterpret_cast<const void*>(faces[0].Data());
+}
+
+void Fuego::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
+{
+    FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
+
+    ImageBase::PostCreate(settings);
+
+    // uint32_t data_chank_size = settings.width * settings.height * settings.channels * settings.depth*;
+    /* for (size_t i = 0; i < layers; i++)
+     {
+         Bitmap<BitmapFormat_UnsignedByte> bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
+         faces[i] = Image2D(name, extension, std::move(bitmap), settings.width, settings.height, settings.channels, settings.depth);
+     }
+
+     memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);*/
+
+    is_created = true;
 }

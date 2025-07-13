@@ -18,7 +18,7 @@ Renderer::Renderer(GraphicsAPI api, std::unique_ptr<Fuego::IRendererToolchain> t
 {
 }
 
-std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_view path)
+std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view path)
 {
     if (path.empty())
         return GetLoadedTexture("fallback");
@@ -48,7 +48,7 @@ std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_v
     return textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_view name, Color color, int width, int height)
+std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width, int height)
 {
     if (name.empty())
         return GetLoadedTexture("fallback");
@@ -71,7 +71,7 @@ std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::string_v
     return textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fuego::Graphics::Texture2D> Renderer::load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img)
+std::shared_ptr<Fuego::Graphics::Texture> Renderer::load_texture(std::shared_ptr<Fuego::Graphics::Image2D> img)
 {
     if (!img)
         return GetLoadedTexture("fallback");
@@ -133,7 +133,7 @@ void Renderer::OnShutdown()
     _surface.release();
 }
 
-std::shared_ptr<Texture2D> Renderer::GetLoadedTexture(std::string_view path) const
+std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
 {
     if (path.empty())
         return textures.find("fallback")->second;
@@ -251,7 +251,7 @@ void Renderer::OnUpdate(float dlTime)
     }
 
     // Skybox pass
-    skybox_pass();
+    // skybox_pass();
 
     // Main Pass
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");

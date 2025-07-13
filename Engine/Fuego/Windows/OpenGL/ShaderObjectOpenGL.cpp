@@ -141,22 +141,7 @@ bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture2D& texture)
-{
-    GLint location = find_uniform_location(uniform_name);
-    if (location == -1)
-    {
-        FU_CORE_ASSERT(false, "");
-        return false;
-    }
-
-    const Texture2DOpenGL& text_gl = static_cast<const Texture2DOpenGL&>(texture);
-    glUniform1i(location, text_gl.GetTextureUnit());
-    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
-    return true;
-}
-
-bool ShaderObjectOpenGL::set_cubemap_text_impl(std::string_view uniform_name, const TextureCubemap& texture)
+bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture& texture)
 {
     std::string str = std::string("material.") + std::string(uniform_name);
     GLint location = find_uniform_location(str);
@@ -166,7 +151,23 @@ bool ShaderObjectOpenGL::set_cubemap_text_impl(std::string_view uniform_name, co
         return false;
     }
 
-    const TextureCubemapOpenGL& text_gl = static_cast<const TextureCubemapOpenGL&>(texture);
+    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
+    glUniform1i(location, text_gl.GetTextureUnit());
+    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
+    return true;
+}
+
+bool ShaderObjectOpenGL::set_cubemap_text_impl(std::string_view uniform_name, const Texture& texture)
+{
+    std::string str = std::string("material.") + std::string(uniform_name);
+    GLint location = find_uniform_location(str);
+    if (location == -1)
+    {
+        FU_CORE_ASSERT(false, "");
+        return false;
+    }
+
+    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
     glUniform1i(location, text_gl.GetTextureUnit());
     glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
     return true;

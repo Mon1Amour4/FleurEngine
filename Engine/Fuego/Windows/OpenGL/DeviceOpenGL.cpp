@@ -194,19 +194,22 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture2D> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, TextureFormat format, unsigned char* buffer, int width,
+                                                     int height) const
 {
-    return std::make_shared<Texture2DOpenGL>(name, format, buffer, width, height);
+    return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, 1);
 }
 
-std::shared_ptr<Texture2D> DeviceOpenGL::CreateTexture(std::string_view name) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext) const
 {
-    return std::make_shared<Texture2DOpenGL>(name);
+    return std::make_shared<TextureOpenGL>(name, ext, 1);
 }
 
-std::shared_ptr<TextureCubemap> DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
 {
-    return std::make_shared<TextureCubemapOpenGL>(*equirectangular);
+    return std::make_shared<TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(), reinterpret_cast<const unsigned char*>(equirectangular->Data()),
+                                           Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()), equirectangular->Width(),
+                                           equirectangular->Height(), 1);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const

@@ -7,10 +7,10 @@
 namespace Fuego::Graphics
 {
 
-MaterialOpenGL::MaterialOpenGL(const TextureBase* albedo)
+MaterialOpenGL::MaterialOpenGL(const Texture* albedo)
     : albedo_texture(nullptr)
 {
-    albedo_texture = static_cast<const Texture2DOpenGL*>(albedo);
+    albedo_texture = static_cast<const TextureOpenGL*>(albedo);
 }
 
 void MaterialOpenGL::Use() const

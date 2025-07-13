@@ -10,8 +10,8 @@ class TextureBase;
 
 struct ShaderComponentContext
 {
-    std::pair<std::string, Texture2D*> albedo_text{"albedo_texture", nullptr};
-    std::pair<std::string, TextureCubemap*> skybox_cubemap_text{"skybox_cubemap", nullptr};
+    std::pair<std::string, Texture*> albedo_text{"albedo_texture", nullptr};
+    std::pair<std::string, Texture*> skybox_cubemap_text{"skybox_cubemap", nullptr};
 };
 
 
@@ -49,7 +49,8 @@ public:
 
     virtual void SetParameters(ShaderObject& shader) const override
     {
-        shader.Set<TextureCubemap>(skybox_cubemap.first, *skybox_cubemap.second);
+        // TODO
+        shader.Set(skybox_cubemap.first, *skybox_cubemap.second);
     }
 
     SkyboxMaterial(ShaderComponentContext& ctx)
@@ -59,7 +60,7 @@ public:
     }
 
 private:
-    std::pair<std::string, TextureCubemap*> skybox_cubemap;
+    std::pair<std::string, Texture*> skybox_cubemap;
 };
 
 class OpaqueMaterial : public Material
@@ -67,9 +68,11 @@ class OpaqueMaterial : public Material
 public:
     virtual ~OpaqueMaterial() override {};
     virtual void Use() const override {};
+
     virtual void SetParameters(ShaderObject& shader) const override
     {
-        shader.Set(albedo_text.first, albedo_text.second);
+        // TODO
+        shader.Set(albedo_text.first, *albedo_text.second);
     }
 
     OpaqueMaterial(ShaderComponentContext& ctx)
@@ -79,7 +82,7 @@ public:
     }
 
 private:
-    std::pair<std::string, Texture2D*> albedo_text;
+    std::pair<std::string, Texture*> albedo_text;
 };
 
 }  // namespace Fuego::Graphics

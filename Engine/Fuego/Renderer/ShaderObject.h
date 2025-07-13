@@ -12,8 +12,7 @@ namespace Fuego::Graphics
 {
 class Shader;
 class Material;
-class Texture2D;
-class TextureCubemap;
+class Texture;
 
 class ShaderObject
 {
@@ -31,16 +30,21 @@ public:
         {
             return set_mat4f_impl(name, var);
         }
-        else if constexpr (GetPureTypeAndCompare<Texture2D, T>())
+        else if constexpr (GetPureTypeAndCompare<Texture, T>())
         {
             return set_text2d_impl(name, var);
         }
-        else if constexpr (GetPureTypeAndCompare<TextureCubemap, T>())
+        // TODO
+        else if constexpr (std::is_same_v<Texture, std::remove_cv_t<std::remove_pointer_t<T>>>)
         {
-            return set_cubemap_text_impl(name, var);
+            return set_text2d_impl(name, var);
         }
         else
+        {
+            const char* type_name = typeid(T).name();
+            FU_CORE_ASSERT(false, "t: {0}", typeid(T).name());
             return false;
+        }
     }
 
     static ShaderObject* CreateShaderObject(Shader* vs, Shader* px);
@@ -54,7 +58,7 @@ protected:
     ShaderObject() = default;
     virtual bool set_vec3f_impl(std::string_view name, const glm::vec3& vec) = 0;
     virtual bool set_mat4f_impl(std::string_view name, const glm::mat4& matrix) = 0;
-    virtual bool set_text2d_impl(std::string_view name, const Texture2D& texture) = 0;
-    virtual bool set_cubemap_text_impl(std::string_view name, const TextureCubemap& texture) = 0;
+    virtual bool set_text2d_impl(std::string_view name, const Texture& texture) = 0;
+    virtual bool set_cubemap_text_impl(std::string_view name, const Texture& texture) = 0;
 };
 }  // namespace Fuego::Graphics
