@@ -121,7 +121,7 @@ void Renderer::OnInit()
 
     VertexLayout skybox_layout{};
     skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 1024 * sizeof(float) * 3), skybox_layout);
+    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
 }
 
 void Renderer::OnShutdown()
@@ -247,11 +247,12 @@ void Renderer::OnUpdate(float dlTime)
                                   -1.0f, -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, -1.0f, 1.0f,  -1.0f, -1.0f, -1.0f, -1.0f, 1.0f,  1.0f,  -1.0f, 1.0f};
 
         _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+        skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
         b++;
     }
 
     // Skybox pass
-    // skybox_pass();
+    skybox_pass();
 
     // Main Pass
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
@@ -338,7 +339,7 @@ void Renderer::skybox_pass() const
     skybox_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
 
     skybox_cmd->ShaderObject()->BindMaterial(_skybox->GetMaterial());
-    skybox_cmd->Draw(_skybox->GetVertexCount());
+    skybox_cmd->Draw(_skybox->GetVertexCount() / 3);
 
     skybox_cmd->PopDebugGroup();
     skybox_cmd->PopDebugGroup();

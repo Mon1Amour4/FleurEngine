@@ -2,6 +2,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../../Renderer/Material.h"
+#include "TextureOpenGL.h"
 #include "glad/gl.h"
 
 namespace Fuego::Graphics
@@ -99,7 +101,11 @@ void ShaderObjectOpenGL::Use() const
 void ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
     this->material = material;
-    this->material->SetParameters(*this);
+    const ShaderComponentContext& ctx = this->material->GetShaderContext();
+    if (ctx.albedo_text.second)
+        set_text2d_impl(ctx.albedo_text.first, *ctx.albedo_text.second);
+    if (ctx.skybox_cubemap_text.second)
+        set_text2d_impl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -143,24 +149,7 @@ bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm
 
 bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture& texture)
 {
-    std::string str = std::string("material.") + std::string(uniform_name);
-    GLint location = find_uniform_location(str);
-    if (location == -1)
-    {
-        FU_CORE_ASSERT(false, "");
-        return false;
-    }
-
-    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
-    glUniform1i(location, text_gl.GetTextureUnit());
-    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
-    return true;
-}
-
-bool ShaderObjectOpenGL::set_cubemap_text_impl(std::string_view uniform_name, const Texture& texture)
-{
-    std::string str = std::string("material.") + std::string(uniform_name);
-    GLint location = find_uniform_location(str);
+    GLint location = find_uniform_location(uniform_name);
     if (location == -1)
     {
         FU_CORE_ASSERT(false, "");

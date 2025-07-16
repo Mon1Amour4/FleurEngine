@@ -20,7 +20,7 @@ public:
         vertices.assign(in_vertices.begin(), in_vertices.end());
         ShaderComponentContext ctx{};
         ctx.skybox_cubemap_text.second = cm.get();
-        auto skybox_material = Material::CreateMaterial<SkyboxMaterial>(ctx);
+        auto skybox_material = Material::CreateMaterial(ctx);
         material.reset(skybox_material);
     }
 
@@ -34,8 +34,13 @@ public:
         return vertices.size();
     };
 
+    const float* Data() const
+    {
+        return vertices.data();
+    }
+
 private:
-    std::unique_ptr<SkyboxMaterial> material;
+    std::unique_ptr<Material> material;
     std::shared_ptr<Texture> cubemap;
     std::vector<float> vertices;
 };

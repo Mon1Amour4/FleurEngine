@@ -48,6 +48,7 @@ public:
     }
 
     static ShaderObject* CreateShaderObject(Shader* vs, Shader* px);
+
     virtual void Use() const = 0;
 
     virtual void BindMaterial(const Material* material) = 0;
@@ -59,6 +60,5 @@ protected:
     virtual bool set_vec3f_impl(std::string_view name, const glm::vec3& vec) = 0;
     virtual bool set_mat4f_impl(std::string_view name, const glm::mat4& matrix) = 0;
     virtual bool set_text2d_impl(std::string_view name, const Texture& texture) = 0;
-    virtual bool set_cubemap_text_impl(std::string_view name, const Texture& texture) = 0;
 };
 }  // namespace Fuego::Graphics

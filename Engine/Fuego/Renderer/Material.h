@@ -10,79 +10,41 @@ class TextureBase;
 
 struct ShaderComponentContext
 {
-    std::pair<std::string, Texture*> albedo_text{"albedo_texture", nullptr};
-    std::pair<std::string, Texture*> skybox_cubemap_text{"skybox_cubemap", nullptr};
+    std::pair<std::string, Texture*> albedo_text{"material.albedo_texture", nullptr};
+    std::pair<std::string, Texture*> skybox_cubemap_text{"material.skybox_cubemap", nullptr};
 };
 
 
 class FUEGO_API Material
 {
 public:
-    template <typename T>
-    static T* CreateMaterial(ShaderComponentContext& ctx)
+    static Material* CreateMaterial(ShaderComponentContext& ctx)
     {
-        return new T(ctx);
+        return new Material(ctx);
     }
 
+    Material(ShaderComponentContext& ctx)
+    {
+        if (ctx.albedo_text.second)
+            context.albedo_text = std::move(ctx.albedo_text);
+        if (ctx.skybox_cubemap_text.second)
+            context.skybox_cubemap_text = std::move(ctx.skybox_cubemap_text);
+    }
     virtual ~Material() = default;
 
-    virtual void SetParameters(ShaderObject& shader) const = 0;
-
-    virtual void Use() const = 0;
-    virtual inline std::string_view Name() const
+    inline std::string_view Name() const
     {
         return name;
     }
 
+    const ShaderComponentContext& GetShaderContext() const
+    {
+        return context;
+    }
+
 private:
     std::string name;
-};
-
-class SkyboxMaterial : public Material
-{
-    friend class Device;
-
-public:
-    virtual ~SkyboxMaterial() override {};
-
-    virtual void Use() const override {};
-
-    virtual void SetParameters(ShaderObject& shader) const override
-    {
-        // TODO
-        shader.Set(skybox_cubemap.first, *skybox_cubemap.second);
-    }
-
-    SkyboxMaterial(ShaderComponentContext& ctx)
-        : Material()
-    {
-        skybox_cubemap = std::make_pair(std::move(ctx.skybox_cubemap_text.first), ctx.skybox_cubemap_text.second);
-    }
-
-private:
-    std::pair<std::string, Texture*> skybox_cubemap;
-};
-
-class OpaqueMaterial : public Material
-{
-public:
-    virtual ~OpaqueMaterial() override {};
-    virtual void Use() const override {};
-
-    virtual void SetParameters(ShaderObject& shader) const override
-    {
-        // TODO
-        shader.Set(albedo_text.first, *albedo_text.second);
-    }
-
-    OpaqueMaterial(ShaderComponentContext& ctx)
-        : Material()
-    {
-        albedo_text = std::make_pair(std::move(ctx.albedo_text.first), ctx.albedo_text.second);
-    }
-
-private:
-    std::pair<std::string, Texture*> albedo_text;
+    ShaderComponentContext context;
 };
 
 }  // namespace Fuego::Graphics

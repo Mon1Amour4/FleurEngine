@@ -23,7 +23,7 @@ BufferOpenGL::~BufferOpenGL()
 
 uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t size_bytes)
 {
-    FU_CORE_ASSERT(last_buffered_idx_to_byte + size_bytes < end_idx, "Buffer overflow");
+    FU_CORE_ASSERT(last_buffered_idx_to_byte + size_bytes <= end_idx, "Buffer overflow");
 
     uint32_t offset_before_write = last_buffered_idx_to_byte;
 

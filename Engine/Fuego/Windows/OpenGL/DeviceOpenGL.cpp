@@ -209,7 +209,7 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirec
 {
     return std::make_shared<TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(), reinterpret_cast<const unsigned char*>(equirectangular->Data()),
                                            Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()), equirectangular->Width(),
-                                           equirectangular->Height(), 1);
+                                           equirectangular->Height(), 6);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const

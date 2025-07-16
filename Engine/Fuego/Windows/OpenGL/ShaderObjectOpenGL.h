@@ -1,6 +1,5 @@
 #pragma once
 
-#include "MaterialOpenGL.h"
 #include "ShaderObject.h"
 #include "ShaderOpenGl.h"
 
@@ -43,6 +42,5 @@ protected:
     virtual bool set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec) override;
     virtual bool set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix) override;
     virtual bool set_text2d_impl(std::string_view uniform_name, const Texture& texture) override;
-    virtual bool set_cubemap_text_impl(std::string_view uniform_name, const Texture& texture) override;
 };
 }  // namespace Fuego::Graphics

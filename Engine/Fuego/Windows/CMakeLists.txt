@@ -17,7 +17,6 @@ SET(PROJECT_HEADERS
     OpenGL/CommandPoolOpenGL.h
     OpenGL/TextureOpenGL.h
     OpenGL/SurfaceOpenGL.h
-    OpenGL/MaterialOpenGL.h
     OpenGL/ShaderObjectOpenGL.h
     TimeWin.h
 )
@@ -36,7 +35,6 @@ SET(PROJECT_SOURCES
     OpenGL/CommandPoolOpenGL.cpp
     OpenGL/TextureOpenGL.cpp
     OpenGL/SurfaceOpenGL.cpp
-    OpenGL/MaterialOpenGL.cpp
     OpenGL/ShaderObjectOpenGL.cpp
     TimeWin.cpp
 )
