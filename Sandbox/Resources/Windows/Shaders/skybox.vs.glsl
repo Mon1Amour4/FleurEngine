@@ -1,6 +1,6 @@
 #version 330 core
 // Layout:
-layout(location = 0) in vec3 aPos;
+layout(location = 0) in vec3 VertexPosition;
 
 out vec3 TexCoords; 
 
@@ -9,6 +9,6 @@ uniform mat4 view;
 
 void main()
 {
-    TexCoords = aPos;
-    gl_Position = projection * view * vec4(aPos, 1.0);
+    TexCoords = VertexPosition;
+    gl_Position = projection * view * vec4(VertexPosition, 1.0);
 }  

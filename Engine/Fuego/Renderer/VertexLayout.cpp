@@ -8,13 +8,13 @@ namespace Fuego::Graphics
 {
 // Layout:
 VertexLayout::VertexLayout()
-    : layout_size(0)
+    : stride(0)
     , _it(nullptr)
 {
-    attribs.reserve(3);
+    attribs.reserve(1);
 }
 
-uint32_t VertexLayout::GetAPIDataType(DataType type)
+uint32_t VertexLayout::GetAPIDataType(DataType type) const
 {
 #if defined(FUEGO_PLATFORM_WIN)
     switch (type)
@@ -48,7 +48,8 @@ uint32_t VertexLayout::GetAPIDataType(DataType type)
     }
 #endif
 }
-uint32_t VertexLayout::GetSizeOfDataType(DataType type)
+
+uint32_t VertexLayout::GetSizeOfDataType(DataType type) const
 {
     switch (type)
     {
@@ -68,12 +69,14 @@ uint32_t VertexLayout::GetSizeOfDataType(DataType type)
         return 0;
     }
 }
+
 void VertexLayout::AddAttribute(VertexAttribute attrib)
 {
-    attrib.offset = layout_size;
-    layout_size += GetSizeOfDataType(attrib.components_type) * attrib.components_amount;
+    attrib.offset = stride;
+    stride += GetSizeOfDataType(attrib.components_type) * attrib.components_amount;
     attribs.push_back(attrib);
 }
+
 void VertexLayout::EnableAttribute(uint16_t attrib_index)
 {
     if (attrib_index < attribs.size())
@@ -81,6 +84,7 @@ void VertexLayout::EnableAttribute(uint16_t attrib_index)
         attribs[attrib_index].is_enabled = true;
     }
 }
+
 void VertexLayout::DisableAttribute(uint16_t attrib_index)
 {
     if (attrib_index < attribs.size())
@@ -88,14 +92,19 @@ void VertexLayout::DisableAttribute(uint16_t attrib_index)
         attribs[attrib_index].is_enabled = false;
     }
 }
+
+
 // Attribute:
 VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled)
     : index(ind)
     , components_amount(comp_amount)
     , components_type(comp_type)
     , is_enabled(enabled)
+    , offset(0)
 {
 }
+
+
 // Iterator:
 VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
     : _master(master)
@@ -104,6 +113,7 @@ VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribu
     , index(0)
 {
 }
+
 VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
 {
     if (attribs.size() == 0)
@@ -115,6 +125,7 @@ VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
     _it->index = 0;
     return _it;
 }
+
 VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 {
     if (!_it)
@@ -138,10 +149,12 @@ VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 
     return nullptr;
 }
+
 bool VertexLayout::LayoutIterator::IsDone()
 {
     return is_done;
 }
+
 void VertexLayout::ReleaseIterator()
 {
     delete _it;

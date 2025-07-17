@@ -61,7 +61,7 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
     vertex_global_buffer = std::move(vertexBuffer);
     auto buff = static_cast<const BufferOpenGL*>(vertex_global_buffer.get());
 
-    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, sizeof(VertexData));
+    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, layout.Stride());
 
     VertexLayout::LayoutIterator* it;
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
