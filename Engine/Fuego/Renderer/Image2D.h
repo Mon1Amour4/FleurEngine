@@ -146,7 +146,7 @@ public:
 
     const Image2D& GetFace(Face face) const;
 
-    const void* Data() const;
+    const Image2D* Data() const;
 
     virtual void PostCreate(ImagePostCreation& settings) override;
 

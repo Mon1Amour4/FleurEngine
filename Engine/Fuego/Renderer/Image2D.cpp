@@ -165,7 +165,15 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 float u = static_cast<float>((phi + pi) / (2.f * pi));
                 float v = static_cast<float>((pi / 2.f - theta) / pi);
 
-                glm::vec4 color = bitmap.GetPixel(u, v);
+                float U = u * width;
+                float V = v * height;
+
+                int MaxW = width - 1;
+                int MaxH = height - 1;
+                float U1 = std::clamp(int(roundf(U)), 0, MaxW);
+                float V1 = std::clamp(int(roundf(V)), 0, MaxH);
+
+                glm::vec4 color = bitmap.GetPixel(U1, V1);
                 new_bitmap.SetPixel(coord_u, coord_v, color);
             }
         }
@@ -202,9 +210,9 @@ const Fuego::Graphics::Image2D& Fuego::Graphics::CubemapImage::GetFace(Face face
     }
 }
 
-const void* Fuego::Graphics::CubemapImage::Data() const
+const Fuego::Graphics::Image2D* Fuego::Graphics::CubemapImage::Data() const
 {
-    return reinterpret_cast<const void*>(faces[0].Data());
+    return reinterpret_cast<const Image2D*>(faces.data());
 }
 
 void Fuego::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)

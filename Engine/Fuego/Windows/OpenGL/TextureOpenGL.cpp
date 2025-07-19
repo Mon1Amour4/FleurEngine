@@ -158,6 +158,8 @@ void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
 void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
 {
     FU_CORE_ASSERT(layers == 6, "");
+    const Fuego::Graphics::Image2D* images = reinterpret_cast<const Fuego::Graphics::Image2D*>(buffer);
+    FU_CORE_ASSERT(images, "");
 
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
     FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
@@ -165,10 +167,12 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
 
-    const uint32_t size_bytes = width * height * format_to_channels(format) * (format_to_depth(format) / 8);
 
     for (uint32_t face = 0; face < 6; ++face)
     {
+        const Fuego::Graphics::Image2D* image = reinterpret_cast<const Fuego::Graphics::Image2D*>(images + face);
+        FU_CORE_ASSERT(image, "");
+
         glTextureSubImage3D(texture_id,
                             0,                         // mipmap level
                             0,                         // xoffset
@@ -179,7 +183,7 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
                             1,                         // depth = 1
                             get_pixel_format(format),  // format
                             GL_UNSIGNED_BYTE,
-                            reinterpret_cast<const void*>(buffer + (face * size_bytes))  // pointer to data
+                            reinterpret_cast<const void*>(image->Data())  // pointer to data
         );
     }
 }
@@ -188,6 +192,7 @@ uint32_t Fuego::Graphics::TextureOpenGL::GetTextureUnit() const
 {
     return texture_unit;
 }
+
 uint32_t Fuego::Graphics::TextureOpenGL::GetTextureID() const
 {
     return texture_id;
