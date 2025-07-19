@@ -149,6 +149,7 @@ private:
     // Service
 
     void skybox_pass() const;
+    void static_geometry_pass() const;
 
 protected:
     void OnInit();

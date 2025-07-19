@@ -283,40 +283,7 @@ void Renderer::OnUpdate(float dlTime)
     skybox_pass();
 
     // Main Pass
-    static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
-    static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    static_geometry_cmd->BeginRecording();
-    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
-    static_geometry_cmd->SetDepthWriting(true);
-
-    static_geometry_cmd->ShaderObject()->Use();
-
-    for (const auto& draw_info : static_geometry_models_vector)
-    {
-        static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        static_geometry_cmd->ShaderObject()->Set("model", draw_info.pos);
-        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
-        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
-
-        const auto* meshes = draw_info.model->GetMeshesPtr();
-
-        uint32_t index_inner_offset_bytes = 0;
-        for (const auto& mesh : *meshes)
-        {
-            static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
-            static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
-            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
-
-            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
-            static_geometry_cmd->PopDebugGroup();
-        }
-        static_geometry_cmd->PopDebugGroup();
-        static_geometry_cmd->EndRecording();
-        static_geometry_cmd->Submit();
-    }
-    static_geometry_cmd->PopDebugGroup();
-    static_geometry_cmd->PopDebugGroup();
+    // static_geometry_pass();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -371,6 +338,44 @@ void Renderer::skybox_pass() const
 
     skybox_cmd->PopDebugGroup();
     skybox_cmd->PopDebugGroup();
+}
+
+void Renderer::static_geometry_pass() const
+{
+    static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
+    static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
+    static_geometry_cmd->BeginRecording();
+    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    static_geometry_cmd->SetDepthWriting(true);
+
+    static_geometry_cmd->ShaderObject()->Use();
+
+    for (const auto& draw_info : static_geometry_models_vector)
+    {
+        static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
+        static_geometry_cmd->ShaderObject()->Set("model", draw_info.pos);
+        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
+        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+
+        const auto* meshes = draw_info.model->GetMeshesPtr();
+
+        uint32_t index_inner_offset_bytes = 0;
+        for (const auto& mesh : *meshes)
+        {
+            static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
+            static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
+            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+
+            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
+            static_geometry_cmd->PopDebugGroup();
+        }
+        static_geometry_cmd->PopDebugGroup();
+        static_geometry_cmd->EndRecording();
+        static_geometry_cmd->Submit();
+    }
+    static_geometry_cmd->PopDebugGroup();
+    static_geometry_cmd->PopDebugGroup();
 }
 
 }  // namespace Fuego::Graphics
