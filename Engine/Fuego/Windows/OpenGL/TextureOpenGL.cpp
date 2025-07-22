@@ -2,7 +2,6 @@
 
 #include "glad/wgl.h"
 
-
 Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers)
     : Texture(name, ext, layers)
     , texture_unit(0)
@@ -23,8 +22,6 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     else if (layers == 6)
         create_cubemap(buffer);
 
-    set_texture_parameters();
-
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
@@ -36,7 +33,6 @@ Fuego::Graphics::TextureOpenGL::~TextureOpenGL()
     if (texture_id != 0)
         glDeleteTextures(1, &texture_id);
 }
-
 
 void Fuego::Graphics::TextureOpenGL::PostCreate(ImagePostCreation& settings)
 {
@@ -153,6 +149,12 @@ void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
 
     glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
 void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
@@ -166,7 +168,6 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
 
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
-
 
     for (uint32_t face = 0; face < 6; ++face)
     {
@@ -186,6 +187,11 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
                             reinterpret_cast<const void*>(image->Data())  // pointer to data
         );
     }
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
 uint32_t Fuego::Graphics::TextureOpenGL::GetTextureUnit() const
