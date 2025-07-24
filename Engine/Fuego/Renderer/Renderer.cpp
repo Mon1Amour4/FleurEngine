@@ -225,17 +225,36 @@ bool Renderer::IsVSync()
 void Renderer::OnUpdate(float dlTime)
 {
     toolchain->Update();
+    static bool is_created = false;
+    static bool is_created2 = false;
 
     auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
-
-    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
-    static int b = 1;
-    if (!cubemap.expired() && b == 1)
+    static Fuego::Graphics::CubemapInitData skybox_images;
+    //auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+    auto left = assets_manager->Get<Image2D>("left");
+    if (!left.expired())
     {
-        auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
-
-        // clang-format off
-        float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0
+        auto front = assets_manager->Get<Image2D>("front");
+        if (!front.expired())
+        {
+            auto right = assets_manager->Get<Image2D>("right");
+            if (!right.expired())
+            {
+                auto back = assets_manager->Get<Image2D>("back");
+                if (!back.expired())
+                {
+                    auto bottom = assets_manager->Get<Image2D>("bottom");
+                    if (!bottom.expired())
+                    {
+                        auto top = assets_manager->Get<Image2D>("top");
+                        if (!top.expired())
+                        {
+                            Fuego::Graphics::CubemapInitData skybox_images{right.lock(), left.lock(), top.lock(), bottom.lock(), back.lock(), front.lock()};
+                            is_created = true;
+                            {
+                                auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
+                                // clang-format off
+                                float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0
                                     -1.0f, -1.0f, -1.0f, // 1
                                      1.0f, -1.0f, -1.0f, // 2
                                      1.0f, -1.0f, -1.0f, // 3
@@ -272,12 +291,21 @@ void Renderer::OnUpdate(float dlTime)
                                     -1.0f, -1.0f,  1.0f, // 34
                                      1.0f, -1.0f,  1.0f  // 35
         };
-        // clang-format on
+                                if (!is_created2)
+                                {
 
-        _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
-        skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
-        b++;
+                                    _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+                                    skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
+                                    is_created2 = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
+    
 
     // Skybox pass
     skybox_pass();
@@ -322,6 +350,9 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
 
 void Renderer::skybox_pass() const
 {
+    if (!_skybox)
+        return;
+
     skybox_cmd->SetDepthWriting(false);
     skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
     skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");

@@ -28,6 +28,18 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     is_created = true;
 }
 
+Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format,
+                                              uint32_t width, uint32_t height, uint32_t layers)
+    : Texture(name, ext, format, width, height, layers)
+    , texture_unit(0)
+    , texture_id(0)
+{
+    create_cubemap_from_images(images);
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
+
+    is_created = true;
+}
+
 Fuego::Graphics::TextureOpenGL::~TextureOpenGL()
 {
     if (texture_id != 0)
@@ -185,6 +197,41 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
                             get_pixel_format(format),  // format
                             GL_UNSIGNED_BYTE,
                             reinterpret_cast<const void*>(image->Data())  // pointer to data
+        );
+    }
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}
+
+void Fuego::Graphics::TextureOpenGL::create_cubemap_from_images(const Fuego::Graphics::CubemapInitData& images)
+{
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
+    FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
+
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
+
+    const std::shared_ptr<Fuego::Graphics::Image2D> faces[6] = {images.right, images.left, images.top, images.bottom, images.back, images.front};
+
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        const auto& img = faces[face];
+        FU_CORE_ASSERT(img && img->Data(), "Cubemap image is null or has no data");
+
+        glTextureSubImage3D(texture_id,
+                            0,                         // mipmap level
+                            0,                         // xoffset
+                            0,                         // yoffset
+                            face,                      // zoffset = face index
+                            width,                     // width
+                            height,                    // height
+                            1,                         // depth = 1
+                            get_pixel_format(format),  // format
+                            GL_UNSIGNED_BYTE,
+                            reinterpret_cast<const void*>(img->Data())  // pointer to data
         );
     }
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

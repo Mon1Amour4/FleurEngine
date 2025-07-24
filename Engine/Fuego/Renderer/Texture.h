@@ -7,6 +7,16 @@
 namespace Fuego::Graphics
 {
 
+struct CubemapInitData
+{
+    const std::shared_ptr<Fuego::Graphics::Image2D> right;
+    const std::shared_ptr<Fuego::Graphics::Image2D> left;
+    const std::shared_ptr<Fuego::Graphics::Image2D> top;
+    const std::shared_ptr<Fuego::Graphics::Image2D> bottom;
+    const std::shared_ptr<Fuego::Graphics::Image2D> back;
+    const std::shared_ptr<Fuego::Graphics::Image2D> front;
+};
+
 class Device;
 
 enum class TextureFormat
