@@ -31,7 +31,7 @@ private:
     std::unique_ptr<ShaderOpenGL> vertex_shader;
     std::unique_ptr<ShaderOpenGL> pixel_shader;
 
-    ShaderObjectOpenGL(Shader* vs, Shader* px);
+    ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px);
 
 private:
     std::unordered_map<std::string, uint32_t> uniforms;

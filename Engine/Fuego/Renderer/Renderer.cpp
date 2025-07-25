@@ -116,8 +116,8 @@ void Renderer::OnInit()
     static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 
     // Skybox
-    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(_device->CreateShader("skybox.vs", Shader::ShaderType::Vertex),
-                                                                                 _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(
+        "skybox_shader", _device->CreateShader("skybox.vs", Shader::ShaderType::Vertex), _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
     DepthStencilDescriptor desc2{false, DepthTestOperation::LESS_OR_EQUAL};
     skybox_cmd = _device->CreateCommandBuffer(desc2);
     skybox_cmd->BindShaderObject(skybox_shader);

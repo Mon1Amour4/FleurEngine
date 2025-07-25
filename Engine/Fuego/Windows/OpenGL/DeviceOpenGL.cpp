@@ -275,6 +275,6 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
         return nullptr;
     }
 
-    return new ShaderOpenGL(res.value().c_str(), type);
+    return new ShaderOpenGL(shaderName, res.value().c_str(), type);
 }
 }  // namespace Fuego::Graphics

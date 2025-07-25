@@ -21,5 +21,12 @@ public:
     virtual ~Shader() = default;
 
     virtual void Release() = 0;
+
+    protected:
+    Shader(std::string_view name)
+        : name(name)
+    {
+    }
+        std::string name;
 };
 }  // namespace Fuego::Graphics

@@ -21,8 +21,9 @@ GLint GetShaderType(Shader::ShaderType type)
     }
 }
 
-ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type)
-    : shader_object(0)
+ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, ShaderType type)
+    : Shader(name)
+    , shader_object(0)
     , _type(type)
 {
     _shaderID = glCreateShader(GetShaderType(type));
@@ -40,6 +41,7 @@ ShaderOpenGL::ShaderOpenGL(const char* shaderCode, ShaderType type)
     else
     {
         FU_CORE_TRACE("[Shader] has compiled");
+        glObjectLabel(GL_SHADER, _shaderID, -1, this->name.c_str());
     }
 }
 

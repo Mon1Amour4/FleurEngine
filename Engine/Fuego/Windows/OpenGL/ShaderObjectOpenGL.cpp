@@ -16,13 +16,14 @@ struct uniform_info
     GLenum type;
 };
 
-ShaderObject* ShaderObject::CreateShaderObject(Shader* vs, Shader* px)
+ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs, Shader* px)
 {
-    return new ShaderObjectOpenGL(vs, px);
+    return new ShaderObjectOpenGL(name, vs, px);
 }
 
-ShaderObjectOpenGL::ShaderObjectOpenGL(Shader* vs, Shader* px)
-    : program(glCreateProgram())
+ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px) 
+    : ShaderObject(name)
+    , program(glCreateProgram())
     , vertex_shader(nullptr)
     , pixel_shader(nullptr)
     , material(nullptr)
@@ -64,7 +65,7 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(Shader* vs, Shader* px)
     }
     vertex_shader->BindToShaderObject(*this);
     pixel_shader->BindToShaderObject(*this);
-
+    glObjectLabel(GL_PROGRAM, program, -1, this->name.c_str());
     glUseProgram(0);
 }
 
