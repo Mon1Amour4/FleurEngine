@@ -25,6 +25,7 @@ Camera::Camera()
     , far_clip(3000.0f)
 
 {
+    projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
 }
 
 Camera::~Camera()
@@ -82,7 +83,7 @@ void Camera::OnUpdate(float dlTime)
     }
 
     RotateCamera(dlTime);
-    projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
+    
     view = glm::lookAt(position, position + camera_forward, up);
 }
 
@@ -94,6 +95,16 @@ void Camera::OnPostUpdate(float dlTime)
 void Camera::OnFixedUpdate()
 {
     // TODO
+}
+
+float Camera::FarClip() const
+{
+    return far_clip;
+}
+
+float Camera::NearClip() const
+{
+    return near_clip;
 }
 
 void Camera::RotateCamera(float dtTime)

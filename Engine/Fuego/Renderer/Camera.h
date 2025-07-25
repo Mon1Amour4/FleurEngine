@@ -38,6 +38,9 @@ public:
     void OnPostUpdate(float dlTime);
     void OnFixedUpdate();
 
+    float FarClip() const;
+    float NearClip() const;
+
 private:
     float speed;
     void RotateCamera(float dtTime);
