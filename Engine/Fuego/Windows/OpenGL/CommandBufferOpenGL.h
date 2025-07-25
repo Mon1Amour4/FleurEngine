@@ -32,8 +32,6 @@ public:
     virtual void PopDebugGroup() override;
     virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
 
-    virtual void SetDepthWriting(bool enable) override;
-
 private:
     int ConvertUsage(RenderStage& stage) const;
     uint32_t _vao;
@@ -46,6 +44,8 @@ private:
 
     friend class DeviceOpenGL;
     bool _isFree;
-    CommandBufferOpenGL();
+    CommandBufferOpenGL(DepthStencilDescriptor desc);
+
+    uint32_t get_death_func_op(DepthTestOperation op) const;
 };
 }  // namespace Fuego::Graphics

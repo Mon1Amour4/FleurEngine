@@ -19,6 +19,7 @@ class Texture2D;
 class TextureCubemap;
 enum RenderStage;
 struct CubemapInitData;
+struct DepthStencilDescriptor;
 
 class Device
 {
@@ -29,7 +30,7 @@ public:
     virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size) = 0;
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
-    virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer() = 0;
+    virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor) = 0;
 
     virtual std::unique_ptr<Swapchain> CreateSwapchain(const Surface& surface) = 0;
 

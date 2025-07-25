@@ -248,9 +248,9 @@ std::unique_ptr<CommandPool> DeviceOpenGL::CreateCommandPool(const CommandQueue&
     return std::unique_ptr<CommandPoolOpenGL>(new CommandPoolOpenGL(queue));
 }
 
-std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer()
+std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer(DepthStencilDescriptor desc)
 {
-    return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL());
+    return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL(desc));
 }
 
 std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)

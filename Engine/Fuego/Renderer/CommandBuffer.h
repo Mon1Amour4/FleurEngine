@@ -15,6 +15,24 @@ struct VertexLayout;
 class Device;
 enum RenderStage;
 
+enum class DepthTestOperation
+{
+    NEVER,
+    LESS,
+    LESS_OR_EQUAL,
+    GREATER,
+    EQUAL,
+    NOT_EQUAL,
+    GREATER_OR_EQUAL,
+    ALWAYS
+};
+
+struct DepthStencilDescriptor
+{
+    bool death_test;
+    DepthTestOperation operation;
+};
+
 class CommandBuffer
 {
 public:
@@ -60,16 +78,12 @@ public:
         return shader_object.get();
     }
 
-    virtual void SetDepthWriting(bool enable)
-    {
-        depth_writing = enable;
-    }
-
 protected:
     virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
 
-    CommandBuffer()
-        : push_debug_group_commands(0) {};
+    CommandBuffer(DepthStencilDescriptor desc)
+        : push_debug_group_commands(0)
+        , descriptor(desc) {};
 
     uint16_t push_debug_group_commands;
 
@@ -77,7 +91,7 @@ protected:
     std::unique_ptr<Fuego::Graphics::Buffer> vertex_global_buffer;
     std::unique_ptr<Fuego::Graphics::Buffer> index_global_buffer;
 
-    static bool depth_writing;
+    DepthStencilDescriptor descriptor;
 };
 
 }  // namespace Fuego::Graphics

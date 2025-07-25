@@ -100,10 +100,12 @@ void Renderer::OnInit()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
+    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject("static_geometry_shader",
+                                                                                          _device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
                                                                                           _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
     // Static geometry
-    static_geometry_cmd = _device->CreateCommandBuffer();
+    DepthStencilDescriptor desc{true, DepthTestOperation::LESS};
+    static_geometry_cmd = _device->CreateCommandBuffer(desc);
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
 
     VertexLayout layout{};
@@ -116,7 +118,8 @@ void Renderer::OnInit()
     // Skybox
     std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(_device->CreateShader("skybox.vs", Shader::ShaderType::Vertex),
                                                                                  _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
-    skybox_cmd = _device->CreateCommandBuffer();
+    DepthStencilDescriptor desc2{false, DepthTestOperation::LESS_OR_EQUAL};
+    skybox_cmd = _device->CreateCommandBuffer(desc2);
     skybox_cmd->BindShaderObject(skybox_shader);
 
     VertexLayout skybox_layout{};
@@ -311,7 +314,7 @@ void Renderer::OnUpdate(float dlTime)
     skybox_pass();
 
     // Main Pass
-    // static_geometry_pass();
+    static_geometry_pass();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -353,7 +356,6 @@ void Renderer::skybox_pass() const
     if (!_skybox)
         return;
 
-    skybox_cmd->SetDepthWriting(false);
     skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
     skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
     skybox_cmd->BeginRecording();
@@ -377,7 +379,6 @@ void Renderer::static_geometry_pass() const
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
     static_geometry_cmd->BeginRecording();
     static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
-    static_geometry_cmd->SetDepthWriting(true);
 
     static_geometry_cmd->ShaderObject()->Use();
 

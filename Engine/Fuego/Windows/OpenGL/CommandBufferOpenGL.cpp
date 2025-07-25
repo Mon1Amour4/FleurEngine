@@ -13,10 +13,9 @@
 
 namespace Fuego::Graphics
 {
-bool CommandBuffer::depth_writing = true;
-
-CommandBufferOpenGL::CommandBufferOpenGL()
-    : _mainVsShader(-1)
+CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor desc)
+    : CommandBuffer(desc)
+    , _mainVsShader(-1)
     , _pixelShader(-1)
     , _isLinked(false)
     , _isDataAllocated(false)
@@ -38,6 +37,13 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 
 void CommandBufferOpenGL::BeginRecording()
 {
+    if (descriptor.death_test)
+        glDepthMask(true);
+    else
+        glDepthMask(false);
+
+    glDepthFunc(get_death_func_op(descriptor.operation));
+
     glBindVertexArray(_vao);
     _isFree = false;
 }
@@ -189,16 +195,29 @@ int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
     }
 }
 
-void CommandBufferOpenGL::SetDepthWriting(bool enable)
+uint32_t CommandBufferOpenGL::get_death_func_op(DepthTestOperation op) const
 {
-    CommandBuffer::SetDepthWriting(enable);
-    uint32_t gl_flag = 0;
-
-    if (enable)
-        gl_flag = GL_TRUE;
-    else
-        gl_flag = GL_FALSE;
-
-    glDepthMask(gl_flag);
+    switch (op)
+    {
+    case Fuego::Graphics::DepthTestOperation::NEVER:
+        return GL_NEVER;
+    case Fuego::Graphics::DepthTestOperation::LESS:
+        return GL_LESS;
+    case Fuego::Graphics::DepthTestOperation::LESS_OR_EQUAL:
+        return GL_LEQUAL;
+    case Fuego::Graphics::DepthTestOperation::GREATER:
+        return GL_GREATER;
+    case Fuego::Graphics::DepthTestOperation::EQUAL:
+        return GL_EQUAL;
+    case Fuego::Graphics::DepthTestOperation::NOT_EQUAL:
+        return GL_NOTEQUAL;
+    case Fuego::Graphics::DepthTestOperation::GREATER_OR_EQUAL:
+        return GL_GEQUAL;
+    case Fuego::Graphics::DepthTestOperation::ALWAYS:
+        return GL_ALWAYS;
+    default:
+        return GL_LESS;
+    }
 }
+
 }  // namespace Fuego::Graphics
