@@ -134,7 +134,7 @@ SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
 }
 
 // Image:
-SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path)
+SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path, bool flip_vertical)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (path.empty())
@@ -153,7 +153,6 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path)
     if (!res)
         return std::make_shared<Fuego::ResourceHandle<Image2D>>(nullptr, CORRUPTED, WRONG_PATH);
 
-    stbi_set_flip_vertically_on_load(1);
     int w, h, channels = 0;
     unsigned char* img_data = stbi_load(res.value().c_str(), &w, &h, &channels, 0);
     if (!img_data)
@@ -162,6 +161,8 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path)
         return std::make_shared<Fuego::ResourceHandle<Image2D>>(nullptr, CORRUPTED, NO_DATA);
     }
 
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(flip_vertical));
+
     auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
     FU_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
     handle = std::make_shared<Fuego::ResourceHandle<Image2D>>(img, SUCCESS);
@@ -169,7 +170,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path)
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view path)
+SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view path, bool flip_vertical)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (path.empty())
@@ -193,12 +194,11 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view pa
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
     thread_pool->Submit(
-        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle)
+        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle, bool flip_vertical)
         {
             auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
             auto img = handle->Resource();
 
-            stbi_set_flip_vertically_on_load(1);
             int w, h, channels = 0;
 
             std::filesystem::path full_path = img->Name();
@@ -211,6 +211,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view pa
                 return;
             }
 
+            stbi_set_flip_vertically_on_load_thread(static_cast<int>(flip_vertical));
             unsigned char* img_data = stbi_load(res.value().c_str(), &w, &h, &channels, 0);
 
             if (!img_data)
@@ -236,11 +237,11 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view pa
 
             stbi_image_free(img_data);
         },
-        handle);
+        handle, flip_vertical);
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b)
+SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (!data)
@@ -254,7 +255,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view
         return handle;
 
     int w, h, channels = 0;
-    stbi_set_flip_vertically_on_load(0);
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(flip_vertical));
     unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &channels, 0);
 
     if (!img_data)
@@ -267,7 +268,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view
     stbi_image_free(img_data);
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b)
+SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (!data)
@@ -289,7 +290,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
     thread_pool->Submit(
-        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle, unsigned char* data, uint32_t size_b)
+        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> handle, bool flip_vertical, unsigned char* data, uint32_t size_b)
         {
             if (!data)
             {
@@ -298,7 +299,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string
             }
 
             int w, h, channels = 0;
-            stbi_set_flip_vertically_on_load(0);
+            stbi_set_flip_vertically_on_load_thread(static_cast<int>(flip_vertical));
             unsigned char* img_data = stbi_load_from_memory(data, size_b, &w, &h, &channels, 0);
 
             if (!img_data)
@@ -334,7 +335,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string
 
             stbi_image_free(img_data);
         },
-        handle, data, size_b);
+        handle, flip_vertical, data, size_b);
     return handle;
 }
 
@@ -378,7 +379,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromColor(std::string_view 
 }
 
 // CubemapImage:
-SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_view path)
+SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_view path, bool flip_vertical)
 {
     SHARED_RES(CubemapImage) handle{nullptr};
     if (path.empty())
@@ -389,7 +390,7 @@ SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_vi
     if (loaded)
         return handle;
 
-    SHARED_RES(Image2D) image2d = load_image2d(path);
+    SHARED_RES(Image2D) image2d = load_image2d(path, flip_vertical);
 
     auto cubemap_img = cubemap_images.emplace(file_name, std::make_shared<CubemapImage>(image2d->Resource()->GenerateCubemapImage())).first->second;
     ++cubemap_images_count;

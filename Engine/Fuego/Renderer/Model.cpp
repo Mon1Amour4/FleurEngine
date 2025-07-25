@@ -202,9 +202,9 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
 
                     unsigned char* image_data = reinterpret_cast<unsigned char*>(image_buffer->buffer->data) + image_buffer->offset;
                     if (async)
-                        image = assets_manager->LoadImage2DFromMemoryAsync(texture_name, image_data, image_buffer->size);
+                        image = assets_manager->LoadImage2DFromMemoryAsync(texture_name, false, image_data, image_buffer->size);
                     else
-                        image = assets_manager->LoadImage2DFromMemory(texture_name, image_data, image_buffer->size);
+                        image = assets_manager->LoadImage2DFromMemory(texture_name, false, image_data, image_buffer->size);
                 }
                 else if (base_color_texture->image->uri)
                 {

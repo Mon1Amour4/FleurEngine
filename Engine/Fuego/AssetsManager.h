@@ -94,23 +94,23 @@ public:
     AssetsManager();
     ~AssetsManager();
 
-    SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, unsigned char* data, uint32_t size_b);
-    SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, unsigned char* data, uint32_t size_b);
+    SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
+    SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
 
     SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
 
     SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
-    std::shared_ptr<Fuego::ResourceHandle<Res>> Load(std::string_view path, bool async = true)
+    std::shared_ptr<Fuego::ResourceHandle<Res>> Load(std::string_view path, bool flip_vertical = false, bool async = true)
     {
         std::shared_ptr<Fuego::ResourceHandle<Res>> result{nullptr};
         if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fuego::Graphics::Image2D>)
         {
             if (async)
-                return load_image2d_async(path);
+                return load_image2d_async(path, flip_vertical);
             else
-                return load_image2d(path);
+                return load_image2d(path, flip_vertical);
         }
         else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fuego::Graphics::Model>)
         {
@@ -124,7 +124,7 @@ public:
             /*if (async)
                 return load_model_async(path);
             else*/
-            return load_cubemap_image(path);
+            return load_cubemap_image(path, flip_vertical);
         }
         FU_CORE_ASSERT(false, "");
         return std::shared_ptr<Fuego::ResourceHandle<Res>>{};
@@ -212,10 +212,10 @@ private:
     SHARED_RES(Model) load_model(std::string_view path);
     SHARED_RES(Model) load_model_async(std::string_view path);
 
-    SHARED_RES(Image2D) load_image2d(std::string_view path);
-    SHARED_RES(Image2D) load_image2d_async(std::string_view path);
+    SHARED_RES(Image2D) load_image2d(std::string_view path, bool flip_vertical);
+    SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flip_vertical);
 
-    SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path);
+    SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flip_vertical);
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;
