@@ -136,7 +136,12 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
     {
-        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+        glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+        glm::mat4 R = glm::mat4(1.f);
+        glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+        glm::mat4 M = T*R*S;
+
+        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
     }
 
     UNUSED(event);

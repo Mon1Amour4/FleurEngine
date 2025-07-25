@@ -159,7 +159,7 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
         auto it = static_geometry_models.find(model->GetName().data());
         if (it != static_geometry_models.end())
         {
-            it->second.pos = model_pos;
+            it->second.model_matrix = model_pos;
             return;
         }
 
@@ -385,7 +385,7 @@ void Renderer::static_geometry_pass() const
     for (const auto& draw_info : static_geometry_models_vector)
     {
         static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        static_geometry_cmd->ShaderObject()->Set("model", draw_info.pos);
+        static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
         static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
         static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
 

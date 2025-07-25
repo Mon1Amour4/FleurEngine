@@ -35,6 +35,7 @@ concept is_graphic_resource = requires(Resource t) {
 namespace Fuego::Graphics
 {
 
+
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
 public:
@@ -138,7 +139,7 @@ private:
     struct DrawInfo
     {
         const Model* model;
-        glm::mat4 pos;
+        glm::mat4 model_matrix;
         uint32_t index_global_offset_bytes;
         uint32_t vertex_global_offset_bytes;
     };
