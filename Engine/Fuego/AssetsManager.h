@@ -8,6 +8,7 @@
 #include "tbb/concurrent_unordered_map.h"
 
 #define SHARED_RES(Res) std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Res>>
+#define CONST_SHARED_RES(Res) const std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Res>>
 
 namespace Fuego::Graphics
 {
@@ -45,7 +46,7 @@ public:
     ResourceHandle(std::shared_ptr<T> resource)
         : obj(resource)
         , status(status) {};
-
+    ResourceHandle() = default;
     ~ResourceHandle() = default;
 
     LoadingSts Status()
@@ -74,9 +75,13 @@ public:
     {
         failure = fail;
     }
-    std::shared_ptr<T> Resource()
+    const std::shared_ptr<T> Resource() const
     {
         return obj;
+    }
+    void SetResource(std::shared_ptr<T> res)
+    {
+        obj = res;
     }
 
 private:
@@ -94,12 +99,12 @@ public:
     AssetsManager();
     ~AssetsManager();
 
-    SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
-    SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
 
-    SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
 
-    SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
     std::shared_ptr<Fuego::ResourceHandle<Res>> Load(std::string_view path, bool flip_vertical = false, bool async = true)
@@ -121,10 +126,10 @@ public:
         }
         else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fuego::Graphics::CubemapImage>)
         {
-            /*if (async)
-                return load_model_async(path);
-            else*/
-            return load_cubemap_image(path, flip_vertical);
+            if (async)
+                return load_cubemap_image_async(path, flip_vertical);
+            else
+                return load_cubemap_image(path, flip_vertical);
         }
         FU_CORE_ASSERT(false, "");
         return std::shared_ptr<Fuego::ResourceHandle<Res>>{};
@@ -202,20 +207,23 @@ public:
 
 private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Model>> models;
+
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::Image2D>> images2d;
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fuego::Graphics::CubemapImage>> cubemap_images;
 
     //  TODO: What to do with corrupted models?
-    tbb::concurrent_unordered_map<std::string, SHARED_RES(Model)> models_to_load_async;
-    tbb::concurrent_unordered_map<std::string, SHARED_RES(Image2D)> images2d_to_load_async;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Model)> models_to_load_async;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Image2D)> images2d_to_load_async;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(CubemapImage)> cubemap_images_to_load_async;
 
-    SHARED_RES(Model) load_model(std::string_view path);
-    SHARED_RES(Model) load_model_async(std::string_view path);
+    CONST_SHARED_RES(Model) load_model(std::string_view path);
+    CONST_SHARED_RES(Model) load_model_async(std::string_view path);
 
-    SHARED_RES(Image2D) load_image2d(std::string_view path, bool flip_vertical);
-    SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flip_vertical);
 
-    SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flip_vertical);
 
     std::atomic<uint32_t> models_count;
     std::atomic<uint32_t> images2d_count;

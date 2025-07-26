@@ -139,7 +139,7 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
         glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
         glm::mat4 R = glm::mat4(1.f);
         glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-        glm::mat4 M = T*R*S;
+        glm::mat4 M = T * R * S;
 
         renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
     }
@@ -183,11 +183,10 @@ void Application::Init(ApplicationBootSettings& settings)
 
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
-    // assets_manager.value()->Load<Image2D>("skybox.jpg");
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
-    assets_manager.value()->Load<CubemapImage>("skybox.jpg");
+    assets_manager.value()->Load<CubemapImage>("skybox.jpg", true);
     assets_manager.value()->Load<Image2D>("left.jpg");
     assets_manager.value()->Load<Image2D>("front.jpg");
     assets_manager.value()->Load<Image2D>("right.jpg");

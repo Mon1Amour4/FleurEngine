@@ -29,7 +29,7 @@ Fuego::AssetsManager::~AssetsManager()
 }
 
 // Models:
-SHARED_RES(Model) Fuego::AssetsManager::load_model(std::string_view path)
+CONST_SHARED_RES(Model) Fuego::AssetsManager::load_model(std::string_view path)
 {
     SHARED_RES(Model) handle{nullptr};
     if (path.empty())
@@ -60,17 +60,17 @@ SHARED_RES(Model) Fuego::AssetsManager::load_model(std::string_view path)
         return handle;
     }
     result = cgltf_load_buffers(&options, data, res->c_str());
-    std::shared_ptr<Model> model;
+    handle = std::make_shared<Fuego::ResourceHandle<Model>>(std::make_shared<Model>(data));
+    handle->SetSuccess();
     models.emplace(std::move(file_name), handle->Resource());
     ++models_count;
-    handle->SetSuccess();
 
-    FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), model->GetName());
+    FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), handle->Resource()->GetName());
+
     cgltf_free(data);
-
     return handle;
 }
-SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
+CONST_SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
 {
     SHARED_RES(Model) handle{nullptr};
     if (path.empty())
@@ -86,12 +86,12 @@ SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
             return it->second;
     }
 
-    handle = models_to_load_async.emplace(file_name, std::make_shared<Fuego::ResourceHandle<Model>>(std::make_shared<Model>(file_name))).first->second;
+    handle = models_to_load_async.emplace(file_name, std::make_shared<Fuego::ResourceHandle<Model>>(nullptr)).first->second;
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
     thread_pool->Submit(
-        [this](std::string_view path, std::shared_ptr<Fuego::ResourceHandle<Model>> handle)
+        [this](std::string_view path, std::string_view file_name, std::shared_ptr<Fuego::ResourceHandle<Model>> handle)
         {
             handle->SetStatus(LoadingSts::LOADING);
 
@@ -113,13 +113,19 @@ SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
                 return;
             }
             result = cgltf_load_buffers(&options, data, res->c_str());
-            handle->Resource()->PostLoad(data);
-            auto model = models.emplace(handle->Resource()->GetName(), handle->Resource()).first->second;
-            FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), model->GetName());
-            ++models_count;
-            handle->SetSuccess();
+            if (result != cgltf_result_success)
+            {
+                handle->SetCorrupted(NO_DATA);
+                return;
+            }
 
-            auto it = models_to_load_async.find(handle->Resource()->GetName().data());
+            handle->SetResource(std::make_shared<Model>(data));
+            handle->SetSuccess();
+            models.emplace(file_name, handle->Resource());
+            FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), file_name);
+            ++models_count;
+
+            auto it = models_to_load_async.find(file_name.data());
             if (it != models_to_load_async.end())
             {
                 std::mutex mtx;
@@ -128,13 +134,13 @@ SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view path)
             }
             cgltf_free(data);
         },
-        path, handle);
+        path, file_name, handle);
 
     return handle;
 }
 
 // Image:
-SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path, bool flip_vertical)
+CONST_SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path, bool flip_vertical)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (path.empty())
@@ -170,7 +176,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d(std::string_view path, bo
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view path, bool flip_vertical)
+CONST_SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view path, bool flip_vertical)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (path.empty())
@@ -241,7 +247,7 @@ SHARED_RES(Image2D) Fuego::AssetsManager::load_image2d_async(std::string_view pa
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
+CONST_SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
 {
     SHARED_RES(Image2D) handle{nullptr};
     if (!data)
@@ -268,9 +274,9 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemory(std::string_view
     stbi_image_free(img_data);
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
+CONST_SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b)
 {
-    SHARED_RES(Image2D) handle{nullptr};
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> handle{nullptr};
     if (!data)
         return handle;
 
@@ -339,9 +345,10 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromMemoryAsync(std::string
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height)
+CONST_SHARED_RES(Image2D)
+Fuego::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height)
 {
-    SHARED_RES(Image2D) handle{nullptr};
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> handle{nullptr};
     if (!data || name.empty())
         return handle;
 
@@ -358,10 +365,11 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromRawData(std::string_vie
     return handle;
 }
 
-SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height)
+CONST_SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromColor(std::string_view name, Fuego::Graphics::Color color, uint32_t width, uint32_t height)
 {
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::Image2D>> handle{nullptr};
     if (name.empty())
-        return SHARED_RES(Image2D){nullptr};
+        return handle;
 
     uint32_t channels = Fuego::Graphics::Color::Channels(color);
     size_t size = width * height * channels;
@@ -379,9 +387,9 @@ SHARED_RES(Image2D) Fuego::AssetsManager::LoadImage2DFromColor(std::string_view 
 }
 
 // CubemapImage:
-SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_view path, bool flip_vertical)
+CONST_SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_view path, bool flip_vertical)
 {
-    SHARED_RES(CubemapImage) handle{nullptr};
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::CubemapImage>> handle{nullptr};
     if (path.empty())
         return handle;
 
@@ -395,6 +403,56 @@ SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::string_vi
     auto cubemap_img = cubemap_images.emplace(file_name, std::make_shared<CubemapImage>(image2d->Resource()->GenerateCubemapImage())).first->second;
     ++cubemap_images_count;
     FU_CORE_INFO("CubemapImage was emplaced: {0}", cubemap_img->Name());
+}
+
+CONST_SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image_async(std::string_view path, bool flip_vertical)
+{
+    std::shared_ptr<Fuego::ResourceHandle<Fuego::Graphics::CubemapImage>> handle{nullptr};
+    if (path.empty())
+        return handle;
+
+    SHARED_RES(Image2D) image_handle = load_image2d_async(path, flip_vertical);
+
+    auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
+
+    handle = cubemap_images_to_load_async.emplace(path, std::make_shared<Fuego::ResourceHandle<CubemapImage>>()).first->second;
+
+    thread_pool->Submit(
+        [this](std::shared_ptr<Fuego::ResourceHandle<Image2D>> img_handle, std::shared_ptr<Fuego::ResourceHandle<CubemapImage>> cubemap_handle,
+               bool flip_vertical)
+        {
+            auto fs = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>();
+
+            while (img_handle->Status() != LoadingSts::SUCCESS && img_handle->Status() != LoadingSts::CORRUPTED)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+
+            if (img_handle->Status() == LoadingSts::CORRUPTED)
+            {
+                cubemap_handle->SetCorrupted(img_handle->FailureReason().value());
+                return;
+            }
+
+            Fuego::Graphics::CubemapImage cubemap = img_handle->Resource()->GenerateCubemapImage();
+            cubemap_handle->SetResource(std::make_shared<CubemapImage>(std::move(cubemap)));
+            cubemap_handle->SetSuccess();
+
+            auto image = cubemap_images.emplace(cubemap_handle->Resource()->Name().data(), cubemap_handle->Resource());
+
+            FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cubemap.Name());
+            ++cubemap_images_count;
+
+            auto it = cubemap_images_to_load_async.find(cubemap_handle->Resource()->Name().data());
+            if (it != cubemap_images_to_load_async.end())
+            {
+                std::mutex mtx;
+                std::lock_guard<std::mutex> lock(mtx);
+                cubemap_images_to_load_async.unsafe_erase(it);
+            }
+        },
+        image_handle, handle, flip_vertical);
+    return handle;
 }
 
 // Other:

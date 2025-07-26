@@ -233,7 +233,7 @@ void Renderer::OnUpdate(float dlTime)
 
     auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
     static Fuego::Graphics::CubemapInitData skybox_images;
-    //auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+
     auto left = assets_manager->Get<Image2D>("left");
     if (!left.expired())
     {
@@ -252,11 +252,16 @@ void Renderer::OnUpdate(float dlTime)
                         auto top = assets_manager->Get<Image2D>("top");
                         if (!top.expired())
                         {
-                            Fuego::Graphics::CubemapInitData skybox_images{right.lock(), left.lock(), top.lock(), bottom.lock(), back.lock(), front.lock()};
-                            is_created = true;
+                            auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+                            if (!cubemap.expired())
                             {
-                                auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
-                                // clang-format off
+                                Fuego::Graphics::CubemapInitData skybox_images{right.lock(), left.lock(), top.lock(), bottom.lock(), back.lock(), front.lock()};
+                                is_created = true;
+                                {
+                                    // auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
+                                    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+                                    auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
+                                    // clang-format off
                                 float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0
                                     -1.0f, -1.0f, -1.0f, // 1
                                      1.0f, -1.0f, -1.0f, // 2
@@ -300,6 +305,7 @@ void Renderer::OnUpdate(float dlTime)
                                     _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
                                     skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
                                     is_created2 = true;
+                                }
                                 }
                             }
                         }
