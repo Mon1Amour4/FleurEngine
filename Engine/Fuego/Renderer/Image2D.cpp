@@ -137,22 +137,22 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 switch (face)
                 {
                 case 0:
-                    direction = glm::vec3(1.f, normalized_v, -normalized_u);
+                    direction = glm::vec3(1.f, normalized_v, -normalized_u);  // POSITIVE_X
                     break;
                 case 1:
-                    direction = glm::vec3(-1.f, normalized_v, normalized_u);
+                    direction = glm::vec3(-1.f, normalized_v, normalized_u);  // NEGATIVE_X
                     break;
                 case 2:
-                    direction = glm::vec3(normalized_u, 1.f, normalized_v);
+                    direction = glm::vec3(normalized_u, -1.f, -normalized_v);  // POSITIVE_Y
                     break;
                 case 3:
-                    direction = glm::vec3(normalized_u, -1.f, -normalized_v);
+                    direction = glm::vec3(normalized_u, 1.f, normalized_v);  // NEGATIVE_Y
                     break;
                 case 4:
-                    direction = glm::vec3(normalized_u, normalized_v, 1.f);
+                    direction = glm::vec3(normalized_u, normalized_v, 1.f);  // POSITIVE_Z
                     break;
                 case 5:
-                    direction = glm::vec3(-normalized_u, normalized_v, -1.f);
+                    direction = glm::vec3(-normalized_u, normalized_v, -1.f);  // NEGATIVE_Z
                     break;
                 }
 
