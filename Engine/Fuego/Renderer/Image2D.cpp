@@ -1,7 +1,9 @@
 #include "Image2D.h"
 
 #include "Color.h"
+#include "Image2D.h"
 #include "Services/ServiceLocator.h"
+
 
 // ImageBase
 Fuego::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t layers)
@@ -28,6 +30,50 @@ Fuego::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ex
     , size_bytes(width * height * channels * depth * layers)
     , is_created(false)
 {
+}
+
+Fuego::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
+    : name(std::move(other.name))
+    , extension(std::move(other.extension))
+    , width(other.width)
+    , height(other.height)
+    , channels(other.channels)
+    , depth(other.depth)
+    , layers(other.layers)
+    , size_bytes(other.size_bytes)
+    , is_created(other.is_created)
+{
+    other.width = 0;
+    other.height = 0;
+    other.channels = 0;
+    other.depth = 0;
+    other.layers = 0;
+    other.size_bytes = 0;
+    other.is_created = false;
+}
+Fuego::Graphics::ImageBase& Fuego::Graphics::ImageBase::operator=(ImageBase&& other) noexcept
+{
+    if (this != &other)
+    {
+        name = std::move(other.name);
+        extension = std::move(other.extension);
+        width = other.width;
+        height = other.height;
+        channels = other.channels;
+        depth = other.depth;
+        layers = other.layers;
+        size_bytes = other.size_bytes;
+        is_created = other.is_created;
+
+        other.width = 0;
+        other.height = 0;
+        other.channels = 0;
+        other.depth = 0;
+        other.layers = 0;
+        other.size_bytes = 0;
+        other.is_created = false;
+    }
+    return *this;
 }
 
 // Image2D:
@@ -190,6 +236,25 @@ Fuego::Graphics::CubemapImage::CubemapImage(std::array<Image2D, 6>&& in_faces)
 {
     faces = std::move(in_faces);
 }
+Fuego::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext)
+    : ImageBase(name, ext, 6)
+{
+}
+
+Fuego::Graphics::CubemapImage& Fuego::Graphics::CubemapImage::operator=(CubemapImage&& other) noexcept
+{
+    if (this != &other)
+    {
+        ImageBase::operator=(std::move(other));
+        faces = std::move(other.faces);
+    }
+    return *this;
+}
+Fuego::Graphics::CubemapImage::CubemapImage(CubemapImage&& other) noexcept
+    : ImageBase(std::move(other))
+    , faces(std::move(other.faces))
+{
+}
 
 const Fuego::Graphics::Image2D& Fuego::Graphics::CubemapImage::GetFace(Face face) const
 {
@@ -220,8 +285,8 @@ void Fuego::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
     FU_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
 
     ImageBase::PostCreate(settings);
-
-    // uint32_t data_chank_size = settings.width * settings.height * settings.channels * settings.depth*;
+    // faces = reinterpret_cast<const std::array<Fuego::Graphics::Image2D, 6>*>(settings.data);
+    //  uint32_t data_chank_size = settings.width * settings.height * settings.channels * settings.depth*;
     /* for (size_t i = 0; i < layers; i++)
      {
          Bitmap<BitmapFormat_UnsignedByte> bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);

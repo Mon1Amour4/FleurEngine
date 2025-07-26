@@ -22,6 +22,12 @@ class ImageBase
 public:
     virtual ~ImageBase() = default;
 
+    ImageBase(const ImageBase&) = delete;
+    ImageBase& operator=(const ImageBase&) = delete;
+
+    ImageBase(ImageBase&& other) noexcept;
+    ImageBase& operator=(ImageBase&& other) noexcept;
+
     std::string_view Name() const
     {
         return name;
@@ -143,8 +149,15 @@ public:
     };
 
     CubemapImage(std::array<Image2D, 6>&& faces);
+    CubemapImage(std::string_view name, std::string_view ext);
 
-    const Image2D& GetFace(Face face) const;
+    CubemapImage& operator=(const Image2D& other) = delete;
+    CubemapImage(const CubemapImage& other) = delete;
+
+    CubemapImage& operator=(CubemapImage&& other) noexcept;
+    CubemapImage(CubemapImage&& other) noexcept;
+
+    const Fuego::Graphics::Image2D& GetFace(Face face) const;
 
     const Image2D* Data() const;
 
