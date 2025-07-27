@@ -212,6 +212,13 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirec
                                            equirectangular->Height(), 6);
 }
 
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemap_image) const
+{
+    return std::make_shared<TextureOpenGL>(cubemap_image->Name(), cubemap_image->Ext(), reinterpret_cast<const unsigned char*>(cubemap_image->Data()),
+                                           Texture::GetTextureFormat(cubemap_image->Channels(), cubemap_image->Depth()), cubemap_image->Width(),
+                                           cubemap_image->Height(), 6);
+}
+
 std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
 {
     return std::make_shared<TextureOpenGL>(name, images.right->Ext(), images, Texture::GetTextureFormat(images.right->Channels(), images.right->Depth()),

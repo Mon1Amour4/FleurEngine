@@ -253,13 +253,14 @@ void Renderer::OnUpdate(float dlTime)
                         if (!top.expired())
                         {
                             auto cubemap = assets_manager->Get<CubemapImage>("skybox");
-                            if (!cubemap.expired())
+                            if (!cubemap.expired() && !is_created)
                             {
                                 Fuego::Graphics::CubemapInitData skybox_images{right.lock(), left.lock(), top.lock(), bottom.lock(), back.lock(), front.lock()};
                                 is_created = true;
                                 {
                                     // auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
-                                    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+                                    // auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+                                    auto cubemap = assets_manager->Get<Image2D>("skybox_cubemap");
                                     auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
                                     // clang-format off
                                 float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0

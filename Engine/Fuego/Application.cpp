@@ -193,6 +193,7 @@ void Application::Init(ApplicationBootSettings& settings)
     assets_manager.value()->Load<Image2D>("back.jpg");
     assets_manager.value()->Load<Image2D>("bottom.jpg");
     assets_manager.value()->Load<Image2D>("top.jpg");
+    assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");
 
     initialized = true;
     m_Running = true;
