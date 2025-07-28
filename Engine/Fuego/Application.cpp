@@ -186,6 +186,7 @@ void Application::Init(ApplicationBootSettings& settings)
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+
     assets_manager.value()->Load<CubemapImage>("skybox.jpg", true);
     assets_manager.value()->Load<Image2D>("left.jpg");
     assets_manager.value()->Load<Image2D>("front.jpg");
@@ -193,7 +194,7 @@ void Application::Init(ApplicationBootSettings& settings)
     assets_manager.value()->Load<Image2D>("back.jpg");
     assets_manager.value()->Load<Image2D>("bottom.jpg");
     assets_manager.value()->Load<Image2D>("top.jpg");
-    assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");
+    assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
     initialized = true;
     m_Running = true;

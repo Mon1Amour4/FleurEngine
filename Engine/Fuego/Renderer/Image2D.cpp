@@ -161,17 +161,31 @@ void Fuego::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
     is_created = true;
 }
 
-Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() const
+Fuego::Graphics::Image2D Fuego::Graphics::Image2D::FromEquirectangularToCross() const
 {
     uint32_t face_size = width / 4;
     constexpr float pi = glm::pi<float>();
 
-    std::array<Image2D, 6> out_faces;
-
-    for (size_t face = 0; face < 6; face++)
+    uint32_t stride = width * channels;
+    Bitmap<BitmapFormat_UnsignedByte> out_bitmap(face_size * 4, face_size * 3, channels);
+    struct FacePos
     {
-        Bitmap<BitmapFormat_UnsignedByte> new_bitmap(face_size, face_size, 3);
-
+        int x, y;
+    };
+    std::map<int, FacePos> facePos = {
+        {6, {2, 1}},  // POSITIVE_X
+        {4, {0, 1}},  // NEGATIVE_X
+        {1, {1, 0}},  // POSITIVE_Y
+        {9, {1, 2}},  // NEGATIVE_Y
+        {7, {1, 1}},  // POSITIVE_Z
+        {5, {3, 1}}   // NEGATIVE_Z
+    };
+    for (size_t face = 0; face < 12; face++)
+    {
+        if (face == 0 || face == 2 || face == 3 || face == 8 || face == 10 || face == 11)
+        {
+            continue;
+        }
         for (size_t coord_u = 0; coord_u < face_size; coord_u++)
         {
             for (size_t coord_v = 0; coord_v < face_size; coord_v++)
@@ -182,19 +196,19 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 glm::vec3 direction;
                 switch (face)
                 {
-                case 0:
+                case 6:
                     direction = glm::vec3(1.f, normalized_v, -normalized_u);  // POSITIVE_X
                     break;
-                case 1:
+                case 4:
                     direction = glm::vec3(-1.f, normalized_v, normalized_u);  // NEGATIVE_X
                     break;
-                case 2:
+                case 1:
                     direction = glm::vec3(normalized_u, -1.f, -normalized_v);  // POSITIVE_Y
                     break;
-                case 3:
+                case 9:
                     direction = glm::vec3(normalized_u, 1.f, normalized_v);  // NEGATIVE_Y
                     break;
-                case 4:
+                case 7:
                     direction = glm::vec3(normalized_u, normalized_v, 1.f);  // POSITIVE_Z
                     break;
                 case 5:
@@ -220,12 +234,50 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::GenerateCubemapImage() c
                 float V1 = std::clamp(int(roundf(V)), 0, MaxH);
 
                 glm::vec4 color = bitmap.GetPixel(U1, V1);
-                new_bitmap.SetPixel(coord_u, coord_v, color);
+                int out_x = facePos[face].x * face_size + coord_u;
+                int out_y = facePos[face].y * face_size + coord_v;
+                out_bitmap.SetPixel(out_x, out_y, color);
             }
         }
-        out_faces[face] = std::move(Image2D(name, extension, std::move(new_bitmap), face_size, face_size, channels, depth));
     }
-    return CubemapImage(std::move(out_faces));
+    return Image2D(name + "_cross_layout", extension, reinterpret_cast<unsigned char*>(out_bitmap.Data()), face_size * 4, face_size * 3, channels, depth);
+}
+
+Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::FromCrossToCubemap() const
+{
+    std::array<Image2D, 6> out_faces;
+
+    uint32_t face_size = width / 4;
+    auto get_stride = [this](TextureFormat format)
+    {
+        switch (format)
+        {
+        case TextureFormat::RGB8:
+            return 3;
+        case TextureFormat::RGBA8:
+            return 4;
+        }
+    };
+    uint32_t stride = get_stride(Texture::GetTextureFormat(channels, depth));
+
+    auto upload_face = [this](std::array<Image2D, 6>& array, const unsigned char* buffer, uint32_t start_x, uint32_t start_y, uint32_t face_size,
+                              uint32_t width, uint32_t stride, uint32_t in_face, uint32_t out_face)
+    {
+        for (size_t i = 0; i < face_size; i++)
+        {
+            // array[out_face].bitmap.SetPixel()
+        }
+        uint32_t row_stride = width * stride;
+        const uint8_t* base = buffer + (start_y * width + start_x) * stride;
+    };
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), face_size, 0, face_size, width, stride, 2, 0);              // top
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), 0, face_size, face_size, width, stride, 1, 1);              // left
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), face_size, face_size, face_size, width, stride, 4, 2);      // front
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), face_size * 2, face_size, face_size, width, stride, 0, 3);  // right
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), face_size * 3, face_size, face_size, width, stride, 5, 4);  // back
+    // upload_face(out_faces, reinterpret_cast<const unsigned char*>(bitmap.Data()), face_size, face_size * 2, face_size, width, stride, 3, 5);  // bottom
+
+    return Fuego::Graphics::CubemapImage("", "");
 }
 
 

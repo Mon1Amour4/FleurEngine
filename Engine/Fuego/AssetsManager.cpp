@@ -5,6 +5,10 @@
 #include "External/cgltf/cgltf.h"
 #endif
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "../External/stb_image/stb_image_write.h"
+
+// #define STB_IMAGE_IMPLEMENTATION
 #include "External/stb_image/stb_image.h"
 #include "FileSystem/FileSystem.h"
 #include "Services/ServiceLocator.h"
@@ -399,8 +403,8 @@ CONST_SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image(std::str
         return handle;
 
     SHARED_RES(Image2D) image2d = load_image2d(path, flip_vertical);
-
-    auto cubemap_img = cubemap_images.emplace(file_name, std::make_shared<CubemapImage>(image2d->Resource()->GenerateCubemapImage())).first->second;
+    Fuego::Graphics::Image2D cross_layout = image2d->Resource()->FromEquirectangularToCross();
+    auto cubemap_img = cubemap_images.emplace(file_name, std::make_shared<CubemapImage>(cross_layout.FromCrossToCubemap())).first->second;
     ++cubemap_images_count;
     FU_CORE_INFO("CubemapImage was emplaced: {0}", cubemap_img->Name());
 }
@@ -434,13 +438,37 @@ CONST_SHARED_RES(CubemapImage) Fuego::AssetsManager::load_cubemap_image_async(st
                 return;
             }
 
-            Fuego::Graphics::CubemapImage cubemap = img_handle->Resource()->GenerateCubemapImage();
-            cubemap_handle->SetResource(std::make_shared<CubemapImage>(std::move(cubemap)));
-            cubemap_handle->SetSuccess();
 
-            auto image = cubemap_images.emplace(cubemap_handle->Resource()->Name().data(), cubemap_handle->Resource());
+            // Determine is it cross layout or equirectangular image:
+            uint32_t image_ration = img_handle->Resource()->Width() / img_handle->Resource()->Height();
+            if (image_ration == 2)
+            {
+                // equirectangular image
+                auto cross_layout = images2d
+                                        .emplace(img_handle->Resource()->Name().data() + std::string("_cross_layout"),
+                                                 std::make_shared<Image2D>(img_handle->Resource()->FromEquirectangularToCross()))
+                                        .first->second;
 
-            FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cubemap.Name());
+
+                stbi_write_jpg("D:\\Engine\\GameEngine\\Sandbox\\Resources\\Images\\MyTestCross.jpg", cross_layout->Width(), cross_layout->Height(),
+                               cross_layout->Channels(), cross_layout->Data(), 100 /* 1-100 */);
+
+                FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cross_layout->Name());
+                ++images2d_count;
+                Fuego::Graphics::CubemapImage cubemap = cross_layout->FromCrossToCubemap();
+                cubemap_handle->SetResource(std::make_shared<CubemapImage>(std::move(cubemap)));
+                cubemap_handle->SetSuccess();
+            }
+            else
+            {
+                Fuego::Graphics::CubemapImage cubemap = img_handle->Resource()->FromCrossToCubemap();
+                cubemap_handle->SetResource(std::make_shared<CubemapImage>(std::move(cubemap)));
+                cubemap_handle->SetSuccess();
+            }
+
+            auto image = cubemap_images.emplace(cubemap_handle->Resource()->Name(), cubemap_handle->Resource());
+
+            FU_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cubemap_handle->Resource()->Name());
             ++cubemap_images_count;
 
             auto it = cubemap_images_to_load_async.find(cubemap_handle->Resource()->Name().data());

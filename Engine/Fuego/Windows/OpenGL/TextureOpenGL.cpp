@@ -178,53 +178,28 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
     FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
 
-    uint32_t face_size = width / 4;
-    uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
-    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
 
-    auto get_stride = [this](TextureFormat format)
-    {
-        switch (format)
-        {
-        case TextureFormat::RGB8:
-            return 3;
-        case TextureFormat::RGBA8:
-            return 4;
-        }
-    };
-    uint32_t stride = get_stride(format);
+    // uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
+    // glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
 
-    auto upload_face =
-        [this](const unsigned char* buffer, uint32_t start_x, uint32_t start_y, uint32_t face_size, uint32_t width, uint32_t stride, uint32_t face)
-    {
-        uint32_t row_stride = width * stride;
-        const uint8_t* base = buffer + (start_y * width + start_x) * stride;
 
-        for (size_t row = 0; row < face_size; row++)
-        {
-            const void* row_ptr = base + row * row_stride;
-            glTextureSubImage3D(texture_id,
-                                0,                         // mipmap level
-                                0,                         // xoffset
-                                row,                       // yoffset
-                                face,                      // zoffset = face index
-                                face_size,                 // width
-                                1,                         // height
-                                1,                         // depth = 1
-                                get_pixel_format(format),  // format
-                                GL_UNSIGNED_BYTE,
-                                reinterpret_cast<const void*>(row_ptr)  // pointer to data
-            );
-        }
-    };
-    // clang-format off
-    upload_face(buffer, face_size,      0,              face_size, width, stride, 2);  // top
-    upload_face(buffer, 0,              face_size,      face_size, width, stride, 1);  // left
-    upload_face(buffer, face_size,      face_size,      face_size, width, stride, 4);  // front
-    upload_face(buffer, face_size * 2,  face_size,      face_size, width, stride, 0);  // right
-    upload_face(buffer, face_size * 3,  face_size,      face_size, width, stride, 5);  // back
-    upload_face(buffer, face_size,      face_size * 2,  face_size, width, stride, 3);  // bottom
-    // clang-format on
+    // for (size_t row = 0; row < face_size; row++)
+    //{
+    //     const void* row_ptr = base + row * row_stride;
+    //     glTextureSubImage3D(texture_id,
+    //                         0,                         // mipmap level
+    //                         0,                         // xoffset
+    //                         row,                       // yoffset
+    //                         face,                      // zoffset = face index
+    //                         face_size,                 // width
+    //                         1,                         // height
+    //                         1,                         // depth = 1
+    //                         get_pixel_format(format),  // format
+    //                         GL_UNSIGNED_BYTE,
+    //                         reinterpret_cast<const void*>(row_ptr)  // pointer to data
+    //     );
+    // }
+
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);

@@ -126,7 +126,8 @@ public:
 
     virtual void PostCreate(ImagePostCreation& settings) override;
 
-    CubemapImage GenerateCubemapImage() const;
+    Image2D FromEquirectangularToCross() const;
+    CubemapImage FromCrossToCubemap() const;
 
 private:
     Bitmap<BitmapFormat_UnsignedByte> bitmap;

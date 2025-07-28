@@ -259,8 +259,8 @@ void Renderer::OnUpdate(float dlTime)
                                 is_created = true;
                                 {
                                     // auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
-                                    // auto cubemap = assets_manager->Get<CubemapImage>("skybox");
-                                    auto cubemap = assets_manager->Get<Image2D>("skybox_cubemap");
+                                    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
+                                    // auto cubemap = assets_manager->Get<Image2D>("skybox_cubemap");
                                     auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
                                     // clang-format off
                                 float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0
