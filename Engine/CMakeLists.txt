@@ -47,6 +47,7 @@ SET(ENGINE_HEADERS
     Fuego/Scene.h
     # Third Party
     External/stb_image/stb_image.h
+    External/stb_image/stb_image_write.h
     # Generated Code
     ${SCENE_GENERATED_PROTO_HDRS}
     # Main Headers
