@@ -21,9 +21,8 @@ public:
     TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers);
     TextureOpenGL(std::string_view name, std::string_view ext, const unsigned char* buffer, TextureFormat format, uint32_t width, uint32_t height,
                   uint32_t layers);
-    TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format,
-                  uint32_t width, uint32_t height,
-                  uint32_t layers);
+    TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format, uint32_t width,
+                  uint32_t height, uint32_t layers);
 
 private:
     uint32_t texture_unit;
@@ -35,7 +34,7 @@ private:
     uint32_t get_pixel_format(TextureFormat format, bool inverted = false);
 
     void create_texture_2d(const unsigned char* buffer);
-    void create_cubemap(const unsigned char* buffer);
+    void create_cubemap(uint32_t face_size, const unsigned char* buffer);
     void create_cubemap_from_images(const Fuego::Graphics::CubemapInitData& images);
 };
 

@@ -187,7 +187,7 @@ void Application::Init(ApplicationBootSettings& settings)
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
-    assets_manager.value()->Load<CubemapImage>("skybox.jpg", true);
+    assets_manager.value()->Load<CubemapImage>("skybox.jpg");
     assets_manager.value()->Load<Image2D>("left.jpg");
     assets_manager.value()->Load<Image2D>("front.jpg");
     assets_manager.value()->Load<Image2D>("right.jpg");

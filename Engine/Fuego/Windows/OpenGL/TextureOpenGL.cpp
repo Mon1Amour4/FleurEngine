@@ -20,7 +20,7 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     if (layers == 1)
         create_texture_2d(buffer);
     else if (layers == 6)
-        create_cubemap(buffer);
+        create_cubemap(width, buffer);
 
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
@@ -55,7 +55,7 @@ void Fuego::Graphics::TextureOpenGL::PostCreate(ImagePostCreation& settings)
     if (layers == 1)
         create_texture_2d(reinterpret_cast<const unsigned char*>(settings.data));
     else if (layers == 6)
-        create_cubemap(reinterpret_cast<const unsigned char*>(settings.data));
+        create_cubemap(width, reinterpret_cast<const unsigned char*>(settings.data));
 
     glGenerateTextureMipmap(texture_id);
 
@@ -169,7 +169,7 @@ void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
     glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
-void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
+void Fuego::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const unsigned char* buffer)
 {
     FU_CORE_ASSERT(layers == 6, "");
     const Fuego::Graphics::Image2D* images = reinterpret_cast<const Fuego::Graphics::Image2D*>(buffer);
@@ -179,26 +179,28 @@ void Fuego::Graphics::TextureOpenGL::create_cubemap(const unsigned char* buffer)
     FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
 
 
-    // uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
-    // glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
+    uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
 
 
-    // for (size_t row = 0; row < face_size; row++)
-    //{
-    //     const void* row_ptr = base + row * row_stride;
-    //     glTextureSubImage3D(texture_id,
-    //                         0,                         // mipmap level
-    //                         0,                         // xoffset
-    //                         row,                       // yoffset
-    //                         face,                      // zoffset = face index
-    //                         face_size,                 // width
-    //                         1,                         // height
-    //                         1,                         // depth = 1
-    //                         get_pixel_format(format),  // format
-    //                         GL_UNSIGNED_BYTE,
-    //                         reinterpret_cast<const void*>(row_ptr)  // pointer to data
-    //     );
-    // }
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        const auto& img = images + face;
+        FU_CORE_ASSERT(img && img->Data(), "Cubemap image is null or has no data");
+
+        glTextureSubImage3D(texture_id,
+                            0,                         // mipmap level
+                            0,                         // xoffset
+                            0,                         // yoffset
+                            face,                      // zoffset = face index
+                            width,                     // width
+                            height,                    // height
+                            1,                         // depth = 1
+                            get_pixel_format(format),  // format
+                            GL_UNSIGNED_BYTE,
+                            reinterpret_cast<const void*>(img->Data())  // pointer to data
+        );
+    }
 
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);

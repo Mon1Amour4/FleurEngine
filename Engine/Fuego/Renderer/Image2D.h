@@ -115,6 +115,7 @@ public:
 
     Image2D(std::string_view name, std::string_view ext);
     Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, std::string_view ext, int w, int h, uint16_t channels, uint16_t depth);
 
     Image2D& operator=(const Image2D& other) = delete;
     Image2D(const Image2D& other) = delete;
@@ -149,7 +150,7 @@ public:
         Back = 5     // -Z
     };
 
-    CubemapImage(std::array<Image2D, 6>&& faces);
+    CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>& faces);
     CubemapImage(std::string_view name, std::string_view ext);
 
     CubemapImage& operator=(const Image2D& other) = delete;

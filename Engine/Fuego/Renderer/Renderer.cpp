@@ -228,94 +228,61 @@ bool Renderer::IsVSync()
 void Renderer::OnUpdate(float dlTime)
 {
     toolchain->Update();
-    static bool is_created = false;
-    static bool is_created2 = false;
+    static bool is_skybox_created = false;
 
     auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
     static Fuego::Graphics::CubemapInitData skybox_images;
 
-    auto left = assets_manager->Get<Image2D>("left");
-    if (!left.expired())
     {
-        auto front = assets_manager->Get<Image2D>("front");
-        if (!front.expired())
+        auto cubemap = assets_manager->Get<CubemapImage>("skybox_cross_layout_cubemap");
+        if (!cubemap.expired() && !is_skybox_created)
         {
-            auto right = assets_manager->Get<Image2D>("right");
-            if (!right.expired())
-            {
-                auto back = assets_manager->Get<Image2D>("back");
-                if (!back.expired())
-                {
-                    auto bottom = assets_manager->Get<Image2D>("bottom");
-                    if (!bottom.expired())
-                    {
-                        auto top = assets_manager->Get<Image2D>("top");
-                        if (!top.expired())
-                        {
-                            auto cubemap = assets_manager->Get<CubemapImage>("skybox");
-                            if (!cubemap.expired() && !is_created)
-                            {
-                                Fuego::Graphics::CubemapInitData skybox_images{right.lock(), left.lock(), top.lock(), bottom.lock(), back.lock(), front.lock()};
-                                is_created = true;
-                                {
-                                    // auto cube_map_texture = _device->CreateCubemap("MySkybox", skybox_images);
-                                    auto cubemap = assets_manager->Get<CubemapImage>("skybox");
-                                    // auto cubemap = assets_manager->Get<Image2D>("skybox_cubemap");
-                                    auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
-                                    // clang-format off
-                                float skyboxVertices[] = {  -1.0f,  1.0f, -1.0f, // 0
-                                    -1.0f, -1.0f, -1.0f, // 1
-                                     1.0f, -1.0f, -1.0f, // 2
-                                     1.0f, -1.0f, -1.0f, // 3
-                                     1.0f,  1.0f, -1.0f, // 4
-                                    -1.0f,  1.0f, -1.0f, // 5
-                                    -1.0f, -1.0f,  1.0f, // 6
-                                    -1.0f, -1.0f, -1.0f, // 7
-                                    -1.0f,  1.0f, -1.0f, // 8
-                                    -1.0f,  1.0f, -1.0f, // 9
-                                    -1.0f,  1.0f,  1.0f, // 10
-                                    -1.0f, -1.0f,  1.0f, // 11
-                                     1.0f, -1.0f, -1.0f, // 12
-                                     1.0f, -1.0f,  1.0f, // 13
-                                     1.0f,  1.0f,  1.0f, // 14
-                                     1.0f,  1.0f,  1.0f, // 15
-                                     1.0f,  1.0f, -1.0f, // 16
-                                     1.0f, -1.0f, -1.0f, // 17
-                                    -1.0f, -1.0f,  1.0f, // 18 
-                                    -1.0f,  1.0f,  1.0f, // 19
-                                     1.0f,  1.0f,  1.0f, // 20
-                                     1.0f,  1.0f,  1.0f, // 21
-                                     1.0f, -1.0f,  1.0f, // 22
-                                    -1.0f, -1.0f,  1.0f, // 23
-                                    -1.0f,  1.0f, -1.0f, // 24
-                                     1.0f,  1.0f, -1.0f, // 25
-                                     1.0f,  1.0f,  1.0f, // 26
-                                     1.0f,  1.0f,  1.0f, // 27
-                                    -1.0f,  1.0f,  1.0f, // 28
-                                    -1.0f,  1.0f, -1.0f, // 29
-                                    -1.0f, -1.0f, -1.0f, // 30
-                                    -1.0f, -1.0f,  1.0f, // 31
-                                     1.0f, -1.0f, -1.0f, // 32
-                                     1.0f, -1.0f, -1.0f, // 33
-                                    -1.0f, -1.0f,  1.0f, // 34
-                                     1.0f, -1.0f,  1.0f  // 35
-        };
-                                if (!is_created2)
-                                {
+            auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
 
-                                    _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
-                                    skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
-                                    is_created2 = true;
-                                }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            float skyboxVertices[] = {
+                -1.0f, 1.0f,  -1.0f,  // 0
+                -1.0f, -1.0f, -1.0f,  // 1
+                1.0f,  -1.0f, -1.0f,  // 2
+                1.0f,  -1.0f, -1.0f,  // 3
+                1.0f,  1.0f,  -1.0f,  // 4
+                -1.0f, 1.0f,  -1.0f,  // 5
+                -1.0f, -1.0f, 1.0f,   // 6
+                -1.0f, -1.0f, -1.0f,  // 7
+                -1.0f, 1.0f,  -1.0f,  // 8
+                -1.0f, 1.0f,  -1.0f,  // 9
+                -1.0f, 1.0f,  1.0f,   // 10
+                -1.0f, -1.0f, 1.0f,   // 11
+                1.0f,  -1.0f, -1.0f,  // 12
+                1.0f,  -1.0f, 1.0f,   // 13
+                1.0f,  1.0f,  1.0f,   // 14
+                1.0f,  1.0f,  1.0f,   // 15
+                1.0f,  1.0f,  -1.0f,  // 16
+                1.0f,  -1.0f, -1.0f,  // 17
+                -1.0f, -1.0f, 1.0f,   // 18
+                -1.0f, 1.0f,  1.0f,   // 19
+                1.0f,  1.0f,  1.0f,   // 20
+                1.0f,  1.0f,  1.0f,   // 21
+                1.0f,  -1.0f, 1.0f,   // 22
+                -1.0f, -1.0f, 1.0f,   // 23
+                -1.0f, 1.0f,  -1.0f,  // 24
+                1.0f,  1.0f,  -1.0f,  // 25
+                1.0f,  1.0f,  1.0f,   // 26
+                1.0f,  1.0f,  1.0f,   // 27
+                -1.0f, 1.0f,  1.0f,   // 28
+                -1.0f, 1.0f,  -1.0f,  // 29
+                -1.0f, -1.0f, -1.0f,  // 30
+                -1.0f, -1.0f, 1.0f,   // 31
+                1.0f,  -1.0f, -1.0f,  // 32
+                1.0f,  -1.0f, -1.0f,  // 33
+                -1.0f, -1.0f, 1.0f,   // 34
+                1.0f,  -1.0f, 1.0f    // 35
+            };
+
+            _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+            skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
+            is_skybox_created = true;
         }
     }
-    
 
     // Skybox pass
     skybox_pass();
