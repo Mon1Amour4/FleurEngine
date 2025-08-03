@@ -7,20 +7,9 @@
 namespace Fuego::Graphics
 {
 
-Material* Material::CreateMaterial(const Texture* albedo)
-{
-    return new MaterialOpenGL(albedo);
-}
-
 MaterialOpenGL::MaterialOpenGL(const Texture* albedo)
-    : albedo_texture(nullptr)
+    : Material()
 {
-    albedo_texture = static_cast<const TextureOpenGL*>(albedo);
-}
-
-void MaterialOpenGL::Use() const
-{
-    glBindTexture(GL_TEXTURE_2D, albedo_texture->GetTextureID());
 }
 
 }  // namespace Fuego::Graphics

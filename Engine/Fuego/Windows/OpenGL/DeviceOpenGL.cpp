@@ -194,14 +194,35 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, TextureFormat format, unsigned char* buffer, int width,
+                                                     int height) const
 {
-    return std::make_shared<TextureOpenGL>(name, format, buffer, width, height);
+    return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, 1);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext) const
 {
-    return std::make_shared<TextureOpenGL>(name);
+    return std::make_shared<TextureOpenGL>(name, ext, 1);
+}
+
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
+{
+    return std::make_shared<TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(), reinterpret_cast<const unsigned char*>(equirectangular->Data()),
+                                           Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()), equirectangular->Width(),
+                                           equirectangular->Height(), 6);
+}
+
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemap_image) const
+{
+    return std::make_shared<TextureOpenGL>(cubemap_image->Name(), cubemap_image->Ext(), reinterpret_cast<const unsigned char*>(cubemap_image->Data()),
+                                           Texture::GetTextureFormat(cubemap_image->Channels(), cubemap_image->Depth()), cubemap_image->Width(),
+                                           cubemap_image->Height(), 6);
+}
+
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
+{
+    return std::make_shared<TextureOpenGL>(name, images.right->Ext(), images, Texture::GetTextureFormat(images.right->Channels(), images.right->Depth()),
+                                           images.right->Width(), images.right->Height(), 6);
 }
 
 void DeviceOpenGL::SetVSync(bool active) const
@@ -234,9 +255,9 @@ std::unique_ptr<CommandPool> DeviceOpenGL::CreateCommandPool(const CommandQueue&
     return std::unique_ptr<CommandPoolOpenGL>(new CommandPoolOpenGL(queue));
 }
 
-std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer()
+std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer(DepthStencilDescriptor desc)
 {
-    return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL());
+    return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL(desc));
 }
 
 std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
@@ -261,6 +282,6 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
         return nullptr;
     }
 
-    return new ShaderOpenGL(res.value().c_str(), type);
+    return new ShaderOpenGL(shaderName, res.value().c_str(), type);
 }
 }  // namespace Fuego::Graphics

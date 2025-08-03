@@ -2,6 +2,8 @@
 
 #include <glm/gtc/type_ptr.hpp>
 
+#include "../../Renderer/Material.h"
+#include "TextureOpenGL.h"
 #include "glad/gl.h"
 
 namespace Fuego::Graphics
@@ -14,13 +16,14 @@ struct uniform_info
     GLenum type;
 };
 
-ShaderObject* ShaderObject::CreateShaderObject(Shader* vs, Shader* px)
+ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs, Shader* px)
 {
-    return new ShaderObjectOpenGL(vs, px);
+    return new ShaderObjectOpenGL(name, vs, px);
 }
 
-ShaderObjectOpenGL::ShaderObjectOpenGL(Shader* vs, Shader* px)
-    : program(glCreateProgram())
+ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px) 
+    : ShaderObject(name)
+    , program(glCreateProgram())
     , vertex_shader(nullptr)
     , pixel_shader(nullptr)
     , material(nullptr)
@@ -62,7 +65,7 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(Shader* vs, Shader* px)
     }
     vertex_shader->BindToShaderObject(*this);
     pixel_shader->BindToShaderObject(*this);
-
+    glObjectLabel(GL_PROGRAM, program, -1, this->name.c_str());
     glUseProgram(0);
 }
 
@@ -98,8 +101,12 @@ void ShaderObjectOpenGL::Use() const
 
 void ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
-    this->material = static_cast<const MaterialOpenGL*>(material);
-    Set("material.albedo_text", static_cast<const Texture&>(this->material->GetAlbedoTexture()));
+    this->material = material;
+    const ShaderComponentContext& ctx = this->material->GetShaderContext();
+    if (ctx.albedo_text.second)
+        set_text2d_impl(ctx.albedo_text.first, *ctx.albedo_text.second);
+    if (ctx.skybox_cubemap_text.second)
+        set_text2d_impl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -145,7 +152,10 @@ bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Te
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)
+    {
+        FU_CORE_ASSERT(false, "");
         return false;
+    }
 
     const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
     glUniform1i(location, text_gl.GetTextureUnit());

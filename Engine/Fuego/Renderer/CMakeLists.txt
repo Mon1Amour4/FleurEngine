@@ -29,6 +29,8 @@ SET(PROJECT_HEADERS
     Image2D.h
     Color.h
     Toolchain.h
+    Skybox.h
+    TextureUtills.h
 )
 
 SET(PROJECT_SOURCES
@@ -39,6 +41,7 @@ SET(PROJECT_SOURCES
     Image2D.cpp
     Color.cpp
     Toolchain.cpp
+    Skybox.cpp
 )
 
 IF(FUEGO_PLATFORM_WIN)

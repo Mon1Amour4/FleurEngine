@@ -31,6 +31,6 @@ private:
 
 protected:
     friend class DeviceOpenGL;
-    ShaderOpenGL(const char* shaderCode, ShaderType type);
+    ShaderOpenGL(std::string_view name, const char* shaderCode, ShaderType type);
 };
 }  // namespace Fuego::Graphics

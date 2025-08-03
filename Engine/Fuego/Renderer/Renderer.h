@@ -14,6 +14,7 @@
 #include "Services/ServiceInterfaces.hpp"
 #include "Shader.h"
 #include "ShaderObject.h"
+#include "Skybox.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "Texture.h"
@@ -33,6 +34,7 @@ concept is_graphic_resource = requires(Resource t) {
 
 namespace Fuego::Graphics
 {
+
 
 class FUEGO_API Renderer : public Service<Renderer>, public IUpdatable
 {
@@ -112,8 +114,10 @@ private:
     std::unique_ptr<Swapchain> _swapchain;
     std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
+    std::unique_ptr<Skybox> _skybox;
 
     std::unique_ptr<CommandBuffer> static_geometry_cmd;
+    std::unique_ptr<CommandBuffer> skybox_cmd;
 
     ShaderObject* current_shader_obj;
 
@@ -135,7 +139,7 @@ private:
     struct DrawInfo
     {
         const Model* model;
-        glm::mat4 pos;
+        glm::mat4 model_matrix;
         uint32_t index_global_offset_bytes;
         uint32_t vertex_global_offset_bytes;
     };
@@ -144,6 +148,10 @@ private:
     std::vector<DrawInfo> static_geometry_models_vector;
 
     // Service
+
+    void skybox_pass() const;
+    void static_geometry_pass() const;
+
 protected:
     void OnInit();
     void OnShutdown();

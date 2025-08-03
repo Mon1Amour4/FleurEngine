@@ -12,6 +12,7 @@ namespace Fuego
 {
 using Texture = Fuego::Graphics::Texture;
 using Image2D = Fuego::Graphics::Image2D;
+using CubemapImage = Fuego::Graphics::CubemapImage;
 using Model = Fuego::Graphics::Model;
 using Renderer = Fuego::Graphics::Renderer;
 using Color = Fuego::Graphics::Color;
@@ -135,7 +136,12 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     auto locked_model_3 = model_3.lock();
     if (locked_model_3)
     {
-        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+        glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+        glm::mat4 R = glm::mat4(1.f);
+        glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+        glm::mat4 M = T * R * S;
+
+        renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
     }
 
     UNUSED(event);
@@ -167,6 +173,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto fs = ServiceLocator::instance().Register<Fuego::FS::FileSystem>();
     fs.value()->Init();
 
+    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
     auto renderer = ServiceLocator::instance().Register<Renderer>(Fuego::Graphics::GraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.vsync);
@@ -174,12 +181,20 @@ void Application::Init(ApplicationBootSettings& settings)
     auto thread_pool = ServiceLocator::instance().Register<Fuego::ThreadPool>();
     thread_pool.value()->Init();
 
-    auto assets_manager = ServiceLocator::instance().Register<Fuego::AssetsManager>();
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+
+    assets_manager.value()->Load<CubemapImage>("skybox.jpg");
+    assets_manager.value()->Load<Image2D>("left.jpg");
+    assets_manager.value()->Load<Image2D>("front.jpg");
+    assets_manager.value()->Load<Image2D>("right.jpg");
+    assets_manager.value()->Load<Image2D>("back.jpg");
+    assets_manager.value()->Load<Image2D>("bottom.jpg");
+    assets_manager.value()->Load<Image2D>("top.jpg");
+    assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
     initialized = true;
     m_Running = true;

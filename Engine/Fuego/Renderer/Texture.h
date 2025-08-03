@@ -2,142 +2,185 @@
 
 #include "Color.h"
 #include "Image2D.h"
+#include "TextureUtills.h"
 
 namespace Fuego::Graphics
 {
 
-enum class TextureFormat
+struct CubemapInitData
 {
-    R8,       // Single-channel 8-bit
-    RG8,      // Two-channel 8-bit
-    RGB8,     // Three-channel 8-bit
-    RGBA8,    // Four-channel 8-bit
-    R16F,     // Single-channel 16-bit floating point
-    RG16F,    // Two-channel 16-bit floating point
-    RGB16F,   // Three-channel 16-bit floating point
-    RGBA16F,  // Four-channel 16-bit floating point
-    R32F,     // Single-channel 32-bit floating point
-    RGBA32F,  // Four-channel 32-bit floating point
-    NONE
+    const std::shared_ptr<Fuego::Graphics::Image2D> right;
+    const std::shared_ptr<Fuego::Graphics::Image2D> left;
+    const std::shared_ptr<Fuego::Graphics::Image2D> top;
+    const std::shared_ptr<Fuego::Graphics::Image2D> bottom;
+    const std::shared_ptr<Fuego::Graphics::Image2D> back;
+    const std::shared_ptr<Fuego::Graphics::Image2D> front;
 };
 
-class Texture
+class Device;
+
+enum class TextureFormat
 {
+    // 8-bit unsigned normalized integer formats
+    R8,     // 1 channel, 8-bit
+    RG8,    // 2 channel, 8-bit
+    RGB8,   // 3 channel, 8-bit
+    RGBA8,  // 4 channel, 8-bit
+
+    // 16-bit float formats
+    R16F,     // 1 channel, 16-bit float
+    RG16F,    // 2 channel, 16-bit float
+    RGB16F,   // 3 channel, 16-bit float
+    RGBA16F,  // 4 channel, 16-bit float
+
+    // 32-bit float formats
+    R32F,     // 1 channel, 32-bit float
+    RG32F,    // 2 channel, 32-bit float
+    RGB32F,   // 3 channel, 32-bit float
+    RGBA32F,  // 4 channel, 32-bit float
+
+
+};
+
+class Texture : public ImageBase
+{
+    friend class Device;
+
 public:
-    virtual ~Texture() = default;
+    ~Texture() = default;
 
-    virtual TextureFormat GetTextureFormat() const = 0;
-    virtual inline std::string_view Name() const
+    virtual void PostCreate(ImagePostCreation& settings) override
     {
-        return name;
-    }
-    virtual inline int Width() const
-    {
-        return width;
-    }
-    virtual inline int Height() const
-    {
-        return height;
+        width = settings.width;
+        height = settings.height;
+        channels = settings.channels;
+        depth = settings.depth;
+        format = GetTextureFormat(settings.channels, settings.depth);
     }
 
-    virtual void Bind() const = 0;
-    virtual void UnBind() const = 0;
-
-    static TextureFormat GetTextureFormat(uint16_t channels, uint16_t bpp)
+    TextureFormat Format() const
     {
-        switch (channels)
+        return format;
+    }
+
+    static TextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
+    {
+        if (depth <= 1)  // 8-bit unsigned integer formats
         {
-        case 1:
-            if (bpp <= 8)
+            switch (channels)
+            {
+            case 1:
                 return TextureFormat::R8;
-            break;
-
-        case 2:
-            if (bpp <= 8)
+            case 2:
                 return TextureFormat::RG8;
-            break;
-
-        case 3:
-            if (bpp <= 8)
+            case 3:
                 return TextureFormat::RGB8;
-            break;
-
-        case 4:
-            if (bpp <= 8)
+            case 4:
                 return TextureFormat::RGBA8;
-            break;
+            }
         }
-    }
-
-    inline bool IsValid() const
-    {
-        return is_created;
-    }
-
-    virtual void PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
-    {
-        const auto& image = *img.get();
-        width = image.Width();
-        height = image.Height();
-        format = Fuego::Graphics::Texture::GetTextureFormat(image.Channels(), image.BBP());
-        is_created = true;
-    }
+        else if (depth == 2)  // 16-bit float formats
+        {
+            switch (channels)
+            {
+            case 1:
+                return TextureFormat::R16F;
+            case 2:
+                return TextureFormat::RG16F;
+            case 3:
+                return TextureFormat::RGB16F;
+            case 4:
+                return TextureFormat::RGBA16F;
+            }
+        }
+        else if (depth == 4)  // 32-bit float formats
+        {
+            switch (channels)
+            {
+            case 1:
+                return TextureFormat::R32F;
+            case 2:
+                return TextureFormat::RG32F;
+            case 3:
+                return TextureFormat::RGB32F;
+            case 4:
+                return TextureFormat::RGBA32F;
+            }
+        }
+        FU_CORE_ASSERT(false, "Invalid texture format: unsupported channels or depth");
+        return TextureFormat::RGBA8;
+    }  // namespace Fuego::Graphics::TextureUtils
 
 protected:
-    Texture(std::string_view name, TextureFormat format, int width, int height)
-        : name(name)
+    Texture(std::string_view name, std::string_view ext, TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
+        : ImageBase(name, ext, width, height, format_to_channels(format), format_to_depth(format), layers)
         , format(format)
-        , width(width)
-        , height(height)
-        , is_created(false) {};
-
-    Texture(std::string_view name)
-        : name(name)
-        , format(TextureFormat::NONE)
-        , width(0)
-        , height(0)
-        , is_created(false)
+    {
+    }
+    Texture(std::string_view name, std::string_view ext, uint32_t layers)
+        : ImageBase(name, ext, 0, 0, 0, 0, layers)
+        , format(TextureFormat::RGB8)
     {
     }
 
-    bool is_created;
-    std::string name;
-    int width;
-    int height;
-    TextureFormat format;
-
-    uint32_t calculate_mipmap_level(uint32_t width, uint32_t height) const
+    inline uint32_t calculate_mipmap_level(uint32_t width, uint32_t height)
     {
         return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
     }
-    uint32_t get_channels(TextureFormat format) const
+
+    uint32_t format_to_channels(TextureFormat format) const
     {
         switch (format)
         {
-        case Fuego::Graphics::TextureFormat::R8:
-        case Fuego::Graphics::TextureFormat::R16F:
-        case Fuego::Graphics::TextureFormat::R32F:
+        case TextureFormat::R8:
+        case TextureFormat::R16F:
+        case TextureFormat::R32F:
             return 1;
-
-        case Fuego::Graphics::TextureFormat::RG8:
-        case Fuego::Graphics::TextureFormat::RG16F:
+        case TextureFormat::RG8:
+        case TextureFormat::RG16F:
+        case TextureFormat::RG32F:
             return 2;
-
-        case Fuego::Graphics::TextureFormat::RGB8:
-        case Fuego::Graphics::TextureFormat::RGB16F:
+        case TextureFormat::RGB8:
+        case TextureFormat::RGB16F:
+        case TextureFormat::RGB32F:
             return 3;
-
-        case Fuego::Graphics::TextureFormat::RGBA8:
-        case Fuego::Graphics::TextureFormat::RGBA16F:
-        case Fuego::Graphics::TextureFormat::RGBA32F:
+        case TextureFormat::RGBA8:
+        case TextureFormat::RGBA16F:
+        case TextureFormat::RGBA32F:
             return 4;
         }
-    }
-};  // namespace Fuego::Graphics
 
-class TextureView
-{
-public:
-    virtual ~TextureView() = default;
+        FU_CORE_ASSERT(false, "Unknown format in format_to_channels");
+        return 1;
+    }
+
+    uint32_t format_to_depth(TextureFormat format) const
+    {
+        switch (format)
+        {
+        case TextureFormat::R8:
+        case TextureFormat::RG8:
+        case TextureFormat::RGB8:
+        case TextureFormat::RGBA8:
+            return 1;
+
+        case TextureFormat::R16F:
+        case TextureFormat::RG16F:
+        case TextureFormat::RGB16F:
+        case TextureFormat::RGBA16F:
+            return 2;
+
+        case TextureFormat::R32F:
+        case TextureFormat::RG32F:
+        case TextureFormat::RGB32F:
+        case TextureFormat::RGBA32F:
+            return 4;
+        }
+        FU_CORE_ASSERT(false, "Unknown format in format_to_depth");
+        return 1;
+    }
+
+    TextureFormat format;
 };
-}  // namespace Fuego::Graphics
+
+};  // namespace Fuego::Graphics

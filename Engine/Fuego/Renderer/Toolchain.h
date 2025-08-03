@@ -27,7 +27,7 @@ public:
     std::shared_ptr<Fuego::Graphics::Texture> LoadTexture(std::shared_ptr<Fuego::Graphics::Image2D> img, const Fuego::Graphics::Device* device) override
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        return pairs_.emplace_back(std::make_pair(img, device->CreateTexture(img->Name()))).second;
+        return pairs_.emplace_back(std::make_pair(img, device->CreateTexture(img->Name(), img->Ext()))).second;
     }
 
     void Update() override
@@ -37,7 +37,9 @@ public:
         {
             if (it->first->IsValid())
             {
-                it->second->PostCreate(it->first);
+                Fuego::Graphics::ImagePostCreation settings{it->first->Width(), it->first->Height(), it->first->Channels(), it->first->Depth(),
+                                                            it->first->Data()};
+                it->second->PostCreate(settings);
                 it = pairs_.erase(it);
             }
             else

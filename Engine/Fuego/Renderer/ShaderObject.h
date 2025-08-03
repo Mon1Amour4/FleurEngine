@@ -12,6 +12,7 @@ namespace Fuego::Graphics
 {
 class Shader;
 class Material;
+class Texture;
 
 class ShaderObject
 {
@@ -33,16 +34,33 @@ public:
         {
             return set_text2d_impl(name, var);
         }
+        // TODO
+        else if constexpr (std::is_same_v<Texture, std::remove_cv_t<std::remove_pointer_t<T>>>)
+        {
+            return set_text2d_impl(name, var);
+        }
+        else
+        {
+            const char* type_name = typeid(T).name();
+            FU_CORE_ASSERT(false, "t: {0}", typeid(T).name());
+            return false;
+        }
     }
 
-    static ShaderObject* CreateShaderObject(Shader* vs, Shader* px);
+    static ShaderObject* CreateShaderObject(std::string_view name, Shader* vs, Shader* px);
+
     virtual void Use() const = 0;
+
     virtual void BindMaterial(const Material* material) = 0;
 
     virtual void Release() = 0;
 
 protected:
-    ShaderObject() = default;
+    ShaderObject(std::string_view name)
+        : name(name)
+    {
+    }
+    std::string name;
     virtual bool set_vec3f_impl(std::string_view name, const glm::vec3& vec) = 0;
     virtual bool set_mat4f_impl(std::string_view name, const glm::mat4& matrix) = 0;
     virtual bool set_text2d_impl(std::string_view name, const Texture& texture) = 0;

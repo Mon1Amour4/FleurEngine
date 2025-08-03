@@ -44,6 +44,8 @@ private:
 
     friend class DeviceOpenGL;
     bool _isFree;
-    CommandBufferOpenGL();
+    CommandBufferOpenGL(DepthStencilDescriptor desc);
+
+    uint32_t get_death_func_op(DepthTestOperation op) const;
 };
 }  // namespace Fuego::Graphics

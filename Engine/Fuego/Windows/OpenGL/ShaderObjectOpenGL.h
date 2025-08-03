@@ -1,6 +1,5 @@
 #pragma once
 
-#include "MaterialOpenGL.h"
 #include "ShaderObject.h"
 #include "ShaderOpenGl.h"
 
@@ -20,18 +19,19 @@ public:
 
     virtual void Use() const override;
     bool AddVar(std::string_view uniform_name, uint32_t id);
+
     virtual void BindMaterial(const Material* material) override;
 
     virtual void Release() override;
 
 private:
-    const MaterialOpenGL* material;
+    const Material* material;
     uint32_t program;
 
     std::unique_ptr<ShaderOpenGL> vertex_shader;
     std::unique_ptr<ShaderOpenGL> pixel_shader;
 
-    ShaderObjectOpenGL(Shader* vs, Shader* px);
+    ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px);
 
 private:
     std::unordered_map<std::string, uint32_t> uniforms;

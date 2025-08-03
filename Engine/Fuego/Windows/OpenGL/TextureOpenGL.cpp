@@ -2,37 +2,25 @@
 
 #include "glad/wgl.h"
 
-namespace Fuego::Graphics
-{
-
-TextureOpenGL::TextureOpenGL(std::string_view name)
-    : Texture(name)
+Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers)
+    : Texture(name, ext, layers)
     , texture_unit(0)
     , texture_id(0)
 {
-    is_created = false;
 }
 
-TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsigned char* buffer, int width, int height)
-    : Texture(name, format, width, height)
+Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const unsigned char* buffer, TextureFormat format, uint32_t width,
+                                              uint32_t height, uint32_t layers)
+    : Texture(name, ext, format, width, height, layers)
     , texture_unit(0)
     , texture_id(0)
 {
-    FU_CORE_ASSERT(buffer, "Texture buffer is empty");
+    FU_CORE_ASSERT(buffer, "");
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
-    FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
-
-    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
-    glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
-    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, buffer);
-
-    glGenerateTextureMipmap(texture_id);
-
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    if (layers == 1)
+        create_texture_2d(buffer);
+    else if (layers == 6)
+        create_cubemap(width, buffer);
 
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
@@ -40,27 +28,38 @@ TextureOpenGL::TextureOpenGL(std::string_view name, TextureFormat format, unsign
     is_created = true;
 }
 
-void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
+Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format,
+                                              uint32_t width, uint32_t height, uint32_t layers)
+    : Texture(name, ext, format, width, height, layers)
+    , texture_unit(0)
+    , texture_id(0)
 {
-    const auto& image = *img.get();
-    FU_CORE_ASSERT(image.Data()[0] != '\n' && image.Data()[0] != ' ' && image.IsValid(), "[TextureOpenGL->PostCreate] broken image2d data");
+    create_cubemap_from_images(images);
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
-    Texture::PostCreate(img);
+    is_created = true;
+}
 
-    glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
-    FU_CORE_ASSERT(!texture_id == 0, "Texture didn't create");
+Fuego::Graphics::TextureOpenGL::~TextureOpenGL()
+{
+    if (texture_id != 0)
+        glDeleteTextures(1, &texture_id);
+}
 
-    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
-    glTextureStorage2D(texture_id, mipmap_levels, ColorFormat(format), width, height);
-    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, PixelFormat(format), GL_UNSIGNED_BYTE, image.Data());
+void Fuego::Graphics::TextureOpenGL::PostCreate(ImagePostCreation& settings)
+{
+    Texture::PostCreate(settings);
+
+    FU_CORE_ASSERT(settings.data, "[TextureOpenGL->PostCreate] invalid post create settings");
+
+    if (layers == 1)
+        create_texture_2d(reinterpret_cast<const unsigned char*>(settings.data));
+    else if (layers == 6)
+        create_cubemap(width, reinterpret_cast<const unsigned char*>(settings.data));
 
     glGenerateTextureMipmap(texture_id);
 
-    // Configuration of minification/Magnification
-    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    set_texture_parameters();
 
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
@@ -68,36 +67,46 @@ void TextureOpenGL::PostCreate(std::shared_ptr<Fuego::Graphics::Image2D> img)
     is_created = true;
 }
 
-uint32_t TextureOpenGL::ColorFormat(TextureFormat format)
+void Fuego::Graphics::TextureOpenGL::set_texture_parameters() const
+{
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_REPEAT);
+}
+
+uint32_t Fuego::Graphics::TextureOpenGL::get_color_format(TextureFormat format) const
 {
     switch (format)
     {
-    case Fuego::Graphics::TextureFormat::R8:
+    case TextureFormat::R8:
         return GL_R8;
-    case Fuego::Graphics::TextureFormat::RG8:
+    case TextureFormat::RG8:
         return GL_RG8;
-    case Fuego::Graphics::TextureFormat::RGB8:
+    case TextureFormat::RGB8:
         return GL_RGB8;
-    case Fuego::Graphics::TextureFormat::RGBA8:
+    case TextureFormat::RGBA8:
         return GL_RGBA8;
 
-    case Fuego::Graphics::TextureFormat::R16F:
+    case TextureFormat::R16F:
         return GL_R16F;
-    case Fuego::Graphics::TextureFormat::RG16F:
+    case TextureFormat::RG16F:
         return GL_RG16F;
-    case Fuego::Graphics::TextureFormat::RGB16F:
+    case TextureFormat::RGB16F:
         return GL_RGB16F;
-    case Fuego::Graphics::TextureFormat::RGBA16F:
+    case TextureFormat::RGBA16F:
         return GL_RGBA16F;
 
-    case Fuego::Graphics::TextureFormat::R32F:
+    case TextureFormat::R32F:
         return GL_R32F;
-    case Fuego::Graphics::TextureFormat::RGBA32F:
+    case TextureFormat::RGBA32F:
         return GL_RGBA32F;
+    default:
+        FU_CORE_ASSERT(false, "Unsupported texture format");
+        return GL_RGBA8;
     }
 }
-
-uint32_t TextureOpenGL::PixelFormat(uint16_t channels, bool inverted)
+uint32_t Fuego::Graphics::TextureOpenGL::get_pixel_format(uint16_t channels, bool inverted)
 {
     switch (channels)
     {
@@ -114,8 +123,7 @@ uint32_t TextureOpenGL::PixelFormat(uint16_t channels, bool inverted)
         return GL_RGBA;
     }
 }
-
-uint32_t TextureOpenGL::PixelFormat(TextureFormat format, bool inverted)
+uint32_t Fuego::Graphics::TextureOpenGL::get_pixel_format(TextureFormat format, bool inverted)
 {
     switch (format)
     {
@@ -142,23 +150,107 @@ uint32_t TextureOpenGL::PixelFormat(TextureFormat format, bool inverted)
     }
 }
 
-TextureOpenGL::~TextureOpenGL()
+void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buffer)
 {
-    if (texture_id != 0)
-        glDeleteTextures(1, &texture_id);
+    FU_CORE_ASSERT(layers == 1, "");
+
+    glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
+    FU_CORE_ASSERT(texture_id != 0, "Failed to create 2D texture");
+
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
+
+    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
-void TextureOpenGL::Bind() const
+void Fuego::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const unsigned char* buffer)
 {
+    FU_CORE_ASSERT(layers == 6, "");
+    const Fuego::Graphics::Image2D* images = reinterpret_cast<const Fuego::Graphics::Image2D*>(buffer);
+    FU_CORE_ASSERT(images, "");
+
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
+    FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
+
+
+    uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
+
+
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        const auto& img = images + face;
+        FU_CORE_ASSERT(img && img->Data(), "Cubemap image is null or has no data");
+
+        glTextureSubImage3D(texture_id,
+                            0,                         // mipmap level
+                            0,                         // xoffset
+                            0,                         // yoffset
+                            face,                      // zoffset = face index
+                            width,                     // width
+                            height,                    // height
+                            1,                         // depth = 1
+                            get_pixel_format(format),  // format
+                            GL_UNSIGNED_BYTE,
+                            reinterpret_cast<const void*>(img->Data())  // pointer to data
+        );
+    }
+
+
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
-void TextureOpenGL::UnBind() const
+void Fuego::Graphics::TextureOpenGL::create_cubemap_from_images(const Fuego::Graphics::CubemapInitData& images)
 {
+    glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
+    FU_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
+
+    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
+
+    const std::shared_ptr<Fuego::Graphics::Image2D> faces[6] = {images.right, images.left, images.top, images.bottom, images.back, images.front};
+
+    for (uint32_t face = 0; face < 6; ++face)
+    {
+        const auto& img = faces[face];
+        FU_CORE_ASSERT(img && img->Data(), "Cubemap image is null or has no data");
+
+        glTextureSubImage3D(texture_id,
+                            0,                         // mipmap level
+                            0,                         // xoffset
+                            0,                         // yoffset
+                            face,                      // zoffset = face index
+                            width,                     // width
+                            height,                    // height
+                            1,                         // depth = 1
+                            get_pixel_format(format),  // format
+                            GL_UNSIGNED_BYTE,
+                            reinterpret_cast<const void*>(img->Data())  // pointer to data
+        );
+    }
+    glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTextureParameteri(texture_id, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
 }
 
-TextureFormat TextureOpenGL::GetTextureFormat() const
+uint32_t Fuego::Graphics::TextureOpenGL::GetTextureUnit() const
 {
-    return TextureFormat::R16F;
+    return texture_unit;
 }
 
-}  // namespace Fuego::Graphics
+uint32_t Fuego::Graphics::TextureOpenGL::GetTextureID() const
+{
+    return texture_id;
+}

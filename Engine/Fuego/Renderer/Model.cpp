@@ -199,17 +199,12 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
                     // Embeded texture
                     auto image_buffer = base_color_texture->image->buffer_view;
                     std::string extension = std::filesystem::path(texture_name).extension().string();
-                    uint32_t channels = 0;
-                    if (extension.find("jpg") != extension.npos || extension.find("jpeg") != extension.npos)
-                        channels = 3;
-                    else if (extension.find("png") != extension.npos)
-                        channels = 4;
 
                     unsigned char* image_data = reinterpret_cast<unsigned char*>(image_buffer->buffer->data) + image_buffer->offset;
                     if (async)
-                        image = assets_manager->LoadImage2DFromMemoryAsync(texture_name, image_data, image_buffer->size, channels);
+                        image = assets_manager->LoadImage2DFromMemoryAsync(texture_name, false, image_data, image_buffer->size);
                     else
-                        image = assets_manager->LoadImage2DFromMemory(texture_name, image_data, image_buffer->size, channels);
+                        image = assets_manager->LoadImage2DFromMemory(texture_name, false, image_data, image_buffer->size);
                 }
                 else if (base_color_texture->image->uri)
                 {
@@ -242,7 +237,9 @@ void Fuego::Graphics::Model::process_model(cgltf_data* data, bool async)
             }
 
             // TODO think about passing raw pointer or shared ptr to material
-            auto material = Material::CreateMaterial(texture.get());
+            ShaderComponentContext ctx{};
+            ctx.albedo_text.second = texture.get();
+            auto material = Material::CreateMaterial(ctx);
             materials.emplace_back(std::unique_ptr<Material>(material));
             loaded_textures.emplace(texture_index, texture.get());
         }

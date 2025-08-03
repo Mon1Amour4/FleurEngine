@@ -4,7 +4,6 @@
 
 namespace Fuego::Graphics
 {
-
 ShaderObject* shader_object;
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
@@ -101,10 +100,12 @@ void Renderer::OnInit()
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject(_device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
+    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject("static_geometry_shader",
+                                                                                          _device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
                                                                                           _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
-
-    static_geometry_cmd = _device->CreateCommandBuffer();
+    // Static geometry
+    DepthStencilDescriptor desc{true, DepthTestOperation::LESS};
+    static_geometry_cmd = _device->CreateCommandBuffer(desc);
     static_geometry_cmd->BindShaderObject(static_geometry_shader);
 
     VertexLayout layout{};
@@ -113,6 +114,17 @@ void Renderer::OnInit()
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
     static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
     static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+
+    // Skybox
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(
+        "skybox_shader", _device->CreateShader("skybox.vs", Shader::ShaderType::Vertex), _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
+    DepthStencilDescriptor desc2{false, DepthTestOperation::LESS_OR_EQUAL};
+    skybox_cmd = _device->CreateCommandBuffer(desc2);
+    skybox_cmd->BindShaderObject(skybox_shader);
+
+    VertexLayout skybox_layout{};
+    skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
 }
 
 void Renderer::OnShutdown()
@@ -147,7 +159,7 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
         auto it = static_geometry_models.find(model->GetName().data());
         if (it != static_geometry_models.end())
         {
-            it->second.pos = model_pos;
+            it->second.model_matrix = model_pos;
             return;
         }
 
@@ -216,41 +228,67 @@ bool Renderer::IsVSync()
 void Renderer::OnUpdate(float dlTime)
 {
     toolchain->Update();
+    static bool is_skybox_created = false;
+
+    auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
+    static Fuego::Graphics::CubemapInitData skybox_images;
+
+    {
+        auto cubemap = assets_manager->Get<CubemapImage>("skybox_cross_layout_cubemap");
+        if (!cubemap.expired() && !is_skybox_created)
+        {
+            auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
+
+            float skyboxVertices[] = {
+                -1.0f, 1.0f,  -1.0f,  // 0
+                -1.0f, -1.0f, -1.0f,  // 1
+                1.0f,  -1.0f, -1.0f,  // 2
+                1.0f,  -1.0f, -1.0f,  // 3
+                1.0f,  1.0f,  -1.0f,  // 4
+                -1.0f, 1.0f,  -1.0f,  // 5
+                -1.0f, -1.0f, 1.0f,   // 6
+                -1.0f, -1.0f, -1.0f,  // 7
+                -1.0f, 1.0f,  -1.0f,  // 8
+                -1.0f, 1.0f,  -1.0f,  // 9
+                -1.0f, 1.0f,  1.0f,   // 10
+                -1.0f, -1.0f, 1.0f,   // 11
+                1.0f,  -1.0f, -1.0f,  // 12
+                1.0f,  -1.0f, 1.0f,   // 13
+                1.0f,  1.0f,  1.0f,   // 14
+                1.0f,  1.0f,  1.0f,   // 15
+                1.0f,  1.0f,  -1.0f,  // 16
+                1.0f,  -1.0f, -1.0f,  // 17
+                -1.0f, -1.0f, 1.0f,   // 18
+                -1.0f, 1.0f,  1.0f,   // 19
+                1.0f,  1.0f,  1.0f,   // 20
+                1.0f,  1.0f,  1.0f,   // 21
+                1.0f,  -1.0f, 1.0f,   // 22
+                -1.0f, -1.0f, 1.0f,   // 23
+                -1.0f, 1.0f,  -1.0f,  // 24
+                1.0f,  1.0f,  -1.0f,  // 25
+                1.0f,  1.0f,  1.0f,   // 26
+                1.0f,  1.0f,  1.0f,   // 27
+                -1.0f, 1.0f,  1.0f,   // 28
+                -1.0f, 1.0f,  -1.0f,  // 29
+                -1.0f, -1.0f, -1.0f,  // 30
+                -1.0f, -1.0f, 1.0f,   // 31
+                1.0f,  -1.0f, -1.0f,  // 32
+                1.0f,  -1.0f, -1.0f,  // 33
+                -1.0f, -1.0f, 1.0f,   // 34
+                1.0f,  -1.0f, 1.0f    // 35
+            };
+
+            _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+            skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
+            is_skybox_created = true;
+        }
+    }
+
+    // Skybox pass
+    skybox_pass();
 
     // Main Pass
-    static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
-    static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    static_geometry_cmd->BeginRecording();
-    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
-
-    static_geometry_cmd->ShaderObject()->Use();
-
-    for (const auto& draw_info : static_geometry_models_vector)
-    {
-        static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        static_geometry_cmd->ShaderObject()->Set("model", draw_info.pos);
-        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
-        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
-
-        const auto* meshes = draw_info.model->GetMeshesPtr();
-
-        uint32_t index_inner_offset_bytes = 0;
-        for (const auto& mesh : *meshes)
-        {
-            static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
-            static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
-            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
-
-            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
-            static_geometry_cmd->PopDebugGroup();
-        }
-        static_geometry_cmd->PopDebugGroup();
-        static_geometry_cmd->EndRecording();
-        static_geometry_cmd->Submit();
-    }
-    static_geometry_cmd->PopDebugGroup();
-    static_geometry_cmd->PopDebugGroup();
+    static_geometry_pass();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -285,6 +323,65 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
     , textcoord(text_coord)
     , normal(normal)
 {
+}
+
+void Renderer::skybox_pass() const
+{
+    if (!_skybox)
+        return;
+
+    skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
+    skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
+    skybox_cmd->BeginRecording();
+    skybox_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+
+    skybox_cmd->ShaderObject()->Use();
+
+    skybox_cmd->ShaderObject()->Set("view", _camera->GetView());
+    skybox_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+
+    skybox_cmd->ShaderObject()->BindMaterial(_skybox->GetMaterial());
+    skybox_cmd->Draw(_skybox->GetVertexCount() / 3);
+
+    skybox_cmd->PopDebugGroup();
+    skybox_cmd->PopDebugGroup();
+}
+
+void Renderer::static_geometry_pass() const
+{
+    static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
+    static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
+    static_geometry_cmd->BeginRecording();
+    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+
+    static_geometry_cmd->ShaderObject()->Use();
+
+    for (const auto& draw_info : static_geometry_models_vector)
+    {
+        static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
+        static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
+        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
+        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+
+        const auto* meshes = draw_info.model->GetMeshesPtr();
+
+        uint32_t index_inner_offset_bytes = 0;
+        for (const auto& mesh : *meshes)
+        {
+            static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
+            static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
+            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+
+            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
+            static_geometry_cmd->PopDebugGroup();
+        }
+        static_geometry_cmd->PopDebugGroup();
+        static_geometry_cmd->EndRecording();
+        static_geometry_cmd->Submit();
+    }
+    static_geometry_cmd->PopDebugGroup();
+    static_geometry_cmd->PopDebugGroup();
 }
 
 }  // namespace Fuego::Graphics

@@ -13,8 +13,9 @@
 
 namespace Fuego::Graphics
 {
-CommandBufferOpenGL::CommandBufferOpenGL()
-    : _mainVsShader(-1)
+CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor desc)
+    : CommandBuffer(desc)
+    , _mainVsShader(-1)
     , _pixelShader(-1)
     , _isLinked(false)
     , _isDataAllocated(false)
@@ -36,6 +37,13 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 
 void CommandBufferOpenGL::BeginRecording()
 {
+    if (descriptor.death_test)
+        glDepthMask(true);
+    else
+        glDepthMask(false);
+
+    glDepthFunc(get_death_func_op(descriptor.operation));
+
     glBindVertexArray(_vao);
     _isFree = false;
 }
@@ -59,7 +67,7 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
     vertex_global_buffer = std::move(vertexBuffer);
     auto buff = static_cast<const BufferOpenGL*>(vertex_global_buffer.get());
 
-    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, sizeof(VertexData));
+    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, layout.Stride());
 
     VertexLayout::LayoutIterator* it;
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
@@ -184,6 +192,31 @@ int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
         return GL_STATIC_DRAW;
     case DYNAMIC_DRAW:
         return GL_DYNAMIC_DRAW;
+    }
+}
+
+uint32_t CommandBufferOpenGL::get_death_func_op(DepthTestOperation op) const
+{
+    switch (op)
+    {
+    case Fuego::Graphics::DepthTestOperation::NEVER:
+        return GL_NEVER;
+    case Fuego::Graphics::DepthTestOperation::LESS:
+        return GL_LESS;
+    case Fuego::Graphics::DepthTestOperation::LESS_OR_EQUAL:
+        return GL_LEQUAL;
+    case Fuego::Graphics::DepthTestOperation::GREATER:
+        return GL_GREATER;
+    case Fuego::Graphics::DepthTestOperation::EQUAL:
+        return GL_EQUAL;
+    case Fuego::Graphics::DepthTestOperation::NOT_EQUAL:
+        return GL_NOTEQUAL;
+    case Fuego::Graphics::DepthTestOperation::GREATER_OR_EQUAL:
+        return GL_GEQUAL;
+    case Fuego::Graphics::DepthTestOperation::ALWAYS:
+        return GL_ALWAYS;
+    default:
+        return GL_LESS;
     }
 }
 
