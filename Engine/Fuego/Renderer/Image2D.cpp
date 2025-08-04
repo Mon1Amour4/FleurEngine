@@ -263,10 +263,38 @@ Fuego::Graphics::Image2D Fuego::Graphics::Image2D::FromEquirectangularToCross() 
                 float uu = (phi + pi) / (2.f * pi);  // [0,1]
                 float vv = theta / pi;               // [0,1]
 
-                uint32_t x = static_cast<uint32_t>(uu * (width - 1));
-                uint32_t y = static_cast<uint32_t>(vv * (height - 1));
+                float x = static_cast<float>(uu * (width - 1));
+                float y = static_cast<float>(vv * (height - 1));
 
-                glm::vec4 color = bitmap.GetPixel(x, y);
+
+                // bilinear interpolation:
+                uint32_t left_x = std::floor(x);
+
+                FU_CORE_ASSERT(left_x >= 0, "");
+
+                uint32_t right_x = std::min(static_cast<uint32_t>(std::floor(left_x + 1)), width - 1);
+
+                uint32_t top_y = std::floor(y);
+                uint32_t bottom_y = std::min(static_cast<uint32_t>(top_y + 1), height - 1);
+
+                float shift_x = x - left_x;
+                float shift_y = y - top_y;
+
+                // w00 -- w01
+                // ----uv----
+                // w10 -- w11
+                float w00 = (1.f - shift_x) * (1.f - shift_y);
+                float w01 = shift_x * (1.f - shift_y);
+                float w10 = (1.f - shift_x) * shift_y;
+                float w11 = shift_x * shift_y;
+
+
+                glm::vec4 c00 = bitmap.GetPixel(left_x, top_y);
+                glm::vec4 c01 = bitmap.GetPixel(right_x, top_y);
+                glm::vec4 c10 = bitmap.GetPixel(left_x, bottom_y);
+                glm::vec4 c11 = bitmap.GetPixel(right_x, bottom_y);
+
+                glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
                 int out_x = fp.x * face_size + coord_u;
                 int out_y = fp.y * face_size + coord_v;
@@ -322,12 +350,12 @@ Fuego::Graphics::CubemapImage Fuego::Graphics::Image2D::FromCrossToCubemap() con
     upload_face(face_size, face_size, 4);      // +Z (front)
     upload_face(face_size * 3, face_size, 5);  // -Z (back)
 
-    return Fuego::Graphics::CubemapImage(name + "_cubemap", extension, out_faces);
+    return Fuego::Graphics::CubemapImage(name + "_cubemap", extension, std::move(out_faces));
 }
 
 
 // CubemapImage:
-Fuego::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>& in_faces)
+Fuego::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& in_faces)
     : ImageBase(name, ext, in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth(), 6)
 
 {

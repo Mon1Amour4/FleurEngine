@@ -150,7 +150,7 @@ public:
         Back = 5     // -Z
     };
 
-    CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>& faces);
+    CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& faces);
     CubemapImage(std::string_view name, std::string_view ext);
 
     CubemapImage& operator=(const Image2D& other) = delete;
