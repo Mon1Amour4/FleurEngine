@@ -144,6 +144,15 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
         renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
     }
 
+    auto model_4 = assets_manager->Get<Model>("gizmo");
+    if (!model_4.expired())
+    {
+        glm::mat4 gizmoMatrix(1.0f);
+        gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f); 
+
+        renderer->DrawModel(Fuego::Graphics::RenderStage::GIZMO, model_4.lock().get(), gizmoMatrix);
+    }
+
     UNUSED(event);
     return true;
 }
@@ -185,6 +194,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
+    assets_manager.value()->Load<Model>("gizmo.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
     assets_manager.value()->Load<CubemapImage>("skybox.jpg");

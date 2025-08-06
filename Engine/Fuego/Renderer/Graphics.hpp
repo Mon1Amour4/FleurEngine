@@ -41,7 +41,8 @@ enum class TextureUsage
 enum RenderStage
 {
     STATIC_GEOMETRY,
-    DYNAMIC_DRAW
+    DYNAMIC_DRAW,
+    GIZMO
 };
 
 }  // namespace Fuego::Graphics

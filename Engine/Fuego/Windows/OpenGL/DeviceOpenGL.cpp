@@ -274,7 +274,13 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
         return nullptr;
     }
 
-    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
+    std::string extension{};
+    if (type == Shader::ShaderType::Vertex)
+        extension = ".vert";
+    else if (type == Shader::ShaderType::Pixel)
+        extension = ".frag";
+
+    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + extension);
 
     if (!res)
     {

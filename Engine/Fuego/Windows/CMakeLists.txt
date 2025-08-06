@@ -18,6 +18,7 @@ SET(PROJECT_HEADERS
     OpenGL/TextureOpenGL.h
     OpenGL/SurfaceOpenGL.h
     OpenGL/ShaderObjectOpenGL.h
+    OpenGL/Framebuffer.h
     TimeWin.h
 )
 
@@ -36,6 +37,7 @@ SET(PROJECT_SOURCES
     OpenGL/TextureOpenGL.cpp
     OpenGL/SurfaceOpenGL.cpp
     OpenGL/ShaderObjectOpenGL.cpp
+    OpenGL/Framebuffer.cpp
     TimeWin.cpp
 )
 

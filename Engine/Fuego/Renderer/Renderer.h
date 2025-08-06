@@ -7,6 +7,7 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Framebuffer.h"
 #include "Graphics.hpp"
 #include "Image2D.h"
 #include "Material.h"
@@ -118,6 +119,7 @@ private:
 
     std::unique_ptr<CommandBuffer> static_geometry_cmd;
     std::unique_ptr<CommandBuffer> skybox_cmd;
+    std::unique_ptr<CommandBuffer> gizmo_cmd;
 
     ShaderObject* current_shader_obj;
 
@@ -145,7 +147,9 @@ private:
     };
 
     std::unordered_map<std::string, DrawInfo> static_geometry_models;
+    std::unordered_map<std::string, DrawInfo> gizmo_models;
     std::vector<DrawInfo> static_geometry_models_vector;
+    std::vector<DrawInfo> gizmo_models_vector;
 
     // Service
 

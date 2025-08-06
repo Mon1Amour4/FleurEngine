@@ -31,6 +31,7 @@ SET(PROJECT_HEADERS
     Toolchain.h
     Skybox.h
     TextureUtills.h
+    Framebuffer.h
 )
 
 SET(PROJECT_SOURCES

@@ -95,14 +95,15 @@ void Renderer::OnInit()
 
     _commandQueue = _device->CreateCommandQueue();
 
-    // Temporary: we're creating surface for main Application window
-    _surface = _device->CreateSurface(Fuego::Application::instance().GetWindow().GetNativeHandle());
+    Fuego::Graphics::Frame
+        // Temporary: we're creating surface for main Application window
+        _surface = _device->CreateSurface(Fuego::Application::instance().GetWindow().GetNativeHandle());
     _swapchain = _device->CreateSwapchain(*_surface);
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
     std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject("static_geometry_shader",
-                                                                                          _device->CreateShader("vs_shader", Shader::ShaderType::Vertex),
-                                                                                          _device->CreateShader("ps_triangle", Shader::ShaderType::Pixel)));
+                                                                                          _device->CreateShader("static_geo", Shader::ShaderType::Vertex),
+                                                                                          _device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
     // Static geometry
     DepthStencilDescriptor desc{true, DepthTestOperation::LESS};
     static_geometry_cmd = _device->CreateCommandBuffer(desc);
@@ -116,8 +117,8 @@ void Renderer::OnInit()
     static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 
     // Skybox
-    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject(
-        "skybox_shader", _device->CreateShader("skybox.vs", Shader::ShaderType::Vertex), _device->CreateShader("skybox.ps", Shader::ShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject("skybox_shader", _device->CreateShader("skybox", Shader::ShaderType::Vertex),
+                                                                                 _device->CreateShader("skybox", Shader::ShaderType::Pixel)));
     DepthStencilDescriptor desc2{false, DepthTestOperation::LESS_OR_EQUAL};
     skybox_cmd = _device->CreateCommandBuffer(desc2);
     skybox_cmd->BindShaderObject(skybox_shader);
@@ -125,6 +126,18 @@ void Renderer::OnInit()
     VertexLayout skybox_layout{};
     skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
+
+    // gizmo
+    std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", _device->CreateShader("gizmo", Shader::ShaderType::Vertex),
+                                                                                _device->CreateShader("gizmo", Shader::ShaderType::Pixel)));
+    DepthStencilDescriptor desc3{false, DepthTestOperation::ALWAYS};
+    gizmo_cmd = _device->CreateCommandBuffer(desc3);
+    gizmo_cmd->BindShaderObject(gizmo_shader);
+
+    VertexLayout gizmo_layout{};
+    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    gizmo_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
+    gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 }
 
 void Renderer::OnShutdown()
@@ -173,6 +186,26 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 
         static_geometry_models.emplace(model->GetName().data(), draw);
         static_geometry_models_vector.emplace_back(draw);
+        break;
+    }
+    case GIZMO:
+    {
+        auto it = gizmo_models.find(model->GetName().data());
+        if (it != gizmo_models.end())
+        {
+            it->second.model_matrix = model_pos;
+            return;
+        }
+
+        DrawInfo draw{model, model_pos};
+
+        draw.vertex_global_offset_bytes =
+            gizmo_cmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+
+        draw.index_global_offset_bytes = gizmo_cmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+
+        gizmo_models.emplace(model->GetName().data(), draw);
+        gizmo_models_vector.emplace_back(draw);
         break;
     }
     case DYNAMIC_DRAW:
@@ -289,6 +322,41 @@ void Renderer::OnUpdate(float dlTime)
 
     // Main Pass
     static_geometry_pass();
+
+    // gizmo
+    gizmo_cmd->PushDebugGroup(0, "[PASS] -> Gizmp Pass");
+    gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmp");
+    gizmo_cmd->BeginRecording();
+    gizmo_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+
+    gizmo_cmd->ShaderObject()->Use();
+
+    for (const auto& draw_info : gizmo_models_vector)
+    {
+        gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
+        // static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
+        gizmo_cmd->ShaderObject()->Set("view", _camera->GetView());
+        gizmo_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+
+        const auto* meshes = draw_info.model->GetMeshesPtr();
+
+        uint32_t index_inner_offset_bytes = 0;
+        for (const auto& mesh : *meshes)
+        {
+            gizmo_cmd->PushDebugGroup(0, mesh->Name().data());
+            gizmo_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
+            gizmo_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                   draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+
+            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
+            gizmo_cmd->PopDebugGroup();
+        }
+        gizmo_cmd->PopDebugGroup();
+        gizmo_cmd->EndRecording();
+        gizmo_cmd->Submit();
+    }
+    gizmo_cmd->PopDebugGroup();
+    gizmo_cmd->PopDebugGroup();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
