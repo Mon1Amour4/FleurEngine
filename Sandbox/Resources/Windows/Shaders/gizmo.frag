@@ -7,11 +7,11 @@ struct Material
 // Uniforms:
 uniform Material material;
 // In:
-in vec2 text_coords;
+in vec2 TextCoord;
 // Out:
 out vec4 FragColor;
 
 void main()
 {
-    FragColor = texture(material.albedo_texture, vec2(0.5, 0.5));
+    FragColor = texture(material.albedo_texture, TextCoord);
 }
