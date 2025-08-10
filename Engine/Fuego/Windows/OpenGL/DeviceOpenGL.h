@@ -30,6 +30,8 @@ public:
     virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemap_image) const override;
     virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) const override;
 
+    virtual std::unique_ptr<Framebuffer> CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const override;
+
     virtual void SetVSync(bool active) const override;
 
     virtual void Release() override;

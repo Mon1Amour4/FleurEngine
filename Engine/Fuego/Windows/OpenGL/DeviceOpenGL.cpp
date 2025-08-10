@@ -225,6 +225,11 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, cons
                                            images.right->Width(), images.right->Height(), 6);
 }
 
+std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const
+{
+    return std::unique_ptr<Framebuffer>(new FramebufferOpenGL(name, width, height, flags));
+}
+
 void DeviceOpenGL::SetVSync(bool active) const
 {
     wglSwapIntervalEXT(active);
