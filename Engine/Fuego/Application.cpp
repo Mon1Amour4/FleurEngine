@@ -79,7 +79,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
+    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport();
     event.SetHandled();
     return true;
 }
@@ -148,7 +148,7 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     if (!model_4.expired())
     {
         glm::mat4 gizmoMatrix(1.0f);
-        gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f); 
+        gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
 
         renderer->DrawModel(Fuego::Graphics::RenderStage::GIZMO, model_4.lock().get(), gizmoMatrix);
     }
