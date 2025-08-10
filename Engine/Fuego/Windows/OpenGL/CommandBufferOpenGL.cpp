@@ -57,9 +57,9 @@ void CommandBufferOpenGL::Submit()
     _isFree = true;
 }
 
-void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
+void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo)
 {
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
 }
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
