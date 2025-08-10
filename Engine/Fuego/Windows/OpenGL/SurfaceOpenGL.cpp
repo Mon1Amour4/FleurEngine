@@ -30,15 +30,10 @@ const void* SurfaceOpenGL::GetNativeHandle() const
 {
     return _window;
 }
+
 HDC SurfaceOpenGL::GetHdc() const
 {
     return _hdc;
-}
-
-void SurfaceOpenGL::Clear() const
-{
-    glClearColor(1.f, 1.f, 1.f, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void SurfaceOpenGL::Release()
