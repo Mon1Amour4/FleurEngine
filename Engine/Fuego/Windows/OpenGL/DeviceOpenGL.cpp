@@ -5,6 +5,7 @@
 #include "CommandBufferOpenGL.h"
 #include "CommandPoolOpenGL.h"
 #include "CommandQueueOpenGL.h"
+#include "FramebufferOpenGL.h"
 #include "ShaderOpenGL.h"
 #include "SwapchainOpenGL.h"
 // clang-format off
@@ -265,9 +266,9 @@ std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer(DepthStencilDes
     return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL(desc));
 }
 
-std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
+std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(std::unique_ptr<Surface> surface)
 {
-    return std::unique_ptr<Swapchain>(new SwapchainOpenGL(surface));
+    return std::unique_ptr<Swapchain>(new SwapchainOpenGL(std::move(surface)));
 }
 
 Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
