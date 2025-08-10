@@ -55,7 +55,6 @@ public:
 
     // IRenderer;
     void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
-    void ChangeViewport(float x, float y, float w, float h);
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -68,10 +67,6 @@ public:
     void ShowWireFrame();
     void ToggleWireFrame();
     void ValidateWindow();
-    inline const Viewport& GetViewport() const
-    {
-        return viewport;
-    }
 
     void SetVSync(bool active);
     bool IsVSync();
@@ -104,11 +99,11 @@ public:
             return _device->CreateShader(std::forward<Args>(args)...);
         return std::shared_ptr<Resource>{nullptr};
     }
+    void UpdateViewport();
 
 private:
     bool show_wireframe;
 
-    void UpdateViewport();
     std::unique_ptr<Device> _device;
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
@@ -121,9 +116,10 @@ private:
     std::unique_ptr<CommandBuffer> skybox_cmd;
     std::unique_ptr<CommandBuffer> gizmo_cmd;
 
-    ShaderObject* current_shader_obj;
+    // TODO: move from here
+    std::unique_ptr<Framebuffer> gizmo_fbo;
 
-    Viewport viewport;
+    ShaderObject* current_shader_obj;
 
     bool is_vsync;
 
