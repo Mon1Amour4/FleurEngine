@@ -4,17 +4,17 @@
 
 namespace Fuego::Graphics
 {
-enum FramebufferSettings
+enum class FramebufferSettings : uint32_t
 {
-    COLOR = 0x00000001,
-    DEPTH = 0x00000010,
-    STENCIL = 0x00000100,
-    DEPTH_STENCIL = 0x00001000
+    COLOR = 1 << 0,
+    DEPTH = 1 << 1,
+    STENCIL = 1 << 2,
+    DEPTH_STENCIL = 1 << 3
 };
 
 inline FramebufferSettings operator|(FramebufferSettings a, FramebufferSettings b)
 {
-    return static_cast<FramebufferSettings>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
+    return static_cast<FramebufferSettings>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
 
 class Framebuffer

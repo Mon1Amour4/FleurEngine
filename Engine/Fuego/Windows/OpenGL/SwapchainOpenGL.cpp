@@ -26,6 +26,7 @@ SwapchainOpenGL::~SwapchainOpenGL()
 
 void SwapchainOpenGL::Present()
 {
+    _backbuffer->Bind();
     SwapBuffers(_surface->GetHdc());
 }
 
@@ -63,7 +64,6 @@ void SwapchainOpenGL::UpdateVieport()
 }
 void SwapchainOpenGL::ClearBackbuffer() const
 {
-    _backbuffer->Bind();
     _backbuffer->Clear();
 }
 void SwapchainOpenGL::Release()

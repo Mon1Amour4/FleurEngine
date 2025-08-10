@@ -60,6 +60,7 @@ void CommandBufferOpenGL::Submit()
 void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+    glViewport(0, 0, fbo.Width(), fbo.Height());
 }
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
@@ -114,12 +115,6 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
 {
     glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes), base_vertex);
-}
-
-void CommandBufferOpenGL::Clear()
-{
-    glClearColor(1.f, 1.f, 1.f, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)

@@ -65,21 +65,21 @@ void Fuego::Graphics::FramebufferOpenGL::Release()
 
 void Fuego::Graphics::FramebufferOpenGL::Clear()
 {
-    glClearColor(1.f, 1.f, 1.f, 1.f);
+    Bind();
 
     uint32_t gl_flags = 0;
     if (flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
         gl_flags |= GL_COLOR_BUFFER_BIT;
 
-    if (flags & DEPTH_STENCIL)
+    if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
     {
         gl_flags |= GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
     }
     else
     {
-        if (flags & DEPTH)
+        if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
             gl_flags |= GL_DEPTH_BUFFER_BIT;
-        if (flags & STENCIL)
+        if (flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
             gl_flags |= GL_STENCIL_BUFFER_BIT;
     }
 

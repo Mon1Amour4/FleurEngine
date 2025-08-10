@@ -28,7 +28,6 @@ public:
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
     virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) override;
-    virtual void Clear() override;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) override;
     virtual void PopDebugGroup() override;

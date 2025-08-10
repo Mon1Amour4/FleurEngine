@@ -121,9 +121,9 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
     auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
-    renderer->ShowWireFrame();
-    // TODO: As for now we use just one opaque shader, but we must think about different passes
-    // using different shaders with blending and probably using pre-passes
+    // renderer->ShowWireFrame();
+    //  TODO: As for now we use just one opaque shader, but we must think about different passes
+    //  using different shaders with blending and probably using pre-passes
 
     auto model_1 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_1 = model_1.lock();

@@ -142,7 +142,7 @@ void Renderer::OnInit()
     gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
     gizmo_fbo = _device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
-                                           FramebufferSettings::COLOR | FramebufferSettings::DEPTH_STENCIL);
+                                           (uint32_t)FramebufferSettings::COLOR | (uint32_t)FramebufferSettings::DEPTH_STENCIL);
 }
 
 void Renderer::OnShutdown()
@@ -326,23 +326,32 @@ void Renderer::OnUpdate(float dlTime)
 
     // gizmo
     gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    gizmo_cmd->BeginRecording();
     gizmo_cmd->BindRenderTarget(*gizmo_fbo.get());
+    gizmo_cmd->BeginRecording();
 
-    gizmo_cmd->ShaderObject()->Use();
+    static_geometry_cmd->ShaderObject()->Use();
 
     for (const auto& draw_info : gizmo_models_vector)
     {
         gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
         // static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
-        gizmo_cmd->ShaderObject()->Set("model", glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f)));
 
         glm::mat4 view = _camera->GetView();
         glm::mat3 rotation3x3 = glm::mat3(view);
         glm::mat4 cameraRotation = glm::mat4(rotation3x3);
+        glm::vec4 camera_translation = view[3];
+        glm::mat4 model = glm::mat4(1.0);
+        model[0] = cameraRotation[0];
+        model[1] = cameraRotation[1];
+        model[2] = cameraRotation[2];
+        // static_geometry_cmd->ShaderObject()->Set("model", glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f)));
+        static_geometry_cmd->ShaderObject()->Set("model", glm::translate(glm::mat4(1.f), glm::vec3((float)_swapchain->GetScreenTexture().Width() / 2,
+                                                                                                   (float)_swapchain->GetScreenTexture().Height() / 2, 1.f)));
 
-        gizmo_cmd->ShaderObject()->Set("view", cameraRotation);
-        gizmo_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+        glm::mat4 projection = glm::ortho(0.f, (float)_swapchain->GetScreenTexture().Width(), 0.f, (float)_swapchain->GetScreenTexture().Height());
+
+        static_geometry_cmd->ShaderObject()->Set("view", glm::mat4(1.f));
+        static_geometry_cmd->ShaderObject()->Set("projection", projection);
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
 
@@ -362,6 +371,8 @@ void Renderer::OnUpdate(float dlTime)
         gizmo_cmd->Submit();
     }
     gizmo_cmd->PopDebugGroup();
+
+    static_geometry_cmd->BeginRecording();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -412,8 +423,8 @@ void Renderer::static_geometry_pass() const
 {
     static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    static_geometry_cmd->BeginRecording();
     static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    static_geometry_cmd->BeginRecording();
 
     static_geometry_cmd->ShaderObject()->Use();
 

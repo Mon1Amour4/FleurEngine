@@ -19,7 +19,7 @@ class Texture2D;
 class TextureCubemap;
 class Framebuffer;
 enum RenderStage;
-enum FramebufferSettings;
+enum class FramebufferSettings : uint32_t;
 struct CubemapInitData;
 struct DepthStencilDescriptor;
 
