@@ -95,9 +95,10 @@ void Renderer::OnInit()
 
     _commandQueue = _device->CreateCommandQueue();
 
-    // Temporary: we're creating surface for main Application window
-    _surface = _device->CreateSurface(Fuego::Application::instance().GetWindow().GetNativeHandle());
-    _swapchain = _device->CreateSwapchain(*_surface);
+    auto& application = Fuego::Application::instance();
+
+    _swapchain = _device->CreateSwapchain(_device->CreateSurface(application.GetWindow().GetNativeHandle()));
+
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
     std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject("static_geometry_shader",
@@ -139,15 +140,15 @@ void Renderer::OnInit()
     gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
     gizmo_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
     gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+
+    gizmo_fbo = _device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
+                                           FramebufferSettings::COLOR | FramebufferSettings::DEPTH_STENCIL);
 }
 
 void Renderer::OnShutdown()
 {
     _device->Release();
-    _device.release();
-
-    _surface->Release();
-    _surface.release();
+    _swapchain->Release();
 }
 
 std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
@@ -216,9 +217,8 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 
 void Renderer::Clear()
 {
-    // CommandBuffer& cmd = _commandPool->GetCommandBuffer();
-    // cmd.Clear();
-    _surface->Clear();
+    _swapchain->ClearBackbuffer();
+    gizmo_fbo->Clear();
 }
 
 void Renderer::Present()
@@ -325,10 +325,9 @@ void Renderer::OnUpdate(float dlTime)
     static_geometry_pass();
 
     // gizmo
-    gizmo_cmd->PushDebugGroup(0, "[PASS] -> Gizmp Pass");
-    gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmp");
+    gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
     gizmo_cmd->BeginRecording();
-    gizmo_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    gizmo_cmd->BindRenderTarget(*gizmo_fbo.get());
 
     gizmo_cmd->ShaderObject()->Use();
 
@@ -336,7 +335,13 @@ void Renderer::OnUpdate(float dlTime)
     {
         gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
         // static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
-        gizmo_cmd->ShaderObject()->Set("view", _camera->GetView());
+        gizmo_cmd->ShaderObject()->Set("model", glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f)));
+
+        glm::mat4 view = _camera->GetView();
+        glm::mat3 rotation3x3 = glm::mat3(view);
+        glm::mat4 cameraRotation = glm::mat4(rotation3x3);
+
+        gizmo_cmd->ShaderObject()->Set("view", cameraRotation);
         gizmo_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
@@ -357,7 +362,6 @@ void Renderer::OnUpdate(float dlTime)
         gizmo_cmd->Submit();
     }
     gizmo_cmd->PopDebugGroup();
-    gizmo_cmd->PopDebugGroup();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -370,21 +374,9 @@ void Renderer::OnFixedUpdate()
     // TODO
 }
 
-void Renderer::ChangeViewport(float x, float y, float w, float h)
-{
-    viewport.x = x;
-    viewport.y = y;
-    viewport.width = w;
-    viewport.height = h;
-    UpdateViewport();
-}
-
 void Renderer::UpdateViewport()
 {
-    _surface.release();
-    _surface = _device->CreateSurface(Fuego::Application::instance().GetWindow().GetNativeHandle());
-    _swapchain.release();
-    _swapchain = _device->CreateSwapchain(*_surface);
+    _swapchain->UpdateVieport();
 }
 
 VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)

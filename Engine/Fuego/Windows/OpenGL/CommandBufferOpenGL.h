@@ -1,10 +1,12 @@
 #pragma once
 
+#include "FramebufferOpenGL.h"
 #include "Renderer/CommandBuffer.h"
 
 namespace Fuego::Graphics
 {
 class Surface;
+
 struct VertexLayout;
 
 class CommandBufferOpenGL final : public CommandBuffer
