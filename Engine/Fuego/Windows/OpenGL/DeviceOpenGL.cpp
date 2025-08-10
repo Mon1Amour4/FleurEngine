@@ -178,6 +178,11 @@ DeviceOpenGL::DeviceOpenGL()
     FU_CORE_INFO("  Max texture units: {0}", max_textures_units);
     ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(max_textures_units);
     glEnable(GL_DEPTH_TEST);
+
+    // Initial values for color\depth\stencil bufers
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearDepth(1.0);
+    glClearStencil(0);
 }
 
 DeviceOpenGL::~DeviceOpenGL()

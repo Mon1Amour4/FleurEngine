@@ -29,8 +29,7 @@ void Fuego::Graphics::DefaultFramebufferOpenGL::Release()
 void Fuego::Graphics::DefaultFramebufferOpenGL::Clear()
 {
     Bind();
-    glClearColor(1.f, 1.f, 1.f, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 }
 
 Fuego::Graphics::FramebufferOpenGL::FramebufferOpenGL(uint32_t width, uint32_t height)

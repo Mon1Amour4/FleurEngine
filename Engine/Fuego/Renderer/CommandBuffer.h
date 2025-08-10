@@ -69,7 +69,6 @@ public:
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
     virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
-    virtual void Clear() = 0;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
     virtual void PopDebugGroup() = 0;
