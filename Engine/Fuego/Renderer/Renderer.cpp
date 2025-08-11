@@ -329,29 +329,24 @@ void Renderer::OnUpdate(float dlTime)
     gizmo_cmd->BindRenderTarget(*gizmo_fbo.get());
     gizmo_cmd->BeginRecording();
 
-    static_geometry_cmd->ShaderObject()->Use();
+    gizmo_cmd->ShaderObject()->Use();
 
     for (const auto& draw_info : gizmo_models_vector)
     {
         gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
         // static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
 
-        glm::mat4 view = _camera->GetView();
-        glm::mat3 rotation3x3 = glm::mat3(view);
-        glm::mat4 cameraRotation = glm::mat4(rotation3x3);
-        glm::vec4 camera_translation = view[3];
-        glm::mat4 model = glm::mat4(1.0);
-        model[0] = cameraRotation[0];
-        model[1] = cameraRotation[1];
-        model[2] = cameraRotation[2];
-        // static_geometry_cmd->ShaderObject()->Set("model", glm::scale(glm::mat4(1.f), glm::vec3(0.01f, 0.01f, 0.01f)));
-        static_geometry_cmd->ShaderObject()->Set("model", glm::translate(glm::mat4(1.f), glm::vec3((float)_swapchain->GetScreenTexture().Width() / 2,
-                                                                                                   (float)_swapchain->GetScreenTexture().Height() / 2, 1.f)));
+        int ScreenWidth = _swapchain->GetScreenTexture().Width();
+        int ScreenHeight = _swapchain->GetScreenTexture().Height();
 
-        glm::mat4 projection = glm::ortho(0.f, (float)_swapchain->GetScreenTexture().Width(), 0.f, (float)_swapchain->GetScreenTexture().Height());
+        glm::mat4 proj = glm::mat4(1.0f);
+        glm::mat4 view = glm::mat4(1.0f);
+        glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f));
+        model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
 
-        static_geometry_cmd->ShaderObject()->Set("view", glm::mat4(1.f));
-        static_geometry_cmd->ShaderObject()->Set("projection", projection);
+        gizmo_cmd->ShaderObject()->Set("projection", proj);
+        gizmo_cmd->ShaderObject()->Set("model", model);
+        gizmo_cmd->ShaderObject()->Set("view", view);
 
         const auto* meshes = draw_info.model->GetMeshesPtr();
 
