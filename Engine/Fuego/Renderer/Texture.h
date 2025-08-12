@@ -38,7 +38,18 @@ enum class TextureFormat
     RGB32F,   // 3 channel, 32-bit float
     RGBA32F,  // 4 channel, 32-bit float
 
+    // Depth
+    DEPTH16,
+    DEPTH24,
+    DEPTH32,
+    DEPTH32F,
 
+    // Stencil
+    STENCIL8,
+
+    // Deapth-Stencil
+    DEPTH24STENCIL8,
+    DEPTH24FSTENCIL8F,
 };
 
 class Texture : public ImageBase
@@ -131,22 +142,42 @@ protected:
     {
         switch (format)
         {
+        // Color formats
         case TextureFormat::R8:
         case TextureFormat::R16F:
         case TextureFormat::R32F:
             return 1;
+
         case TextureFormat::RG8:
         case TextureFormat::RG16F:
         case TextureFormat::RG32F:
             return 2;
+
         case TextureFormat::RGB8:
         case TextureFormat::RGB16F:
         case TextureFormat::RGB32F:
             return 3;
+
         case TextureFormat::RGBA8:
         case TextureFormat::RGBA16F:
         case TextureFormat::RGBA32F:
             return 4;
+
+        // Depth formats
+        case TextureFormat::DEPTH16:
+        case TextureFormat::DEPTH24:
+        case TextureFormat::DEPTH32:
+        case TextureFormat::DEPTH32F:
+            return 1;
+
+        // Stencil
+        case TextureFormat::STENCIL8:
+            return 1;
+
+        // Depth + Stencil
+        case TextureFormat::DEPTH24STENCIL8:
+        case TextureFormat::DEPTH24FSTENCIL8F:
+            return 2;
         }
 
         FU_CORE_ASSERT(false, "Unknown format in format_to_channels");
@@ -157,29 +188,40 @@ protected:
     {
         switch (format)
         {
+        // Unsigned normalized
         case TextureFormat::R8:
         case TextureFormat::RG8:
         case TextureFormat::RGB8:
         case TextureFormat::RGBA8:
+        case TextureFormat::STENCIL8:
             return 1;
 
+        // 16-bit float or 16-bit depth
         case TextureFormat::R16F:
         case TextureFormat::RG16F:
         case TextureFormat::RGB16F:
         case TextureFormat::RGBA16F:
+        case TextureFormat::DEPTH16:
             return 2;
 
+        // 24-bit depth (stores in 3 bytes, aligns for 4)
+        case TextureFormat::DEPTH24:
+        case TextureFormat::DEPTH24STENCIL8:
+        case TextureFormat::DEPTH24FSTENCIL8F:
+            return 3;
+
+        // 32-bit float or 32-bit depth
         case TextureFormat::R32F:
         case TextureFormat::RG32F:
         case TextureFormat::RGB32F:
         case TextureFormat::RGBA32F:
+        case TextureFormat::DEPTH32:
+        case TextureFormat::DEPTH32F:
             return 4;
         }
+
         FU_CORE_ASSERT(false, "Unknown format in format_to_depth");
         return 1;
-    }
-
-    TextureFormat format;
+    };
 };
-
-};  // namespace Fuego::Graphics
+}  // namespace Fuego::Graphics
