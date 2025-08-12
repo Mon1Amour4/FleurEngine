@@ -2,7 +2,6 @@
 
 #include "Color.h"
 #include "Image2D.h"
-#include "TextureUtills.h"
 
 namespace Fuego::Graphics
 {
