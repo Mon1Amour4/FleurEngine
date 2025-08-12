@@ -15,8 +15,6 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     , texture_unit(0)
     , texture_id(0)
 {
-    FU_CORE_ASSERT(buffer, "");
-
     if (layers == 1)
         create_texture_2d(buffer);
     else if (layers == 6)
@@ -25,7 +23,8 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
-    is_created = true;
+    if (buffer)
+        is_created = true;
 }
 
 Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format,
@@ -211,7 +210,8 @@ void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
 
-    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+    if(buffer)
+        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
