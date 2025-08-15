@@ -17,8 +17,6 @@ public:
 
     virtual const Framebuffer& GetScreenTexture() = 0;
 
-    virtual void UpdateVieport() = 0;
-
     virtual void ClearBackbuffer() const = 0;
 
     virtual void Release() = 0;

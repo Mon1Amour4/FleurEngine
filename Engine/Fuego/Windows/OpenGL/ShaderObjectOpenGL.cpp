@@ -159,7 +159,7 @@ bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Te
 
     const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
     glUniform1i(location, text_gl.GetTextureUnit());
-    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
+    glBindTextureUnit(text_gl.GetTextureUnit(), *text_gl.GetTextureID());
     return true;
 }
 

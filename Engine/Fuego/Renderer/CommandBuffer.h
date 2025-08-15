@@ -14,6 +14,7 @@ class Texture;
 struct VertexLayout;
 class Device;
 class Framebuffer;
+enum class FramebufferRWOperation;
 
 enum RenderStage;
 
@@ -52,7 +53,7 @@ public:
     virtual void EndRecording() = 0;
     virtual void Submit() = 0;
 
-    virtual void BindRenderTarget(const Framebuffer& texture) = 0;
+    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) = 0;
     virtual void BindShaderObject(std::shared_ptr<Fuego::Graphics::ShaderObject> shader) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
 

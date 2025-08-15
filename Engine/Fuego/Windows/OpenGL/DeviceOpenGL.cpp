@@ -233,7 +233,31 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, cons
 
 std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const
 {
-    return std::unique_ptr<Framebuffer>(new FramebufferOpenGL(name, width, height, flags));
+    auto fbo = std::unique_ptr<FramebufferOpenGL>(new FramebufferOpenGL(name, width, height, flags));
+
+    if (flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
+    {
+        fbo->AddColorAttachment(CreateTexture(name.data() + std::string("color_attachment"), "", TextureFormat::RGBA8, nullptr, width, height));
+    }
+    if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
+    {
+        fbo->AddDepthAttachment(
+            CreateTexture(name.data() + std::string("depth_stencil_attachment"), "", TextureFormat::DEPTH24STENCIL8, nullptr, width, height));
+    }
+    else
+    {
+        if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
+        {
+            fbo->AddDepthAttachment(CreateTexture(name.data() + std::string("depth_attachment"), "", TextureFormat::DEPTH24, nullptr, width, height));
+        }
+
+        if (flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
+        {
+            fbo->AddStencilAttachment(CreateTexture(name.data() + std::string("stencil_attachment"), "", TextureFormat::STENCIL8, nullptr, width, height));
+        }
+    }
+
+    return fbo;
 }
 
 void DeviceOpenGL::SetVSync(bool active) const

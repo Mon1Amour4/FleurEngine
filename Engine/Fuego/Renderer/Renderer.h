@@ -99,7 +99,7 @@ public:
             return _device->CreateShader(std::forward<Args>(args)...);
         return std::shared_ptr<Resource>{nullptr};
     }
-    void UpdateViewport();
+    void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 private:
     bool show_wireframe;
@@ -114,6 +114,7 @@ private:
     std::unique_ptr<CommandBuffer> static_geometry_cmd;
     std::unique_ptr<CommandBuffer> skybox_cmd;
     std::unique_ptr<CommandBuffer> gizmo_cmd;
+    std::unique_ptr<CommandBuffer> copy_fbo_cmd;
 
     // TODO: move from here
     std::unique_ptr<Framebuffer> gizmo_fbo;

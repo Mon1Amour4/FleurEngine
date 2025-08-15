@@ -101,9 +101,9 @@ void Renderer::OnInit()
 
     _commandPool = _device->CreateCommandPool(*_commandQueue);
 
-    std::shared_ptr<ShaderObject> static_geometry_shader(ShaderObject::CreateShaderObject("static_geometry_shader",
-                                                                                          _device->CreateShader("static_geo", Shader::ShaderType::Vertex),
-                                                                                          _device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
+    auto static_geo_vs = _device->CreateShader("static_geo", Shader::ShaderType::Vertex);
+    std::shared_ptr<ShaderObject> static_geometry_shader(
+        ShaderObject::CreateShaderObject("static_geometry_shader", static_geo_vs, _device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
     // Static geometry
     DepthStencilDescriptor desc{true, DepthTestOperation::LESS};
     static_geometry_cmd = _device->CreateCommandBuffer(desc);
@@ -143,6 +143,33 @@ void Renderer::OnInit()
 
     gizmo_fbo = _device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
                                            (uint32_t)FramebufferSettings::COLOR | (uint32_t)FramebufferSettings::DEPTH_STENCIL);
+
+
+    std::shared_ptr<ShaderObject> copy_fbo_shader(
+        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", static_geo_vs, _device->CreateShader("CopyFBOAsQuad", Shader::ShaderType::Pixel)));
+
+    DepthStencilDescriptor desc4{true, DepthTestOperation::LESS};
+    copy_fbo_cmd = _device->CreateCommandBuffer(desc4);
+    copy_fbo_cmd->BindShaderObject(copy_fbo_shader);
+
+    VertexLayout copy_fbo_layout{};
+    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
+    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
+    // copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
+    copy_fbo_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
+    copy_fbo_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+
+    // clang-format off
+    static float quadVertices[] = {
+    -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,
+     1.0f, -1.0f, 0.0f,   1.0f, 0.0f,
+    -1.0f,  1.0f, 0.0f,   0.0f, 1.0f,
+     -1.0f, 1.0f, 0.0f,   1.0f, 1.0f,
+     1.0f,  1.0f, 0.0f,   1.0f, 1.0f,
+     1.0f,  -1.0f, 0.0f,   1.0f, 1.0f
+};
+    // clang-format on
+    copy_fbo_cmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
 }
 
 void Renderer::OnShutdown()
@@ -326,7 +353,7 @@ void Renderer::OnUpdate(float dlTime)
 
     // gizmo
     gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    gizmo_cmd->BindRenderTarget(*gizmo_fbo.get());
+    gizmo_cmd->BindRenderTarget(*gizmo_fbo.get(), FramebufferRWOperation::WRITE_ONLY);
     gizmo_cmd->BeginRecording();
 
     gizmo_cmd->ShaderObject()->Use();
@@ -334,15 +361,18 @@ void Renderer::OnUpdate(float dlTime)
     for (const auto& draw_info : gizmo_models_vector)
     {
         gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        // static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
-
-        int ScreenWidth = _swapchain->GetScreenTexture().Width();
-        int ScreenHeight = _swapchain->GetScreenTexture().Height();
 
         glm::mat4 proj = glm::mat4(1.0f);
-        glm::mat4 view = glm::mat4(1.0f);
+
+        glm::mat3 camera_rotation = _camera->GetView();
+        glm::mat4 view = glm::mat4(1.f);
+
         glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f));
         model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
+
+        // glm::mat4 rotation = glm::mat4(1.f);
+        model = glm::rotate(model, glm::radians(_camera->Yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(_camera->Pitch()), glm::vec3(1.0f, 0.0f, 0.0f));
 
         gizmo_cmd->ShaderObject()->Set("projection", proj);
         gizmo_cmd->ShaderObject()->Set("model", model);
@@ -368,6 +398,25 @@ void Renderer::OnUpdate(float dlTime)
     gizmo_cmd->PopDebugGroup();
 
     static_geometry_cmd->BeginRecording();
+
+    //
+    copy_fbo_cmd->PushDebugGroup(0, "[Copy FBO]");
+    // gizmo_cmd->BindRenderTarget(*gizmo_fbo.get(), FramebufferRWOperation::READ_ONLY);
+    gizmo_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+
+    ShaderComponentContext ctx{};
+    ctx.albedo_text.second = gizmo_fbo->GetColorAttachment(0);
+
+    copy_fbo_cmd->ShaderObject()->Use();
+    copy_fbo_cmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
+
+    copy_fbo_cmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
+    copy_fbo_cmd->ShaderObject()->Set("model", glm::mat4(1.0f));
+    copy_fbo_cmd->ShaderObject()->Set("view", glm::mat4(1.0f));
+
+    copy_fbo_cmd->Draw(6);
+
+    copy_fbo_cmd->PopDebugGroup();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -380,9 +429,11 @@ void Renderer::OnFixedUpdate()
     // TODO
 }
 
-void Renderer::UpdateViewport()
+void Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
-    _swapchain->UpdateVieport();
+    gizmo_fbo->Bind();
+    uint32_t flags = gizmo_fbo->Flags();
+    gizmo_fbo.reset(_device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
 }
 
 VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
@@ -397,10 +448,9 @@ void Renderer::skybox_pass() const
     if (!_skybox)
         return;
 
-    skybox_cmd->PushDebugGroup(0, "[PASS] -> Skybox Pass");
     skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
     skybox_cmd->BeginRecording();
-    skybox_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    skybox_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
 
     skybox_cmd->ShaderObject()->Use();
 
@@ -411,14 +461,12 @@ void Renderer::skybox_pass() const
     skybox_cmd->Draw(_skybox->GetVertexCount() / 3);
 
     skybox_cmd->PopDebugGroup();
-    skybox_cmd->PopDebugGroup();
 }
 
 void Renderer::static_geometry_pass() const
 {
-    static_geometry_cmd->PushDebugGroup(0, "[PASS] -> Main Pass");
     static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture());
+    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
     static_geometry_cmd->BeginRecording();
 
     static_geometry_cmd->ShaderObject()->Use();
@@ -447,7 +495,6 @@ void Renderer::static_geometry_pass() const
         static_geometry_cmd->EndRecording();
         static_geometry_cmd->Submit();
     }
-    static_geometry_cmd->PopDebugGroup();
     static_geometry_cmd->PopDebugGroup();
 }
 

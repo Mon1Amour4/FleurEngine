@@ -57,10 +57,17 @@ void CommandBufferOpenGL::Submit()
     _isFree = true;
 }
 
-void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo)
+void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw)
 {
-    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
-    glViewport(0, 0, fbo.Width(), fbo.Height());
+    if (rw == FramebufferRWOperation::READ_ONLY)
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+    else if (rw == FramebufferRWOperation::WRITE_ONLY)
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+    else
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+        glViewport(0, 0, fbo.Width(), fbo.Height());
+    }
 }
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
@@ -101,7 +108,7 @@ void CommandBufferOpenGL::BindTexture(Texture* texture)
 {
     TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
 
-    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
+    glBindTextureUnit(text_gl.GetTextureUnit(), *text_gl.GetTextureID());
 }
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)

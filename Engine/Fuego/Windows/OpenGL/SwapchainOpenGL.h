@@ -24,8 +24,6 @@ public:
 
     virtual void ValidateWindow() override;
 
-    virtual void UpdateVieport() override;
-
     virtual void ClearBackbuffer() const override;
 
     virtual void Release() override;

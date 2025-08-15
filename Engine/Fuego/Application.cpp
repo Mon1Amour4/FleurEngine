@@ -79,7 +79,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport();
+    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }

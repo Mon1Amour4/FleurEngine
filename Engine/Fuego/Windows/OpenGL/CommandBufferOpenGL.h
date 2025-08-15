@@ -16,7 +16,7 @@ public:
     virtual void BeginRecording() override;
     virtual void EndRecording() override;
     virtual void Submit() override;
-    virtual void BindRenderTarget(const Framebuffer& texture) override;
+    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) override;
     virtual void BindShaderObject(std::shared_ptr<Fuego::Graphics::ShaderObject> shader) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
 

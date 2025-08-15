@@ -22,7 +22,14 @@ public:
     {
         return view;
     }
-
+    float Yaw() const
+    {
+        return yaw;
+    }
+    float Pitch() const
+    {
+        return pitch;
+    }
     inline mat4 GetProjection() const
     {
         return projection;

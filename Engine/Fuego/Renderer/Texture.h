@@ -119,9 +119,11 @@ public:
         }
         FU_CORE_ASSERT(false, "Invalid texture format: unsupported channels or depth");
         return TextureFormat::RGBA8;
-    }  // namespace Fuego::Graphics::TextureUtils
+    }
 
 protected:
+    TextureFormat format;
+
     Texture(std::string_view name, std::string_view ext, TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
         : ImageBase(name, ext, width, height, format_to_channels(format), format_to_depth(format), layers)
         , format(format)

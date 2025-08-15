@@ -301,7 +301,7 @@ uint32_t Fuego::Graphics::TextureOpenGL::GetTextureUnit() const
     return texture_unit;
 }
 
-uint32_t Fuego::Graphics::TextureOpenGL::GetTextureID() const
+const uint32_t* Fuego::Graphics::TextureOpenGL::GetTextureID() const
 {
-    return texture_id;
+    return &texture_id;
 }

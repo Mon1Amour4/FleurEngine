@@ -54,14 +54,6 @@ void SwapchainOpenGL::ValidateWindow()
     EndPaint((HWND)_surface->GetNativeHandle(), &ps);
 }
 
-void SwapchainOpenGL::UpdateVieport()
-{
-    auto rect = _surface->GetRect();
-
-    _backbuffer->ResizeFBO(rect.width, rect.height);
-
-    glViewport(rect.x, rect.y, rect.width, rect.height);
-}
 void SwapchainOpenGL::ClearBackbuffer() const
 {
     _backbuffer->Clear();
@@ -69,6 +61,5 @@ void SwapchainOpenGL::ClearBackbuffer() const
 void SwapchainOpenGL::Release()
 {
     _surface->Release();
-    _backbuffer->Release();
 }
 }  // namespace Fuego::Graphics
