@@ -40,3 +40,8 @@ endfunction()
 foreach(tgt IN ITEMS tbb tbbmalloc tbbmalloc_proxy)
     set_output_dirs(${tgt})
 endforeach()
+
+SET_TARGET_PROPERTIES(
+  tbb
+  PROPERTIES FOLDER "External"
+)
