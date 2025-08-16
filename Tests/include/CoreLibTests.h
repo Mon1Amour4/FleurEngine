@@ -2,7 +2,7 @@
 #include "Uptr.h"
 #include "gtest/gtest.h"
 
-using namespace Fuego;
+using namespace Fleur;
 
 TEST(CoreLibTest, Uptr_DefaultConstructor)
 {

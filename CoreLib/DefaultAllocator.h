@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-namespace Fuego
+namespace Fleur
 {
 
 class DefaultAllocator
@@ -19,4 +19,4 @@ public:
     }
 };
 
-}  // namespace Fuego
+}  // namespace Fleur

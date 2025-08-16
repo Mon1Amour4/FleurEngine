@@ -6,7 +6,7 @@ SET(SANDBOX_HEADERS SandboxApp.h)
 SET(SANDBOX_SOURCES SandboxApp.cpp)
 
 # === Platform-specific Configuration ===
-IF(FUEGO_PLATFORM STREQUAL "macos")
+IF(FLEUR_PLATFORM STREQUAL "macos")
   # macOS Sources
   LIST(APPEND SANDBOX_SOURCES MacOS/main.mm)
 
@@ -29,7 +29,7 @@ IF(FUEGO_PLATFORM STREQUAL "macos")
                MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Resources/MacOS/Sandbox-Info.plist.in"
   )
 
-ELSEIF(FUEGO_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "win")
   # Windows Sources
   LIST(APPEND SANDBOX_SOURCES Windows/main.cpp)
 
@@ -41,7 +41,7 @@ ELSEIF(FUEGO_PLATFORM STREQUAL "win")
 ENDIF()
 
 # === Dependencies ===
-TARGET_LINK_LIBRARIES(Sandbox PRIVATE FuegoEngine)
+TARGET_LINK_LIBRARIES(Sandbox PRIVATE FleurEngine)
 
 TARGET_COMPILE_FEATURES(Sandbox PRIVATE cxx_std_20)
 

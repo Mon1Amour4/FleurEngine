@@ -51,12 +51,12 @@ def generate_project(platform, enable_test, build_dll):
         build_dir = os.path.join(build_dir, 'macos')
         platfrorm_var = 'macos'
         generator = 'Xcode'
-        platform_macro_definition = '-DFUEGO_PLATFORM_MACOS=1'
+        platform_macro_definition = '-DFLEUR_PLATFORM_MACOS=1'
     elif platform == 'windows':
         build_dir = os.path.join(build_dir, 'win')
         platfrorm_var = 'win'
         generator = 'Visual Studio 17 2022'
-        platform_macro_definition = '-DFUEGO_PLATFORM_WIN=1'
+        platform_macro_definition = '-DFLEUR_PLATFORM_WIN=1'
         cpu_count = multiprocessing.cpu_count()
         platform_macro_definition += (
             f' -DCMAKE_BUILD_PARALLEL_LEVEL={cpu_count}'
@@ -66,11 +66,11 @@ def generate_project(platform, enable_test, build_dll):
         sys.exit(1)
 
     if enable_test == 'true':
-        enable_test = '-DENABLE_FUEGO_TEST=ON'
+        enable_test = '-DENABLE_FLEUR_TEST=ON'
         print('Tests are On')
     elif enable_test == 'false':
         print('Tests are Off')
-        enable_test = '-DENABLE_FUEGO_TEST=OFF'
+        enable_test = '-DENABLE_FLEUR_TEST=OFF'
     else:
         print(
             f'{build_log_error} Unsupported argument for tests: '
@@ -79,11 +79,11 @@ def generate_project(platform, enable_test, build_dll):
         sys.exit(1)
 
     if build_dll == 'true':
-        print('Fuego engine is DLL')
-        build_dll = '-DFUEGO_LIB_TYPE=SHARED'
+        print('Fleur engine is DLL')
+        build_dll = '-DFLEUR_LIB_TYPE=SHARED'
     elif build_dll == 'false':
-        print('Fuego engine is static')
-        build_dll = '-DFUEGO_LIB_TYPE=STATIC'
+        print('Fleur engine is static')
+        build_dll = '-DFLEUR_LIB_TYPE=STATIC'
     else:
         print(
             f'{build_log_error} Unsupported argument for build_dll: '
@@ -105,7 +105,7 @@ def generate_project(platform, enable_test, build_dll):
 
     engine_arguments = (
         f' {enable_test}'
-        f' -DFUEGO_PLATFORM={platfrorm_var}'
+        f' -DFLEUR_PLATFORM={platfrorm_var}'
         f' {platform_macro_definition}'
         f' {build_dll}'
     )

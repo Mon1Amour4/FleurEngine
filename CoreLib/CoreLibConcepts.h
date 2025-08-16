@@ -2,7 +2,7 @@
 
 #include <concepts>
 
-namespace Fuego
+namespace Fleur
 {
 template <class T>
 concept ArrayType = std::is_array_v<T>;
@@ -20,5 +20,5 @@ concept ByteAllocator = requires(T alloc, uint8_t* ptr, size_t size_in_bytes) {
 };
 
 template <class T>
-concept FuegoAllocator = DefaultConstructible<T> && ByteAllocator<T>;
-}  // namespace Fuego
+concept FleurAllocator = DefaultConstructible<T> && ByteAllocator<T>;
+}  // namespace Fleur

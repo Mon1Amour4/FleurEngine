@@ -14,7 +14,7 @@ SET(IMGUI_PLATFORM_HEADERS "")
 SET(IMGUI_PLATFORM_SOURCES "")
 SET(IMGUI_PLATFORM_DEPENDENCIES "")
 
-IF(FUEGO_PLATFORM STREQUAL "macos")
+IF(FLEUR_PLATFORM STREQUAL "macos")
   # macOS Backend
   LIST(APPEND IMGUI_PLATFORM_HEADERS External/imgui/backends/imgui_impl_osx.h
        External/imgui/backends/imgui_impl_metal.h
@@ -41,7 +41,7 @@ IF(FUEGO_PLATFORM STREQUAL "macos")
     ${GAMECONTROLLER_FRAMEWORK}
   )
 
-ELSEIF(FUEGO_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "win")
   # Windows Backend
   LIST(APPEND IMGUI_PLATFORM_HEADERS External/imgui/backends/imgui_impl_win32.h
        External/imgui/backends/imgui_impl_opengl3.h
@@ -61,7 +61,7 @@ ADD_LIBRARY(
 )
 
 # === Target Configuration ===
-TARGET_COMPILE_FEATURES(ImGui PRIVATE cxx_std_${FU_CPP_LANG_VER})
+TARGET_COMPILE_FEATURES(ImGui PRIVATE cxx_std_${FL_CPP_LANG_VER})
 
 TARGET_INCLUDE_DIRECTORIES(ImGui PUBLIC External/imgui/ External/imgui/backends/)
 
@@ -81,14 +81,14 @@ ELSE()
 ENDIF()
 
 # === Platform-specific Configuration ===
-IF(FUEGO_PLATFORM STREQUAL "macos")
+IF(FLEUR_PLATFORM STREQUAL "macos")
   # macOS-specific compile definitions
   TARGET_COMPILE_DEFINITIONS(ImGui PRIVATE IMGUI_IMPL_METAL_CPP)
 
   # Enable Objective-C++ for .mm files
   SET_SOURCE_FILES_PROPERTIES(External/imgui/backends/imgui_impl_osx.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
-ELSEIF(FUEGO_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "win")
   # Windows-specific compile definitions
   TARGET_COMPILE_DEFINITIONS(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD WIN32_LEAN_AND_MEAN NOMINMAX)
 

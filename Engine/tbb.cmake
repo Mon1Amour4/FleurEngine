@@ -1,4 +1,4 @@
-set(_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output)
+set(_OUTPUT_DIR ${CMAKE_SOURCE_DIR}/build/${FLEUR_PLATFORM}/output)
 
 foreach(OUTPUTCONFIG Debug Release RelWithDebInfo MinSizeRel)
     string(TOUPPER ${OUTPUTCONFIG} OUTPUTCONFIG_UPPER)
@@ -28,10 +28,10 @@ function(set_output_dirs target)
         foreach(config DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
             string(TOUPPER ${config} CONFIG_UP)
             set_target_properties(${target} PROPERTIES
-                RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/${config}
-                ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/${config}
-                LIBRARY_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/${config}
-                PDB_OUTPUT_DIRECTORY_${CONFIG_UP}     ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/${config}
+                RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FLEUR_PLATFORM}/output/${config}
+                ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FLEUR_PLATFORM}/output/${config}
+                LIBRARY_OUTPUT_DIRECTORY_${CONFIG_UP} ${CMAKE_SOURCE_DIR}/build/${FLEUR_PLATFORM}/output/${config}
+                PDB_OUTPUT_DIRECTORY_${CONFIG_UP}     ${CMAKE_SOURCE_DIR}/build/${FLEUR_PLATFORM}/output/${config}
             )
         endforeach()
     endif()

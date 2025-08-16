@@ -1,0 +1,159 @@
+#pragma once
+
+#include "Application.h"
+#include "Buffer.h"
+#include "Camera.h"
+#include "CommandBuffer.h"
+#include "CommandPool.h"
+#include "CommandQueue.h"
+#include "Device.h"
+#include "Framebuffer.h"
+#include "Graphics.hpp"
+#include "Image2D.h"
+#include "Material.h"
+#include "Model.h"
+#include "Services/ServiceInterfaces.hpp"
+#include "Shader.h"
+#include "ShaderObject.h"
+#include "Skybox.h"
+#include "Surface.h"
+#include "Swapchain.h"
+#include "Texture.h"
+#include "Toolchain.h"
+#include "VertexLayout.h"
+#include "glm/ext.hpp"
+#include "glm/glm.hpp"
+#include "tbb/concurrent_unordered_map.h"
+
+#pragma region concepts
+template <class Resource>
+concept is_graphic_resource = requires(Resource t) {
+    std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Texture> || std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Shader>;
+};
+
+#pragma endregion
+
+namespace Fleur::Graphics
+{
+
+
+class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
+{
+public:
+    friend struct Service<Renderer>;
+
+    Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> tool);
+    ~Renderer() = default;
+
+    Renderer(const Renderer&) = delete;
+    Renderer& operator=(const Renderer&) = delete;
+
+    Renderer(Renderer&&) noexcept = default;
+    Renderer& operator=(Renderer&&) noexcept = default;
+
+    std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
+
+    // IRenderer;
+    void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
+
+    // IUpdatable
+    void OnUpdate(float dlTime);
+    void OnPostUpdate(float dlTime);
+    void OnFixedUpdate();
+
+    void Clear();
+    void Present();
+
+    void ShowWireFrame();
+    void ToggleWireFrame();
+    void ValidateWindow();
+
+    void SetVSync(bool active);
+    bool IsVSync();
+
+    static uint32_t MAX_TEXTURES_COUNT;
+
+    template <is_graphic_resource Resource, typename... Args>
+    std::shared_ptr<Resource> CreateGraphicsResource(Args&&... args)
+    {
+        constexpr uint32_t args_amount = sizeof...(Args);
+        if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Texture>)
+        {
+            if constexpr (args_amount == 1)
+            {
+                using FirstArg = std::tuple_element_t<0, std::tuple<Args...>>;
+                if constexpr ((std::is_same_v<std::remove_cv_t<std::remove_reference_t<FirstArg>>, std::shared_ptr<Fleur::Graphics::Image2D>>) ||
+                              (std::is_same_v<FirstArg, std::string_view>) || (std::is_same_v<FirstArg, std::string>) ||
+                              (std::is_convertible_v<FirstArg, const char*>))
+                {
+                    return load_texture(std::forward<Args>(args)...);
+                }
+            }
+            else if constexpr (args_amount == 4)
+            {
+                return load_texture(std::forward<Args>(args)...);
+            }
+        }
+
+        else if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Shader>)
+            return _device->CreateShader(std::forward<Args>(args)...);
+        return std::shared_ptr<Resource>{nullptr};
+    }
+    void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
+private:
+    bool show_wireframe;
+
+    std::unique_ptr<Device> _device;
+    std::unique_ptr<CommandQueue> _commandQueue;
+    std::unique_ptr<CommandPool> _commandPool;
+    std::unique_ptr<Swapchain> _swapchain;
+    std::unique_ptr<Camera> _camera;
+    std::unique_ptr<Skybox> _skybox;
+
+    std::unique_ptr<CommandBuffer> static_geometry_cmd;
+    std::unique_ptr<CommandBuffer> skybox_cmd;
+    std::unique_ptr<CommandBuffer> gizmo_cmd;
+    std::unique_ptr<CommandBuffer> copy_fbo_cmd;
+
+    // TODO: move from here
+    std::unique_ptr<Framebuffer> gizmo_fbo;
+
+    ShaderObject* current_shader_obj;
+
+    bool is_vsync;
+
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> textures;
+    GraphicsAPI renderer;
+
+    std::unique_ptr<Fleur::IRendererToolchain> toolchain;
+
+    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::string_view path);
+
+    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::string_view name, Color color, int width, int height);
+
+    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
+
+    struct DrawInfo
+    {
+        const Model* model;
+        glm::mat4 model_matrix;
+        uint32_t index_global_offset_bytes;
+        uint32_t vertex_global_offset_bytes;
+    };
+
+    std::unordered_map<std::string, DrawInfo> static_geometry_models;
+    std::unordered_map<std::string, DrawInfo> gizmo_models;
+    std::vector<DrawInfo> static_geometry_models_vector;
+    std::vector<DrawInfo> gizmo_models_vector;
+
+    // Service
+
+    void skybox_pass() const;
+    void static_geometry_pass() const;
+
+protected:
+    void OnInit();
+    void OnShutdown();
+};
+}  // namespace Fleur::Graphics

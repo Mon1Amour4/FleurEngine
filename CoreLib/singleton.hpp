@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Fuego
+namespace Fleur
 {
 template <typename T>
 class singleton
@@ -17,4 +17,4 @@ protected:
     singleton() = default;
     virtual ~singleton() = default;
 };
-}  // namespace Fuego
+}  // namespace Fleur

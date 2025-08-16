@@ -1,4 +1,4 @@
-## Fuego Engine – Refactoring & Evolution Road-map
+## Fleur Engine – Refactoring & Evolution Road-map
 
 > A living document that captures the **why**, **what**, and **order** of upcoming changes.  Keep it under version control and adjust as we learn.
 
@@ -14,7 +14,7 @@
 
 ---
 
-### [Phase 0  Safety-net (weeks 1-2)](https://github.com/LtSnail/Fuego/issues/106)
+### [Phase 0  Safety-net (weeks 1-2)](https://github.com/LtSnail/Fleur/issues/106)
 | Step | Description | Win |
 |------|-------------|-----|
 | 0.1 | Enforce pre-commit, clang-format, clang-tidy in CI. | Consistent code & fast feedback |
@@ -230,7 +230,7 @@ Each sub-dir builds into an interface/static library; link per-target to avoid g
 1. Extract window/input/time into an `IPlatform` interface.
 2. Current Win32 implementation → `platform/win`.
 3. Add dummy iOS/Android impls to validate abstraction.
-4. Eliminate `#ifdef FUEGO_PLATFORM_*` from higher layers.
+4. Eliminate `#ifdef FLEUR_PLATFORM_*` from higher layers.
 
 **Recommended reading**
 • SDL2 source – look at `video/` and `events/` back-ends
@@ -284,6 +284,6 @@ Each sub-dir builds into an interface/static library; link per-target to avoid g
 | M3 | end-W6 | macOS platform layer in Swift; ServiceLocator eliminated; iOS stub working |
 | M4 | end-W8 | Policy-based subsystems integrated; OpenGL back-end behind interface; Editor app starts with ImGui |
 | M5 | end-Q3 | First mobile demo (iOS + Metal or Android + OpenGL ES) |
-| M6 | end-Q4 | C# hot-reload script driving in-engine cube; `fuego-cli` tool working |
+| M6 | end-Q4 | C# hot-reload script driving in-engine cube; `Fleur-cli` tool working |
 
 > **NOTE:** timelines are indicative – adjust after each review.
