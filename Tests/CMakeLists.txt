@@ -1,11 +1,11 @@
-MESSAGE(STATUS "Fuego tests are ENABLED")
+MESSAGE(STATUS "Fleur tests are ENABLED")
 
 # Googletest configuration
-SET(FUEGO_ROOT ${CMAKE_SOURCE_DIR})
-SET(GOOGLE_TEST_ROOT ${FUEGO_ROOT}/External/googletest)
-SET(GOOGLE_TEST_BUILD ${FUEGO_ROOT}/build/${FUEGO_PLATFORM}/External/googletest)
+SET(FLEUR_ROOT ${CMAKE_SOURCE_DIR})
+SET(GOOGLE_TEST_ROOT ${FLEUR_ROOT}/External/googletest)
+SET(GOOGLE_TEST_BUILD ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/External/googletest)
 
-SET(GTEST_SOLUTION ${FUEGO_ROOT}/build/${FUEGO_PLATFORM}/External)
+SET(GTEST_SOLUTION ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/External)
 
 SET(BUILD_GMOCK
     OFF
@@ -24,7 +24,7 @@ ENABLE_TESTING()
 
 # For Windows: Prevent overriding the parent project's compiler/linker settings "Use shared (DLL) run-time lib even when
 # Google Test is built as static lib."
-IF(FUEGO_PLATFORM_WIN)
+IF(FLEUR_PLATFORM_WIN)
   SET(GTEST_FORCE_SHARED_CRT
       ON
       CACHE BOOL "" FORCE
@@ -37,8 +37,8 @@ SET(COMMON_TARGET_PROPERTIES PROPERTIES FOLDER "Tests")
 # End of Tests configuration
 
 # CoreLibtests configuration:
-SET(CORE_LIB_TESTS_ROOT ${FUEGO_ROOT}/CoreLib)
-SET(CORE_LIB_TESTS_BUILD ${FUEGO_ROOT}/build/${FUEGO_PLATFORM}/CoreLibTests)
+SET(CORE_LIB_TESTS_ROOT ${FLEUR_ROOT}/CoreLib)
+SET(CORE_LIB_TESTS_BUILD ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/CoreLibTests)
 # End of CoreLibtests configuration
 
 # Main part:
@@ -63,19 +63,19 @@ SET_TARGET_PROPERTIES(
              RUNTIME_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/bin
 )
 
-ADD_EXECUTABLE(FuegoTests ${TESTS_HEADERS} ${TESTS_SOURCES})
+ADD_EXECUTABLE(FleurTests ${TESTS_HEADERS} ${TESTS_SOURCES})
 
 SET_TARGET_PROPERTIES(
   gtest gtest_main ${COMMON_TARGET_PROPERTIES}
 )
 SET_TARGET_PROPERTIES(
-  FuegoTests ${COMMON_TARGET_PROPERTIES}
+  FleurTests ${COMMON_TARGET_PROPERTIES}
 )
 
-TARGET_LINK_LIBRARIES(FuegoTests PUBLIC CoreLib GTest::gtest FuegoEngine FuegoInterface)
+TARGET_LINK_LIBRARIES(FleurTests PUBLIC CoreLib GTest::gtest FleurEngine FleurInterface)
 
 TARGET_INCLUDE_DIRECTORIES(
-  FuegoTests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${GOOGLE_TEST_ROOT}/googletest/include ${CORE_LIB_TESTS_ROOT}
+  FleurTests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${GOOGLE_TEST_ROOT}/googletest/include ${CORE_LIB_TESTS_ROOT}
 )
 
-TARGET_COMPILE_FEATURES(FuegoTests PUBLIC cxx_std_20)
+TARGET_COMPILE_FEATURES(FleurTests PUBLIC cxx_std_20)

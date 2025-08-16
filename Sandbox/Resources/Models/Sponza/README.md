@@ -1,6 +1,6 @@
 # Sponza Atrium 3
 
-This folder is intended to contain the `Sponza.glb` model used by the Fuego Sandbox.
+This folder is intended to contain the `Sponza.glb` model used by the Fleur Sandbox.
 
 - **Source**: [Sponza Atrium 3 on Sketchfab](https://sketchfab.com/3d-models/sponza-atrium-3-4a6a731e6b444395b169bda7ce3e24d3)
 - **Author**: [Kevin.Yudi.Utama](https://sketchfab.com/Kevin.Yudi.Utama)

@@ -25,16 +25,16 @@ void SceneLayer::OnDetach()
 {
 }
 
-void SceneLayer::OnEvent(Fuego::EventVariant& event)
+void SceneLayer::OnEvent(Fleur::EventVariant& event)
 {
-    // TODO: FU_TRACE is not recognized here
-    auto LogEventVisitor = Fuego::EventVisitor{[this](Fuego::AppRenderEvent& ev) { OnRenderEvent(ev); },
-                                               [](const Fuego::EventVariant& ev) { /* FU_TRACE("{0}", ev.ToString());*/ }};
+    // TODO: FL_TRACE is not recognized here
+    auto LogEventVisitor = Fleur::EventVisitor{[this](Fleur::AppRenderEvent& ev) { OnRenderEvent(ev); },
+                                               [](const Fleur::EventVariant& ev) { /* FL_TRACE("{0}", ev.ToString());*/ }};
 
     std::visit(LogEventVisitor, event);
 }
 
-bool SceneLayer::OnRenderEvent(Fuego::AppRenderEvent& event)
+bool SceneLayer::OnRenderEvent(Fleur::AppRenderEvent& event)
 {
     UNUSED(event);
     return true;

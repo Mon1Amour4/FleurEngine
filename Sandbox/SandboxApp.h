@@ -1,8 +1,8 @@
 #pragma once
 
-#include <Fuego.h>
+#include <Fleur.h>
 
-class SceneLayer final : public Fuego::Layer
+class SceneLayer final : public Fleur::Layer
 {
 public:
     SceneLayer();
@@ -11,11 +11,11 @@ public:
     virtual void OnAttach() override;
     virtual void OnDetach() override;
 
-    virtual void OnEvent(Fuego::EventVariant& event) override;
-    bool OnRenderEvent(Fuego::AppRenderEvent& event);
+    virtual void OnEvent(Fleur::EventVariant& event) override;
+    bool OnRenderEvent(Fleur::AppRenderEvent& event);
 };
 
-class SandboxApp : public Fuego::Application
+class SandboxApp : public Fleur::Application
 {
     SandboxApp();
 };

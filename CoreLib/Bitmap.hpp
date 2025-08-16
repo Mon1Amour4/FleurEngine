@@ -1,7 +1,7 @@
 #pragma once
 #include <glm/ext/vector_float4.hpp>
 
-namespace Fuego
+namespace Fleur
 {
 
 template <typename Derived>
@@ -192,4 +192,4 @@ private:
     uint32_t h;
     uint32_t comp;
 };
-}  // namespace Fuego
+}  // namespace Fleur

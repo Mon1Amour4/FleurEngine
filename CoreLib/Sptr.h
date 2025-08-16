@@ -7,17 +7,17 @@
 #include "CoreLibConcepts.h"
 #include "DefaultAllocator.h"
 
-namespace Fuego
+namespace Fleur
 {
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 class Wptr;
 
-template <class T, FuegoAllocator Allocator = DefaultAllocator>
-class FUEGO_API Sptr
+template <class T, FleurAllocator Allocator = DefaultAllocator>
+class FLEUR_API Sptr
 {
 public:
-    template <class U, FuegoAllocator AllocatorU>
+    template <class U, FleurAllocator AllocatorU>
     friend class Wptr;
 
     explicit Sptr(std::remove_extent_t<T>* ptr = nullptr) noexcept;
@@ -51,7 +51,7 @@ public:
 
     void Swap(Sptr<T, Allocator>& other) noexcept;
 
-    template <NotArrayType U, FuegoAllocator AllocatorU, class... Args>
+    template <NotArrayType U, FleurAllocator AllocatorU, class... Args>
     friend Sptr<U, AllocatorU> MakeShared(Args&&... args);
 
 private:
@@ -70,7 +70,7 @@ private:
     void Release();
 };
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(std::remove_extent_t<T>* ptr) noexcept
 {
     _cb = reinterpret_cast<_ControlBlock*>(_alloc.allocate(sizeof(_ControlBlock)));
@@ -82,7 +82,7 @@ inline Sptr<T, Allocator>::Sptr(std::remove_extent_t<T>* ptr) noexcept
         ++(_cb->_strong);
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
     : _cb(other._cb)
 {
@@ -90,13 +90,13 @@ inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
         ++(_cb->_strong);
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>&& other) noexcept
     : _cb(std::exchange(other._cb, nullptr))
 {
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator>& other) noexcept
 {
     if (this == &other)
@@ -112,7 +112,7 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator
     return *this;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& other) noexcept
 {
     if (this == &other)
@@ -125,13 +125,13 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& ot
     return *this;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::~Sptr()
 {
     Release();
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::Get() const noexcept
 {
     if (!_cb)
@@ -140,7 +140,7 @@ inline std::remove_extent_t<T> const* Sptr<T, Allocator>::Get() const noexcept
     return _cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::Get() noexcept
 {
     if (!_cb)
@@ -149,51 +149,51 @@ inline std::remove_extent_t<T>* Sptr<T, Allocator>::Get() noexcept
     return _cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const& Sptr<T, Allocator>::operator*() const noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
     return *_cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>& Sptr<T, Allocator>::operator*() noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
     return *_cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::operator->() const noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
     return _cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::operator->() noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
     return _cb->_ptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline uint32_t Sptr<T, Allocator>::UseCount() const noexcept
 {
     return _cb ? _cb->_strong : 0;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::operator bool() const noexcept
 {
     return _cb ? _cb->_ptr != nullptr : false;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Reset(std::remove_extent_t<T>* ptr)
 {
     Release();
@@ -208,7 +208,7 @@ inline void Sptr<T, Allocator>::Reset(std::remove_extent_t<T>* ptr)
     }
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Release()
 {
     if (!_cb)
@@ -232,128 +232,128 @@ inline void Sptr<T, Allocator>::Release()
     _cb = nullptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Swap(Sptr<T, Allocator>& other) noexcept
 {
     std::swap(_cb, other._cb);
 }
 
-template <class T, FuegoAllocator AllocatorT, class U, FuegoAllocator AllocatorU>
+template <class T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
 auto operator<=>(const Sptr<T, AllocatorT>& lhs, const Sptr<U, AllocatorU>& rhs) noexcept
 {
     return std::compare_three_way{}(lhs.Get(), rhs.Get());
 }
 
-template <class T, FuegoAllocator AllocatorT, class U, FuegoAllocator AllocatorU>
+template <class T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
 bool operator==(const Sptr<T, AllocatorT>& lhs, const Sptr<U, AllocatorU>& rhs) noexcept
 {
     return lhs.Get() == rhs.Get();
 }
 
-template <class T, FuegoAllocator AllocatorT, class U, FuegoAllocator AllocatorU>
+template <class T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
 bool operator!=(const Sptr<T, AllocatorT>& lhs, const Sptr<U, AllocatorU>& rhs) noexcept
 {
     return lhs.Get() != rhs.Get();
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 bool operator==(const Sptr<T, Allocator>& lhs, std::nullptr_t) noexcept
 {
     return lhs.Get() == nullptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 bool operator!=(const Sptr<T, Allocator>& lhs, std::nullptr_t) noexcept
 {
     return lhs.Get() != nullptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 bool operator==(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return rhs.Get() == nullptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 bool operator!=(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return rhs.Get() != nullptr;
 }
 
-template <class T, FuegoAllocator Allocator, class U>
+template <class T, FleurAllocator Allocator, class U>
 auto operator<=>(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return std::compare_three_way{}(lhs.Get(), rhs);
 }
 
-template <class U, class T, FuegoAllocator Allocator>
+template <class U, class T, FleurAllocator Allocator>
 auto operator<=>(U const* lhs, const Sptr<T, Allocator>& rhs) noexcept
 {
     return std::compare_three_way{}(lhs, rhs.Get());
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 auto operator<=>(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return std::compare_three_way{}(nullptr, rhs.Get());
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 auto operator<=>(const Sptr<T, Allocator>& lhs, std::nullptr_t) noexcept
 {
     return std::compare_three_way{}(lhs.Get(), nullptr);
 }
 
-template <class T, FuegoAllocator Allocator, class U>
+template <class T, FleurAllocator Allocator, class U>
 bool operator==(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return lhs.Get() == rhs;
 }
 
-template <class U, class T, FuegoAllocator Allocator>
+template <class U, class T, FleurAllocator Allocator>
 bool operator==(U const* rhs, const Sptr<T, Allocator>& lhs) noexcept
 {
     return rhs == lhs.Get();
 }
 
-template <class T, FuegoAllocator Allocator, class U>
+template <class T, FleurAllocator Allocator, class U>
 bool operator!=(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return lhs.Get() != rhs;
 }
 
-template <class U, class T, FuegoAllocator Allocator>
+template <class U, class T, FleurAllocator Allocator>
 bool operator!=(U const* lhs, const Sptr<T, Allocator>& rhs) noexcept
 {
     return lhs != rhs.Get();
 }
 
-template <class T, FuegoAllocator AllocatorT, class U, FuegoAllocator AllocatorU>
+template <class T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
 ptrdiff_t operator-(Sptr<T, AllocatorT>& lhs, Sptr<U, AllocatorU>& rhs)
 {
     return lhs.Get() - rhs.Get();
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 std::remove_extent_t<T>* operator+(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 {
     return ptr.Get() + n;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 std::remove_extent_t<T>* operator-(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 {
     return ptr.Get() - n;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept
     : _cb(cb)
 {
     if (_cb)
         ++(_cb->_strong);
 }
-template <NotArrayType T, FuegoAllocator Allocator = DefaultAllocator, class... Args>
+template <NotArrayType T, FleurAllocator Allocator = DefaultAllocator, class... Args>
 Sptr<T, Allocator> MakeShared(Args&&... args)
 {
     Sptr<T, Allocator> Sp;
@@ -377,11 +377,11 @@ Sptr<T, Allocator> MakeShared(Args&&... args)
     return Sp;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
-class FUEGO_API Sptr<T, Allocator>
+template <ArrayType T, FleurAllocator Allocator>
+class FLEUR_API Sptr<T, Allocator>
 {
 public:
-    template <class U, FuegoAllocator AllocatorU>
+    template <class U, FleurAllocator AllocatorU>
     friend class Wptr;
 
     explicit Sptr(size_t size, std::remove_extent_t<T>* ptr) noexcept;
@@ -413,7 +413,7 @@ public:
     void Swap(Sptr<T, Allocator>& other) noexcept;
     size_t GetSize() const noexcept;
 
-    template <ArrayType U, FuegoAllocator AllocatorU, class... Args>
+    template <ArrayType U, FleurAllocator AllocatorU, class... Args>
     friend Sptr<U, AllocatorU> MakeShared(size_t size, Args&&... args);
 
 private:
@@ -432,7 +432,7 @@ private:
     void Release();
 };
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(size_t size, std::remove_extent_t<T>* ptr) noexcept
     : _size(size)
 {
@@ -445,7 +445,7 @@ inline Sptr<T, Allocator>::Sptr(size_t size, std::remove_extent_t<T>* ptr) noexc
         ++(_cb->_strong);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
     : _cb(other._cb)
     , _size(other._size)
@@ -454,14 +454,14 @@ inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
         ++(_cb->_strong);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>&& other) noexcept
     : _cb(std::exchange(other._cb, nullptr))
     , _size(other._size)
 {
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator>& other) noexcept
 {
     if (this == &other)
@@ -478,7 +478,7 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator
     return *this;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& other) noexcept
 {
     if (this == &other)
@@ -492,55 +492,55 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& ot
     return *this;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::~Sptr()
 {
     Release();
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::Get() const noexcept
 {
     return _cb->_ptr;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::Get() noexcept
 {
     return _cb->_ptr;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const& Sptr<T, Allocator>::operator[](size_t Idx) const noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    FU_CORE_ASSERT(Idx < _size, "Index out of bounds");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(Idx < _size, "Index out of bounds");
     return _cb->_ptr[Idx];
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>& Sptr<T, Allocator>::operator[](size_t Idx) noexcept
 {
-    FU_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FU_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    FU_CORE_ASSERT(Idx < _size, "Index out of bounds");
+    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(Idx < _size, "Index out of bounds");
     return _cb->_ptr[Idx];
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline uint32_t Sptr<T, Allocator>::UseCount() const noexcept
 {
     return _cb ? _cb->_strong : 0;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::operator bool() const noexcept
 {
     return _cb ? _cb->_ptr != nullptr : false;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Reset(size_t size, std::remove_extent_t<T>* ptr)
 {
     Release();
@@ -557,7 +557,7 @@ inline void Sptr<T, Allocator>::Reset(size_t size, std::remove_extent_t<T>* ptr)
     }
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Release()
 {
     if (!_cb)
@@ -583,123 +583,123 @@ inline void Sptr<T, Allocator>::Release()
     _size = 0;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline size_t Sptr<T, Allocator>::GetSize() const noexcept
 {
     return _size;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Swap(Sptr<T, Allocator>& other) noexcept
 {
     std::swap(_cb, other._cb);
     std::swap(_size, other._size);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 bool operator!=(const Sptr<T, Allocator>& lhs, std::nullptr_t) noexcept
 {
     return lhs.Get() != nullptr;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 bool operator==(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return rhs.Get() == nullptr;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 bool operator!=(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return rhs.Get() != nullptr;
 }
 
-template <ArrayType T, FuegoAllocator Allocator, class U>
+template <ArrayType T, FleurAllocator Allocator, class U>
 auto operator<=>(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return std::compare_three_way{}(lhs.Get(), rhs);
 }
 
-template <class U, ArrayType T, FuegoAllocator Allocator>
+template <class U, ArrayType T, FleurAllocator Allocator>
 auto operator<=>(U const* lhs, const Sptr<T, Allocator>& rhs) noexcept
 {
     return std::compare_three_way{}(lhs, rhs.Get());
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 auto operator<=>(std::nullptr_t, const Sptr<T, Allocator>& rhs) noexcept
 {
     return std::compare_three_way{}(nullptr, rhs.Get());
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 auto operator<=>(const Sptr<T, Allocator>& lhs, std::nullptr_t) noexcept
 {
     return std::compare_three_way{}(lhs.Get(), nullptr);
 }
 
-template <ArrayType T, FuegoAllocator Allocator, class U>
+template <ArrayType T, FleurAllocator Allocator, class U>
 bool operator==(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return lhs.Get() == rhs;
 }
 
-template <class U, ArrayType T, FuegoAllocator Allocator>
+template <class U, ArrayType T, FleurAllocator Allocator>
 bool operator==(U const* rhs, const Sptr<T, Allocator>& lhs) noexcept
 {
     return rhs == lhs.Get();
 }
 
-template <ArrayType T, FuegoAllocator Allocator, class U>
+template <ArrayType T, FleurAllocator Allocator, class U>
 bool operator!=(const Sptr<T, Allocator>& lhs, U const* rhs) noexcept
 {
     return lhs.Get() != rhs;
 }
 
-template <class U, ArrayType T, FuegoAllocator Allocator>
+template <class U, ArrayType T, FleurAllocator Allocator>
 bool operator!=(U const* lhs, const Sptr<T, Allocator>& rhs) noexcept
 {
     return lhs != rhs.Get();
 }
 
-template <ArrayType T, FuegoAllocator AllocatorT, ArrayType U, FuegoAllocator AllocatorU>
+template <ArrayType T, FleurAllocator AllocatorT, ArrayType U, FleurAllocator AllocatorU>
 ptrdiff_t operator-(Sptr<T, AllocatorT>& lhs, Sptr<U, AllocatorU>& rhs)
 {
     return lhs.Get() - rhs.Get();
 }
 
-template <ArrayType T, FuegoAllocator AllocatorT, class U, FuegoAllocator AllocatorU>
+template <ArrayType T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
 ptrdiff_t operator-(Sptr<T, AllocatorT>& lhs, Sptr<U, AllocatorU>& rhs)
 {
     return lhs.Get() - rhs.Get();
 }
 
-template <class T, FuegoAllocator AllocatorT, ArrayType U, FuegoAllocator AllocatorU>
+template <class T, FleurAllocator AllocatorT, ArrayType U, FleurAllocator AllocatorU>
 ptrdiff_t operator-(Sptr<T, AllocatorT>& lhs, Sptr<U, AllocatorU>& rhs)
 {
     return lhs.Get() - rhs.Get();
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 std::remove_extent_t<T>* operator+(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 {
     return ptr.Get() + n;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 std::remove_extent_t<T>* operator-(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 {
     return ptr.Get() - n;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept
     : _cb(cb)
 {
     if (_cb)
         ++(_cb->_strong);
 }
-template <ArrayType T, FuegoAllocator Allocator = DefaultAllocator, class... Args>
+template <ArrayType T, FleurAllocator Allocator = DefaultAllocator, class... Args>
 Sptr<T, Allocator> MakeShared(size_t size, Args&&... args)
 {
     Sptr<T, Allocator> Sp(size, nullptr);
@@ -727,8 +727,8 @@ Sptr<T, Allocator> MakeShared(size_t size, Args&&... args)
     return Sp;
 }
 
-template <class T, FuegoAllocator Allocator = DefaultAllocator>
-class FUEGO_API Wptr
+template <class T, FleurAllocator Allocator = DefaultAllocator>
+class FLEUR_API Wptr
 {
 public:
     Wptr(const Wptr<T, Allocator>& other) noexcept;
@@ -755,7 +755,7 @@ private:
     void Release() noexcept;
 };
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Wptr<T, Allocator>& other) noexcept
     : _cb(other._cb)
 {
@@ -763,13 +763,13 @@ inline Wptr<T, Allocator>::Wptr(const Wptr<T, Allocator>& other) noexcept
         ++(_cb->_weak);
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(Wptr<T, Allocator>&& other) noexcept
     : _cb(std::exchange(other._cb, nullptr))
 {
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Wptr<T, Allocator>& other) noexcept
 {
     if (this == &other)
@@ -785,7 +785,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Wptr<T, Allocator
     return *this;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(Wptr<T, Allocator>&& other) noexcept
 {
     if (this == &other)
@@ -798,13 +798,13 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(Wptr<T, Allocator>&& ot
     return *this;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::~Wptr()
 {
     Release();
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
     : _cb(shared._cb)
 {
@@ -812,7 +812,7 @@ inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
         ++(_cb->_weak);
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator>& shared) noexcept
 {
     Release();
@@ -825,7 +825,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator
     return *this;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator> Wptr<T, Allocator>::Lock() const noexcept
 {
     if (_cb && _cb->_strong > 0)
@@ -834,13 +834,13 @@ inline Sptr<T, Allocator> Wptr<T, Allocator>::Lock() const noexcept
     return Sptr<T, Allocator>();
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline bool Wptr<T, Allocator>::Expired() const noexcept
 {
     return !_cb || _cb->_strong == 0;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline void Wptr<T, Allocator>::Release() noexcept
 {
     if (!_cb)
@@ -857,14 +857,14 @@ inline void Wptr<T, Allocator>::Release() noexcept
     _cb = nullptr;
 }
 
-template <class T, FuegoAllocator Allocator>
+template <class T, FleurAllocator Allocator>
 inline void Wptr<T, Allocator>::Swap(Wptr<T, Allocator>& other) noexcept
 {
     std::swap(_cb, other._cb);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
-class FUEGO_API Wptr<T, Allocator>
+template <ArrayType T, FleurAllocator Allocator>
+class FLEUR_API Wptr<T, Allocator>
 {
 public:
     Wptr(const Wptr<T, Allocator>& other) noexcept;
@@ -892,7 +892,7 @@ private:
     void Release() noexcept;
 };
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Wptr<T, Allocator>& other) noexcept
     : _cb(other._cb)
     , _size(other._size)
@@ -901,14 +901,14 @@ inline Wptr<T, Allocator>::Wptr(const Wptr<T, Allocator>& other) noexcept
         ++(_cb->_weak);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(Wptr<T, Allocator>&& other) noexcept
     : _cb(std::exchange(other._cb, nullptr))
     , _size(std::exchange(other._size, 0))
 {
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Wptr<T, Allocator>& other) noexcept
 {
     if (this == &other)
@@ -925,7 +925,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Wptr<T, Allocator
     return *this;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(Wptr<T, Allocator>&& other) noexcept
 {
     if (this == &other)
@@ -939,13 +939,13 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(Wptr<T, Allocator>&& ot
     return *this;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::~Wptr()
 {
     Release();
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
     : _cb(shared._cb)
     , _size(shared._size)
@@ -954,7 +954,7 @@ inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
         ++(_cb->_weak);
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator>& shared) noexcept
 {
     Release();
@@ -968,7 +968,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator
     return *this;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator> Wptr<T, Allocator>::Lock() const noexcept
 {
     if (_cb && _cb->_strong > 0)
@@ -977,13 +977,13 @@ inline Sptr<T, Allocator> Wptr<T, Allocator>::Lock() const noexcept
     return Sptr<T, Allocator>();
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline bool Wptr<T, Allocator>::Expired() const noexcept
 {
     return !_cb || _cb->_strong == 0;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline void Wptr<T, Allocator>::Release() noexcept
 {
     if (!_cb)
@@ -1001,11 +1001,11 @@ inline void Wptr<T, Allocator>::Release() noexcept
     _size = 0;
 }
 
-template <ArrayType T, FuegoAllocator Allocator>
+template <ArrayType T, FleurAllocator Allocator>
 inline void Wptr<T, Allocator>::Swap(Wptr<T, Allocator>& other) noexcept
 {
     std::swap(_cb, other._cb);
     std::swap(_size, other._size);
 }
 
-}  // namespace Fuego
+}  // namespace Fleur
