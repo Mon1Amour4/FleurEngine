@@ -128,7 +128,7 @@ void Renderer::OnInit()
     skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
 
     // gizmo
-    std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", _device->CreateShader("gizmo", Shader::ShaderType::Vertex),
+    std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", _device->CreateShader("static_geo", Shader::ShaderType::Vertex),
                                                                                 _device->CreateShader("gizmo", Shader::ShaderType::Pixel)));
     DepthStencilDescriptor desc3{false, DepthTestOperation::ALWAYS};
     gizmo_cmd = _device->CreateCommandBuffer(desc3);
@@ -155,7 +155,6 @@ void Renderer::OnInit()
     VertexLayout copy_fbo_layout{};
     copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    // copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
     copy_fbo_cmd->BindVertexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
     copy_fbo_cmd->BindIndexBuffer(_device->CreateBuffer(Fuego::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
