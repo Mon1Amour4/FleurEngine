@@ -10,12 +10,3 @@ option(TBB_STRICT "Treat compiler warnings as errors " ON)
 option(TBB_ENABLE_RUNTIME_DEPENDENCY_VERIFICATION "Enable runtime dependency signature verification" ON)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/External/tbb)
-
-add_custom_target(copy_tbb ALL
-    COMMAND ${CMAKE_COMMAND} -E make_directory
-        ${CMAKE_CURRENT_SOURCE_DIR}/../build/${FUEGO_PLATFORM}/output/$<CONFIG>
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        $<TARGET_FILE:TBB::tbb>
-        ${CMAKE_CURRENT_SOURCE_DIR}/../build/${FUEGO_PLATFORM}/output/$<CONFIG>
-    DEPENDS TBB::tbb
-)

@@ -153,3 +153,12 @@ SET_TARGET_PROPERTIES(
   ImGui
   PROPERTIES FOLDER "External"
 )
+
+
+add_custom_command(TARGET FuegoEngine POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+        ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/$<CONFIG>
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:TBB::tbb>
+        ${CMAKE_SOURCE_DIR}/build/${FUEGO_PLATFORM}/output/$<CONFIG>
+)
