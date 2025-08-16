@@ -8,6 +8,8 @@ struct aiMesh;
 struct aiMaterial;
 struct cgltf_data;
 struct cgltf_mesh;
+struct cgltf_material;
+struct cgltf_primitive;
 
 namespace Fuego::Graphics
 {
@@ -17,78 +19,102 @@ class Material;
 class FUEGO_API Model
 {
 public:
+    class FUEGO_API Primitive
+    {
+    public:
+        Primitive(const cgltf_primitive* primitive, uint32_t material, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        ~Primitive() = default;
+
+        inline uint32_t VertexCount() const
+        {
+            return primitive_vertex_count;
+        }
+        inline uint32_t IndexCount() const
+        {
+            return primitive_indices_count;
+        }
+
+        inline uint32_t VertexStart() const
+        {
+            return primitive_vertex_start;
+        }
+        inline uint32_t VertexEnd() const
+        {
+            return primitive_vertex_end;
+        }
+
+        inline uint32_t IndexStart() const
+        {
+            return primitive_index_start;
+        }
+        inline uint32_t IndexEnd() const
+        {
+            return primitive_index_end;
+        }
+
+        inline uint32_t VertexSize() const
+        {
+            return primitive_vertex_count * sizeof(float);
+        }
+        inline uint32_t IndexSize() const
+        {
+            return primitive_indices_count * sizeof(uint32_t);
+        }
+
+        inline uint32_t MaterialIdx() const
+        {
+            return mat_idx;
+        }
+
+    private:
+        uint32_t mat_idx;
+
+        uint32_t primitive_vertex_start;
+        uint32_t primitive_vertex_end;
+
+        uint32_t primitive_index_start;
+        uint32_t primitive_index_end;
+
+        uint32_t primitive_vertex_count;
+        uint32_t primitive_indices_count;
+    };
+
     class FUEGO_API Mesh
     {
     public:
-        Mesh(cgltf_mesh* mesh, const Material* material, uint32_t mesh_index, std::vector<Fuego::Graphics::VertexData>& vertices,
-             std::vector<uint32_t>& indices);
+        Mesh(cgltf_mesh* mesh, const cgltf_material* base_materials, std::vector<Fuego::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
 
-        inline uint32_t GetVertexCount() const
-        {
-            return vertex_count;
-        }
-        inline uint32_t GetIndicesCount() const
-        {
-            return indices_count;
-        }
-
-        inline uint32_t GetVertexStart() const
-        {
-            return vertex_start;
-        }
-        inline uint32_t GetVertexEnd() const
-        {
-            return vertex_end;
-        }
-
-        inline uint32_t GetIndexStart() const
-        {
-            return index_start;
-        }
-        inline uint32_t GetIndexEnd() const
-        {
-            return index_end;
-        }
-
-        inline uint32_t GetVertexSize() const
-        {
-            return vertex_count * sizeof(float);
-        }
-        inline uint32_t GetIndexSize() const
-        {
-            return indices_count * sizeof(uint32_t);
-        }
-
-        inline void SetMaterial(const Material* material)
-        {
-            this->material = material;
-        }
-        inline const Material* GetMaterial() const
-        {
-            return material;
-        }
         inline std::string_view Name() const
         {
             return mesh_name;
         }
 
+        inline const Primitive* Primitives() const
+        {
+            if (primitives.size() == 0)
+                return nullptr;
+            return &primitives[0];
+        }
+        inline uint32_t PrimitivesCount() const
+        {
+            return primitives.size();
+        }
+
     private:
+        std::vector<Primitive> primitives;
+
         std::string mesh_name;
 
-        const Material* material;
-
-        uint32_t vertex_start;
-        uint32_t vertex_end;
-
-        uint32_t index_start;
-        uint32_t index_end;
-
-        uint32_t vertex_count;
-        uint32_t indices_count;
+        uint32_t mesh_vertex_start;
+        uint32_t mesh_vertex_end;
+        uint32_t mesh_index_start;
+        uint32_t mesh_index_end;
+        uint32_t mesh_vertex_count;
+        uint32_t mesh_indices_count;
     };
 
-    Model(cgltf_data* data);
+    Model(std::string_view model_name, cgltf_data* data);
     Model(std::string_view model_name);
 
     ~Model() = default;
@@ -106,11 +132,11 @@ public:
     }
     inline uint32_t GetVertexCount() const
     {
-        return vertex_count;
+        return model_vertex_count;
     }
     inline uint32_t GetIndicesCount() const
     {
-        return indices_count;
+        return model_indices_count;
     }
     inline const VertexData* GetVerticesData() const
     {
@@ -120,22 +146,25 @@ public:
     {
         return indices.data();
     }
-    const std::vector<std::unique_ptr<Fuego::Graphics::Model::Mesh>>* GetMeshesPtr() const
+    const std::vector<Fuego::Graphics::Model::Mesh>* GetMeshesPtr() const
     {
         return &meshes;
     }
 
     void PostLoad(cgltf_data* data);
 
+    const Material* GetMaterial(uint32_t idx) const;
+
 private:
     std::string name;
     uint32_t mesh_count;
-    uint32_t vertex_count;
-    uint32_t indices_count;
+    uint32_t model_vertex_count;
+    uint32_t model_indices_count;
     std::vector<Fuego::Graphics::VertexData> vertices;
     std::vector<uint32_t> indices;
-    std::vector<std::unique_ptr<Material>> materials;
-    std::vector<std::unique_ptr<Model::Mesh>> meshes;
+    std::vector<Model::Mesh> meshes;
+
+    std::vector<Material> materials;
 
     void process_model(cgltf_data* data, bool async = true);
 };

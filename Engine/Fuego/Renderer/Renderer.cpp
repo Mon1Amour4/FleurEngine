@@ -364,13 +364,10 @@ void Renderer::OnUpdate(float dlTime)
 
         glm::mat4 proj = glm::mat4(1.0f);
 
-        glm::mat3 camera_rotation = _camera->GetView();
         glm::mat4 view = glm::mat4(1.f);
 
-        glm::mat4 model = glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f));
-        model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
+        glm::mat4 model = glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f)), glm::vec3(0.05f, 0.05f, 0.05f));
 
-        // glm::mat4 rotation = glm::mat4(1.f);
         model = glm::rotate(model, glm::radians(_camera->Yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
         model = glm::rotate(model, glm::radians(_camera->Pitch()), glm::vec3(1.0f, 0.0f, 0.0f));
 
@@ -383,12 +380,19 @@ void Renderer::OnUpdate(float dlTime)
         uint32_t index_inner_offset_bytes = 0;
         for (const auto& mesh : *meshes)
         {
-            gizmo_cmd->PushDebugGroup(0, mesh->Name().data());
-            gizmo_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
-            gizmo_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                   draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+            gizmo_cmd->PushDebugGroup(0, mesh.Name().data());
+            for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
+            {
+                gizmo_cmd->PushDebugGroup(0, "Primitive");
+                auto primitive = mesh.Primitives() + i;
+                gizmo_cmd->ShaderObject()->BindMaterial(draw_info.model->GetMaterial(primitive->MaterialIdx()));
+                gizmo_cmd->IndexedDraw(primitive->IndexCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                       draw_info.vertex_global_offset_bytes / sizeof(VertexData));
 
-            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
+                index_inner_offset_bytes += primitive->IndexSize();
+                gizmo_cmd->PopDebugGroup();
+            }
+
             gizmo_cmd->PopDebugGroup();
         }
         gizmo_cmd->PopDebugGroup();
@@ -401,7 +405,6 @@ void Renderer::OnUpdate(float dlTime)
 
     //
     copy_fbo_cmd->PushDebugGroup(0, "[Copy FBO]");
-    // gizmo_cmd->BindRenderTarget(*gizmo_fbo.get(), FramebufferRWOperation::READ_ONLY);
     gizmo_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
 
     ShaderComponentContext ctx{};
@@ -483,13 +486,17 @@ void Renderer::static_geometry_pass() const
         uint32_t index_inner_offset_bytes = 0;
         for (const auto& mesh : *meshes)
         {
-            static_geometry_cmd->PushDebugGroup(0, mesh->Name().data());
-            static_geometry_cmd->ShaderObject()->BindMaterial(mesh->GetMaterial());
-            static_geometry_cmd->IndexedDraw(mesh->GetIndicesCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                             draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+            for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
+            {
+                const auto primitive = mesh.Primitives() + i;
+                static_geometry_cmd->PushDebugGroup(0, mesh.Name().data());
+                static_geometry_cmd->ShaderObject()->BindMaterial(draw_info.model->GetMaterial(primitive->MaterialIdx()));
+                static_geometry_cmd->IndexedDraw(primitive->IndexCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
+                                                 draw_info.vertex_global_offset_bytes / sizeof(VertexData));
 
-            index_inner_offset_bytes += mesh->GetIndicesCount() * sizeof(uint32_t);
-            static_geometry_cmd->PopDebugGroup();
+                index_inner_offset_bytes += primitive->IndexSize();
+                static_geometry_cmd->PopDebugGroup();
+            }
         }
         static_geometry_cmd->PopDebugGroup();
         static_geometry_cmd->EndRecording();

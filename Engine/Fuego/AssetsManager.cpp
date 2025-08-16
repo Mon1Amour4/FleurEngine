@@ -64,7 +64,7 @@ CONST_SHARED_RES(Model) Fuego::AssetsManager::load_model(std::string_view path)
         return handle;
     }
     result = cgltf_load_buffers(&options, data, res->c_str());
-    handle = std::make_shared<Fuego::ResourceHandle<Model>>(std::make_shared<Model>(data));
+    handle = std::make_shared<Fuego::ResourceHandle<Model>>(std::make_shared<Model>(file_name, data));
     handle->SetSuccess();
     models.emplace(std::move(file_name), handle->Resource());
     ++models_count;
@@ -123,7 +123,7 @@ CONST_SHARED_RES(Model) Fuego::AssetsManager::load_model_async(std::string_view 
                 return;
             }
 
-            handle->SetResource(std::make_shared<Model>(data));
+            handle->SetResource(std::make_shared<Model>(file_name, data));
             handle->SetSuccess();
             models.emplace(file_name, handle->Resource());
             FU_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), file_name);
