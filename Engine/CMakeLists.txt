@@ -2,13 +2,7 @@
 
 # === External Dependencies ===
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
-INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/abseil.cmake)
-INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/protobuf.cmake)
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/tbb.cmake)
-
-# === Protocol Buffers Generation ===
-GETPROTOHEADERFILES(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
-GETPROTOSOURCEFILES(PROTO_OUT ${PROTO_OUTPUT_FOLDER})
 
 # === Source Files ===
 SET(ENGINE_HEADERS
@@ -48,8 +42,6 @@ SET(ENGINE_HEADERS
     # Third Party
     External/stb_image/stb_image.h
     External/stb_image/stb_image_write.h
-    # Generated Code
-    ${SCENE_GENERATED_PROTO_HDRS}
     # Main Headers
     Fuego.h
     fupch.h
@@ -73,8 +65,6 @@ SET(ENGINE_SOURCES
     Fuego/Scene.cpp
     # Third Party
     External/stb_image/stb_image.cpp
-    # Generated Code
-    ${SCENE_GENERATED_PROTO_SRCS}
     # Implementation Files
 )
 
@@ -112,12 +102,10 @@ ENDIF()
 SET(ENGINE_PUBLIC_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego
-    ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/ProtoOut
     ${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer
     ${CMAKE_CURRENT_SOURCE_DIR}/External/glm
     ${CMAKE_CURRENT_SOURCE_DIR}/External/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/External/spdlog/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/External/protobuf/src
     ${CMAKE_SOURCE_DIR}/CoreLib
 )
 
@@ -143,15 +131,13 @@ ADD_SUBDIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/Fuego/Renderer)
 # === FuegoEngine Target ===
 ADD_LIBRARY(FuegoEngine ${FUEGO_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 
-ADD_DEPENDENCIES(FuegoEngine ProtoGen)
-
 TARGET_LINK_LIBRARIES(
   FuegoEngine
-  PUBLIC FuegoInterface ${ENGINE_DEPENDENCIES} protobuf::libprotobuf CoreLib
+  PUBLIC FuegoInterface ${ENGINE_DEPENDENCIES} CoreLib
   PRIVATE Renderer
 )
 
-TARGET_INCLUDE_DIRECTORIES(FuegoEngine PRIVATE ${Protobuf_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(FuegoEngine PRIVATE)
 
 TARGET_COMPILE_DEFINITIONS(FuegoEngine PRIVATE ${ENGINE_PRIVATE_DEFINITIONS})
 
