@@ -14,8 +14,6 @@ public:
     virtual const void* GetNativeHandle() const override;
     HDC GetHdc() const;
 
-    virtual void Clear() const override;
-
     virtual void Release() override;
 
 private:

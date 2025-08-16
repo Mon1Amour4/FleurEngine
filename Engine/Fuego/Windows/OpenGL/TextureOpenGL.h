@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../../Renderer/TextureUtills.h"
 #include "Renderer/Texture.h"
 
 namespace Fuego::Graphics
@@ -14,7 +13,7 @@ public:
     virtual ~TextureOpenGL();
 
     uint32_t GetTextureUnit() const;
-    uint32_t GetTextureID() const;
+    const uint32_t* GetTextureID() const;
 
     virtual void PostCreate(ImagePostCreation& settings) override;
 

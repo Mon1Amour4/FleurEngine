@@ -8,10 +8,15 @@
 
 namespace Fuego::Graphics
 {
-SwapchainOpenGL::SwapchainOpenGL(const Surface& surface)
-    : _surface(dynamic_cast<const SurfaceOpenGL&>(surface))
+SwapchainOpenGL::SwapchainOpenGL(std::unique_ptr<Surface> _surface)
 {
-    auto rect = surface.GetRect();
+    auto raw_surface = static_cast<SurfaceOpenGL*>(_surface.release());
+    this->_surface = std::unique_ptr<SurfaceOpenGL>(raw_surface);
+
+    auto rect = this->_surface->GetRect();
+
+    this->_backbuffer = std::make_unique<DefaultFramebufferOpenGL>(rect.width, rect.height);
+
     glViewport(rect.x, rect.y, rect.width, rect.height);
 }
 
@@ -21,12 +26,13 @@ SwapchainOpenGL::~SwapchainOpenGL()
 
 void SwapchainOpenGL::Present()
 {
-    SwapBuffers(_surface.GetHdc());
+    _backbuffer->Bind();
+    SwapBuffers(_surface->GetHdc());
 }
 
-Surface& SwapchainOpenGL::GetScreenTexture()
+const Framebuffer& SwapchainOpenGL::GetScreenTexture()
 {
-    return _surface;
+    return *_backbuffer.get();
 }
 
 void SwapchainOpenGL::ShowWireFrame(bool show)
@@ -44,7 +50,16 @@ void SwapchainOpenGL::ShowWireFrame(bool show)
 void SwapchainOpenGL::ValidateWindow()
 {
     static PAINTSTRUCT ps;
-    BeginPaint((HWND)_surface.GetNativeHandle(), &ps);
-    EndPaint((HWND)_surface.GetNativeHandle(), &ps);
+    BeginPaint((HWND)_surface->GetNativeHandle(), &ps);
+    EndPaint((HWND)_surface->GetNativeHandle(), &ps);
+}
+
+void SwapchainOpenGL::ClearBackbuffer() const
+{
+    _backbuffer->Clear();
+}
+void SwapchainOpenGL::Release()
+{
+    _surface->Release();
 }
 }  // namespace Fuego::Graphics

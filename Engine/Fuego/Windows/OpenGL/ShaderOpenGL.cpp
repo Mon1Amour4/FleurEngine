@@ -30,17 +30,23 @@ ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, Shader
     glShaderSource(_shaderID, 1, &shaderCode, nullptr);
     glCompileShader(_shaderID);
 
+    std::string shader_type{};
+    if (type == ShaderType::Vertex)
+        shader_type = "vertex";
+    else if (type == ShaderType::Pixel)
+        shader_type = "pixel";
+
     GLint success;
     glGetShaderiv(_shaderID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
         char infoLog[512];
         glGetShaderInfoLog(_shaderID, 512, nullptr, infoLog);
-        FU_CORE_ERROR("[Shader] compilation error: ", infoLog);
+        FU_CORE_ERROR("[Shader] {0} {1} compilation error: ",name, shader_type, infoLog);
     }
     else
     {
-        FU_CORE_TRACE("[Shader] has compiled");
+        FU_CORE_TRACE("[Shader] {0} {1} has compiled", name, shader_type);
         glObjectLabel(GL_SHADER, _shaderID, -1, this->name.c_str());
     }
 }

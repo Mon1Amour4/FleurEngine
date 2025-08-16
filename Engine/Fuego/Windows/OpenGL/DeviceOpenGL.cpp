@@ -5,6 +5,7 @@
 #include "CommandBufferOpenGL.h"
 #include "CommandPoolOpenGL.h"
 #include "CommandQueueOpenGL.h"
+#include "FramebufferOpenGL.h"
 #include "ShaderOpenGL.h"
 #include "SwapchainOpenGL.h"
 // clang-format off
@@ -177,6 +178,11 @@ DeviceOpenGL::DeviceOpenGL()
     FU_CORE_INFO("  Max texture units: {0}", max_textures_units);
     ServiceLocator::instance().GetService<Fuego::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(max_textures_units);
     glEnable(GL_DEPTH_TEST);
+
+    // Initial values for color\depth\stencil bufers
+    glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    glClearDepth(1.0);
+    glClearStencil(0);
 }
 
 DeviceOpenGL::~DeviceOpenGL()
@@ -225,6 +231,35 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, cons
                                            images.right->Width(), images.right->Height(), 6);
 }
 
+std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const
+{
+    auto fbo = std::unique_ptr<FramebufferOpenGL>(new FramebufferOpenGL(name, width, height, flags));
+
+    if (flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
+    {
+        fbo->AddColorAttachment(CreateTexture(name.data() + std::string("color_attachment"), "", TextureFormat::RGBA8, nullptr, width, height));
+    }
+    if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
+    {
+        fbo->AddDepthAttachment(
+            CreateTexture(name.data() + std::string("depth_stencil_attachment"), "", TextureFormat::DEPTH24STENCIL8, nullptr, width, height));
+    }
+    else
+    {
+        if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
+        {
+            fbo->AddDepthAttachment(CreateTexture(name.data() + std::string("depth_attachment"), "", TextureFormat::DEPTH24, nullptr, width, height));
+        }
+
+        if (flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
+        {
+            fbo->AddStencilAttachment(CreateTexture(name.data() + std::string("stencil_attachment"), "", TextureFormat::STENCIL8, nullptr, width, height));
+        }
+    }
+
+    return fbo;
+}
+
 void DeviceOpenGL::SetVSync(bool active) const
 {
     wglSwapIntervalEXT(active);
@@ -260,9 +295,9 @@ std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer(DepthStencilDes
     return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL(desc));
 }
 
-std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(const Surface& surface)
+std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(std::unique_ptr<Surface> surface)
 {
-    return std::unique_ptr<Swapchain>(new SwapchainOpenGL(surface));
+    return std::unique_ptr<Swapchain>(new SwapchainOpenGL(std::move(surface)));
 }
 
 Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
@@ -274,7 +309,13 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
         return nullptr;
     }
 
-    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + ".glsl");
+    std::string extension{};
+    if (type == Shader::ShaderType::Vertex)
+        extension = ".vert";
+    else if (type == Shader::ShaderType::Pixel)
+        extension = ".frag";
+
+    auto res = ServiceLocator::instance().GetService<Fuego::FS::FileSystem>()->OpenFile(std::string(shaderName) + extension);
 
     if (!res)
     {

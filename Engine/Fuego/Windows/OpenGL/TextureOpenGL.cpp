@@ -15,8 +15,6 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     , texture_unit(0)
     , texture_id(0)
 {
-    FU_CORE_ASSERT(buffer, "");
-
     if (layers == 1)
         create_texture_2d(buffer);
     else if (layers == 6)
@@ -25,7 +23,8 @@ Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     // Set texture name for debug output instead of common material uniform name
     glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
 
-    is_created = true;
+    if (buffer)
+        is_created = true;
 }
 
 Fuego::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fuego::Graphics::CubemapInitData& images, TextureFormat format,
@@ -79,6 +78,7 @@ uint32_t Fuego::Graphics::TextureOpenGL::get_color_format(TextureFormat format) 
 {
     switch (format)
     {
+    // 8-bit UNORM
     case TextureFormat::R8:
         return GL_R8;
     case TextureFormat::RG8:
@@ -88,6 +88,7 @@ uint32_t Fuego::Graphics::TextureOpenGL::get_color_format(TextureFormat format) 
     case TextureFormat::RGBA8:
         return GL_RGBA8;
 
+    // 16-bit float
     case TextureFormat::R16F:
         return GL_R16F;
     case TextureFormat::RG16F:
@@ -97,10 +98,36 @@ uint32_t Fuego::Graphics::TextureOpenGL::get_color_format(TextureFormat format) 
     case TextureFormat::RGBA16F:
         return GL_RGBA16F;
 
+    // 32-bit float
     case TextureFormat::R32F:
         return GL_R32F;
+    case TextureFormat::RG32F:
+        return GL_RG32F;
+    case TextureFormat::RGB32F:
+        return GL_RGB32F;
     case TextureFormat::RGBA32F:
         return GL_RGBA32F;
+
+    // Depth
+    case TextureFormat::DEPTH16:
+        return GL_DEPTH_COMPONENT16;
+    case TextureFormat::DEPTH24:
+        return GL_DEPTH_COMPONENT24;
+    case TextureFormat::DEPTH32:
+        return GL_DEPTH_COMPONENT32;
+    case TextureFormat::DEPTH32F:
+        return GL_DEPTH_COMPONENT32F;
+
+    // Stencil
+    case TextureFormat::STENCIL8:
+        return GL_STENCIL_INDEX8;
+
+    // Depth-stencil
+    case TextureFormat::DEPTH24STENCIL8:
+        return GL_DEPTH24_STENCIL8;
+    case TextureFormat::DEPTH24FSTENCIL8F:
+        return GL_DEPTH32F_STENCIL8;
+
     default:
         FU_CORE_ASSERT(false, "Unsupported texture format");
         return GL_RGBA8;
@@ -127,22 +154,45 @@ uint32_t Fuego::Graphics::TextureOpenGL::get_pixel_format(TextureFormat format, 
 {
     switch (format)
     {
+    // Single channel
     case TextureFormat::R8:
     case TextureFormat::R16F:
     case TextureFormat::R32F:
         return GL_RED;
 
+    // Two channel
     case TextureFormat::RG8:
     case TextureFormat::RG16F:
+    case TextureFormat::RG32F:
         return GL_RG;
 
+    // Three channel
     case TextureFormat::RGB8:
+    case TextureFormat::RGB16F:
+    case TextureFormat::RGB32F:
         return inverted ? GL_BGR : GL_RGB;
 
+    // Four channel
     case TextureFormat::RGBA8:
     case TextureFormat::RGBA16F:
     case TextureFormat::RGBA32F:
         return inverted ? GL_BGRA : GL_RGBA;
+
+    // Depth
+    case TextureFormat::DEPTH16:
+    case TextureFormat::DEPTH24:
+    case TextureFormat::DEPTH32:
+    case TextureFormat::DEPTH32F:
+        return GL_DEPTH_COMPONENT;
+
+    // Stencil
+    case TextureFormat::STENCIL8:
+        return GL_STENCIL_INDEX;
+
+    // Depth-stencil
+    case TextureFormat::DEPTH24STENCIL8:
+    case TextureFormat::DEPTH24FSTENCIL8F:
+        return GL_DEPTH_STENCIL;
 
     default:
         FU_CORE_ASSERT(false, "Unsupported TextureFormat in PixelFormat");
@@ -160,7 +210,8 @@ void Fuego::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
 
-    glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+    if(buffer)
+        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -250,7 +301,7 @@ uint32_t Fuego::Graphics::TextureOpenGL::GetTextureUnit() const
     return texture_unit;
 }
 
-uint32_t Fuego::Graphics::TextureOpenGL::GetTextureID() const
+const uint32_t* Fuego::Graphics::TextureOpenGL::GetTextureID() const
 {
-    return texture_id;
+    return &texture_id;
 }

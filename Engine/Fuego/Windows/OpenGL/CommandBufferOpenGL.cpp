@@ -57,9 +57,17 @@ void CommandBufferOpenGL::Submit()
     _isFree = true;
 }
 
-void CommandBufferOpenGL::BindRenderTarget(const Surface& texture)
+void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw)
 {
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    if (rw == FramebufferRWOperation::READ_ONLY)
+        glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+    else if (rw == FramebufferRWOperation::WRITE_ONLY)
+        glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+    else
+    {
+        glBindFramebuffer(GL_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
+        glViewport(0, 0, fbo.Width(), fbo.Height());
+    }
 }
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
@@ -100,7 +108,7 @@ void CommandBufferOpenGL::BindTexture(Texture* texture)
 {
     TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
 
-    glBindTextureUnit(text_gl.GetTextureUnit(), text_gl.GetTextureID());
+    glBindTextureUnit(text_gl.GetTextureUnit(), *text_gl.GetTextureID());
 }
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)
@@ -114,12 +122,6 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
 {
     glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes), base_vertex);
-}
-
-void CommandBufferOpenGL::Clear()
-{
-    glClearColor(1.f, 1.f, 1.f, 1);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }
 
 void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)

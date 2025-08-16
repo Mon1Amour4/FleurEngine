@@ -10,7 +10,7 @@ class TextureBase;
 
 struct ShaderComponentContext
 {
-    std::pair<std::string, Texture*> albedo_text{"material.albedo_texture", nullptr};
+    std::pair<std::string, const Texture*> albedo_text{"material.albedo_texture", nullptr};
     std::pair<std::string, Texture*> skybox_cubemap_text{"material.skybox_cubemap", nullptr};
 };
 

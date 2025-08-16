@@ -3,6 +3,7 @@
 namespace Fuego::Graphics
 {
 class Surface;
+class Framebuffer;
 
 class Swapchain
 {
@@ -14,6 +15,10 @@ public:
     virtual void ShowWireFrame(bool show) = 0;
     virtual void ValidateWindow() = 0;
 
-    virtual Surface& GetScreenTexture() = 0;  // TODO: not sure if we should return a surface
+    virtual const Framebuffer& GetScreenTexture() = 0;
+
+    virtual void ClearBackbuffer() const = 0;
+
+    virtual void Release() = 0;
 };
 }  // namespace Fuego::Graphics

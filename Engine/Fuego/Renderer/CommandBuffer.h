@@ -13,6 +13,9 @@ class ShaderObject;
 class Texture;
 struct VertexLayout;
 class Device;
+class Framebuffer;
+enum class FramebufferRWOperation;
+
 enum RenderStage;
 
 enum class DepthTestOperation
@@ -50,7 +53,7 @@ public:
     virtual void EndRecording() = 0;
     virtual void Submit() = 0;
 
-    virtual void BindRenderTarget(const Surface& texture) = 0;
+    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) = 0;
     virtual void BindShaderObject(std::shared_ptr<Fuego::Graphics::ShaderObject> shader) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
 
@@ -67,7 +70,6 @@ public:
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
     virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
-    virtual void Clear() = 0;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
     virtual void PopDebugGroup() = 0;

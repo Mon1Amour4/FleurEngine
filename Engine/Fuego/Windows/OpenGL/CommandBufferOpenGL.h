@@ -1,10 +1,12 @@
 #pragma once
 
+#include "FramebufferOpenGL.h"
 #include "Renderer/CommandBuffer.h"
 
 namespace Fuego::Graphics
 {
 class Surface;
+
 struct VertexLayout;
 
 class CommandBufferOpenGL final : public CommandBuffer
@@ -14,7 +16,7 @@ public:
     virtual void BeginRecording() override;
     virtual void EndRecording() override;
     virtual void Submit() override;
-    virtual void BindRenderTarget(const Surface& texture) override;
+    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) override;
     virtual void BindShaderObject(std::shared_ptr<Fuego::Graphics::ShaderObject> shader) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
 
@@ -26,7 +28,6 @@ public:
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
     virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) override;
-    virtual void Clear() override;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) override;
     virtual void PopDebugGroup() override;

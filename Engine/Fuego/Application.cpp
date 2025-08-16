@@ -79,7 +79,7 @@ bool Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->ChangeViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
+    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }
@@ -121,9 +121,9 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
     auto assets_manager = ServiceLocator::instance().GetService<Fuego::AssetsManager>();
-    renderer->ShowWireFrame();
-    // TODO: As for now we use just one opaque shader, but we must think about different passes
-    // using different shaders with blending and probably using pre-passes
+    // renderer->ShowWireFrame();
+    //  TODO: As for now we use just one opaque shader, but we must think about different passes
+    //  using different shaders with blending and probably using pre-passes
 
     auto model_1 = assets_manager->Get<Model>("WaterCooler");
     auto locked_model_1 = model_1.lock();
@@ -142,6 +142,15 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
         glm::mat4 M = T * R * S;
 
         renderer->DrawModel(Fuego::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
+    }
+
+    auto model_4 = assets_manager->Get<Model>("gizmo");
+    if (!model_4.expired())
+    {
+        glm::mat4 gizmoMatrix(1.0f);
+        gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
+
+        renderer->DrawModel(Fuego::Graphics::RenderStage::GIZMO, model_4.lock().get(), gizmoMatrix);
     }
 
     UNUSED(event);
@@ -185,6 +194,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
+    assets_manager.value()->Load<Model>("gizmo.glb");
     assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
     assets_manager.value()->Load<CubemapImage>("skybox.jpg");

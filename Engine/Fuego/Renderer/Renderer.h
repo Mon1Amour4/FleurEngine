@@ -7,6 +7,7 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "Framebuffer.h"
 #include "Graphics.hpp"
 #include "Image2D.h"
 #include "Material.h"
@@ -54,7 +55,6 @@ public:
 
     // IRenderer;
     void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
-    void ChangeViewport(float x, float y, float w, float h);
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -67,10 +67,6 @@ public:
     void ShowWireFrame();
     void ToggleWireFrame();
     void ValidateWindow();
-    inline const Viewport& GetViewport() const
-    {
-        return viewport;
-    }
 
     void SetVSync(bool active);
     bool IsVSync();
@@ -103,25 +99,27 @@ public:
             return _device->CreateShader(std::forward<Args>(args)...);
         return std::shared_ptr<Resource>{nullptr};
     }
+    void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 private:
     bool show_wireframe;
 
-    void UpdateViewport();
     std::unique_ptr<Device> _device;
     std::unique_ptr<CommandQueue> _commandQueue;
     std::unique_ptr<CommandPool> _commandPool;
     std::unique_ptr<Swapchain> _swapchain;
-    std::unique_ptr<Surface> _surface;
     std::unique_ptr<Camera> _camera;
     std::unique_ptr<Skybox> _skybox;
 
     std::unique_ptr<CommandBuffer> static_geometry_cmd;
     std::unique_ptr<CommandBuffer> skybox_cmd;
+    std::unique_ptr<CommandBuffer> gizmo_cmd;
+    std::unique_ptr<CommandBuffer> copy_fbo_cmd;
+
+    // TODO: move from here
+    std::unique_ptr<Framebuffer> gizmo_fbo;
 
     ShaderObject* current_shader_obj;
-
-    Viewport viewport;
 
     bool is_vsync;
 
@@ -145,7 +143,9 @@ private:
     };
 
     std::unordered_map<std::string, DrawInfo> static_geometry_models;
+    std::unordered_map<std::string, DrawInfo> gizmo_models;
     std::vector<DrawInfo> static_geometry_models_vector;
+    std::vector<DrawInfo> gizmo_models_vector;
 
     // Service
 
