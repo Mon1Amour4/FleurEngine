@@ -3,6 +3,7 @@
 #include "Input.h"
 
 #define MOUSE_WHEEL_SCROLL_SPEED 5.f
+static constexpr float MOUSE_EPSILON = 1e-3f;
 
 namespace Fleur::Graphics
 {
@@ -110,6 +111,9 @@ float Camera::NearClip() const
 void Camera::RotateCamera(float dtTime)
 {
     glm::vec2 mouse_dir = Input::GetMouseDir();
+
+    if (fabs(mouse_dir.x) > MOUSE_EPSILON || fabs(mouse_dir.y) > MOUSE_EPSILON)
+    {
     yaw += mouse_dir.x * mouse_sensitivity * dtTime;
     pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
     glm::fclamp(pitch, -89.0f, 89.0f);
