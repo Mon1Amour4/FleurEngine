@@ -56,6 +56,34 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
     ShowWindow(window->_hwnd, SW_SHOW);
     SetEvent(window->_onThreadCreated);
 
+    // Generic Mouse
+    window->Rid[0].usUsagePage = 0x01;
+    window->Rid[0].usUsage = 0x02;
+    window->Rid[0].dwFlags = RIDEV_INPUTSINK;
+    window->Rid[0].hwndTarget = window->_hwnd;
+
+    // Keyboard, ignores legacy keyboard
+    window->Rid[1].usUsagePage = 0x01;
+    window->Rid[1].usUsage = 0x06;
+    window->Rid[1].dwFlags = RIDEV_NOLEGACY;
+    window->Rid[1].hwndTarget = 0;
+
+    if (RegisterRawInputDevices(window->Rid, 2, sizeof(Rid[0])) == FALSE)
+    {
+        DWORD error = GetLastError();
+        if (error)
+        {
+            LPSTR buffer = nullptr;
+            size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
+                                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buffer, 0, NULL);
+
+            std::string message(buffer, size);
+            LocalFree(buffer);
+
+            FL_CORE_ERROR("Raw Input Device registration failed, error code: {0}, message: {1}", error, message);
+        }
+    }
+
     MSG msg{};
     while (GetMessage(&msg, nullptr, 0, 0) > 0)
     {
