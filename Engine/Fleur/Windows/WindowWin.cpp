@@ -144,14 +144,32 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
     switch (msg)
     {
-    case WM_ACTIVATE:
+    case WM_ACTIVATEAPP:
     {
-        if (LOWORD(wparam) != WA_INACTIVE)
-            is_in_focus = true;
+        if (LOWORD(wparam))
+            appActive = true;
         else
-            is_in_focus = false;
+            appActive = false;
         break;
     }
+    case WM_SETFOCUS:
+    {
+        has_input_focus = true;
+        POINT pt;
+        GetCursorPos(&pt);
+
+        _prevCursorPos.x = pt.x;
+        _prevCursorPos.y = pt.y;
+
+        _cursorPos = _prevCursorPos;
+        _mouseDir = {0, 0};
+        break;
+    }
+
+    case WM_KILLFOCUS:
+        has_input_focus = false;
+        break;
+
     case WM_PAINT:
     {
         if (!isPainted || isResizing || _props.mode == MINIMIZED)
@@ -205,56 +223,60 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_MOUSEMOVE:
     {
-        if (is_first_launch)
+        if (appActive)
         {
-            RECT rect;
-            GetClientRect(hwnd, &rect);
-            POINT center;
-            center.x = _currentWidth / 2;
-            center.y = _currentHeigth / 2;
-            ClientToScreen(hwnd, &center);
-            window_center_x = center.x;
-            window_center_y = center.y;
-
-            _cursorPos.x = window_center_x;
-            _cursorPos.y = window_center_y;
-
-            _prevCursorPos = _cursorPos;
-            is_first_launch = false;
-            SetCursorPos(window_center_x, window_center_y);
-        }
-
-        POINT cursor_pos;
-        GetCursorPos(&cursor_pos);
-
-        RECT client_rect;
-        GetClientRect(hwnd, &client_rect);
-        bool insideWindow =
-            cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
-
-        if (insideWindow && is_in_focus)
-        {
-            if (interaction_mode == InteractionMode::GAMING)
+            if (is_first_launch)
             {
-                _prevCursorPos.x = window_center_x;
-                _prevCursorPos.y = window_center_y;
+                RECT rect;
+                GetClientRect(hwnd, &rect);
+                POINT center;
+                center.x = _currentWidth / 2;
+                center.y = _currentHeigth / 2;
+                ClientToScreen(hwnd, &center);
+                window_center_x = center.x;
+                window_center_y = center.y;
 
-                _cursorPos.x = cursor_pos.x;
-                _cursorPos.y = cursor_pos.y;
+                _cursorPos.x = window_center_x;
+                _cursorPos.y = window_center_y;
 
-                _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
-                _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
-
+                _prevCursorPos = _cursorPos;
+                is_first_launch = false;
                 SetCursorPos(window_center_x, window_center_y);
-                ShowCursor(false);
             }
-            else if (interaction_mode == InteractionMode::EDITOR)
-            {
-                ShowCursor(true);
-            }
-        }
 
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+
+            POINT cursor_pos;
+            GetCursorPos(&cursor_pos);
+
+            RECT client_rect;
+            GetClientRect(hwnd, &client_rect);
+            bool insideWindow =
+                cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
+
+            if (insideWindow && has_input_focus)
+            {
+                if (interaction_mode == InteractionMode::GAMING)
+                {
+                    _prevCursorPos.x = window_center_x;
+                    _prevCursorPos.y = window_center_y;
+
+                    _cursorPos.x = cursor_pos.x;
+                    _cursorPos.y = cursor_pos.y;
+
+                    _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
+                    _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
+
+                    SetCursorPos(window_center_x, window_center_y);
+                    ShowCursor(false);
+                }
+                else if (interaction_mode == InteractionMode::EDITOR)
+                {
+                    ShowCursor(true);
+                }
+            }
+
+            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+        }
         break;
     }
 
@@ -360,7 +382,9 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , pressed_keys{Input::KeyState::KEY_NONE}
     , interaction_mode(InteractionMode::GAMING)
     , is_first_launch(true)
-    , is_in_focus(true)
+    , has_input_focus(false)
+    , appActive(false)
+    , _mouseDir(0.f, 0.f)
     , mouse_wheel_data(std::make_pair(0.f, 0.f))
 {
     POINT cursorPos;

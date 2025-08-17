@@ -61,7 +61,7 @@ public:
 
     inline virtual bool IsActive() const override
     {
-        return is_in_focus;
+        return has_input_focus;
     }
 
     virtual void SetTitle(std::string title) override;
@@ -86,7 +86,7 @@ private:
     LPDWORD _winThreadID;
     HANDLE _onThreadCreated;
 
-    bool is_first_launch, isResizing, isPainted, is_in_focus;
+    bool is_first_launch, isResizing, isPainted, has_input_focus, appActive;
 
     virtual inline void SetPainted() override
     {
