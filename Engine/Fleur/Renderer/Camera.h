@@ -15,7 +15,9 @@ class Renderer;
 class FLEUR_API Camera : IUpdatable
 {
 public:
+    Camera();
     ~Camera();
+
     FLEUR_NON_COPYABLE_NON_MOVABLE(Camera);
 
     inline mat4 GetView() const
@@ -65,8 +67,5 @@ private:
     float yaw;
     float pitch;
     float mouse_sensitivity;
-
-    friend class Renderer;
-    Camera();
 };
 }  // namespace Fleur::Graphics
