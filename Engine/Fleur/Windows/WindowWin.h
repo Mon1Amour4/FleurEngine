@@ -44,6 +44,10 @@ public:
     inline virtual void SwitchInteractionMode() override
     {
         interaction_mode = interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
+        if (interaction_mode == InteractionMode::GAMING)
+        {
+            set_gaming_mode();
+        }
     }
     inline virtual InteractionMode GetInteractionMode() const
     {
@@ -86,7 +90,7 @@ private:
     LPDWORD _winThreadID;
     HANDLE _onThreadCreated;
 
-    bool is_first_launch, isResizing, isPainted, has_input_focus, appActive;
+    bool is_first_launch, isResizing, isPainted, has_input_focus, appActive, frame_action;
 
     virtual inline void SetPainted() override
     {
@@ -105,6 +109,9 @@ private:
     std::pair<float, float> mouse_wheel_data;
 
     InteractionMode interaction_mode;
+    void set_gaming_mode();
+    // Raw Input Device
+    RAWINPUTDEVICE Rid[2];
 
 protected:
     virtual void SetWindowMode(WPARAM mode);

@@ -170,6 +170,9 @@ void WindowWin::InitOpenGLExtensions()
 
 LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 {
+    _mouseDir.x = 0;
+    _mouseDir.y = 0;
+
     switch (msg)
     {
     case WM_ACTIVATEAPP:
@@ -180,24 +183,62 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             appActive = false;
         break;
     }
+    case WM_CAPTURECHANGED:
+    {
+        FL_CORE_INFO("WM_CAPTURECHANGED");
+        if (lparam == 0 && frame_action)
+        {
+            frame_action = false;
+            if (interaction_mode == InteractionMode::GAMING)
+                set_gaming_mode();
+        }
+    }
     case WM_SETFOCUS:
     {
         has_input_focus = true;
-        POINT pt;
-        GetCursorPos(&pt);
+        if (frame_action)
+            break;
 
-        _prevCursorPos.x = pt.x;
-        _prevCursorPos.y = pt.y;
+        if (interaction_mode == InteractionMode::GAMING)
+            set_gaming_mode();
+        // POINT pt;
+        // GetCursorPos(&pt);
 
-        _cursorPos = _prevCursorPos;
-        _mouseDir = {0, 0};
+        //_prevCursorPos.x = pt.x;
+        //_prevCursorPos.y = pt.y;
+
+        //_cursorPos = _prevCursorPos;
         break;
     }
 
     case WM_KILLFOCUS:
+    {
+        // FL_CORE_INFO("WM_KILLFOCUS");
         has_input_focus = false;
+        SetCursor(LoadCursor(NULL, IDC_ARROW));
+        ClipCursor(nullptr);
         break;
-
+    }
+    case WM_MOUSEACTIVATE:
+    {
+        // FL_CORE_INFO("WM_MOUSEACTIVATE");
+        /*appActive = has_input_focus = true;
+        if (interaction_mode == InteractionMode::GAMING)
+            set_gaming_mode();
+        break;*/
+        if (HIWORD(lparam) == WM_LBUTTONDOWN)
+        {
+            if (LOWORD(lparam) != HTCLIENT)
+                frame_action = true;
+            else
+            {
+                has_input_focus = true;
+                if (interaction_mode == InteractionMode::GAMING)
+                    set_gaming_mode();
+            }
+        }
+        break;
+    }
     case WM_PAINT:
     {
         if (!isPainted || isResizing || _props.mode == MINIMIZED)
@@ -251,7 +292,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_MOUSEMOVE:
     {
-        if (appActive)
+        /*if (appActive)
         {
             if (is_first_launch)
             {
@@ -295,15 +336,138 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                     _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
 
                     SetCursorPos(window_center_x, window_center_y);
-                    ShowCursor(false);
-                }
-                else if (interaction_mode == InteractionMode::EDITOR)
-                {
-                    ShowCursor(true);
                 }
             }
 
             _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+        }*/
+        break;
+    }
+    case WM_SETCURSOR:
+    {
+        if (frame_action)
+        {
+            FL_CORE_INFO("frame_action");
+            // frame_action = false;
+            break;
+        }
+        if (interaction_mode == InteractionMode::GAMING && has_input_focus)
+        {
+            FL_CORE_INFO("interaction_mode == InteractionMode::GAMING && has_input_focus");
+            SetCursor(NULL);
+            return TRUE;
+        }
+        /*if (LOWORD(lparam) == HTCLIENT)
+        {
+            if (interaction_mode == InteractionMode::GAMING && has_input_focus)
+            {
+                FL_CORE_INFO("interaction_mode == InteractionMode::GAMING && has_input_focus");
+                SetCursor(NULL);
+                return TRUE;
+            }
+        }
+        return DefWindowProc(hwnd, msg, wparam, lparam);*/
+    }
+    case WM_INPUT:
+    {
+        if (appActive)
+        {
+            if (is_first_launch)
+            {
+                _cursorPos.x = {0.f};
+                _prevCursorPos = _cursorPos;
+
+                if (interaction_mode == InteractionMode::GAMING)
+                    set_gaming_mode();
+
+                is_first_launch = false;
+            }
+
+            UINT dwSize;
+            GetRawInputData((HRAWINPUT)lparam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+            LPBYTE lpb = new BYTE[dwSize];
+
+            if (GetRawInputData((HRAWINPUT)lparam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+                FL_CORE_ERROR("GetRawInputData does not return correct size !");
+
+            RAWINPUT* raw = (RAWINPUT*)lpb;
+
+            if (raw->header.dwType == RIM_TYPEKEYBOARD)
+            {
+                bool isDown = (raw->data.keyboard.Flags & RI_KEY_BREAK) == 0;
+                KeyCode crossplatform_keycode = GetKeyCode(raw->data.keyboard.VKey);
+                if (isDown)
+                {
+                    pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_PRESSED;
+                    _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, 1)));
+                }
+                else
+                {
+                    pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_RELEASED;
+                    _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
+                }
+            }
+            else if (raw->header.dwType == RIM_TYPEMOUSE)
+            {
+                _cursorPos.x = raw->data.mouse.lLastX;
+                _cursorPos.y = raw->data.mouse.lLastY;
+
+                _mouseDir.x = raw->data.mouse.lLastX;
+                _mouseDir.y = raw->data.mouse.lLastY;
+
+                USHORT button_flags = raw->data.mouse.usButtonFlags;
+                if (button_flags != 0)
+                {
+                    MouseCode button = Mouse::None;
+                    if (button_flags & 0x001)
+                    {
+                        button = Mouse::Button0;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                    }
+                    if (button_flags & 0x0002)
+                    {
+                        button = Mouse::Button0;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                    }
+                    if (button_flags & 0x0004)
+                    {
+                        button = Mouse::Button1;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                    }
+                    if (button_flags & 0x0008)
+                    {
+                        button = Mouse::Button1;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                    }
+                    if (button_flags & 0x0010)
+                    {
+                        button = Mouse::Button2;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                    }
+                    if (button_flags & 0x0020)
+                    {
+                        button = Mouse::Button2;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                    }
+                    if (button_flags & 0x0400)  // Mouse Wheel vertical
+                    {
+                        SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(wheelDelta, 0.f)));
+                    }
+                    if (button_flags & 0x0800)  // Mouse Wheel Horizontal
+                    {
+                        SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
+                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, wheelDelta)));
+                    }
+                }
+            };
+
+            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+            delete[] lpb;
+        }
+        else
+        {
+            // FL_CORE_INFO("APP IS NOT ACZTIVE");
         }
         break;
     }
@@ -402,6 +566,7 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _onThreadCreated(CreateEvent(nullptr, FALSE, FALSE, nullptr))
     , isResizing(false)
     , isPainted(true)
+    , frame_action(false)
     , _currentWidth(props.Width)
     , _currentHeigth(props.Height)
     , _xPos(props.x)
@@ -427,11 +592,12 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
 
 void WindowWin::OnUpdate(float dlTime)
 {
-    if (isResizing || _props.mode == MINIMIZED)
-    {
-        FL_CORE_INFO("stop rendering");
-        return;
-    }
+    if (!has_input_focus)
+        if (isResizing || _props.mode == MINIMIZED)
+        {
+            FL_CORE_INFO("stop rendering");
+            return;
+        }
     _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
@@ -487,6 +653,20 @@ void WindowWin::SetMouseWheelScrollData(float x, float y)
 {
     mouse_wheel_data.first = x;
     mouse_wheel_data.second = y;
+}
+
+void WindowWin::set_gaming_mode()
+{
+    RECT rect;
+    GetClientRect(_hwnd, &rect);
+    POINT ul = {rect.left, rect.top};
+    POINT lr = {rect.right, rect.bottom};
+    MapWindowPoints(_hwnd, nullptr, &ul, 1);
+    MapWindowPoints(_hwnd, nullptr, &lr, 1);
+
+    RECT clipRect = {ul.x, ul.y, lr.x, lr.y};
+    ClipCursor(&clipRect);
+    SetCursor(NULL);
 }
 
 void WindowWin::SetWindowMode(WPARAM mode)
