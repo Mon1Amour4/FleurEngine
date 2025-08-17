@@ -84,7 +84,7 @@ void Camera::OnUpdate(float dlTime)
     }
 
     RotateCamera(dlTime);
-    
+
     view = glm::lookAt(position, position + camera_forward, up);
 }
 
@@ -114,14 +114,16 @@ void Camera::RotateCamera(float dtTime)
 
     if (fabs(mouse_dir.x) > MOUSE_EPSILON || fabs(mouse_dir.y) > MOUSE_EPSILON)
     {
-    yaw += mouse_dir.x * mouse_sensitivity * dtTime;
-    pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
-    glm::fclamp(pitch, -89.0f, 89.0f);
+        yaw += mouse_dir.x * mouse_sensitivity * dtTime;
+        pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
+        glm::fclamp(pitch, -89.0f, 89.0f);
 
-    glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    camera_forward = glm::normalize(direction);
-}
+        glm::vec3 direction;
+        direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
+        direction.y = sin(glm::radians(pitch));
+        direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
+        camera_forward = glm::normalize(direction);
+    }
+}  // namespace Fleur::Graphics
+
 }  // namespace Fleur::Graphics
