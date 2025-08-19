@@ -72,7 +72,7 @@ public:
 
 private:
     float _currentWidth, _currentHeigth;
-    int window_center_x, window_center_y, _xPos, _yPos;
+    int _xPos, _yPos;
 
     static DWORD WinThreadMain(_In_ LPVOID lpParameter);
     static LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -110,6 +110,7 @@ private:
 
     InteractionMode interaction_mode;
     void set_gaming_mode();
+    void unlock_mouse();
     // Raw Input Device
     RAWINPUTDEVICE Rid[2];
 

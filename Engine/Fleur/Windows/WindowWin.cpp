@@ -175,6 +175,12 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
     switch (msg)
     {
+    // Activate\Deactivate:
+    case WM_CLOSE:
+    {
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
+        break;
+    }
     case WM_ACTIVATEAPP:
     {
         if (LOWORD(wparam))
@@ -185,14 +191,30 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_CAPTURECHANGED:
     {
-        FL_CORE_INFO("WM_CAPTURECHANGED");
         if (lparam == 0 && frame_action)
         {
             frame_action = false;
             if (interaction_mode == InteractionMode::GAMING)
                 set_gaming_mode();
         }
+        break;
     }
+
+    case WM_SETCURSOR:
+    {
+        if (frame_action)
+        {
+            // frame_action = false;
+            break;
+        }
+        else if (interaction_mode == InteractionMode::GAMING && has_input_focus)
+        {
+            SetCursor(NULL);
+            return TRUE;
+        }
+        break;
+    }
+
     case WM_SETFOCUS:
     {
         has_input_focus = true;
@@ -201,31 +223,26 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         if (interaction_mode == InteractionMode::GAMING)
             set_gaming_mode();
-        // POINT pt;
-        // GetCursorPos(&pt);
 
-        //_prevCursorPos.x = pt.x;
-        //_prevCursorPos.y = pt.y;
+        // Get Cursor coords
+        POINT Point;
+        GetCursorPos(&Point);
+        _prevCursorPos.x = Point.x;
+        _prevCursorPos.y = Point.y;
+        _cursorPos = _prevCursorPos;
 
-        //_cursorPos = _prevCursorPos;
         break;
     }
 
     case WM_KILLFOCUS:
     {
-        // FL_CORE_INFO("WM_KILLFOCUS");
         has_input_focus = false;
-        SetCursor(LoadCursor(NULL, IDC_ARROW));
-        ClipCursor(nullptr);
+        unlock_mouse();
         break;
     }
+
     case WM_MOUSEACTIVATE:
     {
-        // FL_CORE_INFO("WM_MOUSEACTIVATE");
-        /*appActive = has_input_focus = true;
-        if (interaction_mode == InteractionMode::GAMING)
-            set_gaming_mode();
-        break;*/
         if (HIWORD(lparam) == WM_LBUTTONDOWN)
         {
             if (LOWORD(lparam) != HTCLIENT)
@@ -239,45 +256,29 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         }
         break;
     }
+
     case WM_PAINT:
     {
         if (!isPainted || isResizing || _props.mode == MINIMIZED)
             return 0;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowValidateEvent()));
+
         isPainted = false;
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowValidateEvent()));
         return 0;
     }
+
+    // Window Rsize:
     case WM_ENTERSIZEMOVE:
     {
         isResizing = true;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowStartResizeEvent()));
-        break;
-    }
-    case WM_EXITSIZEMOVE:
-    {
-        isResizing = false;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent()));
-
-        POINT center;
-        center.x = _currentWidth / 2;
-        center.y = _currentHeigth / 2;
-
-        ClientToScreen(hwnd, &center);
-        window_center_x = center.x;
-        window_center_y = center.y;
-        RECT rect;
-        GetClientRect(hwnd, &rect);
-
-        _xPos = rect.left;
-        _yPos = rect.top;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
+        POINT Point{};
+        GetCursorPos(&Point);
+        ScreenToClient(hwnd, &Point);
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowStartResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth, Point.x, Point.y)));
         break;
     }
     case WM_SIZE:
     {
-        if (isResizing)
-            break;
-
         _currentWidth = LOWORD(lparam);
         _currentHeigth = HIWORD(lparam);
 
@@ -290,84 +291,16 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         SetWindowMode(wparam);
         break;
     }
-    case WM_MOUSEMOVE:
+    case WM_EXITSIZEMOVE:
     {
-        /*if (appActive)
-        {
-            if (is_first_launch)
-            {
-                RECT rect;
-                GetClientRect(hwnd, &rect);
-                POINT center;
-                center.x = _currentWidth / 2;
-                center.y = _currentHeigth / 2;
-                ClientToScreen(hwnd, &center);
-                window_center_x = center.x;
-                window_center_y = center.y;
+        isResizing = false;
 
-                _cursorPos.x = window_center_x;
-                _cursorPos.y = window_center_y;
-
-                _prevCursorPos = _cursorPos;
-                is_first_launch = false;
-                SetCursorPos(window_center_x, window_center_y);
-            }
-
-
-            POINT cursor_pos;
-            GetCursorPos(&cursor_pos);
-
-            RECT client_rect;
-            GetClientRect(hwnd, &client_rect);
-            bool insideWindow =
-                cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
-
-            if (insideWindow && has_input_focus)
-            {
-                if (interaction_mode == InteractionMode::GAMING)
-                {
-                    _prevCursorPos.x = window_center_x;
-                    _prevCursorPos.y = window_center_y;
-
-                    _cursorPos.x = cursor_pos.x;
-                    _cursorPos.y = cursor_pos.y;
-
-                    _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
-                    _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
-
-                    SetCursorPos(window_center_x, window_center_y);
-                }
-            }
-
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
-        }*/
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
         break;
     }
-    case WM_SETCURSOR:
-    {
-        if (frame_action)
-        {
-            FL_CORE_INFO("frame_action");
-            // frame_action = false;
-            break;
-        }
-        if (interaction_mode == InteractionMode::GAMING && has_input_focus)
-        {
-            FL_CORE_INFO("interaction_mode == InteractionMode::GAMING && has_input_focus");
-            SetCursor(NULL);
-            return TRUE;
-        }
-        /*if (LOWORD(lparam) == HTCLIENT)
-        {
-            if (interaction_mode == InteractionMode::GAMING && has_input_focus)
-            {
-                FL_CORE_INFO("interaction_mode == InteractionMode::GAMING && has_input_focus");
-                SetCursor(NULL);
-                return TRUE;
-            }
-        }
-        return DefWindowProc(hwnd, msg, wparam, lparam);*/
-    }
+
+    // Input:
+    // Raw input:
     case WM_INPUT:
     {
         if (appActive)
@@ -472,6 +405,61 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
 
+    // Mouse Events
+    case WM_MOUSEMOVE:
+    {
+        /*if (appActive)
+        {
+            if (is_first_launch)
+            {
+                RECT rect;
+                GetClientRect(hwnd, &rect);
+                POINT center;
+                center.x = _currentWidth / 2;
+                center.y = _currentHeigth / 2;
+                ClientToScreen(hwnd, &center);
+                window_center_x = center.x;
+                window_center_y = center.y;
+
+                _cursorPos.x = window_center_x;
+                _cursorPos.y = window_center_y;
+
+                _prevCursorPos = _cursorPos;
+                is_first_launch = false;
+                SetCursorPos(window_center_x, window_center_y);
+            }
+
+
+            POINT cursor_pos;
+            GetCursorPos(&cursor_pos);
+
+            RECT client_rect;
+            GetClientRect(hwnd, &client_rect);
+            bool insideWindow =
+                cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
+
+            if (insideWindow && has_input_focus)
+            {
+                if (interaction_mode == InteractionMode::GAMING)
+                {
+                    _prevCursorPos.x = window_center_x;
+                    _prevCursorPos.y = window_center_y;
+
+                    _cursorPos.x = cursor_pos.x;
+                    _cursorPos.y = cursor_pos.y;
+
+                    _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
+                    _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
+
+                    SetCursorPos(window_center_x, window_center_y);
+                }
+            }
+
+            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+        }*/
+        break;
+    }
+
     case WM_LBUTTONDOWN:
     case WM_LBUTTONUP:
     case WM_RBUTTONDOWN:
@@ -506,21 +494,19 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         }
         break;
     }
-
     case WM_MOUSEWHEEL:
     {
         float yOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam));
         _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(yOffset, 0.f)));
         break;
     }
-
     case WM_MOUSEHWHEEL:
     {
         float xOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam));
         _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, xOffset)));
         break;
     }
-
+    // Keyboard events:
     case WM_KEYDOWN:
     case WM_KEYUP:
     {
@@ -543,9 +529,6 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
 
-    case WM_CLOSE:
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
-        break;
 
     default:
     {
@@ -580,12 +563,6 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _mouseDir(0.f, 0.f)
     , mouse_wheel_data(std::make_pair(0.f, 0.f))
 {
-    POINT cursorPos;
-    ::GetCursorPos(&cursorPos);
-    _cursorPos.x = cursorPos.x;
-    _cursorPos.y = cursorPos.y;
-    _prevCursorPos = _cursorPos;
-
     _winThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, _winThreadID);
     WaitForSingleObject(_onThreadCreated, INFINITE);
 }
@@ -667,6 +644,15 @@ void WindowWin::set_gaming_mode()
     RECT clipRect = {ul.x, ul.y, lr.x, lr.y};
     ClipCursor(&clipRect);
     SetCursor(NULL);
+}
+
+void WindowWin::unlock_mouse()
+{
+    if (interaction_mode == InteractionMode::GAMING)
+    {
+        SetCursor(LoadCursor(NULL, IDC_ARROW));
+        ClipCursor(nullptr);
+    }
 }
 
 void WindowWin::SetWindowMode(WPARAM mode)

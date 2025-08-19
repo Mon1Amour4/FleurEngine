@@ -50,10 +50,41 @@ private:
 class FLEUR_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent>
 {
 public:
-    WindowStartResizeEvent() noexcept
+    WindowStartResizeEvent(float x, float y, float width, float height, int cursorX, int cursorY) noexcept
         : EventBase(EVENT_NAME(WindowStartResizeEvent))
+        , x(x)
+        , y(y)
+        , width(width)
+        , height(height)
+        , cursorX(cursorX)
+        , cursorY(cursorY)
     {
     }
+    inline int Width() const
+    {
+        return width;
+    }
+    inline int Height() const
+    {
+        return height;
+    }
+    inline int X() const
+    {
+        return x;
+    }
+    inline int Y() const
+    {
+        return y;
+    }
+    inline int CursorX() const
+    {
+        return cursorX;
+    }
+    inline int CursorY() const
+    {
+        return cursorY;
+    }
+
 
 protected:
     std::string ToStringImpl() const
@@ -63,15 +94,32 @@ protected:
     }
 
 private:
+    int x, y, width, height, cursorX, cursorY;
     friend struct Fleur::EventBase<WindowStartResizeEvent>;
 };
 
 class FLEUR_API WindowEndResizeEvent : public EventBase<WindowEndResizeEvent>
 {
 public:
-    WindowEndResizeEvent() noexcept
+    WindowEndResizeEvent(float x, float y, float width, float height) noexcept
         : EventBase(EVENT_NAME(WindowEndResizeEvent))
     {
+    }
+    inline int Width() const
+    {
+        return width;
+    }
+    inline int Height() const
+    {
+        return height;
+    }
+    inline int X() const
+    {
+        return x;
+    }
+    inline int Y() const
+    {
+        return y;
     }
 
 protected:
@@ -82,6 +130,7 @@ protected:
     }
 
 private:
+    int x, y, width, height;
     friend struct Fleur::EventBase<WindowEndResizeEvent>;
 };
 
