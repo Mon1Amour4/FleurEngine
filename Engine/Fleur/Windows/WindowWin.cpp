@@ -181,6 +181,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
         break;
     }
+
+    // ALT+TAB after WM_CAPTURECHANGED
+    // WIN button afer WM_CAPTURECHANGED (if SetCapture() or ClipCursor() Called)
+    // Clicks in non-application area like Desktop
     case WM_ACTIVATEAPP:
     {
         if (LOWORD(wparam))
@@ -189,6 +193,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             appActive = false;
         break;
     }
+
+    // If user use ALT+TAB or clicks on to the other application -> Triggers this event then WM_ACTIVATEAPP(FALSE)
+    // If Calls ReleaseCapture() -> Triggers only this event
+    // If clicks Border (Non-Client area) \ Header \ Minimize \ Maximize \ Close \ Child windowses\controls \ other windowses of the same process
     case WM_CAPTURECHANGED:
     {
         if (lparam == 0 && frame_action)
@@ -200,6 +208,12 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
 
+    // If the cursor has moved from someone else's window or desktop to the client area of your window
+    // With each WM_MOUSEMOVE, Windows first checks whether the cursor needs to be changed. If so, it also sends WM_SETCURSOR
+    // When the active window changes If the focus has moved to your window(e.g.Alt + Tab, click on the title, Win + Tab) — Windows wants
+    // to make sure that the cursor is displayed correctly, and calls WM_SETCURSOR
+    // When a window changes mode (client / non-client area)
+    // When you call SetCapture() or ReleaseCapture()
     case WM_SETCURSOR:
     {
         if (frame_action)
@@ -215,31 +229,6 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
 
-    case WM_SETFOCUS:
-    {
-        has_input_focus = true;
-        if (frame_action)
-            break;
-
-        if (interaction_mode == InteractionMode::GAMING)
-            set_gaming_mode();
-
-        // Get Cursor coords
-        POINT Point;
-        GetCursorPos(&Point);
-        _prevCursorPos.x = Point.x;
-        _prevCursorPos.y = Point.y;
-        _cursorPos = _prevCursorPos;
-
-        break;
-    }
-
-    case WM_KILLFOCUS:
-    {
-        has_input_focus = false;
-        unlock_mouse();
-        break;
-    }
 
     case WM_MOUSEACTIVATE:
     {
@@ -398,65 +387,13 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
             delete[] lpb;
         }
-        else
-        {
-            // FL_CORE_INFO("APP IS NOT ACZTIVE");
-        }
         break;
     }
 
     // Mouse Events
     case WM_MOUSEMOVE:
     {
-        /*if (appActive)
-        {
-            if (is_first_launch)
-            {
-                RECT rect;
-                GetClientRect(hwnd, &rect);
-                POINT center;
-                center.x = _currentWidth / 2;
-                center.y = _currentHeigth / 2;
-                ClientToScreen(hwnd, &center);
-                window_center_x = center.x;
-                window_center_y = center.y;
-
-                _cursorPos.x = window_center_x;
-                _cursorPos.y = window_center_y;
-
-                _prevCursorPos = _cursorPos;
-                is_first_launch = false;
-                SetCursorPos(window_center_x, window_center_y);
-            }
-
-
-            POINT cursor_pos;
-            GetCursorPos(&cursor_pos);
-
-            RECT client_rect;
-            GetClientRect(hwnd, &client_rect);
-            bool insideWindow =
-                cursor_pos.x >= client_rect.left && cursor_pos.x <= client_rect.right && cursor_pos.y >= client_rect.top && cursor_pos.y <= client_rect.bottom;
-
-            if (insideWindow && has_input_focus)
-            {
-                if (interaction_mode == InteractionMode::GAMING)
-                {
-                    _prevCursorPos.x = window_center_x;
-                    _prevCursorPos.y = window_center_y;
-
-                    _cursorPos.x = cursor_pos.x;
-                    _cursorPos.y = cursor_pos.y;
-
-                    _mouseDir.x = _cursorPos.x - _prevCursorPos.x;
-                    _mouseDir.y = _cursorPos.y - _prevCursorPos.y;
-
-                    SetCursorPos(window_center_x, window_center_y);
-                }
-            }
-
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
-        }*/
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
         break;
     }
 
@@ -506,7 +443,42 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, xOffset)));
         break;
     }
+
     // Keyboard events:
+
+    // Keyboard focus:
+    // The user clicks on your window → it becomes active and gets focus → WM_SETFOCUS.
+    // The user Alt + Tab's to your window → WM_SETFOCUS.
+    // SetFocus(hWnd) is called manually → WM_SETFOCUS.
+    // After creating the window, if you immediately give it focus → it will also come.
+    case WM_SETFOCUS:
+    {
+        has_input_focus = true;
+        if (frame_action)
+            break;
+
+        if (interaction_mode == InteractionMode::GAMING)
+            set_gaming_mode();
+
+        // Get Cursor coords
+        POINT Point;
+        GetCursorPos(&Point);
+        _prevCursorPos.x = Point.x;
+        _prevCursorPos.y = Point.y;
+        _cursorPos = _prevCursorPos;
+
+        break;
+    }
+
+    // You Alt+Tab'd to another application → your window gets WM_KILLFOCUS.
+    // You clicked another window → the current window lost focus → WM_KILLFOCUS.
+    // You called SetFocus() on another window → the old window gets WM_KILLFOCUS, the new one gets WM_SETFOCUS.
+    case WM_KILLFOCUS:
+    {
+        has_input_focus = false;
+        unlock_mouse();
+        break;
+    }
     case WM_KEYDOWN:
     case WM_KEYUP:
     {
@@ -528,7 +500,6 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         }
         break;
     }
-
 
     default:
     {
