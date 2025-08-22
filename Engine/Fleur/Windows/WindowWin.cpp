@@ -178,6 +178,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // Activate\Deactivate:
     case WM_CLOSE:
     {
+        FL_CORE_INFO("WM_CLOSE");
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
         break;
     }
@@ -199,13 +200,15 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // If clicks Border (Non-Client area) \ Header \ Minimize \ Maximize \ Close \ Child windowses\controls \ other windowses of the same process
     case WM_CAPTURECHANGED:
     {
+        // Click on Window Border\Buttons
+        // To let Windows handle button click we can't call SetCursor(hwnd) ot ClipCursor() for this tick
         if (lparam == 0 && frame_action)
         {
             frame_action = false;
             if (interaction_mode == InteractionMode::GAMING)
                 set_gaming_mode();
+            break;
         }
-        break;
     }
 
     // If the cursor has moved from someone else's window or desktop to the client area of your window
@@ -214,18 +217,15 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // to make sure that the cursor is displayed correctly, and calls WM_SETCURSOR
     // When a window changes mode (client / non-client area)
     // When you call SetCapture() or ReleaseCapture()
+    // // Even if windows is not in focus!
     case WM_SETCURSOR:
     {
-        if (frame_action)
-        {
-            // frame_action = false;
-            break;
-        }
-        else if (interaction_mode == InteractionMode::GAMING && has_input_focus)
-        {
-            SetCursor(NULL);
-            return TRUE;
-        }
+        if (!has_input_focus)
+            return DefWindowProc(hwnd, msg, wparam, lparam);
+
+        if (interaction_mode == InteractionMode::GAMING)
+            SetCursor(nullptr);
+        return TRUE;
         break;
     }
 
@@ -236,12 +236,6 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         {
             if (LOWORD(lparam) != HTCLIENT)
                 frame_action = true;
-            else
-            {
-                has_input_focus = true;
-                if (interaction_mode == InteractionMode::GAMING)
-                    set_gaming_mode();
-            }
         }
         break;
     }
@@ -271,13 +265,29 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         _currentWidth = LOWORD(lparam);
         _currentHeigth = HIWORD(lparam);
 
-        RECT r;
-        GetWindowRect(hwnd, &r);
-        _xPos = r.left;
-        _yPos = r.top;
+        RECT Rect;
+        GetWindowRect(hwnd, &Rect);
+        _xPos = Rect.left;
+        _yPos = Rect.top;
         _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
 
         SetWindowMode(wparam);
+
+        if (wparam == SIZE_RESTORED)
+        {
+            POINT Cursor;
+            GetCursorPos(&Cursor);
+            if (PtInRect(&Rect, Cursor))
+            {
+                // Cursor is still inside window area
+            }
+            else
+            {
+                // Cursor is outside window area -> unlock mouse -> killfocus
+                unlock_mouse();
+                SetForegroundWindow(GetDesktopWindow());
+            }
+        }
         break;
     }
     case WM_EXITSIZEMOVE:
@@ -294,18 +304,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         if (appActive)
         {
-            if (is_first_launch)
-            {
-                _cursorPos.x = {0.f};
-                _prevCursorPos = _cursorPos;
-
-                if (interaction_mode == InteractionMode::GAMING)
-                    set_gaming_mode();
-
-                is_first_launch = false;
-            }
-
-            UINT dwSize;
+            UINT dwSize = 0;
             GetRawInputData((HRAWINPUT)lparam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
             LPBYTE lpb = new BYTE[dwSize];
 
@@ -331,12 +330,12 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             }
             else if (raw->header.dwType == RIM_TYPEMOUSE)
             {
-                _cursorPos.x = raw->data.mouse.lLastX;
-                _cursorPos.y = raw->data.mouse.lLastY;
-
+                _prevCursorPos = _cursorPos;
                 _mouseDir.x = raw->data.mouse.lLastX;
                 _mouseDir.y = raw->data.mouse.lLastY;
-
+                _cursorPos.x += _mouseDir.x;
+                _cursorPos.y += _mouseDir.y;
+                // FL_CORE_INFO("RIM_TYPEMOUSE");
                 USHORT button_flags = raw->data.mouse.usButtonFlags;
                 if (button_flags != 0)
                 {
@@ -384,16 +383,19 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 }
             };
 
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
             delete[] lpb;
         }
         break;
     }
 
     // Mouse Events
+    // Even if windows is not in focus!
     case WM_MOUSEMOVE:
     {
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_cursorPos.x, _cursorPos.y)));
+        if (!has_input_focus)
+            return true;
+
+        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_mouseDir.x, _mouseDir.y)));
         break;
     }
 
@@ -460,13 +462,6 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         if (interaction_mode == InteractionMode::GAMING)
             set_gaming_mode();
 
-        // Get Cursor coords
-        POINT Point;
-        GetCursorPos(&Point);
-        _prevCursorPos.x = Point.x;
-        _prevCursorPos.y = Point.y;
-        _cursorPos = _prevCursorPos;
-
         break;
     }
 
@@ -475,7 +470,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // You called SetFocus() on another window → the old window gets WM_KILLFOCUS, the new one gets WM_SETFOCUS.
     case WM_KILLFOCUS:
     {
-        has_input_focus = false;
+        frame_action = has_input_focus = false;
         unlock_mouse();
         break;
     }
@@ -614,6 +609,13 @@ void WindowWin::set_gaming_mode()
 
     RECT clipRect = {ul.x, ul.y, lr.x, lr.y};
     ClipCursor(&clipRect);
+
+    POINT Cursor{};
+    GetCursorPos(&Cursor);
+    _prevCursorPos = _cursorPos;
+    _cursorPos.x = Cursor.x;
+    _cursorPos.y = Cursor.y;
+
     SetCursor(NULL);
 }
 
