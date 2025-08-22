@@ -27,6 +27,7 @@ Camera::Camera()
 
 {
     projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
+    update_forward();
 }
 
 Camera::~Camera()
@@ -84,7 +85,7 @@ void Camera::OnUpdate(float dlTime)
     }
 
     RotateCamera(dlTime);
-    
+
     view = glm::lookAt(position, position + camera_forward, up);
 }
 
@@ -108,20 +109,26 @@ float Camera::NearClip() const
     return near_clip;
 }
 
-void Camera::RotateCamera(float dtTime)
+void Camera::update_forward()
 {
-    glm::vec2 mouse_dir = Input::GetMouseDir();
-
-    if (fabs(mouse_dir.x) > MOUSE_EPSILON || fabs(mouse_dir.y) > MOUSE_EPSILON)
-    {
-    yaw += mouse_dir.x * mouse_sensitivity * dtTime;
-    pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
-    glm::fclamp(pitch, -89.0f, 89.0f);
-
     glm::vec3 direction;
     direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
     direction.y = sin(glm::radians(pitch));
     direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
     camera_forward = glm::normalize(direction);
 }
+
+void Camera::RotateCamera(float dtTime)
+{
+    glm::vec2 mouse_dir = Input::GetMouseDir();
+    if (fabs(mouse_dir.x) > MOUSE_EPSILON || fabs(mouse_dir.y) > MOUSE_EPSILON)
+    {
+        yaw += mouse_dir.x * mouse_sensitivity * dtTime;
+        pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
+        glm::fclamp(pitch, -89.0f, 89.0f);
+
+        update_forward();
+    }
+}  // namespace Fleur::Graphics
+
 }  // namespace Fleur::Graphics

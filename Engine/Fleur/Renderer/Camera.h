@@ -52,6 +52,7 @@ public:
 
 private:
     float speed;
+    void update_forward();
     void RotateCamera(float dtTime);
     static Camera* active_camera;
     vec3 position;
