@@ -335,7 +335,9 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 _mouseDir.y = raw->data.mouse.lLastY;
                 _cursorPos.x += _mouseDir.x;
                 _cursorPos.y += _mouseDir.y;
-                // FL_CORE_INFO("RIM_TYPEMOUSE");
+                bufferX += _mouseDir.x;
+                bufferY += _mouseDir.y;
+
                 USHORT button_flags = raw->data.mouse.usButtonFlags;
                 if (button_flags != 0)
                 {
@@ -526,6 +528,9 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , is_first_launch(true)
     , has_input_focus(false)
     , appActive(false)
+    , bufferX(0)
+    , bufferY(0)
+    , _prevMouseDir(0.f, 0.f)
     , _mouseDir(0.f, 0.f)
     , mouse_wheel_data(std::make_pair(0.f, 0.f))
 {
@@ -535,6 +540,13 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
 
 void WindowWin::OnUpdate(float dlTime)
 {
+    glm::vec2 tmp = _mouseDir;
+    _mouseDir.x = std::lerp(_prevMouseDir.x, bufferX, 0.5f);
+    _mouseDir.y = std::lerp(_prevMouseDir.y, bufferY, 0.5f);
+    _prevMouseDir = tmp;
+
+    bufferX = 0;
+    bufferY = 0;
     if (!has_input_focus)
         if (isResizing || _props.mode == MINIMIZED)
         {

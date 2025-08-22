@@ -101,11 +101,13 @@ private:
     virtual void SetMouseWheelScrollData(float x, float y) override;
 
     glm::vec2 _mouseDir;
+    glm::vec2 _prevMouseDir;
     Input::MouseInfo _lastMouse;
     Input::KeyState pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
 
+    int bufferX, bufferY = 0;
     std::pair<float, float> mouse_wheel_data;
 
     InteractionMode interaction_mode;
