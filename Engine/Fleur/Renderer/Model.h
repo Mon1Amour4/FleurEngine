@@ -27,56 +27,56 @@ public:
 
         inline uint32_t VertexCount() const
         {
-            return primitive_vertex_count;
+            return m_PrimitiveVertexCount;
         }
         inline uint32_t IndexCount() const
         {
-            return primitive_indices_count;
+            return m_PrimitiveIndicesCount;
         }
 
         inline uint32_t VertexStart() const
         {
-            return primitive_vertex_start;
+            return m_PrimitiveVertexStart;
         }
         inline uint32_t VertexEnd() const
         {
-            return primitive_vertex_end;
+            return m_PrimitiveVertexEnd;
         }
 
         inline uint32_t IndexStart() const
         {
-            return primitive_index_start;
+            return m_PrimitiveIndexStart;
         }
         inline uint32_t IndexEnd() const
         {
-            return primitive_index_end;
+            return m_PrimitiveIndexEnd;
         }
 
         inline uint32_t VertexSize() const
         {
-            return primitive_vertex_count * sizeof(float);
+            return m_PrimitiveVertexCount * sizeof(float);
         }
         inline uint32_t IndexSize() const
         {
-            return primitive_indices_count * sizeof(uint32_t);
+            return m_PrimitiveIndicesCount * sizeof(uint32_t);
         }
 
         inline uint32_t MaterialIdx() const
         {
-            return mat_idx;
+            return m_MatIdx;
         }
 
     private:
-        uint32_t mat_idx;
+        uint32_t m_MatIdx;
 
-        uint32_t primitive_vertex_start;
-        uint32_t primitive_vertex_end;
+        uint32_t m_PrimitiveVertexStart;
+        uint32_t m_PrimitiveVertexEnd;
 
-        uint32_t primitive_index_start;
-        uint32_t primitive_index_end;
+        uint32_t m_PrimitiveIndexStart;
+        uint32_t m_PrimitiveIndexEnd;
 
-        uint32_t primitive_vertex_count;
-        uint32_t primitive_indices_count;
+        uint32_t m_PrimitiveVertexCount;
+        uint32_t m_PrimitiveIndicesCount;
     };
 
     class FLEUR_API Mesh
@@ -87,31 +87,31 @@ public:
 
         inline std::string_view Name() const
         {
-            return mesh_name;
+            return m_MeshName;
         }
 
         inline const Primitive* Primitives() const
         {
-            if (primitives.size() == 0)
+            if (m_Primitives.size() == 0)
                 return nullptr;
-            return &primitives[0];
+            return &m_Primitives[0];
         }
         inline uint32_t PrimitivesCount() const
         {
-            return primitives.size();
+            return m_Primitives.size();
         }
 
     private:
-        std::vector<Primitive> primitives;
+        std::vector<Primitive> m_Primitives;
 
-        std::string mesh_name;
+        std::string m_MeshName;
 
-        uint32_t mesh_vertex_start;
-        uint32_t mesh_vertex_end;
-        uint32_t mesh_index_start;
-        uint32_t mesh_index_end;
-        uint32_t mesh_vertex_count;
-        uint32_t mesh_indices_count;
+        uint32_t m_MeshVertexStart;
+        uint32_t m_MeshVertexEnd;
+        uint32_t m_MeshIndexStart;
+        uint32_t m_MeshIndexEnd;
+        uint32_t m_MeshVertexCount;
+        uint32_t m_MeshIndicesCount;
     };
 
     Model(std::string_view modelName, cgltf_data* data);

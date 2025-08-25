@@ -77,28 +77,28 @@ void VertexLayout::AddAttribute(VertexAttribute attrib)
     m_Attribs.push_back(attrib);
 }
 
-void VertexLayout::EnableAttribute(uint16_t attrib_index)
+void VertexLayout::EnableAttribute(uint16_t attribIndex)
 {
-    if (attrib_index < m_Attribs.size())
+    if (attribIndex < m_Attribs.size())
     {
-        m_Attribs[attrib_index].m_IsEnabled = true;
+        m_Attribs[attribIndex].m_IsEnabled = true;
     }
 }
 
-void VertexLayout::DisableAttribute(uint16_t attrib_index)
+void VertexLayout::DisableAttribute(uint16_t attribIndex)
 {
-    if (attrib_index < m_Attribs.size())
+    if (attribIndex < m_Attribs.size())
     {
-        m_Attribs[attrib_index].m_IsEnabled = false;
+        m_Attribs[attribIndex].m_IsEnabled = false;
     }
 }
 
 
 // Attribute:
-VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, EDataType comp_type, bool enabled)
+VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t compAmount, EDataType compType, bool enabled)
     : Index(ind)
-    , ComponentsAmount(comp_amount)
-    , ComponentsType(comp_type)
+    , ComponentsAmount(compAmount)
+    , ComponentsType(compType)
     , m_IsEnabled(enabled)
     , Offset(0)
 {

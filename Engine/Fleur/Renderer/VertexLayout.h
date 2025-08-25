@@ -71,9 +71,9 @@ public:
 
     void AddAttribute(VertexAttribute attrib);
 
-    void EnableAttribute(uint16_t attrib_index);
+    void EnableAttribute(uint16_t attribIndex);
 
-    void DisableAttribute(uint16_t attrib_index);
+    void DisableAttribute(uint16_t attribIndex);
 
     uint32_t GetAPIDataType(EDataType type) const;
 

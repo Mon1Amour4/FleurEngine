@@ -42,7 +42,7 @@ class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
 public:
     friend struct Service<Renderer>;
 
-    Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> tool);
+    Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain);
     ~Renderer() = default;
 
     Renderer(const Renderer&) = delete;
@@ -102,7 +102,7 @@ public:
     void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 private:
-    bool show_wireframe;
+    bool m_ShowWireframe;
 
     std::unique_ptr<Device> m_Device;
     std::unique_ptr<CommandQueue> m_CommandQueue;

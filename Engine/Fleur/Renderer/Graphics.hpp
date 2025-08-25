@@ -15,9 +15,9 @@ enum GraphicsAPI
 #pragma pack(push, 1)
 struct VertexData
 {
-    glm::vec3 pos;
-    glm::vec2 textcoord;
-    glm::vec3 normal;
+    glm::vec3 Position;
+    glm::vec2 TexCoord;
+    glm::vec3 Normal;
 
     VertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
 };
