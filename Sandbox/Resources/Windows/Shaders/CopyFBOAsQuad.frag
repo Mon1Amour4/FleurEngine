@@ -8,14 +8,14 @@ struct Material
 uniform Material material;
 
 // In:
-in vec2 text_coords;
+in vec2 textCoords;
 
 // Out:
 out vec4 FragColor;
 
 void main()
 {
-    vec4 Color = texture(material.albedo_texture, text_coords);
+    vec4 Color = texture(material.albedo_texture, textCoords);
 
     if (Color.rgb == vec3(1.0, 1.0, 1.0))
         discard;
