@@ -96,10 +96,10 @@ Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, u
     memcpy(m_Bitmap.Data(), data, m_Bitmap.GetSizeBytes());
     m_IsCreated = true;
 }
-Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels,
+Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& IN inBitmap, int w, int h, uint16_t channels,
                                   uint16_t depth)
     : ImageBase(name, ext, w, h, channels, depth, 1)
-    , m_Bitmap(std::move(in_bitmap))
+    , m_Bitmap(std::move(inBitmap))
 {
     m_IsCreated = true;
 };
@@ -170,10 +170,10 @@ void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
 
 Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() const
 {
-    uint32_t face_size = m_Width / 4;
+    uint32_t faceSize = m_Width / 4;
     constexpr float pi = glm::pi<float>();
 
-    Bitmap<BitmapFormat_UnsignedByte> out_bitmap(face_size * 4, face_size * 3, m_Channels);
+    Bitmap<BitmapFormat_UnsignedByte> outBitmap(faceSize * 4, faceSize * 3, m_Channels);
     struct FacePos
     {
         int x, y;
@@ -191,12 +191,12 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
         {},     {}   // 10,11
     };
 
-    std::vector<float> normU(face_size);
-    std::vector<float> normV(face_size);
-    for (uint32_t i = 0; i < face_size; ++i)
+    std::vector<float> normU(faceSize);
+    std::vector<float> normV(faceSize);
+    for (uint32_t i = 0; i < faceSize; ++i)
     {
-        normU[i] = ((i + 0.5f) / face_size) * 2.f - 1.f;
-        normV[i] = ((i + 0.5f) / face_size) * 2.f - 1.f;
+        normU[i] = ((i + 0.5f) / faceSize) * 2.f - 1.f;
+        normV[i] = ((i + 0.5f) / faceSize) * 2.f - 1.f;
     }
 
     for (size_t face = 0; face < 12; face++)
@@ -208,9 +208,9 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
         const FacePos& fp = facePos[face];
 
-        for (size_t coord_u = 0; coord_u < face_size; coord_u++)
+        for (size_t coord_u = 0; coord_u < faceSize; coord_u++)
         {
-            for (size_t coord_v = 0; coord_v < face_size; coord_v++)
+            for (size_t coord_v = 0; coord_v < faceSize; coord_v++)
             {
                 float u = normU[coord_u];
                 float v = normV[coord_v];
@@ -268,54 +268,54 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
 
                 // bilinear interpolation:
-                uint32_t left_x = std::floor(x);
+                uint32_t leftX = std::floor(x);
 
-                FL_CORE_ASSERT(left_x >= 0, "");
+                FL_CORE_ASSERT(leftX >= 0, "");
 
-                uint32_t right_x = std::min(static_cast<uint32_t>(std::floor(left_x + 1)), m_Width - 1);
+                uint32_t rightX = std::min(static_cast<uint32_t>(std::floor(leftX + 1)), m_Width - 1);
 
-                uint32_t top_y = std::floor(y);
-                uint32_t bottom_y = std::min(static_cast<uint32_t>(top_y + 1), m_Height - 1);
+                uint32_t topY = std::floor(y);
+                uint32_t bottomY = std::min(static_cast<uint32_t>(topY + 1), m_Height - 1);
 
-                float shift_x = x - left_x;
-                float shift_y = y - top_y;
+                float shiftX = x - leftX;
+                float shiftY = y - topY;
 
                 // w00 -- w01
                 // ----uv----
                 // w10 -- w11
-                float w00 = (1.f - shift_x) * (1.f - shift_y);
-                float w01 = shift_x * (1.f - shift_y);
-                float w10 = (1.f - shift_x) * shift_y;
-                float w11 = shift_x * shift_y;
+                float w00 = (1.f - shiftX) * (1.f - shiftY);
+                float w01 = shiftX * (1.f - shiftY);
+                float w10 = (1.f - shiftX) * shiftY;
+                float w11 = shiftX * shiftY;
 
 
-                glm::vec4 c00 = m_Bitmap.GetPixel(left_x, top_y);
-                glm::vec4 c01 = m_Bitmap.GetPixel(right_x, top_y);
-                glm::vec4 c10 = m_Bitmap.GetPixel(left_x, bottom_y);
-                glm::vec4 c11 = m_Bitmap.GetPixel(right_x, bottom_y);
+                glm::vec4 c00 = m_Bitmap.GetPixel(leftX, topY);
+                glm::vec4 c01 = m_Bitmap.GetPixel(rightX, topY);
+                glm::vec4 c10 = m_Bitmap.GetPixel(leftX, bottomY);
+                glm::vec4 c11 = m_Bitmap.GetPixel(rightX, bottomY);
 
                 glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
-                int out_x = fp.x * face_size + coord_u;
-                int out_y = fp.y * face_size + coord_v;
-                out_bitmap.SetPixel(out_x, out_y, color);
+                int outX = fp.x * faceSize + coord_u;
+                int outY = fp.y * faceSize + coord_v;
+                outBitmap.SetPixel(outX, outY, color);
             }
         }
     }
-    return Image2D(m_Name + "_cross_layout", m_Extension, reinterpret_cast<unsigned char*>(out_bitmap.Data()), face_size * 4, face_size * 3, m_Channels, m_Depth);
+    return Image2D(m_Name + "_cross_layout", m_Extension, reinterpret_cast<unsigned char*>(outBitmap.Data()), faceSize * 4, faceSize * 3, m_Channels, m_Depth);
 }
 
 Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() const
 {
-    uint32_t face_size = m_Width / 4;
+    uint32_t faceSize = m_Width / 4;
 
-    std::array<Image2D, 6> out_faces;
+    std::array<Image2D, 6> outFaces;
     for (int i = 0; i < 6; i++)
     {
-        out_faces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, face_size, face_size, m_Channels, m_Depth);
+        outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, faceSize, faceSize, m_Channels, m_Depth);
     }
 
-    auto get_stride = [this](TextureFormat format)
+    auto getStride = [this](TextureFormat format)
     {
         switch (format)
         {
@@ -326,40 +326,40 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
         }
         return 3u;
     };
-    uint32_t stride = get_stride(Texture::GetTextureFormat(m_Channels, m_Depth));
+    uint32_t stride = getStride(Texture::GetTextureFormat(m_Channels, m_Depth));
 
-    auto upload_face = [&](uint32_t start_x, uint32_t start_y, uint32_t out_face)
+    auto uploadFace = [&](uint32_t startX, uint32_t startY, uint32_t outFace)
     {
-        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(face_size, face_size, m_Channels);
-        for (uint32_t y = 0; y < face_size; ++y)
+        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(faceSize, faceSize, m_Channels);
+        for (uint32_t y = 0; y < faceSize; ++y)
         {
-            for (uint32_t x = 0; x < face_size; ++x)
+            for (uint32_t x = 0; x < faceSize; ++x)
             {
-                glm::vec4 color = m_Bitmap.GetPixel(start_x + x, start_y + y);
+                glm::vec4 color = m_Bitmap.GetPixel(startX + x, startY + y);
                 tmp.SetPixel(x, y, color);
             }
         }
-        out_faces[out_face].m_Bitmap = std::move(tmp);
+        outFaces[outFace].m_Bitmap = std::move(tmp);
     };
 
     // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
-    upload_face(face_size * 2, face_size, 0);  // +X (right)
-    upload_face(0, face_size, 1);              // -X (left)
-    upload_face(face_size, 0, 2);              // +Y (top)
-    upload_face(face_size, face_size * 2, 3);  // -Y (bottom)
-    upload_face(face_size, face_size, 4);      // +Z (front)
-    upload_face(face_size * 3, face_size, 5);  // -Z (back)
+    uploadFace(faceSize * 2, faceSize, 0);  // +X (right)
+    uploadFace(0, faceSize, 1);             // -X (left)
+    uploadFace(faceSize, 0, 2);             // +Y (top)
+    uploadFace(faceSize, faceSize * 2, 3);  // -Y (bottom)
+    uploadFace(faceSize, faceSize, 4);      // +Z (front)
+    uploadFace(faceSize * 3, faceSize, 5);  // -Z (back)
 
-    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", m_Extension, std::move(out_faces));
+    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", m_Extension, std::move(outFaces));
 }
 
 
 // CubemapImage:
-Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& in_faces)
-    : ImageBase(name, ext, in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth(), 6)
+Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& IN inFaces)
+    : ImageBase(name, ext, inFaces[0].Width(), inFaces[0].Width(), inFaces[0].Channels(), inFaces[0].Depth(), 6)
 
 {
-    m_Faces = std::move(in_faces);
+    m_Faces = std::move(inFaces);
 }
 Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext)
     : ImageBase(name, ext, 6)
