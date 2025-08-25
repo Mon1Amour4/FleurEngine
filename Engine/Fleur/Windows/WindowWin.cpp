@@ -205,7 +205,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         if (lparam == 0 && frame_action)
         {
             frame_action = false;
-            if (interaction_mode == InteractionMode::GAMING)
+            if (interaction_mode == EInteractionMode::GAMING)
                 set_gaming_mode();
             break;
         }
@@ -223,7 +223,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         if (!has_input_focus)
             return DefWindowProc(hwnd, msg, wparam, lparam);
 
-        if (interaction_mode == InteractionMode::GAMING)
+        if (interaction_mode == EInteractionMode::GAMING)
             SetCursor(nullptr);
         return TRUE;
         break;
@@ -316,15 +316,15 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             if (raw->header.dwType == RIM_TYPEKEYBOARD)
             {
                 bool isDown = (raw->data.keyboard.Flags & RI_KEY_BREAK) == 0;
-                KeyCode crossplatform_keycode = GetKeyCode(raw->data.keyboard.VKey);
+                EKeyCode crossplatform_keycode = GetKeyCode(raw->data.keyboard.VKey);
                 if (isDown)
                 {
-                    pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_PRESSED;
+                    pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_PRESSED;
                     _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, 1)));
                 }
                 else
                 {
-                    pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_RELEASED;
+                    pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_RELEASED;
                     _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
                 }
             }
@@ -341,7 +341,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
                 USHORT button_flags = raw->data.mouse.usButtonFlags;
                 if (button_flags != 0)
                 {
-                    MouseCode button = Mouse::None;
+                    EMouseCode button = Mouse::None;
                     if (button_flags & 0x001)
                     {
                         button = Mouse::Button0;
@@ -408,7 +408,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     case WM_MBUTTONDOWN:
     case WM_MBUTTONUP:
     {
-        MouseCode button = Mouse::None;
+        EMouseCode button = Mouse::None;
         switch (msg)
         {
         case WM_LBUTTONDOWN:
@@ -461,7 +461,7 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         if (frame_action)
             break;
 
-        if (interaction_mode == InteractionMode::GAMING)
+        if (interaction_mode == EInteractionMode::GAMING)
             set_gaming_mode();
 
         break;
@@ -481,18 +481,18 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         bool isKeyDown = (msg == WM_KEYDOWN);
         int window_keycode = static_cast<int>(wparam);
-        KeyCode crossplatform_keycode = GetKeyCode(window_keycode);
+        EKeyCode crossplatform_keycode = GetKeyCode(window_keycode);
 
         if (isKeyDown)
         {
             int repeatCount = (lparam >> 16) & 0xFF;
             bool firstPress = !(lparam & (1 << 30));
-            pressed_keys[crossplatform_keycode] = firstPress ? Input::KeyState::KEY_PRESSED : Input::KeyState::KEY_REPEAT;
+            pressed_keys[crossplatform_keycode] = firstPress ? Input::EKeyState::KEY_PRESSED : Input::EKeyState::KEY_REPEAT;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, repeatCount)));
         }
         else
         {
-            pressed_keys[crossplatform_keycode] = Input::KeyState::KEY_RELEASED;
+            pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_RELEASED;
             _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
         }
         break;
@@ -523,8 +523,8 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , _xPos(props.x)
     , _yPos(props.y)
     , _prevCursorPos(_cursorPos)
-    , pressed_keys{Input::KeyState::KEY_NONE}
-    , interaction_mode(InteractionMode::GAMING)
+    , pressed_keys{Input::EKeyState::KEY_NONE}
+    , interaction_mode(EInteractionMode::GAMING)
     , is_first_launch(true)
     , has_input_focus(false)
     , appActive(false)
@@ -571,14 +571,14 @@ const void* WindowWin::GetNativeHandle() const
     return _hwnd;
 }
 
-Input::KeyState WindowWin::GetKeyState(KeyCode keyCode) const
+Input::EKeyState WindowWin::GetKeyState(EKeyCode keyCode) const
 {
     return pressed_keys[keyCode];
 }
 
-Input::MouseState WindowWin::GetMouseState(MouseCode mouseCode) const
+Input::EMouseState WindowWin::GetMouseState(EMouseCode mouseCode) const
 {
-    return _lastMouse.mouseCode == mouseCode ? _lastMouse.state : Input::MouseState::MOUSE_NONE;
+    return _lastMouse.MouseCode == mouseCode ? _lastMouse.State : Input::EMouseState::MOUSE_NONE;
 }
 
 std::pair<float, float> WindowWin::GetMouseWheelScrollData() const
@@ -633,7 +633,7 @@ void WindowWin::set_gaming_mode()
 
 void WindowWin::unlock_mouse()
 {
-    if (interaction_mode == InteractionMode::GAMING)
+    if (interaction_mode == EInteractionMode::GAMING)
     {
         SetCursor(LoadCursor(NULL, IDC_ARROW));
         ClipCursor(nullptr);

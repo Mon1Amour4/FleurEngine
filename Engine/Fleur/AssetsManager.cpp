@@ -19,17 +19,17 @@ using Image2D = Fleur::Graphics::Image2D;
 using CubemapImage = Fleur::Graphics::CubemapImage;
 
 Fleur::AssetsManager::AssetsManager()
-    : models_count(0)
-    , images2d_count(0)
+    : m_ModelsCount(0)
+    , m_Images2DCount(0)
 {
-    models.reserve(10);
-    images2d.reserve(10);
+    m_Models.reserve(10);
+    m_Images2D.reserve(10);
 }
 
 Fleur::AssetsManager::~AssetsManager()
 {
-    models.clear();
-    images2d.clear();
+    m_Models.clear();
+    m_Images2D.clear();
 }
 
 // Models:
@@ -40,7 +40,7 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
         return handle;
 
     std::string file_name = std::filesystem::path(path).stem().string();
-    bool loaded = is_already_loaded(models, file_name, handle);
+    bool loaded = is_already_loaded(m_Models, file_name, handle);
     if (loaded)
         return handle;
 
@@ -66,10 +66,10 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
     result = cgltf_load_buffers(&options, data, res->c_str());
     handle = std::make_shared<Fleur::ResourceHandle<Model>>(std::make_shared<Model>(file_name, data));
     handle->SetSuccess();
-    models.emplace(std::move(file_name), handle->Resource());
-    ++models_count;
+    m_Models.emplace(std::move(file_name), handle->Resource());
+    ++m_ModelsCount;
 
-    FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), handle->Resource()->GetName());
+    FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), handle->Resource()->GetName());
 
     cgltf_free(data);
     return handle;
@@ -81,23 +81,23 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view 
         return handle;
 
     std::string file_name = std::filesystem::path(path).stem().string();
-    bool loaded = is_already_loaded(models, file_name, handle);
+    bool loaded = is_already_loaded(m_Models, file_name, handle);
     if (loaded)
         return handle;
     {
-        const auto it = models_to_load_async.find(file_name);
-        if (it != models_to_load_async.end() && it->second->Status() != CORRUPTED)
+        const auto it = m_ModelsToLoadAsync.find(file_name);
+        if (it != m_ModelsToLoadAsync.end() && it->second->Status() != CORRUPTED)
             return it->second;
     }
 
-    handle = models_to_load_async.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Model>>(nullptr)).first->second;
+    handle = m_ModelsToLoadAsync.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Model>>(nullptr)).first->second;
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
     thread_pool->Submit(
         [this](std::string_view path, std::string_view file_name, std::shared_ptr<Fleur::ResourceHandle<Model>> handle)
         {
-            handle->SetStatus(LoadingSts::LOADING);
+            handle->SetStatus(ELoadingSts::LOADING);
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -125,16 +125,16 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view 
 
             handle->SetResource(std::make_shared<Model>(file_name, data));
             handle->SetSuccess();
-            models.emplace(file_name, handle->Resource());
-            FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", models.size(), file_name);
-            ++models_count;
+            m_Models.emplace(file_name, handle->Resource());
+            FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), file_name);
+            ++m_ModelsCount;
 
-            auto it = models_to_load_async.find(file_name.data());
-            if (it != models_to_load_async.end())
+            auto it = m_ModelsToLoadAsync.find(file_name.data());
+            if (it != m_ModelsToLoadAsync.end())
             {
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                models_to_load_async.unsafe_erase(it);
+                m_ModelsToLoadAsync.unsafe_erase(it);
             }
             cgltf_free(data);
         },
@@ -153,7 +153,7 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d(std::string_view pa
     std::string file_name = std::filesystem::path(path).stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
 
-    bool loaded = is_already_loaded(images2d, file_name, handle);
+    bool loaded = is_already_loaded(m_Images2D, file_name, handle);
     if (loaded)
         return handle;
 
@@ -173,8 +173,8 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d(std::string_view pa
 
     stbi_set_flip_vertically_on_load_thread(static_cast<int>(flip_vertical));
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
-    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
+    auto img = m_Images2D.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
+    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
     handle = std::make_shared<Fleur::ResourceHandle<Image2D>>(img, SUCCESS);
     stbi_image_free(img_data);
     return handle;
@@ -189,17 +189,17 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d_async(std::string_v
     std::string file_name = std::filesystem::path(path).filename().stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
 
-    bool loaded = is_already_loaded(images2d, file_name, handle);
+    bool loaded = is_already_loaded(m_Images2D, file_name, handle);
     if (loaded)
         return handle;
     {
-        auto it = images2d_to_load_async.find(file_name);
-        if (it != images2d_to_load_async.end() && it->second->Status() != CORRUPTED)
+        auto it = m_Images2DToLoadAsync.find(file_name);
+        if (it != m_Images2DToLoadAsync.end() && it->second->Status() != CORRUPTED)
             return it->second;
     }
 
     handle =
-        images2d_to_load_async.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(file_name, ext))).first->second;
+        m_Images2DToLoadAsync.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(file_name, ext))).first->second;
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
@@ -232,17 +232,17 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d_async(std::string_v
             Fleur::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1, img_data};
             handle->Resource()->PostCreate(settings);
 
-            auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
+            auto image = m_Images2D.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
             FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", image->Name());
-            ++images2d_count;
+            ++m_Images2DCount;
             handle->SetSuccess();
 
-            auto it = images2d_to_load_async.find(handle->Resource()->Name().data());
-            if (it != images2d_to_load_async.end())
+            auto it = m_Images2DToLoadAsync.find(handle->Resource()->Name().data());
+            if (it != m_Images2DToLoadAsync.end())
             {
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                images2d_to_load_async.unsafe_erase(it);
+                m_Images2DToLoadAsync.unsafe_erase(it);
             }
 
             stbi_image_free(img_data);
@@ -260,7 +260,7 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemory(std::strin
     std::string file_name = std::filesystem::path(name.data()).stem().string();
     std::string ext = std::filesystem::path(name.data()).extension().string();
 
-    bool loaded = is_already_loaded(images2d, file_name, handle);
+    bool loaded = is_already_loaded(m_Images2D, file_name, handle);
     if (loaded)
         return handle;
 
@@ -271,8 +271,8 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemory(std::strin
     if (!img_data)
         return std::make_shared<Fleur::ResourceHandle<Image2D>>(nullptr, CORRUPTED, NO_DATA);
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
-    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
+    auto img = m_Images2D.emplace(file_name, std::make_shared<Image2D>(file_name, ext, img_data, w, h, channels, 1)).first->second;
+    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
     return std::make_shared<Fleur::ResourceHandle<Image2D>>(img, SUCCESS);
 
     stbi_image_free(img_data);
@@ -287,16 +287,16 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemoryAsync(std::
     std::string file_name = std::filesystem::path(name.data()).stem().string();
     std::string ext = std::filesystem::path(name.data()).extension().string();
 
-    bool loaded = is_already_loaded(images2d, file_name, handle);
+    bool loaded = is_already_loaded(m_Images2D, file_name, handle);
     if (loaded)
         return handle;
 
-    auto it = images2d_to_load_async.find(file_name);
-    if (it != images2d_to_load_async.end() && it->second->Status() != CORRUPTED)
+    auto it = m_Images2DToLoadAsync.find(file_name);
+    if (it != m_Images2DToLoadAsync.end() && it->second->Status() != CORRUPTED)
         return it->second;
 
     handle =
-        images2d_to_load_async.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(file_name, ext))).first->second;
+        m_Images2DToLoadAsync.emplace(file_name, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(file_name, ext))).first->second;
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
     thread_pool->Submit(
@@ -318,28 +318,28 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemoryAsync(std::
                 return;
             }
 
-            auto it = images2d_to_load_async.find(handle->Resource()->Name().data());
-            if (it != images2d_to_load_async.end())
+            auto it = m_Images2DToLoadAsync.find(handle->Resource()->Name().data());
+            if (it != m_Images2DToLoadAsync.end())
             {
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                images2d_to_load_async.unsafe_erase(it);
+                m_Images2DToLoadAsync.unsafe_erase(it);
             }
 
             Fleur::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(channels), 1, img_data};
             handle->Resource()->PostCreate(settings);
-            auto image = images2d.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
+            auto image = m_Images2D.emplace(handle->Resource()->Name(), handle->Resource()).first->second;
             FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", image->Name());
-            ++images2d_count;
+            ++m_Images2DCount;
             handle->SetSuccess();
 
             {
-                auto it = images2d_to_load_async.find(handle->Resource()->Name().data());
-                if (it != images2d_to_load_async.end())
+                auto it = m_Images2DToLoadAsync.find(handle->Resource()->Name().data());
+                if (it != m_Images2DToLoadAsync.end())
                 {
                     std::mutex mtx;
                     std::lock_guard<std::mutex> lock(mtx);
-                    images2d_to_load_async.unsafe_erase(it);
+                    m_Images2DToLoadAsync.unsafe_erase(it);
                 }
             }
 
@@ -359,12 +359,12 @@ Fleur::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned cha
     std::string file_name = std::filesystem::path(name.data()).stem().string();
     std::string ext = std::filesystem::path(name.data()).extension().string();
 
-    bool loaded = is_already_loaded(images2d, file_name, handle);
+    bool loaded = is_already_loaded(m_Images2D, file_name, handle);
     if (loaded)
         return handle;
 
-    auto img = images2d.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, width, height, channels, 1)).first->second;
-    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++images2d_count, img->Name(), img->Width(), img->Height());
+    auto img = m_Images2D.emplace(file_name, std::make_shared<Image2D>(file_name, ext, data, width, height, channels, 1)).first->second;
+    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
     handle = std::make_shared<Fleur::ResourceHandle<Image2D>>(img, SUCCESS);
     return handle;
 }
@@ -385,9 +385,9 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromColor(std::string
     {
         std::memcpy(data + i * channels, &color_data, channels);
     }
-    auto img = images2d.emplace(name, std::make_shared<Image2D>(name, "-", data, width, height, channels, 1)).first->second;
+    auto img = m_Images2D.emplace(name, std::make_shared<Image2D>(name, "-", data, width, height, channels, 1)).first->second;
 
-    return std::make_shared<Fleur::ResourceHandle<Image2D>>(img, LoadingSts::SUCCESS);
+    return std::make_shared<Fleur::ResourceHandle<Image2D>>(img, ELoadingSts::SUCCESS);
 }
 
 // CubemapImage:
@@ -398,14 +398,14 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image(std::str
         return handle;
 
     std::string file_name = std::filesystem::path(path).stem().string();
-    bool loaded = is_already_loaded(cubemap_images, file_name, handle);
+    bool loaded = is_already_loaded(m_CubemapImages, file_name, handle);
     if (loaded)
         return handle;
 
     SHARED_RES(Image2D) image2d = load_image2d(path, flip_vertical);
     Fleur::Graphics::Image2D cross_layout = image2d->Resource()->FromEquirectangularToCross();
-    auto cubemap_img = cubemap_images.emplace(file_name, std::make_shared<CubemapImage>(cross_layout.FromCrossToCubemap())).first->second;
-    ++cubemap_images_count;
+    auto cubemap_img = m_CubemapImages.emplace(file_name, std::make_shared<CubemapImage>(cross_layout.FromCrossToCubemap())).first->second;
+    ++m_CubemapImagesCount;
     FL_CORE_INFO("CubemapImage was emplaced: {0}", cubemap_img->Name());
 }
 
@@ -419,7 +419,7 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
 
     auto thread_pool = ServiceLocator::instance().GetService<ThreadPool>();
 
-    handle = cubemap_images_to_load_async.emplace(path, std::make_shared<Fleur::ResourceHandle<CubemapImage>>()).first->second;
+    handle = m_CubemapImagesToLoadAsync.emplace(path, std::make_shared<Fleur::ResourceHandle<CubemapImage>>()).first->second;
 
     thread_pool->Submit(
         [this](std::shared_ptr<Fleur::ResourceHandle<Image2D>> img_handle, std::shared_ptr<Fleur::ResourceHandle<CubemapImage>> cubemap_handle,
@@ -427,12 +427,12 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
         {
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            while (img_handle->Status() != LoadingSts::SUCCESS && img_handle->Status() != LoadingSts::CORRUPTED)
+            while (img_handle->Status() != ELoadingSts::SUCCESS && img_handle->Status() != ELoadingSts::CORRUPTED)
             {
                 std::this_thread::sleep_for(std::chrono::milliseconds(1));
             }
 
-            if (img_handle->Status() == LoadingSts::CORRUPTED)
+            if (img_handle->Status() == ELoadingSts::CORRUPTED)
             {
                 cubemap_handle->SetCorrupted(img_handle->FailureReason().value());
                 return;
@@ -444,7 +444,7 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
             if (image_ration == 2)
             {
                 // equirectangular image
-                auto cross_layout = images2d
+                auto cross_layout = m_Images2D
                                         .emplace(img_handle->Resource()->Name().data() + std::string("_cross_layout"),
                                                  std::make_shared<Image2D>(img_handle->Resource()->FromEquirectangularToCross()))
                                         .first->second;
@@ -454,7 +454,7 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
                                cross_layout->Channels(), cross_layout->Data(), 100 /* 1-100 */);
 
                 FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cross_layout->Name());
-                ++images2d_count;
+                ++m_Images2DCount;
                 Fleur::Graphics::CubemapImage cubemap = cross_layout->FromCrossToCubemap();
                 cubemap_handle->SetResource(std::make_shared<CubemapImage>(std::move(cubemap)));
                 cubemap_handle->SetSuccess();
@@ -466,17 +466,17 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
                 cubemap_handle->SetSuccess();
             }
 
-            auto image = cubemap_images.emplace(cubemap_handle->Resource()->Name(), cubemap_handle->Resource());
+            auto image = m_CubemapImages.emplace(cubemap_handle->Resource()->Name(), cubemap_handle->Resource());
 
             FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", cubemap_handle->Resource()->Name());
-            ++cubemap_images_count;
+            ++m_CubemapImagesCount;
 
-            auto it = cubemap_images_to_load_async.find(cubemap_handle->Resource()->Name().data());
-            if (it != cubemap_images_to_load_async.end())
+            auto it = m_CubemapImagesToLoadAsync.find(cubemap_handle->Resource()->Name().data());
+            if (it != m_CubemapImagesToLoadAsync.end())
             {
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                cubemap_images_to_load_async.unsafe_erase(it);
+                m_CubemapImagesToLoadAsync.unsafe_erase(it);
             }
         },
         image_handle, handle, flip_vertical);

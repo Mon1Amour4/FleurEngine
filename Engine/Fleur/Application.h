@@ -29,10 +29,10 @@ class FLEUR_API Application : public singleton<Application>
 public:
     struct ApplicationBootSettings
     {
-        Fleur::Graphics::GraphicsAPI renderer = Fleur::Graphics::GraphicsAPI::OpenGL;
-        bool vsync = false;
-        WindowProps window_props = WindowProps{};
-        float fixed_dt = 0.025f;
+        Fleur::Graphics::GraphicsAPI Renderer = Fleur::Graphics::GraphicsAPI::OpenGL;
+        bool Vsync = false;
+        WindowProps WindowProperties = WindowProps{};
+        float FixedDt = 0.025f;
     };
 
     void Init(ApplicationBootSettings& settings);
@@ -65,10 +65,10 @@ public:
 protected:
     std::unique_ptr<Window> m_Window;
     std::unique_ptr<EventQueue> m_EventQueue;
-    std::unique_ptr<Time> _time_manager;
+    std::unique_ptr<Time> m_TimeManager;
 
-    bool initialized;
-    bool m_Running;
+    bool m_IsInitialized;
+    bool m_IsRunning;
     LayerStack m_LayerStack;
 
     Application();

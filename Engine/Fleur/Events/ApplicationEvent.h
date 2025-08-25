@@ -10,41 +10,41 @@ class FLEUR_API WindowResizeEvent : public EventBase<WindowResizeEvent>
 public:
     WindowResizeEvent(float x, float y, float width, float height) noexcept
         : EventBase(EVENT_NAME(WindowResizeEvent))
-        , x(x)
-        , y(y)
-        , _width(width)
-        , _height(height)
+        , m_X(x)
+        , m_Y(y)
+        , m_Width(width)
+        , m_Height(height)
     {
     }
 
     inline float GetWidth() const
     {
-        return _width;
+        return m_Width;
     }
     inline float GetHeight() const
     {
-        return _height;
+        return m_Height;
     }
     inline float GetX() const
     {
-        return x;
+        return m_X;
     }
     inline float GetY() const
     {
-        return y;
+        return m_Y;
     }
 
 protected:
     std::string ToStringImpl() const
     {
         std::stringstream ss;
-        ss << " w: " << _width << ", h: " << _height << ", x: " << x << ", y:" << y;
+        ss << " w: " << m_Width << ", h: " << m_Height << ", x: " << m_X << ", y:" << m_Y;
         return ss.str();
     }
 
 private:
     friend struct Fleur::EventBase<WindowResizeEvent>;
-    float x, y, _width, _height;
+    float m_X, m_Y, m_Width, m_Height;
 };
 
 class FLEUR_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent>
@@ -52,37 +52,37 @@ class FLEUR_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent
 public:
     WindowStartResizeEvent(float x, float y, float width, float height, int cursorX, int cursorY) noexcept
         : EventBase(EVENT_NAME(WindowStartResizeEvent))
-        , x(x)
-        , y(y)
-        , width(width)
-        , height(height)
-        , cursorX(cursorX)
-        , cursorY(cursorY)
+        , m_X(x)
+        , m_Y(y)
+        , m_Width(width)
+        , m_Height(height)
+        , m_CursorX(cursorX)
+        , m_CursorY(cursorY)
     {
     }
     inline int Width() const
     {
-        return width;
+        return m_Width;
     }
     inline int Height() const
     {
-        return height;
+        return m_Height;
     }
     inline int X() const
     {
-        return x;
+        return m_X;
     }
     inline int Y() const
     {
-        return y;
+        return m_Y;
     }
     inline int CursorX() const
     {
-        return cursorX;
+        return m_CursorX;
     }
     inline int CursorY() const
     {
-        return cursorY;
+        return m_CursorY;
     }
 
 
@@ -94,7 +94,7 @@ protected:
     }
 
 private:
-    int x, y, width, height, cursorX, cursorY;
+    int m_X, m_Y, m_Width, m_Height, m_CursorX, m_CursorY;
     friend struct Fleur::EventBase<WindowStartResizeEvent>;
 };
 
@@ -107,19 +107,19 @@ public:
     }
     inline int Width() const
     {
-        return width;
+        return m_Width;
     }
     inline int Height() const
     {
-        return height;
+        return m_Height;
     }
     inline int X() const
     {
-        return x;
+        return m_X;
     }
     inline int Y() const
     {
-        return y;
+        return m_Y;
     }
 
 protected:
@@ -130,7 +130,7 @@ protected:
     }
 
 private:
-    int x, y, width, height;
+    int m_X, m_Y, m_Width, m_Height;
     friend struct Fleur::EventBase<WindowEndResizeEvent>;
 };
 

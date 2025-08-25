@@ -32,8 +32,8 @@ public:
 
     LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
-    Input::KeyState GetKeyState(KeyCode keyCode) const;
-    Input::MouseState GetMouseState(MouseCode mouseCode) const;
+    Input::EKeyState GetKeyState(EKeyCode keyCode) const;
+    Input::EMouseState GetMouseState(EMouseCode mouseCode) const;
     void GetMousePos(float& xPos, float& yPos) const;
     std::pair<float, float> GetMouseWheelScrollData() const;
     virtual inline bool HasMouseMoved(float x, float y) const override
@@ -43,13 +43,13 @@ public:
 
     inline virtual void SwitchInteractionMode() override
     {
-        interaction_mode = interaction_mode == InteractionMode::GAMING ? InteractionMode::EDITOR : InteractionMode::GAMING;
-        if (interaction_mode == InteractionMode::GAMING)
+        interaction_mode = interaction_mode == EInteractionMode::GAMING ? EInteractionMode::EDITOR : EInteractionMode::GAMING;
+        if (interaction_mode == EInteractionMode::GAMING)
         {
             set_gaming_mode();
         }
     }
-    inline virtual InteractionMode GetInteractionMode() const
+    inline virtual EInteractionMode GetInteractionMode() const
     {
         return interaction_mode;
     }
@@ -103,14 +103,14 @@ private:
     glm::vec2 _mouseDir;
     glm::vec2 _prevMouseDir;
     Input::MouseInfo _lastMouse;
-    Input::KeyState pressed_keys[256];
+    Input::EKeyState pressed_keys[256];
     glm::vec2 _cursorPos;
     glm::vec2 _prevCursorPos;
 
     int bufferX, bufferY = 0;
     std::pair<float, float> mouse_wheel_data;
 
-    InteractionMode interaction_mode;
+    EInteractionMode interaction_mode;
     void set_gaming_mode();
     void unlock_mouse();
     // Raw Input Device

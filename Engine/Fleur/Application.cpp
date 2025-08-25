@@ -24,8 +24,8 @@ Application& singleton<Application>::instance()
 }
 
 Application::Application()
-    : initialized(false)
-    , m_Running(false)
+    : m_IsInitialized(false)
+    , m_IsRunning(false)
 {
 }
 
@@ -72,7 +72,7 @@ void Application::OnEvent(EventVariant& event)
 
 bool Application::OnWindowClose(WindowCloseEvent& event)
 {
-    m_Running = false;
+    m_IsRunning = false;
     event.SetHandled();
     return true;
 }
@@ -101,7 +101,7 @@ bool Application::OnValidateWindow(WindowValidateEvent& event)
 }
 bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
-    KeyCode crossplatform_key = event.GetKeyCode();
+    EKeyCode crossplatform_key = event.GetKeyCode();
 
     switch (crossplatform_key)
     {
@@ -175,8 +175,8 @@ Window& Application::GetWindow()
 void Application::Init(ApplicationBootSettings& settings)
 {
     m_EventQueue = EventQueue::CreateEventQueue();
-    m_Window = Window::CreateAppWindow(settings.window_props, *m_EventQueue);
-    _time_manager = Time::CreateTimeManager(settings.fixed_dt);
+    m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
+    m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
 
     auto fs = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
     fs.value()->Init();
@@ -184,7 +184,7 @@ void Application::Init(ApplicationBootSettings& settings)
     auto assets_manager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::GraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
-    renderer.value()->SetVSync(settings.vsync);
+    renderer.value()->SetVSync(settings.Vsync);
 
     auto thread_pool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
     thread_pool.value()->Init();
@@ -205,8 +205,8 @@ void Application::Init(ApplicationBootSettings& settings)
     assets_manager.value()->Load<Image2D>("top.jpg");
     assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
-    initialized = true;
-    m_Running = true;
+    m_IsInitialized = true;
+    m_IsRunning = true;
 }
 
 void Application::SetVSync(bool active) const
@@ -223,24 +223,24 @@ bool Application::IsVSync() const
 
 void Application::Run()
 {
-    if (!initialized)
+    if (!m_IsInitialized)
     {
         Application::ApplicationBootSettings settings{};
         Init(settings);
     }
 
-    while (m_Running)
+    while (m_IsRunning)
     {
         auto renderer = ServiceLocator::instance().GetService<Renderer>();
         auto assets_manager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-        _time_manager->Tick();
+        m_TimeManager->Tick();
 
         char buffer[32];
-        sprintf(buffer, "%d", _time_manager->FPS());
+        sprintf(buffer, "%d", m_TimeManager->FPS());
         m_Window->SetTitle(buffer);
 
-        float dtTime = _time_manager->DeltaTime();
+        float dtTime = m_TimeManager->DeltaTime();
 
         renderer->Clear();
 

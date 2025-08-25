@@ -10,7 +10,7 @@ namespace Fleur
 class FLEUR_API Input
 {
 public:
-    enum KeyState
+    enum EKeyState
     {
         KEY_NONE = 0,
         KEY_PRESSED = 1,
@@ -19,10 +19,10 @@ public:
     };
     struct KeyInfo
     {
-        KeyState state;
-        KeyCode keyCode;
+        EKeyState state;
+        EKeyCode keyCode;
     };
-    enum MouseState
+    enum EMouseState
     {
         MOUSE_NONE,
         MOUSE_LPRESSED,
@@ -31,7 +31,7 @@ public:
         MOUSE_SCROLL
     };
 
-    static inline bool IsKeyPressed(KeyCode keyCode)
+    static inline bool IsKeyPressed(EKeyCode keyCode)
     {
         return platform_instance().IsKeyPressedImpl(keyCode);
     }
@@ -41,7 +41,7 @@ public:
         return platform_instance().IsMouseWheelScrolledImpl(data);
     }
 
-    static inline bool IsMouseButtonPressed(MouseCode mouseCode)
+    static inline bool IsMouseButtonPressed(EMouseCode mouseCode)
     {
         return platform_instance().IsMouseButtonPressedImpl(mouseCode);
     }
@@ -68,14 +68,14 @@ public:
 
     struct MouseInfo
     {
-        MouseState state;
-        MouseCode mouseCode;
+        EMouseState State;
+        EMouseCode MouseCode;
     };
 
 protected:
-    [[nodiscard]] virtual bool IsKeyPressedImpl(KeyCode keyCode) const = 0;
+    [[nodiscard]] virtual bool IsKeyPressedImpl(EKeyCode keyCode) const = 0;
 
-    virtual bool IsMouseButtonPressedImpl(MouseCode mouseCode) = 0;
+    virtual bool IsMouseButtonPressedImpl(EMouseCode mouseCode) = 0;
     [[nodiscard]] virtual bool IsMouseWheelScrolledImpl(std::pair<float, float>& pair) const = 0;
     [[nodiscard]] virtual std::pair<float, float> GetMousePositionImpl() const = 0;
     [[nodiscard]] virtual float GetMouseXImpl() const = 0;

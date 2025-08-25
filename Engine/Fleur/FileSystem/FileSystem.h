@@ -24,11 +24,11 @@ public:
     FileSystem& operator=(FileSystem&&) noexcept = default;
 
     std::optional<std::string> OpenFile(const std::string& file, std::fstream::ios_base::openmode mode = std::fstream::ios_base::in);
-    std::optional<std::string> GetFullPathToFile(std::string_view file_name) const;
-    std::optional<std::string> GetFullPathToFolder(std::string_view folder_name) const;
+    std::optional<std::string> GetFullPathToFile(std::string_view fileName) const;
+    std::optional<std::string> GetFullPathToFolder(std::string_view folderName) const;
 
-    bool FUCreateFile(const std::string& file_name, std::string_view folder) const;
-    void WriteToFile(std::string_view file_name, const char* buffer);
+    bool FUCreateFile(const std::string& fileName, std::string_view folder) const;
+    void WriteToFile(std::string_view fileName, const char* buffer);
 
     friend class Application;
     FileSystem();

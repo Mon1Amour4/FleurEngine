@@ -16,12 +16,12 @@ int APIENTRY FleurMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     Fleur::Log::Init();
 
     Fleur::Application::ApplicationBootSettings settings{};
-    settings.renderer = Fleur::Graphics::GraphicsAPI::OpenGL;
-    settings.vsync = false;
-    settings.fixed_dt = 0.025f;
-    settings.window_props.x = 100;
-    settings.window_props.y = 100;
-    settings.window_props.CanFullscreen = false;
+    settings.Renderer = Fleur::Graphics::GraphicsAPI::OpenGL;
+    settings.Vsync = false;
+    settings.FixedDt = 0.025f;
+    settings.WindowProperties.x = 100;
+    settings.WindowProperties.y = 100;
+    settings.WindowProperties.CanFullscreen = false;
 
     Fleur::Application::instance().Init(settings);
     Fleur::Application::instance().Run();
