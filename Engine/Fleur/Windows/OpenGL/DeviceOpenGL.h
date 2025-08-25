@@ -11,7 +11,7 @@ public:
 
     virtual ~DeviceOpenGL() override;
 
-    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size) override;
+    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::EBufferType type, RenderStage stage, size_t size) override;
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() override;
     virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) override;
     virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor) override;

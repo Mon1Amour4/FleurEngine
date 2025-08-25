@@ -6,7 +6,7 @@
 namespace Fleur::Graphics
 {
 
-BufferOpenGL::BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes)
+BufferOpenGL::BufferOpenGL(EBufferType type, RenderStage stage, size_t size_bytes)
     : Buffer(type, size_bytes)
     , buffer_object_id(UINT32_MAX)
 {
@@ -52,9 +52,9 @@ int BufferOpenGL::native_usage(RenderStage& stage) const
         return GL_DYNAMIC_DRAW;
     }
 }
-int BufferOpenGL::native_buffer_type(const BufferType& type) const
+int BufferOpenGL::native_buffer_type(const EBufferType& type) const
 {
-    if (type == BufferType::Vertex)
+    if (type == EBufferType::Vertex)
         return GL_ARRAY_BUFFER;
     else
         return GL_ELEMENT_ARRAY_BUFFER;

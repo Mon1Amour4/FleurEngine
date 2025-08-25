@@ -62,7 +62,7 @@ public:
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) = 0;
 
     template <typename T>
-    uint32_t UpdateBufferSubData(Buffer::BufferType type, std::span<const T> data)
+    uint32_t UpdateBufferSubData(Buffer::EBufferType type, std::span<const T> data)
     {
         return UpdateBufferSubDataImpl(type, data.data(), data.size_bytes());
     }
@@ -81,7 +81,7 @@ public:
     }
 
 protected:
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t size_bytes) = 0;
 
     CommandBuffer(DepthStencilDescriptor desc)
         : push_debug_group_commands(0)

@@ -23,7 +23,7 @@ public:
     virtual void BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout) override;
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) override;
 
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) override;
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t size_bytes) override;
 
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;

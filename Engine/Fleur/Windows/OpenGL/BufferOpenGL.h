@@ -22,7 +22,7 @@ private:
 protected:
     friend class DeviceOpenGL;
     int native_usage(RenderStage& stage) const;
-    int native_buffer_type(const BufferType& type) const;
-    BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes);
+    int native_buffer_type(const EBufferType& type) const;
+    BufferOpenGL(EBufferType type, RenderStage stage, size_t size_bytes);
 };
 }  // namespace Fleur::Graphics

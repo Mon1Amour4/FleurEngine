@@ -113,8 +113,8 @@ void Renderer::OnInit()
     layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
-    static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+    static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
+    static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 
     // Skybox
     std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject("skybox_shader", _device->CreateShader("skybox", Shader::ShaderType::Vertex),
@@ -125,7 +125,7 @@ void Renderer::OnInit()
 
     VertexLayout skybox_layout{};
     skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
+    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
 
     // gizmo
     std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", _device->CreateShader("static_geo", Shader::ShaderType::Vertex),
@@ -138,8 +138,8 @@ void Renderer::OnInit()
     gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
     gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    gizmo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
-    gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    gizmo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
+    gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
     gizmo_fbo = _device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
                                            (uint32_t)FramebufferSettings::COLOR | (uint32_t)FramebufferSettings::DEPTH_STENCIL);
@@ -155,8 +155,8 @@ void Renderer::OnInit()
     VertexLayout copy_fbo_layout{};
     copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
     copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    copy_fbo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
-    copy_fbo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::BufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    copy_fbo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
+    copy_fbo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
     // clang-format off
     static float quadVertices[] = {
@@ -339,7 +339,7 @@ void Renderer::OnUpdate(float dlTime)
             };
 
             _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
-            skybox_cmd->UpdateBufferSubData<float>(Buffer::BufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
+            skybox_cmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
             is_skybox_created = true;
         }
     }

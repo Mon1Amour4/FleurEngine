@@ -275,7 +275,7 @@ void DeviceOpenGL::Release()
     }
 }
 
-std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size)
+std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(Buffer::EBufferType type, RenderStage stage, size_t size)
 {
     return std::unique_ptr<Buffer>(new BufferOpenGL(type, stage, size));
 }

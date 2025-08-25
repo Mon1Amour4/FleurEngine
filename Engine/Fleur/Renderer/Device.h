@@ -29,7 +29,7 @@ public:
     static std::unique_ptr<Device> CreateDevice();
     virtual ~Device() = default;
 
-    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size) = 0;
+    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::EBufferType type, RenderStage stage, size_t size) = 0;
 
     virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
 
