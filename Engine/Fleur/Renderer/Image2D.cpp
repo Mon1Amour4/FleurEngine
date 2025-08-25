@@ -6,71 +6,71 @@
 
 // ImageBase
 Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t layers)
-    : name(name)
-    , extension(ext)
-    , width(0)
-    , height(0)
-    , channels(0)
-    , depth(0)
-    , layers(layers)
-    , size_bytes(0)
-    , is_created(false)
+    : m_Name(name)
+    , m_Extension(ext)
+    , m_Width(0)
+    , m_Height(0)
+    , m_Channels(0)
+    , m_Depth(0)
+    , m_Layers(layers)
+    , m_SizeBytes(0)
+    , m_IsCreated(false)
 {
 }
 Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth,
                                       uint32_t layers)
-    : name(name)
-    , extension(ext)
-    , width(width)
-    , height(height)
-    , channels(channels)
-    , depth(depth)
-    , layers(layers)
-    , size_bytes(width * height * channels * depth * layers)
-    , is_created(false)
+    : m_Name(name)
+    , m_Extension(ext)
+    , m_Width(width)
+    , m_Height(height)
+    , m_Channels(channels)
+    , m_Depth(depth)
+    , m_Layers(layers)
+    , m_SizeBytes(width * height * channels * depth * layers)
+    , m_IsCreated(false)
 {
 }
 
 Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
-    : name(std::move(other.name))
-    , extension(std::move(other.extension))
-    , width(other.width)
-    , height(other.height)
-    , channels(other.channels)
-    , depth(other.depth)
-    , layers(other.layers)
-    , size_bytes(other.size_bytes)
-    , is_created(other.is_created)
+    : m_Name(std::move(other.m_Name))
+    , m_Extension(std::move(other.m_Extension))
+    , m_Width(other.m_Width)
+    , m_Height(other.m_Height)
+    , m_Channels(other.m_Channels)
+    , m_Depth(other.m_Depth)
+    , m_Layers(other.m_Layers)
+    , m_SizeBytes(other.m_SizeBytes)
+    , m_IsCreated(other.m_IsCreated)
 {
-    other.width = 0;
-    other.height = 0;
-    other.channels = 0;
-    other.depth = 0;
-    other.layers = 0;
-    other.size_bytes = 0;
-    other.is_created = false;
+    other.m_Width = 0;
+    other.m_Height = 0;
+    other.m_Channels = 0;
+    other.m_Depth = 0;
+    other.m_Layers = 0;
+    other.m_SizeBytes = 0;
+    other.m_IsCreated = false;
 }
 Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& other) noexcept
 {
     if (this != &other)
     {
-        name = std::move(other.name);
-        extension = std::move(other.extension);
-        width = other.width;
-        height = other.height;
-        channels = other.channels;
-        depth = other.depth;
-        layers = other.layers;
-        size_bytes = other.size_bytes;
-        is_created = other.is_created;
+        m_Name = std::move(other.m_Name);
+        m_Extension = std::move(other.m_Extension);
+        m_Width = other.m_Width;
+        m_Height = other.m_Height;
+        m_Channels = other.m_Channels;
+        m_Depth = other.m_Depth;
+        m_Layers = other.m_Layers;
+        m_SizeBytes = other.m_SizeBytes;
+        m_IsCreated = other.m_IsCreated;
 
-        other.width = 0;
-        other.height = 0;
-        other.channels = 0;
-        other.depth = 0;
-        other.layers = 0;
-        other.size_bytes = 0;
-        other.is_created = false;
+        other.m_Width = 0;
+        other.m_Height = 0;
+        other.m_Channels = 0;
+        other.m_Depth = 0;
+        other.m_Layers = 0;
+        other.m_SizeBytes = 0;
+        other.m_IsCreated = false;
     }
     return *this;
 }
@@ -90,70 +90,70 @@ Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, i
 }
 Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
     : ImageBase(name, ext, w, h, channels, depth, 1)
-    , bitmap(w, h, channels)
+    , m_Bitmap(w, h, channels)
 {
     FL_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
-    memcpy(bitmap.Data(), data, bitmap.GetSizeBytes());
-    is_created = true;
+    memcpy(m_Bitmap.Data(), data, m_Bitmap.GetSizeBytes());
+    m_IsCreated = true;
 }
 Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels,
                                   uint16_t depth)
     : ImageBase(name, ext, w, h, channels, depth, 1)
-    , bitmap(std::move(in_bitmap))
+    , m_Bitmap(std::move(in_bitmap))
 {
-    is_created = true;
+    m_IsCreated = true;
 };
 
 Fleur::Graphics::Image2D& Fleur::Graphics::Image2D::operator=(Fleur::Graphics::Image2D&& other) noexcept
 {
     if (this != &other)
     {
-        bitmap = std::move(other.bitmap);
-        width = other.width;
-        height = other.height;
-        is_created = other.is_created;
-        name = std::move(other.name);
-        extension = std::move(other.extension);
-        channels = other.channels;
-        depth = other.depth;
-        layers = other.layers;
-        size_bytes = other.size_bytes;
+        m_Bitmap = std::move(other.m_Bitmap);
+        m_Width = other.m_Width;
+        m_Height = other.m_Height;
+        m_IsCreated = other.m_IsCreated;
+        m_Name = std::move(other.m_Name);
+        m_Extension = std::move(other.m_Extension);
+        m_Channels = other.m_Channels;
+        m_Depth = other.m_Depth;
+        m_Layers = other.m_Layers;
+        m_SizeBytes = other.m_SizeBytes;
 
-        other.width = 0;
-        other.height = 0;
-        other.is_created = false;
-        other.channels = 0;
-        other.depth = 0;
-        other.layers = 0;
-        other.size_bytes = 0;
+        other.m_Width = 0;
+        other.m_Height = 0;
+        other.m_IsCreated = false;
+        other.m_Channels = 0;
+        other.m_Depth = 0;
+        other.m_Layers = 0;
+        other.m_SizeBytes = 0;
     }
     return *this;
 }
 Fleur::Graphics::Image2D::Image2D(Fleur::Graphics::Image2D&& other) noexcept
 {
-    bitmap = std::move(other.bitmap);
-    width = other.width;
-    height = other.height;
-    is_created = other.is_created;
-    name = std::move(other.name);
-    extension = std::move(other.extension);
-    channels = other.channels;
-    depth = other.depth;
-    layers = other.layers;
-    size_bytes = other.size_bytes;
+    m_Bitmap = std::move(other.m_Bitmap);
+    m_Width = other.m_Width;
+    m_Height = other.m_Height;
+    m_IsCreated = other.m_IsCreated;
+    m_Name = std::move(other.m_Name);
+    m_Extension = std::move(other.m_Extension);
+    m_Channels = other.m_Channels;
+    m_Depth = other.m_Depth;
+    m_Layers = other.m_Layers;
+    m_SizeBytes = other.m_SizeBytes;
 
-    other.width = 0;
-    other.height = 0;
-    other.is_created = false;
-    other.channels = 0;
-    other.depth = 0;
-    other.layers = 0;
-    other.size_bytes = 0;
+    other.m_Width = 0;
+    other.m_Height = 0;
+    other.m_IsCreated = false;
+    other.m_Channels = 0;
+    other.m_Depth = 0;
+    other.m_Layers = 0;
+    other.m_SizeBytes = 0;
 }
 
 const void* Fleur::Graphics::Image2D::Data() const
 {
-    return bitmap.Data();
+    return m_Bitmap.Data();
 }
 
 void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
@@ -162,18 +162,18 @@ void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
 
     ImageBase::PostCreate(settings);
 
-    bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
-    memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
+    m_Bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
+    memcpy_s(m_Bitmap.Data(), m_Bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
 
-    is_created = true;
+    m_IsCreated = true;
 }
 
 Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() const
 {
-    uint32_t face_size = width / 4;
+    uint32_t face_size = m_Width / 4;
     constexpr float pi = glm::pi<float>();
 
-    Bitmap<BitmapFormat_UnsignedByte> out_bitmap(face_size * 4, face_size * 3, channels);
+    Bitmap<BitmapFormat_UnsignedByte> out_bitmap(face_size * 4, face_size * 3, m_Channels);
     struct FacePos
     {
         int x, y;
@@ -263,8 +263,8 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
                 float uu = (phi + pi) / (2.f * pi);  // [0,1]
                 float vv = theta / pi;               // [0,1]
 
-                float x = static_cast<float>(uu * (width - 1));
-                float y = static_cast<float>(vv * (height - 1));
+                float x = static_cast<float>(uu * (m_Width - 1));
+                float y = static_cast<float>(vv * (m_Height - 1));
 
 
                 // bilinear interpolation:
@@ -272,10 +272,10 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
                 FL_CORE_ASSERT(left_x >= 0, "");
 
-                uint32_t right_x = std::min(static_cast<uint32_t>(std::floor(left_x + 1)), width - 1);
+                uint32_t right_x = std::min(static_cast<uint32_t>(std::floor(left_x + 1)), m_Width - 1);
 
                 uint32_t top_y = std::floor(y);
-                uint32_t bottom_y = std::min(static_cast<uint32_t>(top_y + 1), height - 1);
+                uint32_t bottom_y = std::min(static_cast<uint32_t>(top_y + 1), m_Height - 1);
 
                 float shift_x = x - left_x;
                 float shift_y = y - top_y;
@@ -289,10 +289,10 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
                 float w11 = shift_x * shift_y;
 
 
-                glm::vec4 c00 = bitmap.GetPixel(left_x, top_y);
-                glm::vec4 c01 = bitmap.GetPixel(right_x, top_y);
-                glm::vec4 c10 = bitmap.GetPixel(left_x, bottom_y);
-                glm::vec4 c11 = bitmap.GetPixel(right_x, bottom_y);
+                glm::vec4 c00 = m_Bitmap.GetPixel(left_x, top_y);
+                glm::vec4 c01 = m_Bitmap.GetPixel(right_x, top_y);
+                glm::vec4 c10 = m_Bitmap.GetPixel(left_x, bottom_y);
+                glm::vec4 c11 = m_Bitmap.GetPixel(right_x, bottom_y);
 
                 glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
@@ -302,17 +302,17 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
             }
         }
     }
-    return Image2D(name + "_cross_layout", extension, reinterpret_cast<unsigned char*>(out_bitmap.Data()), face_size * 4, face_size * 3, channels, depth);
+    return Image2D(m_Name + "_cross_layout", m_Extension, reinterpret_cast<unsigned char*>(out_bitmap.Data()), face_size * 4, face_size * 3, m_Channels, m_Depth);
 }
 
 Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() const
 {
-    uint32_t face_size = width / 4;
+    uint32_t face_size = m_Width / 4;
 
     std::array<Image2D, 6> out_faces;
     for (int i = 0; i < 6; i++)
     {
-        out_faces[i] = Image2D(name + "_face_" + std::to_string(i), extension, face_size, face_size, channels, depth);
+        out_faces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, face_size, face_size, m_Channels, m_Depth);
     }
 
     auto get_stride = [this](TextureFormat format)
@@ -326,20 +326,20 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
         }
         return 3u;
     };
-    uint32_t stride = get_stride(Texture::GetTextureFormat(channels, depth));
+    uint32_t stride = get_stride(Texture::GetTextureFormat(m_Channels, m_Depth));
 
     auto upload_face = [&](uint32_t start_x, uint32_t start_y, uint32_t out_face)
     {
-        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(face_size, face_size, channels);
+        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(face_size, face_size, m_Channels);
         for (uint32_t y = 0; y < face_size; ++y)
         {
             for (uint32_t x = 0; x < face_size; ++x)
             {
-                glm::vec4 color = bitmap.GetPixel(start_x + x, start_y + y);
+                glm::vec4 color = m_Bitmap.GetPixel(start_x + x, start_y + y);
                 tmp.SetPixel(x, y, color);
             }
         }
-        out_faces[out_face].bitmap = std::move(tmp);
+        out_faces[out_face].m_Bitmap = std::move(tmp);
     };
 
     // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
@@ -350,7 +350,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
     upload_face(face_size, face_size, 4);      // +Z (front)
     upload_face(face_size * 3, face_size, 5);  // -Z (back)
 
-    return Fleur::Graphics::CubemapImage(name + "_cubemap", extension, std::move(out_faces));
+    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", m_Extension, std::move(out_faces));
 }
 
 
@@ -359,7 +359,7 @@ Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_v
     : ImageBase(name, ext, in_faces[0].Width(), in_faces[0].Width(), in_faces[0].Channels(), in_faces[0].Depth(), 6)
 
 {
-    faces = std::move(in_faces);
+    m_Faces = std::move(in_faces);
 }
 Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext)
     : ImageBase(name, ext, 6)
@@ -371,13 +371,13 @@ Fleur::Graphics::CubemapImage& Fleur::Graphics::CubemapImage::operator=(CubemapI
     if (this != &other)
     {
         ImageBase::operator=(std::move(other));
-        faces = std::move(other.faces);
+        m_Faces = std::move(other.m_Faces);
     }
     return *this;
 }
 Fleur::Graphics::CubemapImage::CubemapImage(CubemapImage&& other) noexcept
     : ImageBase(std::move(other))
-    , faces(std::move(other.faces))
+    , m_Faces(std::move(other.m_Faces))
 {
 }
 
@@ -386,23 +386,23 @@ const Fleur::Graphics::Image2D& Fleur::Graphics::CubemapImage::GetFace(Face face
     switch (face)
     {
     case Fleur::Graphics::CubemapImage::Face::Right:
-        return faces[0];
+        return m_Faces[0];
     case Fleur::Graphics::CubemapImage::Face::Left:
-        return faces[1];
+        return m_Faces[1];
     case Fleur::Graphics::CubemapImage::Face::Top:
-        return faces[2];
+        return m_Faces[2];
     case Fleur::Graphics::CubemapImage::Face::Bottom:
-        return faces[3];
+        return m_Faces[3];
     case Fleur::Graphics::CubemapImage::Face::Back:
-        return faces[4];
+        return m_Faces[4];
     case Fleur::Graphics::CubemapImage::Face::Front:
-        return faces[5];
+        return m_Faces[5];
     }
 }
 
 const Fleur::Graphics::Image2D* Fleur::Graphics::CubemapImage::Data() const
 {
-    return reinterpret_cast<const Image2D*>(faces.data());
+    return reinterpret_cast<const Image2D*>(m_Faces.data());
 }
 
 void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
@@ -420,5 +420,5 @@ void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
 
      memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);*/
 
-    is_created = true;
+    m_IsCreated = true;
 }

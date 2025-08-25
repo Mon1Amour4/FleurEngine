@@ -39,18 +39,18 @@ void Fleur::Graphics::FramebufferOpenGL::Clear()
     Bind();
 
     uint32_t gl_flags = 0;
-    if (flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
+    if (m_Flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
         gl_flags |= GL_COLOR_BUFFER_BIT;
 
-    if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
+    if (m_Flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
     {
         gl_flags |= GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT;
     }
     else
     {
-        if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
+        if (m_Flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
             gl_flags |= GL_DEPTH_BUFFER_BIT;
-        if (flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
+        if (m_Flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
             gl_flags |= GL_STENCIL_BUFFER_BIT;
     }
 
@@ -61,7 +61,7 @@ void Fleur::Graphics::FramebufferOpenGL::AddColorAttachment(std::shared_ptr<Fleu
 {
     Framebuffer::AddColorAttachment(attachment);
 
-    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(color_attachments.back().get());
+    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(m_ColorAttachments.back().get());
 
     glNamedFramebufferTexture(fbo, GL_COLOR_ATTACHMENT0, *texture_gl->GetTextureID(), 0);
 
@@ -73,7 +73,7 @@ void Fleur::Graphics::FramebufferOpenGL::AddDepthAttachment(std::shared_ptr<Fleu
 {
     Framebuffer::AddDepthAttachment(attachment);
 
-    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(depth_attachment.get());
+    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(m_DepthAttachment.get());
 
     if (combined)
         glNamedFramebufferTexture(fbo, GL_DEPTH_STENCIL_ATTACHMENT, *texture_gl->GetTextureID(), 0);
@@ -88,7 +88,7 @@ void Fleur::Graphics::FramebufferOpenGL::AddStencilAttachment(std::shared_ptr<Fl
 {
     Framebuffer::AddStencilAttachment(attachment);
 
-    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(stencil_attachment.get());
+    Fleur::Graphics::TextureOpenGL* texture_gl = static_cast<Fleur::Graphics::TextureOpenGL*>(m_StencilAttachment.get());
 
     glNamedFramebufferTexture(fbo, GL_STENCIL_ATTACHMENT, *texture_gl->GetTextureID(), 0);
 
@@ -106,24 +106,24 @@ Fleur::Graphics::FramebufferOpenGL::~FramebufferOpenGL()
 
 void Fleur::Graphics::FramebufferOpenGL::Cleanup()
 {
-    if (color_attachments.size() > 0)
+    if (m_ColorAttachments.size() > 0)
     {
-        for (auto& attach : color_attachments)
+        for (auto& attach : m_ColorAttachments)
         {
             TextureOpenGL* texture_gl = static_cast<TextureOpenGL*>(attach.get());
             glDeleteTextures(1, texture_gl->GetTextureID());
         }
     }
 
-    if (depth_attachment)
+    if (m_DepthAttachment)
     {
-        TextureOpenGL* texture_gl = static_cast<TextureOpenGL*>(depth_attachment.get());
+        TextureOpenGL* texture_gl = static_cast<TextureOpenGL*>(m_DepthAttachment.get());
         glDeleteTextures(1, texture_gl->GetTextureID());
     }
 
-    if (stencil_attachment)
+    if (m_StencilAttachment)
     {
-        TextureOpenGL* texture_gl = static_cast<TextureOpenGL*>(stencil_attachment.get());
+        TextureOpenGL* texture_gl = static_cast<TextureOpenGL*>(m_StencilAttachment.get());
         glDeleteTextures(1, texture_gl->GetTextureID());
     }
 }
@@ -131,7 +131,7 @@ void Fleur::Graphics::FramebufferOpenGL::Cleanup()
 void Fleur::Graphics::FramebufferOpenGL::Bind()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, fbo);
-    glViewport(0, 0, width, height);
+    glViewport(0, 0, m_Width, m_Height);
 }
 
 void Fleur::Graphics::FramebufferOpenGL::Unbind()

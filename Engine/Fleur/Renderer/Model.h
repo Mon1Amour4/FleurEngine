@@ -82,7 +82,7 @@ public:
     class FLEUR_API Mesh
     {
     public:
-        Mesh(cgltf_mesh* mesh, const cgltf_material* base_materials, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
 
         inline std::string_view Name() const
@@ -114,8 +114,8 @@ public:
         uint32_t mesh_indices_count;
     };
 
-    Model(std::string_view model_name, cgltf_data* data);
-    Model(std::string_view model_name);
+    Model(std::string_view modelName, cgltf_data* data);
+    Model(std::string_view modelName);
 
     ~Model() = default;
 
@@ -124,31 +124,31 @@ public:
 
     inline std::string_view GetName() const
     {
-        return name;
+        return m_Name;
     }
     inline uint32_t GetMeshCount() const
     {
-        return mesh_count;
+        return m_MeshCount;
     }
     inline uint32_t GetVertexCount() const
     {
-        return model_vertex_count;
+        return m_ModelVertexCount;
     }
     inline uint32_t GetIndicesCount() const
     {
-        return model_indices_count;
+        return m_ModelIndicesCount;
     }
     inline const VertexData* GetVerticesData() const
     {
-        return vertices.data();
+        return m_Vertices.data();
     }
     inline const uint32_t* GetIndicesData() const
     {
-        return indices.data();
+        return m_Indices.data();
     }
     const std::vector<Fleur::Graphics::Model::Mesh>* GetMeshesPtr() const
     {
-        return &meshes;
+        return &m_Meshes;
     }
 
     void PostLoad(cgltf_data* data);
@@ -156,15 +156,15 @@ public:
     const Material* GetMaterial(uint32_t idx) const;
 
 private:
-    std::string name;
-    uint32_t mesh_count;
-    uint32_t model_vertex_count;
-    uint32_t model_indices_count;
-    std::vector<Fleur::Graphics::VertexData> vertices;
-    std::vector<uint32_t> indices;
-    std::vector<Model::Mesh> meshes;
+    std::string m_Name;
+    uint32_t m_MeshCount;
+    uint32_t m_ModelVertexCount;
+    uint32_t m_ModelIndicesCount;
+    std::vector<Fleur::Graphics::VertexData> m_Vertices;
+    std::vector<uint32_t> m_Indices;
+    std::vector<Model::Mesh> m_Meshes;
 
-    std::vector<Material> materials;
+    std::vector<Material> m_Materials;
 
     void process_model(cgltf_data* data, bool async = true);
 };

@@ -61,16 +61,16 @@ public:
 
     virtual void PostCreate(ImagePostCreation& settings) override
     {
-        width = settings.width;
-        height = settings.height;
-        channels = settings.channels;
-        depth = settings.depth;
-        format = GetTextureFormat(settings.channels, settings.depth);
+        m_Width = settings.width;
+        m_Height = settings.height;
+        m_Channels = settings.channels;
+        m_Depth = settings.depth;
+        m_Format = GetTextureFormat(settings.channels, settings.depth);
     }
 
     TextureFormat Format() const
     {
-        return format;
+        return m_Format;
     }
 
     static TextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
@@ -122,16 +122,16 @@ public:
     }
 
 protected:
-    TextureFormat format;
+    TextureFormat m_Format;
 
     Texture(std::string_view name, std::string_view ext, TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
-        : ImageBase(name, ext, width, height, format_to_channels(format), format_to_depth(format), layers)
-        , format(format)
+        : ImageBase(name, ext, width, height, FormatToChannels(format), FormatToDepth(format), layers)
+        , m_Format(format)
     {
     }
     Texture(std::string_view name, std::string_view ext, uint32_t layers)
         : ImageBase(name, ext, 0, 0, 0, 0, layers)
-        , format(TextureFormat::RGB8)
+        , m_Format(TextureFormat::RGB8)
     {
     }
 
@@ -140,7 +140,7 @@ protected:
         return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
     }
 
-    uint32_t format_to_channels(TextureFormat format) const
+    uint32_t FormatToChannels(TextureFormat format) const
     {
         switch (format)
         {
@@ -186,7 +186,7 @@ protected:
         return 1;
     }
 
-    uint32_t format_to_depth(TextureFormat format) const
+    uint32_t FormatToDepth(TextureFormat format) const
     {
         switch (format)
         {

@@ -54,7 +54,7 @@ public:
     std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
 
     // IRenderer;
-    void DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos);
+    void DrawModel(RenderStage stage, const Model* model, glm::mat4 modelPos);
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -86,17 +86,17 @@ public:
                               (std::is_same_v<FirstArg, std::string_view>) || (std::is_same_v<FirstArg, std::string>) ||
                               (std::is_convertible_v<FirstArg, const char*>))
                 {
-                    return load_texture(std::forward<Args>(args)...);
+                    return Load_Texture(std::forward<Args>(args)...);
                 }
             }
             else if constexpr (args_amount == 4)
             {
-                return load_texture(std::forward<Args>(args)...);
+                return Load_Texture(std::forward<Args>(args)...);
             }
         }
 
         else if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Shader>)
-            return _device->CreateShader(std::forward<Args>(args)...);
+            return m_Device->CreateShader(std::forward<Args>(args)...);
         return std::shared_ptr<Resource>{nullptr};
     }
     void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
@@ -104,53 +104,53 @@ public:
 private:
     bool show_wireframe;
 
-    std::unique_ptr<Device> _device;
-    std::unique_ptr<CommandQueue> _commandQueue;
-    std::unique_ptr<CommandPool> _commandPool;
-    std::unique_ptr<Swapchain> _swapchain;
-    std::unique_ptr<Camera> _camera;
-    std::unique_ptr<Skybox> _skybox;
+    std::unique_ptr<Device> m_Device;
+    std::unique_ptr<CommandQueue> m_CommandQueue;
+    std::unique_ptr<CommandPool> m_CommandPool;
+    std::unique_ptr<Swapchain> m_Swapchain;
+    std::unique_ptr<Camera> m_Camera;
+    std::unique_ptr<Skybox> m_Skybox;
 
-    std::unique_ptr<CommandBuffer> static_geometry_cmd;
-    std::unique_ptr<CommandBuffer> skybox_cmd;
-    std::unique_ptr<CommandBuffer> gizmo_cmd;
-    std::unique_ptr<CommandBuffer> copy_fbo_cmd;
+    std::unique_ptr<CommandBuffer> m_StaticGeometryCmd;
+    std::unique_ptr<CommandBuffer> m_SkyboxCmd;
+    std::unique_ptr<CommandBuffer> m_GizmoCmd;
+    std::unique_ptr<CommandBuffer> m_CopyFBOCmd;
 
     // TODO: move from here
-    std::unique_ptr<Framebuffer> gizmo_fbo;
+    std::unique_ptr<Framebuffer> m_GizmoFBO;
 
-    ShaderObject* current_shader_obj;
+    ShaderObject* m_CurrentShaderObj;
 
-    bool is_vsync;
+    bool m_IsVsync;
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> textures;
-    GraphicsAPI renderer;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> m_Textures;
+    GraphicsAPI m_Renderer;
 
-    std::unique_ptr<Fleur::IRendererToolchain> toolchain;
+    std::unique_ptr<Fleur::IRendererToolchain> m_Toolchain;
 
-    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::string_view path);
+    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view path);
 
-    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::string_view name, Color color, int width, int height);
+    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view name, Color color, int width, int height);
 
-    std::shared_ptr<Fleur::Graphics::Texture> load_texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
+    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
 
     struct DrawInfo
     {
-        const Model* model;
-        glm::mat4 model_matrix;
-        uint32_t index_global_offset_bytes;
-        uint32_t vertex_global_offset_bytes;
+        const Model* Model;
+        glm::mat4 ModelMatrix;
+        uint32_t IndexGlobalOffsetBytes;
+        uint32_t VertexGlobalOffsetBytes;
     };
 
-    std::unordered_map<std::string, DrawInfo> static_geometry_models;
-    std::unordered_map<std::string, DrawInfo> gizmo_models;
-    std::vector<DrawInfo> static_geometry_models_vector;
-    std::vector<DrawInfo> gizmo_models_vector;
+    std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;
+    std::unordered_map<std::string, DrawInfo> m_GizmoModels;
+    std::vector<DrawInfo> m_StaticGeometryModelsVector;
+    std::vector<DrawInfo> m_GizmoModelsVector;
 
     // Service
 
-    void skybox_pass() const;
-    void static_geometry_pass() const;
+    void SkyboxPass() const;
+    void StaticGeometryPass() const;
 
 protected:
     void OnInit();

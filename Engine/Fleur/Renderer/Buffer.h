@@ -15,21 +15,21 @@ public:
         Index
     };
 
-    uint32_t UpdateSubData(const void* data, size_t size_bytes)
+    uint32_t UpdateSubData(const void* data, size_t sizeBytes)
     {
-        return UpdateSubDataImpl(data, size_bytes);
+        return UpdateSubDataImpl(data, sizeBytes);
     }
     virtual uint32_t NativeType() const = 0;
 
 protected:
-    virtual uint32_t UpdateSubDataImpl(const void* data, size_t size_bytes) = 0;
+    virtual uint32_t UpdateSubDataImpl(const void* data, size_t sizeBytes) = 0;
 
-    Buffer(EBufferType type, size_t size_bytes)
-        : type(type)
-        , end_idx(size_bytes)
-        , last_buffered_idx_to_byte(0) {};
-    uint32_t end_idx;
-    uint32_t last_buffered_idx_to_byte;
-    EBufferType type;
+    Buffer(EBufferType type, size_t sizeBytes)
+        : m_Type(type)
+        , m_EndIdx(sizeBytes)
+        , m_UsedBytesIdx(0) {};
+    uint32_t m_EndIdx;
+    uint32_t m_UsedBytesIdx;
+    EBufferType m_Type;
 };
 }  // namespace Fleur::Graphics

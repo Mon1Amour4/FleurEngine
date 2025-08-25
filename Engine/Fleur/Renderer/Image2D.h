@@ -30,81 +30,81 @@ public:
 
     std::string_view Name() const
     {
-        return name;
+        return m_Name;
     }
     inline std::string_view Ext() const
     {
-        return extension;
+        return m_Extension;
     }
 
     virtual uint32_t Width() const
     {
-        return width;
+        return m_Width;
     }
     virtual uint32_t Height() const
     {
-        return height;
+        return m_Height;
     }
 
     uint16_t Channels() const
     {
-        return channels;
+        return m_Channels;
     }
     uint32_t Depth() const
     {
-        return depth;
+        return m_Depth;
     }
 
     uint32_t Layers() const
     {
-        return layers;
+        return m_Layers;
     }
 
     uint32_t SizeBytes() const
     {
-        return size_bytes;
+        return m_SizeBytes;
     }
 
     bool IsValid() const
     {
-        return is_created;
+        return m_IsCreated;
     }
 
     virtual void PostCreate(ImagePostCreation& settings)
     {
-        width = settings.width;
-        height = settings.height;
-        channels = settings.channels;
-        depth = settings.depth;
+        m_Width = settings.width;
+        m_Height = settings.height;
+        m_Channels = settings.channels;
+        m_Depth = settings.depth;
     }
 
 protected:
     ImageBase()
-        : name()
-        , width(0)
-        , height(0)
-        , channels(0)
-        , depth(0)
-        , layers(1)
-        , size_bytes(0)
-        , is_created(false) {};
+        : m_Name()
+        , m_Width(0)
+        , m_Height(0)
+        , m_Channels(0)
+        , m_Depth(0)
+        , m_Layers(1)
+        , m_SizeBytes(0)
+        , m_IsCreated(false) {};
     ImageBase(std::string_view name, std::string_view ext, uint32_t layers);
     ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint32_t layers);
 
-    std::string name;
-    std::string extension;
+    std::string m_Name;
+    std::string m_Extension;
 
-    uint32_t width;
-    uint32_t height;
+    uint32_t m_Width;
+    uint32_t m_Height;
 
-    uint16_t channels;
-    uint16_t depth;
+    uint16_t m_Channels;
+    uint16_t m_Depth;
 
-    uint32_t layers;
+    uint32_t m_Layers;
 
-    uint32_t size_bytes;
+    uint32_t m_SizeBytes;
 
-    bool is_created;
+    bool m_IsCreated;
 };
 
 class Image2D : public ImageBase
@@ -131,9 +131,9 @@ public:
     CubemapImage FromCrossToCubemap() const;
 
 private:
-    Bitmap<BitmapFormat_UnsignedByte> bitmap;
+    Bitmap<BitmapFormat_UnsignedByte> m_Bitmap;
 
-    Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& in_bitmap, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& IN bitmap, int w, int h, uint16_t channels, uint16_t depth);
 };
 
 
@@ -166,7 +166,7 @@ public:
     virtual void PostCreate(ImagePostCreation& settings) override;
 
 private:
-    std::array<Image2D, 6> faces;
+    std::array<Image2D, 6> m_Faces;
 };
 
 }  // namespace Fleur::Graphics

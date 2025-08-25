@@ -47,7 +47,7 @@ ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, Shader
     else
     {
         FL_CORE_TRACE("[Shader] {0} {1} has compiled", name, shader_type);
-        glObjectLabel(GL_SHADER, _shaderID, -1, this->name.c_str());
+        glObjectLabel(GL_SHADER, _shaderID, -1, this->m_Name.c_str());
     }
 }
 

@@ -28,9 +28,9 @@ class Framebuffer
 {
 protected:
     Framebuffer(int width, int height, uint32_t flags)
-        : flags(flags)
-        , width(width)
-        , height(height) {};
+        : m_Flags(flags)
+        , m_Width(width)
+        , m_Height(height) {};
 
 public:
     virtual ~Framebuffer() = default;
@@ -40,29 +40,29 @@ public:
 
     const Fleur::Graphics::Texture* GetColorAttachment(uint32_t index = 0) const
     {
-        if (color_attachments.size() > 0 && index <= color_attachments.size() - 1)
-            return color_attachments[index].get();
+        if (m_ColorAttachments.size() > 0 && index <= m_ColorAttachments.size() - 1)
+            return m_ColorAttachments[index].get();
         return nullptr;
     }
 
     Fleur::Graphics::Texture* GetDepthAttachment() const
     {
-        return depth_attachment.get();
+        return m_DepthAttachment.get();
     }
 
     uint32_t Width() const
     {
-        return width;
+        return m_Width;
     }
 
     uint32_t Height() const
     {
-        return height;
+        return m_Height;
     }
 
     uint32_t Flags() const
     {
-        return flags;
+        return m_Flags;
     }
 
     virtual void Clear() = 0;
@@ -70,23 +70,23 @@ public:
 protected:
     virtual void Cleanup() = 0;
 
-    uint32_t width, height, flags;
+    uint32_t m_Width, m_Height, m_Flags;
 
-    std::vector<std::shared_ptr<Fleur::Graphics::Texture>> color_attachments;
-    std::shared_ptr<Fleur::Graphics::Texture> depth_attachment;
-    std::shared_ptr<Fleur::Graphics::Texture> stencil_attachment;
+    std::vector<std::shared_ptr<Fleur::Graphics::Texture>> m_ColorAttachments;
+    std::shared_ptr<Fleur::Graphics::Texture> m_DepthAttachment;
+    std::shared_ptr<Fleur::Graphics::Texture> m_StencilAttachment;
 
     virtual void AddColorAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment)
     {
-        color_attachments.push_back(attachment);
+        m_ColorAttachments.push_back(attachment);
     }
     virtual void AddDepthAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment, bool combined = true)
     {
-        depth_attachment = attachment;
+        m_DepthAttachment = attachment;
     }
     virtual void AddStencilAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment)
     {
-        stencil_attachment = attachment;
+        m_StencilAttachment = attachment;
     }
 };
 }  // namespace Fleur::Graphics

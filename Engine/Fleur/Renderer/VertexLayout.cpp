@@ -8,28 +8,28 @@ namespace Fleur::Graphics
 {
 // Layout:
 VertexLayout::VertexLayout()
-    : stride(0)
-    , _it(nullptr)
+    : m_Stride(0)
+    , m_It(nullptr)
 {
-    attribs.reserve(1);
+    m_Attribs.reserve(1);
 }
 
-uint32_t VertexLayout::GetAPIDataType(DataType type) const
+uint32_t VertexLayout::GetAPIDataType(EDataType type) const
 {
 #if defined(FLEUR_PLATFORM_WIN)
     switch (type)
     {
-    case DataType::FLOAT:
+    case EDataType::FLOAT:
         return GL_FLOAT;
-    case DataType::FLOAT_VEC2:
+    case EDataType::FLOAT_VEC2:
         return GL_FLOAT_VEC2;
-    case DataType::FLOAT_VEC3:
+    case EDataType::FLOAT_VEC3:
         return GL_FLOAT_VEC3;
-    case DataType::FLOAT_VEC4:
+    case EDataType::FLOAT_VEC4:
         return GL_FLOAT_VEC4;
-    case DataType::INSIGNED_BYTE:
+    case EDataType::INSIGNED_BYTE:
         return GL_UNSIGNED_BYTE;
-    case DataType::SHORT:
+    case EDataType::SHORT:
         return GL_SHORT;
     default:
         return 0;
@@ -49,21 +49,21 @@ uint32_t VertexLayout::GetAPIDataType(DataType type) const
 #endif
 }
 
-uint32_t VertexLayout::GetSizeOfDataType(DataType type) const
+uint32_t VertexLayout::GetSizeOfDataType(EDataType type) const
 {
     switch (type)
     {
-    case DataType::FLOAT:
+    case EDataType::FLOAT:
         return sizeof(float);
-    case DataType::FLOAT_VEC2:
+    case EDataType::FLOAT_VEC2:
         return sizeof(float) * 2;
-    case DataType::FLOAT_VEC3:
+    case EDataType::FLOAT_VEC3:
         return sizeof(float) * 3;
-    case DataType::FLOAT_VEC4:
+    case EDataType::FLOAT_VEC4:
         return sizeof(float) * 4;
-    case DataType::INSIGNED_BYTE:
+    case EDataType::INSIGNED_BYTE:
         return sizeof(unsigned char);
-    case DataType::SHORT:
+    case EDataType::SHORT:
         return sizeof(short);
     default:
         return 0;
@@ -72,79 +72,79 @@ uint32_t VertexLayout::GetSizeOfDataType(DataType type) const
 
 void VertexLayout::AddAttribute(VertexAttribute attrib)
 {
-    attrib.offset = stride;
-    stride += GetSizeOfDataType(attrib.components_type) * attrib.components_amount;
-    attribs.push_back(attrib);
+    attrib.Offset = m_Stride;
+    m_Stride += GetSizeOfDataType(attrib.ComponentsType) * attrib.ComponentsAmount;
+    m_Attribs.push_back(attrib);
 }
 
 void VertexLayout::EnableAttribute(uint16_t attrib_index)
 {
-    if (attrib_index < attribs.size())
+    if (attrib_index < m_Attribs.size())
     {
-        attribs[attrib_index].is_enabled = true;
+        m_Attribs[attrib_index].m_IsEnabled = true;
     }
 }
 
 void VertexLayout::DisableAttribute(uint16_t attrib_index)
 {
-    if (attrib_index < attribs.size())
+    if (attrib_index < m_Attribs.size())
     {
-        attribs[attrib_index].is_enabled = false;
+        m_Attribs[attrib_index].m_IsEnabled = false;
     }
 }
 
 
 // Attribute:
-VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled)
-    : index(ind)
-    , components_amount(comp_amount)
-    , components_type(comp_type)
-    , is_enabled(enabled)
-    , offset(0)
+VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t comp_amount, EDataType comp_type, bool enabled)
+    : Index(ind)
+    , ComponentsAmount(comp_amount)
+    , ComponentsType(comp_type)
+    , m_IsEnabled(enabled)
+    , Offset(0)
 {
 }
 
 
 // Iterator:
 VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
-    : _master(master)
-    , _attrib(attrib)
-    , is_done(false)
-    , index(0)
+    : m_Master(master)
+    , m_Attrib(attrib)
+    , m_IsDone(false)
+    , m_Idx(0)
 {
 }
 
 VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
 {
-    if (attribs.size() == 0)
+    if (m_Attribs.size() == 0)
     {
-        _it->is_done = true;
+        m_It->m_IsDone = true;
         return nullptr;
     }
-    _it = new LayoutIterator(this, &attribs[0]);
-    _it->index = 0;
-    return _it;
+    m_It = new LayoutIterator(this, &m_Attribs[0]);
+    m_It->m_Idx = 0;
+    return m_It;
 }
 
 VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 {
-    if (!_it)
+    if (!m_It)
         return nullptr;
-    if (attribs.empty())
+    if (m_Attribs.empty())
     {
-        _it->is_done = true;
+        m_It->m_IsDone = true;
         return nullptr;
     }
 
-    if (_it->index + 1 < attribs.size())
+    if (m_It->m_Idx + 1 < m_Attribs.size())
     {
-        _it->_attrib++;
-        _it->index++;
-        return _it;
+        m_It->m_Attrib++;
+        m_It->m_Idx++;
+        return m_It;
     }
     else
     {
-        _it->is_done = true;
+        m_It->m_IsDone = true;
     }
 
     return nullptr;
@@ -152,13 +152,13 @@ VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
 
 bool VertexLayout::LayoutIterator::IsDone()
 {
-    return is_done;
+    return m_IsDone;
 }
 
 void VertexLayout::ReleaseIterator()
 {
-    delete _it;
-    _it = nullptr;
+    delete m_It;
+    m_It = nullptr;
 }
 
 }  // namespace Fleur::Graphics

@@ -8,26 +8,26 @@ static constexpr float MOUSE_EPSILON = 1e-3f;
 namespace Fleur::Graphics
 {
 
-Camera* Camera::active_camera = nullptr;
+Camera* Camera::s_ActiveCamera = nullptr;
 
 Camera::Camera()
-    : speed(50.1)
-    , position(0.0f)
-    , up(glm::vec3(0.0f, 1.0f, 0.0f))
-    , yaw(0.0f)
-    , pitch(0.0f)
-    , mouse_sensitivity(10.f)
-    , camera_forward(0.0f, 0.0f, -1.0f)
-    , view(glm::mat4(1.0f))
-    , dir(glm::vec3(0.0f, 0.0f, 0.0f))
-    , projection(glm::mat4(1.0f))
-    , FOV(60)
-    , near_clip(0.1f)
-    , far_clip(3000.0f)
+    : m_Speed(50.1)
+    , m_Position(0.0f)
+    , m_Up(glm::vec3(0.0f, 1.0f, 0.0f))
+    , m_Yaw(0.0f)
+    , m_Pitch(0.0f)
+    , m_MouseSensitivity(10.f)
+    , m_CameraForward(0.0f, 0.0f, -1.0f)
+    , m_View(glm::mat4(1.0f))
+    , m_Dir(glm::vec3(0.0f, 0.0f, 0.0f))
+    , m_Projection(glm::mat4(1.0f))
+    , m_FOV(60)
+    , m_NearClip(0.1f)
+    , m_FarClip(3000.0f)
 
 {
-    projection = glm::perspective(glm::radians((float)FOV), 1280.0F / 720.0F, near_clip, far_clip);
-    update_forward();
+    m_Projection = glm::perspective(glm::radians((float)m_FOV), 1280.0F / 720.0F, m_NearClip, m_FarClip);
+    UpdateForward();
 }
 
 Camera::~Camera()
@@ -36,57 +36,57 @@ Camera::~Camera()
 
 void Camera::Activate()
 {
-    active_camera = this;
+    s_ActiveCamera = this;
 }
 
 const mat4* Camera::GetViewPtr() const
 {
-    return &view;
+    return &m_View;
 }
 vec3 Camera::GetDir() const
 {
-    return dir;
+    return m_Dir;
 }
 Camera* Camera::GetActiveCamera()
 {
-    return active_camera;
+    return s_ActiveCamera;
 }
 
 void Camera::OnUpdate(float dlTime)
 {
     if (Input::IsKeyPressed(Key::W))
     {
-        position += speed * camera_forward * dlTime;
+        m_Position += m_Speed * m_CameraForward * dlTime;
     }
     if (Input::IsKeyPressed(Key::S))
     {
-        position -= speed * camera_forward * dlTime;
+        m_Position -= m_Speed * m_CameraForward * dlTime;
     }
     if (Input::IsKeyPressed(Key::A))
     {
-        position -= glm::normalize(glm::cross(camera_forward, up)) * speed * dlTime;
+        m_Position -= glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dlTime;
     }
     if (Input::IsKeyPressed(Key::D))
     {
-        position += glm::normalize(glm::cross(camera_forward, up)) * speed * dlTime;
+        m_Position += glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dlTime;
     }
 
-    std::pair<float, float> mouse_wheel_scroll;
-    if (Input::IsMouseWheelScrolled(mouse_wheel_scroll))
+    std::pair<float, float> mouseWheelScroll;
+    if (Input::IsMouseWheelScrolled(mouseWheelScroll))
     {
-        if (mouse_wheel_scroll.first != 0.f)
+        if (mouseWheelScroll.first != 0.f)
         {
-            if (mouse_wheel_scroll.first > 0.f)
-                speed += MOUSE_WHEEL_SCROLL_SPEED;
+            if (mouseWheelScroll.first > 0.f)
+                m_Speed += MOUSE_WHEEL_SCROLL_SPEED;
             else
-                speed -= MOUSE_WHEEL_SCROLL_SPEED;
-            speed = std::clamp(speed, 1.f, 300.f);
+                m_Speed -= MOUSE_WHEEL_SCROLL_SPEED;
+            m_Speed = std::clamp(m_Speed, 1.f, 300.f);
         }
     }
 
     RotateCamera(dlTime);
 
-    view = glm::lookAt(position, position + camera_forward, up);
+    m_View = glm::lookAt(m_Position, m_Position + m_CameraForward, m_Up);
 }
 
 void Camera::OnPostUpdate(float dlTime)
@@ -101,33 +101,33 @@ void Camera::OnFixedUpdate()
 
 float Camera::FarClip() const
 {
-    return far_clip;
+    return m_FarClip;
 }
 
 float Camera::NearClip() const
 {
-    return near_clip;
+    return m_NearClip;
 }
 
-void Camera::update_forward()
+void Camera::UpdateForward()
 {
     glm::vec3 direction;
-    direction.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-    direction.y = sin(glm::radians(pitch));
-    direction.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-    camera_forward = glm::normalize(direction);
+    direction.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+    direction.y = sin(glm::radians(m_Pitch));
+    direction.z = sin(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
+    m_CameraForward = glm::normalize(direction);
 }
 
 void Camera::RotateCamera(float dtTime)
 {
-    glm::vec2 mouse_dir = Input::GetMouseDir();
-    if (fabs(mouse_dir.x) > MOUSE_EPSILON || fabs(mouse_dir.y) > MOUSE_EPSILON)
+    glm::vec2 mouseDir = Input::GetMouseDir();
+    if (fabs(mouseDir.x) > MOUSE_EPSILON || fabs(mouseDir.y) > MOUSE_EPSILON)
     {
-        yaw += mouse_dir.x * mouse_sensitivity * dtTime;
-        pitch += mouse_dir.y * -1.0f * mouse_sensitivity * dtTime;
-        glm::fclamp(pitch, -89.0f, 89.0f);
+        m_Yaw += mouseDir.x * m_MouseSensitivity * dtTime;
+        m_Pitch += mouseDir.y * -1.0f * m_MouseSensitivity * dtTime;
+        glm::fclamp(m_Pitch, -89.0f, 89.0f);
 
-        update_forward();
+        UpdateForward();
     }
 }  // namespace Fleur::Graphics
 

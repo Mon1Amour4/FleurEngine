@@ -24,9 +24,9 @@ public:
 
     protected:
     Shader(std::string_view name)
-        : name(name)
+        : m_Name(name)
     {
     }
-        std::string name;
+        std::string m_Name;
 };
 }  // namespace Fleur::Graphics

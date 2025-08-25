@@ -16,8 +16,8 @@ public:
     virtual uint32_t NativeType() const override;
 
 private:
-    uint32_t buffer_object_id;
-    uint32_t buffer_native_type;
+    uint32_t m_Id;
+    uint32_t m_BufferNativeType;
 
 protected:
     friend class DeviceOpenGL;

@@ -7,46 +7,46 @@
 #include "fstream"
 
 Fleur::Graphics::Model::Model(std::string_view model_name, cgltf_data* data)
-    : name(model_name)
-    , mesh_count(data->meshes_count)
-    , model_vertex_count(0)
-    , model_indices_count(0)
+    : m_Name(model_name)
+    , m_MeshCount(data->meshes_count)
+    , m_ModelVertexCount(0)
+    , m_ModelIndicesCount(0)
 {
     process_model(data, false);
 }
 
 Fleur::Graphics::Model::Model(std::string_view model_name)
-    : name(model_name)
-    , mesh_count(0)
-    , model_vertex_count(0)
-    , model_indices_count(0)
+    : m_Name(model_name)
+    , m_MeshCount(0)
+    , m_ModelVertexCount(0)
+    , m_ModelIndicesCount(0)
 {
 }
 
 Fleur::Graphics::Model::Model(Model&& other) noexcept
-    : name(std::move(other.name))
-    , mesh_count(other.mesh_count)
-    , model_vertex_count(other.model_vertex_count)
-    , meshes(std::move(other.meshes))
-    , model_indices_count(other.model_indices_count)
+    : m_Name(std::move(other.m_Name))
+    , m_MeshCount(other.m_MeshCount)
+    , m_ModelVertexCount(other.m_ModelVertexCount)
+    , m_Meshes(std::move(other.m_Meshes))
+    , m_ModelIndicesCount(other.m_ModelIndicesCount)
 {
-    other.mesh_count = 0;
-    other.model_vertex_count = 0;
+    other.m_MeshCount = 0;
+    other.m_ModelVertexCount = 0;
 }
 
 Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcept
 {
     if (this != &other)
     {
-        name = std::move(other.name);
-        mesh_count = other.mesh_count;
-        model_vertex_count = other.model_vertex_count;
-        meshes = std::move(other.meshes);
-        model_indices_count = other.model_indices_count;
+        m_Name = std::move(other.m_Name);
+        m_MeshCount = other.m_MeshCount;
+        m_ModelVertexCount = other.m_ModelVertexCount;
+        m_Meshes = std::move(other.m_Meshes);
+        m_ModelIndicesCount = other.m_ModelIndicesCount;
 
-        other.mesh_count = 0;
-        other.model_vertex_count = 0;
-        other.model_indices_count = 0;
+        other.m_MeshCount = 0;
+        other.m_ModelVertexCount = 0;
+        other.m_ModelIndicesCount = 0;
     }
     return *this;
 }
@@ -80,24 +80,24 @@ void Fleur::Graphics::Model::PostLoad(cgltf_data* data)
 
 const Fleur::Graphics::Material* Fleur::Graphics::Model::GetMaterial(uint32_t idx) const
 {
-    if (idx >= materials.size())
+    if (idx >= m_Materials.size())
         return nullptr;
 
-    return &materials[idx];
+    return &m_Materials[idx];
 }
 
 void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
 {
-    mesh_count = data->meshes_count;
+    m_MeshCount = data->meshes_count;
 
     auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
     auto assets_manager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
-    meshes.reserve(mesh_count);
-    materials.reserve(data->materials_count);
+    m_Meshes.reserve(m_MeshCount);
+    m_Materials.reserve(data->materials_count);
 
     int texture_index = MAXINT;
     std::map<uint32_t, const Texture*> loaded_textures;
-    for (size_t i = 0; i < materials.capacity(); i++)
+    for (size_t i = 0; i < m_Materials.capacity(); i++)
     {
         uint32_t solid_texture_idx = 0;
         std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Image2D>> image{nullptr};
@@ -151,7 +151,7 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
                 if (current_material->name)
                     material_name = current_material->name;
                 else
-                    material_name = name + "Solid_texture" + std::to_string(solid_texture_idx);
+                    material_name = m_Name + "Solid_texture" + std::to_string(solid_texture_idx);
 
                 if (channels == 4)
                     texture = renderer->CreateGraphicsResource<Texture>(material_name, Color(*color, *(color + 1), *(color + 2), *(color + 3)), 128, 128);
@@ -169,12 +169,12 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
             ShaderComponentContext ctx{};
             ctx.albedo_text.second = texture.get();
             auto material = Material::CreateMaterial(ctx);
-            materials.push_back(std::move(*material));
+            m_Materials.push_back(std::move(*material));
             loaded_textures.emplace(texture_index, texture.get());
         }
     }
 
-    for (size_t i = 0; i < mesh_count; i++)
+    for (size_t i = 0; i < m_MeshCount; i++)
     {
         auto mesh = (data->meshes + i);
         for (size_t j = 0; j < mesh->primitives_count; j++)
@@ -184,14 +184,14 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
             {
                 auto attrib = primitive.attributes[k];
                 if (attrib.type == cgltf_attribute_type_position)
-                    model_vertex_count += attrib.data->count;
+                    m_ModelVertexCount += attrib.data->count;
             }
-            model_indices_count += primitive.indices->count;
+            m_ModelIndicesCount += primitive.indices->count;
         }
-        Mesh* emplaced_mesh = &meshes.emplace_back(mesh, data->materials, vertices, indices);
+        Mesh* emplaced_mesh = &m_Meshes.emplace_back(mesh, data->materials, m_Vertices, m_Indices);
     }
-    vertices.reserve(model_vertex_count);
-    indices.reserve(model_indices_count);
+    m_Vertices.reserve(m_ModelVertexCount);
+    m_Indices.reserve(m_ModelIndicesCount);
 }
 
 Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, uint32_t material, std::vector<Fleur::Graphics::VertexData>& vertices,

@@ -104,9 +104,9 @@ void ShaderObjectOpenGL::BindMaterial(const Material* material)
     this->material = material;
     const ShaderComponentContext& ctx = this->material->GetShaderContext();
     if (ctx.albedo_text.second)
-        set_text2d_impl(ctx.albedo_text.first, *ctx.albedo_text.second);
+        SetText2dImpl(ctx.albedo_text.first, *ctx.albedo_text.second);
     if (ctx.skybox_cubemap_text.second)
-        set_text2d_impl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
+        SetText2dImpl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -128,7 +128,7 @@ bool ShaderObjectOpenGL::AddVar(std::string_view uniform_name, uint32_t id)
     return true;
 }
 
-bool ShaderObjectOpenGL::set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec)
+bool ShaderObjectOpenGL::SetVec3fImpl(std::string_view uniform_name, const glm::vec3& vec)
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)
@@ -138,7 +138,7 @@ bool ShaderObjectOpenGL::set_vec3f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix)
+bool ShaderObjectOpenGL::SetMat4fImpl(std::string_view uniform_name, const glm::mat4& matrix)
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)
@@ -148,7 +148,7 @@ bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture& texture)
+bool ShaderObjectOpenGL::SetText2dImpl(std::string_view uniform_name, const Texture& texture)
 {
     GLint location = find_uniform_location(uniform_name);
     if (location == -1)

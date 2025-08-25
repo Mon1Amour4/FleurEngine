@@ -39,8 +39,8 @@ private:
     uint32_t find_uniform_location(std::string_view uniform_name) const;
 
 protected:
-    virtual bool set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec) override;
-    virtual bool set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix) override;
-    virtual bool set_text2d_impl(std::string_view uniform_name, const Texture& texture) override;
+    virtual bool SetVec3fImpl(std::string_view uniform_name, const glm::vec3& vec) override;
+    virtual bool SetMat4fImpl(std::string_view uniform_name, const glm::mat4& matrix) override;
+    virtual bool SetText2dImpl(std::string_view uniform_name, const Texture& texture) override;
 };
 }  // namespace Fleur::Graphics

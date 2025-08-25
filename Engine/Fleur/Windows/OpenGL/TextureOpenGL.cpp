@@ -21,10 +21,10 @@ Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
         create_cubemap(width, buffer);
 
     // Set texture name for debug output instead of common material uniform name
-    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->m_Name.c_str());
 
     if (buffer)
-        is_created = true;
+        m_IsCreated = true;
 }
 
 Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fleur::Graphics::CubemapInitData& images, TextureFormat format,
@@ -34,9 +34,9 @@ Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
     , texture_id(0)
 {
     create_cubemap_from_images(images);
-    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->m_Name.c_str());
 
-    is_created = true;
+    m_IsCreated = true;
 }
 
 Fleur::Graphics::TextureOpenGL::~TextureOpenGL()
@@ -51,19 +51,19 @@ void Fleur::Graphics::TextureOpenGL::PostCreate(ImagePostCreation& settings)
 
     FL_CORE_ASSERT(settings.data, "[TextureOpenGL->PostCreate] invalid post create settings");
 
-    if (layers == 1)
+    if (m_Layers == 1)
         create_texture_2d(reinterpret_cast<const unsigned char*>(settings.data));
-    else if (layers == 6)
-        create_cubemap(width, reinterpret_cast<const unsigned char*>(settings.data));
+    else if (m_Layers == 6)
+        create_cubemap(m_Width, reinterpret_cast<const unsigned char*>(settings.data));
 
     glGenerateTextureMipmap(texture_id);
 
     set_texture_parameters();
 
     // Set texture name for debug output instead of common material uniform name
-    glObjectLabel(GL_TEXTURE, texture_id, -1, this->name.c_str());
+    glObjectLabel(GL_TEXTURE, texture_id, -1, this->m_Name.c_str());
 
-    is_created = true;
+    m_IsCreated = true;
 }
 
 void Fleur::Graphics::TextureOpenGL::set_texture_parameters() const
@@ -202,16 +202,16 @@ uint32_t Fleur::Graphics::TextureOpenGL::get_pixel_format(TextureFormat format, 
 
 void Fleur::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buffer)
 {
-    FL_CORE_ASSERT(layers == 1, "");
+    FL_CORE_ASSERT(m_Layers == 1, "");
 
     glCreateTextures(GL_TEXTURE_2D, 1, &texture_id);
     FL_CORE_ASSERT(texture_id != 0, "Failed to create 2D texture");
 
-    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
-    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
+    uint32_t mipmap_levels = calculate_mipmap_level(m_Width, m_Height);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(m_Format), m_Width, m_Height);
 
     if(buffer)
-        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+        glTextureSubImage2D(texture_id, 0, 0, 0, m_Width, m_Height, get_pixel_format(m_Format), GL_UNSIGNED_BYTE, buffer);
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -222,7 +222,7 @@ void Fleur::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
 
 void Fleur::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const unsigned char* buffer)
 {
-    FL_CORE_ASSERT(layers == 6, "");
+    FL_CORE_ASSERT(m_Layers == 6, "");
     const Fleur::Graphics::Image2D* images = reinterpret_cast<const Fleur::Graphics::Image2D*>(buffer);
     FL_CORE_ASSERT(images, "");
 
@@ -231,7 +231,7 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const un
 
 
     uint32_t mipmap_levels = calculate_mipmap_level(face_size, face_size);
-    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), face_size, face_size);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(m_Format), face_size, face_size);
 
 
     for (uint32_t face = 0; face < 6; ++face)
@@ -244,10 +244,10 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const un
                             0,                         // xoffset
                             0,                         // yoffset
                             face,                      // zoffset = face index
-                            width,                     // width
-                            height,                    // height
+                            m_Width,                     // width
+                            m_Height,                    // height
                             1,                         // depth = 1
-                            get_pixel_format(format),  // format
+                            get_pixel_format(m_Format),  // format
                             GL_UNSIGNED_BYTE,
                             reinterpret_cast<const void*>(img->Data())  // pointer to data
         );
@@ -266,8 +266,8 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap_from_images(const Fleur::Gra
     glCreateTextures(GL_TEXTURE_CUBE_MAP, 1, &texture_id);
     FL_CORE_ASSERT(texture_id != 0, "Failed to create cubemap texture");
 
-    uint32_t mipmap_levels = calculate_mipmap_level(width, height);
-    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
+    uint32_t mipmap_levels = calculate_mipmap_level(m_Width, m_Height);
+    glTextureStorage2D(texture_id, mipmap_levels, get_color_format(m_Format), m_Width, m_Height);
 
     const std::shared_ptr<Fleur::Graphics::Image2D> faces[6] = {images.right, images.left, images.top, images.bottom, images.back, images.front};
 
@@ -281,10 +281,10 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap_from_images(const Fleur::Gra
                             0,                         // xoffset
                             0,                         // yoffset
                             face,                      // zoffset = face index
-                            width,                     // width
-                            height,                    // height
+                            m_Width,                     // width
+                            m_Height,                    // height
                             1,                         // depth = 1
-                            get_pixel_format(format),  // format
+                            get_pixel_format(m_Format),  // format
                             GL_UNSIGNED_BYTE,
                             reinterpret_cast<const void*>(img->Data())  // pointer to data
         );

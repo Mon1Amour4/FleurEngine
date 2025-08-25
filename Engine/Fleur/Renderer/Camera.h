@@ -22,19 +22,19 @@ public:
 
     inline mat4 GetView() const
     {
-        return view;
+        return m_View;
     }
     float Yaw() const
     {
-        return yaw;
+        return m_Yaw;
     }
     float Pitch() const
     {
-        return pitch;
+        return m_Pitch;
     }
     inline mat4 GetProjection() const
     {
-        return projection;
+        return m_Projection;
     }
 
     const mat4* GetViewPtr() const;
@@ -51,22 +51,22 @@ public:
     float NearClip() const;
 
 private:
-    float speed;
-    void update_forward();
+    float m_Speed;
+    void UpdateForward();
     void RotateCamera(float dtTime);
-    static Camera* active_camera;
-    vec3 position;
-    mat4 view;
-    mat4 projection;
-    vec3 dir;
-    vec3 camera_forward;
-    vec3 up;
-    uint16_t FOV;
-    float near_clip;
-    float far_clip;
+    static Camera* s_ActiveCamera;
+    vec3 m_Position;
+    mat4 m_View;
+    mat4 m_Projection;
+    vec3 m_Dir;
+    vec3 m_CameraForward;
+    vec3 m_Up;
+    uint16_t m_FOV;
+    float m_NearClip;
+    float m_FarClip;
 
-    float yaw;
-    float pitch;
-    float mouse_sensitivity;
+    float m_Yaw;
+    float m_Pitch;
+    float m_MouseSensitivity;
 };
 }  // namespace Fleur::Graphics

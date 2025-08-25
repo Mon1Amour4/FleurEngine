@@ -18,7 +18,7 @@ enum class FramebufferRWOperation;
 
 enum RenderStage;
 
-enum class DepthTestOperation
+enum class EDepthTestOperation
 {
     NEVER,
     LESS,
@@ -33,7 +33,7 @@ enum class DepthTestOperation
 struct DepthStencilDescriptor
 {
     bool death_test;
-    DepthTestOperation operation;
+    EDepthTestOperation operation;
 };
 
 class CommandBuffer
@@ -69,7 +69,7 @@ public:
 
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
-    virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
+    virtual void IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex) = 0;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
     virtual void PopDebugGroup() = 0;
@@ -77,23 +77,23 @@ public:
 
     virtual Fleur::Graphics::ShaderObject* ShaderObject() const
     {
-        return shader_object.get();
+        return m_ShaderObject.get();
     }
 
 protected:
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t size_bytes) = 0;
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) = 0;
 
     CommandBuffer(DepthStencilDescriptor desc)
-        : push_debug_group_commands(0)
-        , descriptor(desc) {};
+        : m_PushDebugGroupCommands(0)
+        , m_Descriptor(desc) {};
 
-    uint16_t push_debug_group_commands;
+    uint16_t m_PushDebugGroupCommands;
 
-    std::shared_ptr<Fleur::Graphics::ShaderObject> shader_object;
-    std::unique_ptr<Fleur::Graphics::Buffer> vertex_global_buffer;
-    std::unique_ptr<Fleur::Graphics::Buffer> index_global_buffer;
+    std::shared_ptr<Fleur::Graphics::ShaderObject> m_ShaderObject;
+    std::unique_ptr<Fleur::Graphics::Buffer> m_VertexGlobalBuffer;
+    std::unique_ptr<Fleur::Graphics::Buffer> m_IndexGlobalBuffer;
 
-    DepthStencilDescriptor descriptor;
+    DepthStencilDescriptor m_Descriptor;
 };
 
 }  // namespace Fleur::Graphics

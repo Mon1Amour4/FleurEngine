@@ -26,25 +26,25 @@ public:
     Material(ShaderComponentContext& ctx)
     {
         if (ctx.albedo_text.second)
-            context.albedo_text = std::move(ctx.albedo_text);
+            m_Context.albedo_text = std::move(ctx.albedo_text);
         if (ctx.skybox_cubemap_text.second)
-            context.skybox_cubemap_text = std::move(ctx.skybox_cubemap_text);
+            m_Context.skybox_cubemap_text = std::move(ctx.skybox_cubemap_text);
     }
     virtual ~Material() = default;
 
     inline std::string_view Name() const
     {
-        return name;
+        return m_Name;
     }
 
     const ShaderComponentContext& GetShaderContext() const
     {
-        return context;
+        return m_Context;
     }
 
 private:
-    std::string name;
-    ShaderComponentContext context;
+    std::string m_Name;
+    ShaderComponentContext m_Context;
 };
 
 }  // namespace Fleur::Graphics

@@ -6,40 +6,40 @@
 namespace Fleur::Graphics
 {
 
-BufferOpenGL::BufferOpenGL(EBufferType type, RenderStage stage, size_t size_bytes)
-    : Buffer(type, size_bytes)
-    , buffer_object_id(UINT32_MAX)
+BufferOpenGL::BufferOpenGL(EBufferType type, RenderStage stage, size_t sizeBytes)
+    : Buffer(m_Type, sizeBytes)
+    , m_Id(UINT32_MAX)
 {
-    FL_CORE_ASSERT(size_bytes > 0, "Buffer can't be 0 sized");
+    FL_CORE_ASSERT(sizeBytes > 0, "Buffer can't be 0 sized");
 
-    glCreateBuffers(1, &buffer_object_id);
-    glNamedBufferData(buffer_object_id, size_bytes, nullptr, native_usage(stage));
+    glCreateBuffers(1, &m_Id);
+    glNamedBufferData(m_Id, sizeBytes, nullptr, native_usage(stage));
 }
 
 BufferOpenGL::~BufferOpenGL()
 {
-    glDeleteBuffers(1, &buffer_object_id);
+    glDeleteBuffers(1, &m_Id);
 }
 
-uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t size_bytes)
+uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
 {
-    FL_CORE_ASSERT(last_buffered_idx_to_byte + size_bytes <= end_idx, "Buffer overflow");
+    FL_CORE_ASSERT(m_UsedBytesIdx + sizeBytes <= m_EndIdx, "Buffer overflow");
 
-    uint32_t offset_before_write = last_buffered_idx_to_byte;
+    uint32_t offset_before_write = m_UsedBytesIdx;
 
-    glNamedBufferSubData(buffer_object_id, last_buffered_idx_to_byte, size_bytes, data);
-    last_buffered_idx_to_byte += size_bytes;
+    glNamedBufferSubData(m_Id, m_UsedBytesIdx, sizeBytes, data);
+    m_UsedBytesIdx += sizeBytes;
     return offset_before_write;
 }
 
 uint32_t BufferOpenGL::NativeType() const
 {
-    return buffer_native_type;
+    return m_BufferNativeType;
 }
 
 uint32_t BufferOpenGL::GetBufferID() const
 {
-    return buffer_object_id;
+    return m_Id;
 }
 
 int BufferOpenGL::native_usage(RenderStage& stage) const

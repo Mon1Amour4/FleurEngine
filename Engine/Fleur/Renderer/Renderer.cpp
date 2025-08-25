@@ -10,23 +10,23 @@ uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
 Renderer::Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> tool)
     : show_wireframe(false)
-    , _camera(nullptr)
-    , current_shader_obj(nullptr)
-    , is_vsync(true)
-    , renderer(api)
-    , toolchain(std::move(tool))
+    , m_Camera(nullptr)
+    , m_CurrentShaderObj(nullptr)
+    , m_IsVsync(true)
+    , m_Renderer(api)
+    , m_Toolchain(std::move(tool))
 {
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::load_texture(std::string_view path)
+std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_view path)
 {
     if (path.empty())
         return GetLoadedTexture("fallback");
 
     // Try to find first across loaded textures:
     std::string name = std::filesystem::path(path.data()).stem().string();
-    auto it = textures.find(name);
-    if (it != textures.end())
+    auto it = m_Textures.find(name);
+    if (it != m_Textures.end())
         return it->second;
 
     // If not, load Image and then create new texture:
@@ -44,18 +44,18 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::load_texture(std::string_vie
         }
     }
 
-    auto texture = toolchain->LoadTexture(image, _device.get());
-    return textures.emplace(image->Name(), texture).first->second;
+    auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
+    return m_Textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::load_texture(std::string_view name, Color color, int width, int height)
+std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_view name, Color color, int width, int height)
 {
     if (name.empty())
         return GetLoadedTexture("fallback");
 
     // Try to find first across loaded textures:
-    auto it = textures.find(name.data());
-    if (it != textures.end())
+    auto it = m_Textures.find(name.data());
+    if (it != m_Textures.end())
         return it->second;
 
     // Create image
@@ -67,96 +67,96 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::load_texture(std::string_vie
     else
         image = assets_manager->LoadImage2DFromColor(name, color, width, height)->Resource();
 
-    auto texture = toolchain->LoadTexture(image, _device.get());
-    return textures.emplace(image->Name(), texture).first->second;
+    auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
+    return m_Textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::load_texture(std::shared_ptr<Fleur::Graphics::Image2D> img)
+std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img)
 {
     if (!img)
         return GetLoadedTexture("fallback");
 
     std::string name = std::filesystem::path(img->Name()).stem().string();
-    auto it = textures.find(name);
-    if (it != textures.end())
+    auto it = m_Textures.find(name);
+    if (it != m_Textures.end())
         return it->second;
 
-    auto texture = toolchain->LoadTexture(img, _device.get());
-    return textures.emplace(img->Name(), texture).first->second;
+    auto texture = m_Toolchain->LoadTexture(img, m_Device.get());
+    return m_Textures.emplace(img->Name(), texture).first->second;
 }
 
 void Renderer::OnInit()
 {
-    _camera.reset(new Camera());
-    _camera->Activate();
+    m_Camera.reset(new Camera());
+    m_Camera->Activate();
 
-    _device = Device::CreateDevice();
-    _device->SetVSync(is_vsync);
+    m_Device = Device::CreateDevice();
+    m_Device->SetVSync(m_IsVsync);
 
-    _commandQueue = _device->CreateCommandQueue();
+    m_CommandQueue = m_Device->CreateCommandQueue();
 
     auto& application = Fleur::Application::instance();
 
-    _swapchain = _device->CreateSwapchain(_device->CreateSurface(application.GetWindow().GetNativeHandle()));
+    m_Swapchain = m_Device->CreateSwapchain(m_Device->CreateSurface(application.GetWindow().GetNativeHandle()));
 
-    _commandPool = _device->CreateCommandPool(*_commandQueue);
+    m_CommandPool = m_Device->CreateCommandPool(*m_CommandQueue);
 
-    auto static_geo_vs = _device->CreateShader("static_geo", Shader::ShaderType::Vertex);
+    auto static_geo_vs = m_Device->CreateShader("static_geo", Shader::ShaderType::Vertex);
     std::shared_ptr<ShaderObject> static_geometry_shader(
-        ShaderObject::CreateShaderObject("static_geometry_shader", static_geo_vs, _device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
+        ShaderObject::CreateShaderObject("static_geometry_shader", static_geo_vs, m_Device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
     // Static geometry
-    DepthStencilDescriptor desc{true, DepthTestOperation::LESS};
-    static_geometry_cmd = _device->CreateCommandBuffer(desc);
-    static_geometry_cmd->BindShaderObject(static_geometry_shader);
+    DepthStencilDescriptor desc{true, EDepthTestOperation::LESS};
+    m_StaticGeometryCmd = m_Device->CreateCommandBuffer(desc);
+    m_StaticGeometryCmd->BindShaderObject(static_geometry_shader);
 
     VertexLayout layout{};
-    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    static_geometry_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
-    static_geometry_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
+    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
+    m_StaticGeometryCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
+    m_StaticGeometryCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 
     // Skybox
-    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject("skybox_shader", _device->CreateShader("skybox", Shader::ShaderType::Vertex),
-                                                                                 _device->CreateShader("skybox", Shader::ShaderType::Pixel)));
-    DepthStencilDescriptor desc2{false, DepthTestOperation::LESS_OR_EQUAL};
-    skybox_cmd = _device->CreateCommandBuffer(desc2);
-    skybox_cmd->BindShaderObject(skybox_shader);
+    std::shared_ptr<ShaderObject> skybox_shader(ShaderObject::CreateShaderObject("skybox_shader", m_Device->CreateShader("skybox", Shader::ShaderType::Vertex),
+                                                                                 m_Device->CreateShader("skybox", Shader::ShaderType::Pixel)));
+    DepthStencilDescriptor desc2{false, EDepthTestOperation::LESS_OR_EQUAL};
+    m_SkyboxCmd = m_Device->CreateCommandBuffer(desc2);
+    m_SkyboxCmd->BindShaderObject(skybox_shader);
 
     VertexLayout skybox_layout{};
-    skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    skybox_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
+    skybox_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    m_SkyboxCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skybox_layout);
 
     // gizmo
-    std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", _device->CreateShader("static_geo", Shader::ShaderType::Vertex),
-                                                                                _device->CreateShader("gizmo", Shader::ShaderType::Pixel)));
-    DepthStencilDescriptor desc3{false, DepthTestOperation::ALWAYS};
-    gizmo_cmd = _device->CreateCommandBuffer(desc3);
-    gizmo_cmd->BindShaderObject(gizmo_shader);
+    std::shared_ptr<ShaderObject> gizmo_shader(ShaderObject::CreateShaderObject("gizmo_shader", m_Device->CreateShader("static_geo", Shader::ShaderType::Vertex),
+                                                                                m_Device->CreateShader("gizmo", Shader::ShaderType::Pixel)));
+    DepthStencilDescriptor desc3{false, EDepthTestOperation::ALWAYS};
+    m_GizmoCmd = m_Device->CreateCommandBuffer(desc3);
+    m_GizmoCmd->BindShaderObject(gizmo_shader);
 
     VertexLayout gizmo_layout{};
-    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::DataType::FLOAT, true));
-    gizmo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
-    gizmo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    gizmo_layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
+    m_GizmoCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmo_layout);
+    m_GizmoCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
-    gizmo_fbo = _device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
+    m_GizmoFBO = m_Device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
                                            (uint32_t)FramebufferSettings::COLOR | (uint32_t)FramebufferSettings::DEPTH_STENCIL);
 
 
     std::shared_ptr<ShaderObject> copy_fbo_shader(
-        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", static_geo_vs, _device->CreateShader("CopyFBOAsQuad", Shader::ShaderType::Pixel)));
+        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", static_geo_vs, m_Device->CreateShader("CopyFBOAsQuad", Shader::ShaderType::Pixel)));
 
-    DepthStencilDescriptor desc4{true, DepthTestOperation::LESS};
-    copy_fbo_cmd = _device->CreateCommandBuffer(desc4);
-    copy_fbo_cmd->BindShaderObject(copy_fbo_shader);
+    DepthStencilDescriptor desc4{true, EDepthTestOperation::LESS};
+    m_CopyFBOCmd = m_Device->CreateCommandBuffer(desc4);
+    m_CopyFBOCmd->BindShaderObject(copy_fbo_shader);
 
     VertexLayout copy_fbo_layout{};
-    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::DataType::FLOAT, true));
-    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::DataType::FLOAT, true));
-    copy_fbo_cmd->BindVertexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
-    copy_fbo_cmd->BindIndexBuffer(_device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    copy_fbo_layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    m_CopyFBOCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copy_fbo_layout);
+    m_CopyFBOCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
     // clang-format off
     static float quadVertices[] = {
@@ -168,27 +168,27 @@ void Renderer::OnInit()
      1.0f,  -1.0f, 0.0f,   1.0f, 1.0f
 };
     // clang-format on
-    copy_fbo_cmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
+    m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
 }
 
 void Renderer::OnShutdown()
 {
-    _device->Release();
-    _swapchain->Release();
+    m_Device->Release();
+    m_Swapchain->Release();
 }
 
 std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
 {
     if (path.empty())
-        return textures.find("fallback")->second;
+        return m_Textures.find("fallback")->second;
 
     std::string name = std::filesystem::path(path.data()).stem().string();
 
-    auto it = textures.find(name.data());
-    if (it != textures.end())
+    auto it = m_Textures.find(name.data());
+    if (it != m_Textures.end())
         return it->second;
     else
-        return textures.find("fallback")->second;
+        return m_Textures.find("fallback")->second;
 }
 
 void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos)
@@ -197,43 +197,43 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
     {
     case STATIC_GEOMETRY:
     {
-        auto it = static_geometry_models.find(model->GetName().data());
-        if (it != static_geometry_models.end())
+        auto it = m_StaticGeometryModels.find(model->GetName().data());
+        if (it != m_StaticGeometryModels.end())
         {
-            it->second.model_matrix = model_pos;
+            it->second.ModelMatrix = model_pos;
             return;
         }
 
         DrawInfo draw{model, model_pos};
 
-        draw.vertex_global_offset_bytes =
-            static_geometry_cmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+        draw.VertexGlobalOffsetBytes =
+            m_StaticGeometryCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
 
-        draw.index_global_offset_bytes =
-            static_geometry_cmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+        draw.IndexGlobalOffsetBytes =
+            m_StaticGeometryCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
 
-        static_geometry_models.emplace(model->GetName().data(), draw);
-        static_geometry_models_vector.emplace_back(draw);
+        m_StaticGeometryModels.emplace(model->GetName().data(), draw);
+        m_StaticGeometryModelsVector.emplace_back(draw);
         break;
     }
     case GIZMO:
     {
-        auto it = gizmo_models.find(model->GetName().data());
-        if (it != gizmo_models.end())
+        auto it = m_GizmoModels.find(model->GetName().data());
+        if (it != m_GizmoModels.end())
         {
-            it->second.model_matrix = model_pos;
+            it->second.ModelMatrix = model_pos;
             return;
         }
 
         DrawInfo draw{model, model_pos};
 
-        draw.vertex_global_offset_bytes =
-            gizmo_cmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+        draw.VertexGlobalOffsetBytes =
+            m_GizmoCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
 
-        draw.index_global_offset_bytes = gizmo_cmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+        draw.IndexGlobalOffsetBytes = m_GizmoCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
 
-        gizmo_models.emplace(model->GetName().data(), draw);
-        gizmo_models_vector.emplace_back(draw);
+        m_GizmoModels.emplace(model->GetName().data(), draw);
+        m_GizmoModelsVector.emplace_back(draw);
         break;
     }
     case DYNAMIC_DRAW:
@@ -243,24 +243,24 @@ void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_
 
 void Renderer::Clear()
 {
-    _swapchain->ClearBackbuffer();
-    gizmo_fbo->Clear();
+    m_Swapchain->ClearBackbuffer();
+    m_GizmoFBO->Clear();
 }
 
 void Renderer::Present()
 {
-    _swapchain->Present();
+    m_Swapchain->Present();
 }
 
 void Renderer::ShowWireFrame()
 {
     if (show_wireframe)
     {
-        _swapchain->ShowWireFrame(true);
+        m_Swapchain->ShowWireFrame(true);
     }
     else
     {
-        _swapchain->ShowWireFrame(false);
+        m_Swapchain->ShowWireFrame(false);
     }
 }
 
@@ -271,23 +271,23 @@ void Renderer::ToggleWireFrame()
 
 void Renderer::ValidateWindow()
 {
-    _swapchain->ValidateWindow();
+    m_Swapchain->ValidateWindow();
 }
 
 void Renderer::SetVSync(bool active)
 {
-    is_vsync = active;
-    _device->SetVSync(is_vsync);
+    m_IsVsync = active;
+    m_Device->SetVSync(m_IsVsync);
 }
 
 bool Renderer::IsVSync()
 {
-    return is_vsync;
+    return m_IsVsync;
 }
 
 void Renderer::OnUpdate(float dlTime)
 {
-    toolchain->Update();
+    m_Toolchain->Update();
     static bool is_skybox_created = false;
 
     auto assets_manager = ServiceLocator::instance().GetService<AssetsManager>();
@@ -297,7 +297,7 @@ void Renderer::OnUpdate(float dlTime)
         auto cubemap = assets_manager->Get<CubemapImage>("skybox_cross_layout_cubemap");
         if (!cubemap.expired() && !is_skybox_created)
         {
-            auto cube_map_texture = _device->CreateCubemap(cubemap.lock().get());
+            auto cube_map_texture = m_Device->CreateCubemap(cubemap.lock().get());
 
             float skyboxVertices[] = {
                 -1.0f, 1.0f,  -1.0f,  // 0
@@ -338,28 +338,28 @@ void Renderer::OnUpdate(float dlTime)
                 1.0f,  -1.0f, 1.0f    // 35
             };
 
-            _skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
-            skybox_cmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(_skybox->Data(), _skybox->GetVertexCount()));
+            m_Skybox.reset(new Skybox(cube_map_texture, std::span{skyboxVertices}));
+            m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->Data(), m_Skybox->GetVertexCount()));
             is_skybox_created = true;
         }
     }
 
     // Skybox pass
-    skybox_pass();
+    SkyboxPass();
 
     // Main Pass
-    static_geometry_pass();
+    StaticGeometryPass();
 
     // gizmo
-    gizmo_cmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    gizmo_cmd->BindRenderTarget(*gizmo_fbo.get(), FramebufferRWOperation::WRITE_ONLY);
-    gizmo_cmd->BeginRecording();
+    m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
+    m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), FramebufferRWOperation::WRITE_ONLY);
+    m_GizmoCmd->BeginRecording();
 
-    gizmo_cmd->ShaderObject()->Use();
+    m_GizmoCmd->ShaderObject()->Use();
 
-    for (const auto& draw_info : gizmo_models_vector)
+    for (const auto& draw_info : m_GizmoModelsVector)
     {
-        gizmo_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
+        m_GizmoCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
 
         glm::mat4 proj = glm::mat4(1.0f);
 
@@ -367,58 +367,58 @@ void Renderer::OnUpdate(float dlTime)
 
         glm::mat4 model = glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f)), glm::vec3(0.05f, 0.05f, 0.05f));
 
-        model = glm::rotate(model, glm::radians(_camera->Yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
-        model = glm::rotate(model, glm::radians(_camera->Pitch()), glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(m_Camera->Yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, glm::radians(m_Camera->Pitch()), glm::vec3(1.0f, 0.0f, 0.0f));
 
-        gizmo_cmd->ShaderObject()->Set("projection", proj);
-        gizmo_cmd->ShaderObject()->Set("model", model);
-        gizmo_cmd->ShaderObject()->Set("view", view);
+        m_GizmoCmd->ShaderObject()->Set("projection", proj);
+        m_GizmoCmd->ShaderObject()->Set("model", model);
+        m_GizmoCmd->ShaderObject()->Set("view", view);
 
-        const auto* meshes = draw_info.model->GetMeshesPtr();
+        const auto* meshes = draw_info.Model->GetMeshesPtr();
 
         uint32_t index_inner_offset_bytes = 0;
         for (const auto& mesh : *meshes)
         {
-            gizmo_cmd->PushDebugGroup(0, mesh.Name().data());
+            m_GizmoCmd->PushDebugGroup(0, mesh.Name().data());
             for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
             {
-                gizmo_cmd->PushDebugGroup(0, "Primitive");
+                m_GizmoCmd->PushDebugGroup(0, "Primitive");
                 auto primitive = mesh.Primitives() + i;
-                gizmo_cmd->ShaderObject()->BindMaterial(draw_info.model->GetMaterial(primitive->MaterialIdx()));
-                gizmo_cmd->IndexedDraw(primitive->IndexCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                       draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+                m_GizmoCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
+                m_GizmoCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + index_inner_offset_bytes,
+                                       draw_info.VertexGlobalOffsetBytes / sizeof(VertexData));
 
                 index_inner_offset_bytes += primitive->IndexSize();
-                gizmo_cmd->PopDebugGroup();
+                m_GizmoCmd->PopDebugGroup();
             }
 
-            gizmo_cmd->PopDebugGroup();
+            m_GizmoCmd->PopDebugGroup();
         }
-        gizmo_cmd->PopDebugGroup();
-        gizmo_cmd->EndRecording();
-        gizmo_cmd->Submit();
+        m_GizmoCmd->PopDebugGroup();
+        m_GizmoCmd->EndRecording();
+        m_GizmoCmd->Submit();
     }
-    gizmo_cmd->PopDebugGroup();
+    m_GizmoCmd->PopDebugGroup();
 
-    static_geometry_cmd->BeginRecording();
+    m_StaticGeometryCmd->BeginRecording();
 
     //
-    copy_fbo_cmd->PushDebugGroup(0, "[Copy FBO]");
-    gizmo_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_CopyFBOCmd->PushDebugGroup(0, "[Copy FBO]");
+    m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
 
     ShaderComponentContext ctx{};
-    ctx.albedo_text.second = gizmo_fbo->GetColorAttachment(0);
+    ctx.albedo_text.second = m_GizmoFBO->GetColorAttachment(0);
 
-    copy_fbo_cmd->ShaderObject()->Use();
-    copy_fbo_cmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
+    m_CopyFBOCmd->ShaderObject()->Use();
+    m_CopyFBOCmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
 
-    copy_fbo_cmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
-    copy_fbo_cmd->ShaderObject()->Set("model", glm::mat4(1.0f));
-    copy_fbo_cmd->ShaderObject()->Set("view", glm::mat4(1.0f));
+    m_CopyFBOCmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
+    m_CopyFBOCmd->ShaderObject()->Set("model", glm::mat4(1.0f));
+    m_CopyFBOCmd->ShaderObject()->Set("view", glm::mat4(1.0f));
 
-    copy_fbo_cmd->Draw(6);
+    m_CopyFBOCmd->Draw(6);
 
-    copy_fbo_cmd->PopDebugGroup();
+    m_CopyFBOCmd->PopDebugGroup();
 }
 
 void Renderer::OnPostUpdate(float dlTime)
@@ -433,9 +433,9 @@ void Renderer::OnFixedUpdate()
 
 void Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
-    gizmo_fbo->Bind();
-    uint32_t flags = gizmo_fbo->Flags();
-    gizmo_fbo.reset(_device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
+    m_GizmoFBO->Bind();
+    uint32_t flags = m_GizmoFBO->Flags();
+    m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
 }
 
 VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
@@ -445,42 +445,42 @@ VertexData::VertexData(glm::vec3 pos, glm::vec3 text_coord, glm::vec3 normal)
 {
 }
 
-void Renderer::skybox_pass() const
+void Renderer::SkyboxPass() const
 {
-    if (!_skybox)
+    if (!m_Skybox)
         return;
 
-    skybox_cmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
-    skybox_cmd->BeginRecording();
-    skybox_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_SkyboxCmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
+    m_SkyboxCmd->BeginRecording();
+    m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
 
-    skybox_cmd->ShaderObject()->Use();
+    m_SkyboxCmd->ShaderObject()->Use();
 
-    skybox_cmd->ShaderObject()->Set("view", _camera->GetView());
-    skybox_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+    m_SkyboxCmd->ShaderObject()->Set("view", m_Camera->GetView());
+    m_SkyboxCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
 
-    skybox_cmd->ShaderObject()->BindMaterial(_skybox->GetMaterial());
-    skybox_cmd->Draw(_skybox->GetVertexCount() / 3);
+    m_SkyboxCmd->ShaderObject()->BindMaterial(m_Skybox->GetMaterial());
+    m_SkyboxCmd->Draw(m_Skybox->GetVertexCount() / 3);
 
-    skybox_cmd->PopDebugGroup();
+    m_SkyboxCmd->PopDebugGroup();
 }
 
-void Renderer::static_geometry_pass() const
+void Renderer::StaticGeometryPass() const
 {
-    static_geometry_cmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    static_geometry_cmd->BindRenderTarget(_swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
-    static_geometry_cmd->BeginRecording();
+    m_StaticGeometryCmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
+    m_StaticGeometryCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_StaticGeometryCmd->BeginRecording();
 
-    static_geometry_cmd->ShaderObject()->Use();
+    m_StaticGeometryCmd->ShaderObject()->Use();
 
-    for (const auto& draw_info : static_geometry_models_vector)
+    for (const auto& draw_info : m_StaticGeometryModelsVector)
     {
-        static_geometry_cmd->PushDebugGroup(0, draw_info.model->GetName().data());
-        static_geometry_cmd->ShaderObject()->Set("model", draw_info.model_matrix);
-        static_geometry_cmd->ShaderObject()->Set("view", _camera->GetView());
-        static_geometry_cmd->ShaderObject()->Set("projection", _camera->GetProjection());
+        m_StaticGeometryCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
+        m_StaticGeometryCmd->ShaderObject()->Set("model", draw_info.ModelMatrix);
+        m_StaticGeometryCmd->ShaderObject()->Set("view", m_Camera->GetView());
+        m_StaticGeometryCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
 
-        const auto* meshes = draw_info.model->GetMeshesPtr();
+        const auto* meshes = draw_info.Model->GetMeshesPtr();
 
         uint32_t index_inner_offset_bytes = 0;
         for (const auto& mesh : *meshes)
@@ -488,20 +488,20 @@ void Renderer::static_geometry_pass() const
             for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
             {
                 const auto primitive = mesh.Primitives() + i;
-                static_geometry_cmd->PushDebugGroup(0, mesh.Name().data());
-                static_geometry_cmd->ShaderObject()->BindMaterial(draw_info.model->GetMaterial(primitive->MaterialIdx()));
-                static_geometry_cmd->IndexedDraw(primitive->IndexCount(), draw_info.index_global_offset_bytes + index_inner_offset_bytes,
-                                                 draw_info.vertex_global_offset_bytes / sizeof(VertexData));
+                m_StaticGeometryCmd->PushDebugGroup(0, mesh.Name().data());
+                m_StaticGeometryCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
+                m_StaticGeometryCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + index_inner_offset_bytes,
+                                                 draw_info.VertexGlobalOffsetBytes / sizeof(VertexData));
 
                 index_inner_offset_bytes += primitive->IndexSize();
-                static_geometry_cmd->PopDebugGroup();
+                m_StaticGeometryCmd->PopDebugGroup();
             }
         }
-        static_geometry_cmd->PopDebugGroup();
-        static_geometry_cmd->EndRecording();
-        static_geometry_cmd->Submit();
+        m_StaticGeometryCmd->PopDebugGroup();
+        m_StaticGeometryCmd->EndRecording();
+        m_StaticGeometryCmd->Submit();
     }
-    static_geometry_cmd->PopDebugGroup();
+    m_StaticGeometryCmd->PopDebugGroup();
 }
 
 }  // namespace Fleur::Graphics

@@ -6,7 +6,7 @@ namespace Fleur::Graphics
 struct VertexLayout
 {
 public:
-    enum DataType
+    enum EDataType
     {
         FLOAT = 0,
         FLOAT_VEC2 = 1,
@@ -18,12 +18,12 @@ public:
 
     struct VertexAttribute
     {
-        VertexAttribute(uint16_t ind, uint8_t comp_amount, DataType comp_type, bool enabled);
-        uint16_t index;
-        uint8_t components_amount;
-        DataType components_type;
-        uint16_t offset;
-        bool is_enabled;
+        VertexAttribute(uint16_t ind, uint8_t compAmount, EDataType compType, bool enabled);
+        uint16_t Index;
+        uint8_t ComponentsAmount;
+        EDataType ComponentsType;
+        uint16_t Offset;
+        bool m_IsEnabled;
     };
 
     struct LayoutIterator
@@ -33,37 +33,37 @@ public:
 
         inline uint16_t GetIndex()
         {
-            return _attrib->index;
+            return m_Attrib->Index;
         }
 
         inline uint8_t GetComponentsAmount()
         {
-            return _attrib->components_amount;
+            return m_Attrib->ComponentsAmount;
         }
 
         inline uint32_t GetAPIDatatype()
         {
-            return _master->GetAPIDataType(_attrib->components_type);
+            return m_Master->GetAPIDataType(m_Attrib->ComponentsType);
         }
 
         inline uint16_t GetOffset()
         {
-            return _attrib->offset;
+            return m_Attrib->Offset;
         }
 
         inline bool GetIsEnabled()
         {
-            return _attrib->is_enabled;
+            return m_Attrib->m_IsEnabled;
         }
 
         bool IsDone();
 
     private:
         friend struct VertexLayout;
-        VertexAttribute* _attrib;
-        VertexLayout* _master;
-        bool is_done;
-        uint16_t index;
+        VertexAttribute* m_Attrib;
+        VertexLayout* m_Master;
+        bool m_IsDone;
+        uint16_t m_Idx;
     };
 
     VertexLayout();
@@ -75,13 +75,13 @@ public:
 
     void DisableAttribute(uint16_t attrib_index);
 
-    uint32_t GetAPIDataType(DataType type) const;
+    uint32_t GetAPIDataType(EDataType type) const;
 
-    uint32_t GetSizeOfDataType(DataType type) const;
+    uint32_t GetSizeOfDataType(EDataType type) const;
 
     inline uint32_t Stride() const
     {
-        return stride;
+        return m_Stride;
     }
 
     LayoutIterator* GetIteratorBegin();
@@ -91,8 +91,8 @@ public:
     void ReleaseIterator();
 
 private:
-    std::vector<VertexAttribute> attribs;
-    uint32_t stride;
-    LayoutIterator* _it;
+    std::vector<VertexAttribute> m_Attribs;
+    uint32_t m_Stride;
+    LayoutIterator* m_It;
 };
 }  // namespace Fleur::Graphics

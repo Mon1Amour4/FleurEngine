@@ -47,7 +47,7 @@ public:
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const = 0;
 
     virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
-    virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemap_image) const = 0;
+    virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemapImage) const = 0;
     virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) const = 0;
 
 
