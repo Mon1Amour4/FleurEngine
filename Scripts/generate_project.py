@@ -40,7 +40,7 @@ def main():
 def generate_project(platform, enable_test, build_dll):
     """Generate a project based on the specified platform."""
     root_folder = Path(__file__).parent.parent.resolve()
-    build_dir = os.path.join(root_folder, 'build')
+    build_dir = os.path.join(root_folder, 'Build')
 
     # Clean up any existing build directories
     if os.path.exists(build_dir):
@@ -53,8 +53,8 @@ def generate_project(platform, enable_test, build_dll):
         generator = 'Xcode'
         platform_macro_definition = '-DFLEUR_PLATFORM_MACOS=1'
     elif platform == 'windows':
-        build_dir = os.path.join(build_dir, 'win')
-        platfrorm_var = 'win'
+        build_dir = os.path.join(build_dir, 'x64')
+        platfrorm_var = 'x64'
         generator = 'Visual Studio 17 2022'
         platform_macro_definition = '-DFLEUR_PLATFORM_WIN=1'
         cpu_count = multiprocessing.cpu_count()
@@ -115,6 +115,7 @@ def generate_project(platform, enable_test, build_dll):
         f'cmake -S "{root_folder}" -B "{build_dir}" '
         f'-G "{generator}" {engine_arguments}',
     )
+    print(f' root_folder: "{root_folder}", build_dir: "{build_dir}"')
     print(
         f'{build_log} Project generation for {platform} '
         f'completed successfully.',

@@ -29,7 +29,7 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
                MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/Resources/MacOS/Sandbox-Info.plist.in"
   )
 
-ELSEIF(FLEUR_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows Sources
   LIST(APPEND SANDBOX_SOURCES Windows/main.cpp)
 
