@@ -62,7 +62,7 @@ IF(APPLE)
   )
 ELSEIF(WIN32)
   SET(FLEUR_PLATFORM
-      "win"
+      "x64"
       CACHE STRING "Current platform"
   )
 ENDIF()
