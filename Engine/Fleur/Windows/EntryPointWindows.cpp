@@ -16,7 +16,7 @@ int APIENTRY FleurMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     Fleur::Log::Init();
 
     Fleur::Application::ApplicationBootSettings settings{};
-    settings.Renderer = Fleur::Graphics::GraphicsAPI::OpenGL;
+    settings.Renderer = Fleur::Graphics::EGraphicsAPI::OpenGL;
     settings.Vsync = false;
     settings.FixedDt = 0.025f;
     settings.WindowProperties.x = 100;

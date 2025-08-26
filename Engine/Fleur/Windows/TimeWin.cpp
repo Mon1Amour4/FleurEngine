@@ -2,9 +2,9 @@
 
 #include "Application.h"
 
-std::unique_ptr<Fleur::Time> Fleur::Time::CreateTimeManager(float fixed_time)
+std::unique_ptr<Fleur::Time> Fleur::Time::CreateTimeManager(float fixedTime)
 {
-    return std::make_unique<Fleur::TimeWin>(fixed_time);
+    return std::make_unique<Fleur::TimeWin>(fixedTime);
 }
 
 Fleur::TimeWin::TimeWin(float fixed_time)
@@ -15,11 +15,11 @@ Fleur::TimeWin::TimeWin(float fixed_time)
 
 void Fleur::TimeWin::Tick()
 {
-    calc_delta_time();
+    CalcDeltaTime();
     ++m_Frame;
 }
 
-void Fleur::TimeWin::calc_delta_time()
+void Fleur::TimeWin::CalcDeltaTime()
 {
     auto now = std::chrono::steady_clock::now();
     m_DeltaTime = std::chrono::duration<float>(now - timer).count();

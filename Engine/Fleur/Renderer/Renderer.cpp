@@ -7,7 +7,7 @@ namespace Fleur::Graphics
 
 uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
 
-Renderer::Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
+Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
     : m_ShowWireframe(false)
     , m_Camera(nullptr)
     , m_CurrentShaderObj(nullptr)
@@ -100,9 +100,9 @@ void Renderer::OnInit()
 
     m_CommandPool = m_Device->CreateCommandPool(*m_CommandQueue);
 
-    auto staticGeoVs = m_Device->CreateShader("static_geo", Shader::ShaderType::Vertex);
+    auto staticGeoVs = m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex);
     std::shared_ptr<ShaderObject> staticGeometryShader(
-        ShaderObject::CreateShaderObject("static_geometry_shader", staticGeoVs, m_Device->CreateShader("static_geo", Shader::ShaderType::Pixel)));
+        ShaderObject::CreateShaderObject("static_geometry_shader", staticGeoVs, m_Device->CreateShader("static_geo", Shader::EShaderType::Pixel)));
     // Static geometry
     DepthStencilDescriptor staticGeoDescriptor{true, EDepthTestOperation::LESS};
     m_StaticGeometryCmd = m_Device->CreateCommandBuffer(staticGeoDescriptor);
@@ -116,8 +116,8 @@ void Renderer::OnInit()
     m_StaticGeometryCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
 
     // Skybox
-    std::shared_ptr<ShaderObject> skyboxShader(ShaderObject::CreateShaderObject("skybox_shader", m_Device->CreateShader("skybox", Shader::ShaderType::Vertex),
-                                                                                m_Device->CreateShader("skybox", Shader::ShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> skyboxShader(ShaderObject::CreateShaderObject("skybox_shader", m_Device->CreateShader("skybox", Shader::EShaderType::Vertex),
+                                                                                m_Device->CreateShader("skybox", Shader::EShaderType::Pixel)));
     DepthStencilDescriptor skyboxDescriptor{false, EDepthTestOperation::LESS_OR_EQUAL};
     m_SkyboxCmd = m_Device->CreateCommandBuffer(skyboxDescriptor);
     m_SkyboxCmd->BindShaderObject(skyboxShader);
@@ -127,8 +127,8 @@ void Renderer::OnInit()
     m_SkyboxCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skyboxLayout);
 
     // gizmo
-    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject("gizmo_shader", m_Device->CreateShader("static_geo", Shader::ShaderType::Vertex),
-                                                                               m_Device->CreateShader("gizmo", Shader::ShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject("gizmo_shader", m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex),
+                                                                               m_Device->CreateShader("gizmo", Shader::EShaderType::Pixel)));
     DepthStencilDescriptor gizmoDescriptor{false, EDepthTestOperation::ALWAYS};
     m_GizmoCmd = m_Device->CreateCommandBuffer(gizmoDescriptor);
     m_GizmoCmd->BindShaderObject(gizmoShader);
@@ -141,11 +141,11 @@ void Renderer::OnInit()
     m_GizmoCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
 
     m_GizmoFBO = m_Device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
-                                             (uint32_t)FramebufferSettings::COLOR | (uint32_t)FramebufferSettings::DEPTH_STENCIL);
+                                             (uint32_t)EFramebufferSettings::COLOR | (uint32_t)EFramebufferSettings::DEPTH_STENCIL);
 
 
     std::shared_ptr<ShaderObject> copy_fbo_shader(
-        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", staticGeoVs, m_Device->CreateShader("CopyFBOAsQuad", Shader::ShaderType::Pixel)));
+        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", staticGeoVs, m_Device->CreateShader("CopyFBOAsQuad", Shader::EShaderType::Pixel)));
 
     DepthStencilDescriptor copyFBODescriptor{true, EDepthTestOperation::LESS};
     m_CopyFBOCmd = m_Device->CreateCommandBuffer(copyFBODescriptor);
@@ -190,7 +190,7 @@ std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
         return m_Textures.find("fallback")->second;
 }
 
-void Renderer::DrawModel(RenderStage stage, const Model* model, glm::mat4 model_pos)
+void Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
 {
     switch (stage)
     {
@@ -347,7 +347,7 @@ void Renderer::OnUpdate(float dlTime)
 
     // gizmo
     m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), FramebufferRWOperation::WRITE_ONLY);
+    m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), EFramebufferRWOperation::WRITE_ONLY);
     m_GizmoCmd->BeginRecording();
 
     m_GizmoCmd->ShaderObject()->Use();
@@ -399,7 +399,7 @@ void Renderer::OnUpdate(float dlTime)
 
     //
     m_CopyFBOCmd->PushDebugGroup(0, "[Copy FBO]");
-    m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
 
     ShaderComponentContext ctx{};
     ctx.albedo_text.second = m_GizmoFBO->GetColorAttachment(0);
@@ -447,7 +447,7 @@ void Renderer::SkyboxPass() const
 
     m_SkyboxCmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
     m_SkyboxCmd->BeginRecording();
-    m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
 
     m_SkyboxCmd->ShaderObject()->Use();
 
@@ -463,7 +463,7 @@ void Renderer::SkyboxPass() const
 void Renderer::StaticGeometryPass() const
 {
     m_StaticGeometryCmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    m_StaticGeometryCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), FramebufferRWOperation::READ_WRITE);
+    m_StaticGeometryCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
     m_StaticGeometryCmd->BeginRecording();
 
     m_StaticGeometryCmd->ShaderObject()->Use();

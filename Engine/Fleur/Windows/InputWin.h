@@ -19,7 +19,7 @@ protected:
     virtual float GetMouseYImpl() const override;
     virtual glm::vec2 GetMouseDirImpl() const override;
 
-    Input::KeyInfo _lastKey;
-    Input::MouseInfo _lastMouse;
+    Input::KeyInfo m_LastKey;
+    Input::MouseInfo m_LastMouse;
 };
 }  // namespace Fleur

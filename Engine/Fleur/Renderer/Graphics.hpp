@@ -6,7 +6,7 @@
 namespace Fleur::Graphics
 {
 
-enum GraphicsAPI
+enum EGraphicsAPI
 {
     OpenGL = 0,
     Vulkan = 1,
@@ -31,14 +31,14 @@ struct Viewport
     float y = 0.0f;
 };
 
-enum class TextureUsage
+enum class ETextureUsage
 {
     ALBEDO = 0,
     DIFFUSE = 1,
     SPECULAR = 2
 };
 
-enum RenderStage
+enum ERenderStage
 {
     STATIC_GEOMETRY,
     DYNAMIC_DRAW,

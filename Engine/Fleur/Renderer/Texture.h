@@ -18,7 +18,7 @@ struct CubemapInitData
 
 class Device;
 
-enum class TextureFormat
+enum class ETextureFormat
 {
     // 8-bit unsigned normalized integer formats
     R8,     // 1 channel, 8-bit
@@ -68,25 +68,25 @@ public:
         m_Format = GetTextureFormat(settings.channels, settings.depth);
     }
 
-    TextureFormat Format() const
+    ETextureFormat Format() const
     {
         return m_Format;
     }
 
-    static TextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
+    static ETextureFormat GetTextureFormat(uint16_t channels, uint16_t depth)
     {
         if (depth <= 1)  // 8-bit unsigned integer formats
         {
             switch (channels)
             {
             case 1:
-                return TextureFormat::R8;
+                return ETextureFormat::R8;
             case 2:
-                return TextureFormat::RG8;
+                return ETextureFormat::RG8;
             case 3:
-                return TextureFormat::RGB8;
+                return ETextureFormat::RGB8;
             case 4:
-                return TextureFormat::RGBA8;
+                return ETextureFormat::RGBA8;
             }
         }
         else if (depth == 2)  // 16-bit float formats
@@ -94,13 +94,13 @@ public:
             switch (channels)
             {
             case 1:
-                return TextureFormat::R16F;
+                return ETextureFormat::R16F;
             case 2:
-                return TextureFormat::RG16F;
+                return ETextureFormat::RG16F;
             case 3:
-                return TextureFormat::RGB16F;
+                return ETextureFormat::RGB16F;
             case 4:
-                return TextureFormat::RGBA16F;
+                return ETextureFormat::RGBA16F;
             }
         }
         else if (depth == 4)  // 32-bit float formats
@@ -108,30 +108,30 @@ public:
             switch (channels)
             {
             case 1:
-                return TextureFormat::R32F;
+                return ETextureFormat::R32F;
             case 2:
-                return TextureFormat::RG32F;
+                return ETextureFormat::RG32F;
             case 3:
-                return TextureFormat::RGB32F;
+                return ETextureFormat::RGB32F;
             case 4:
-                return TextureFormat::RGBA32F;
+                return ETextureFormat::RGBA32F;
             }
         }
         FL_CORE_ASSERT(false, "Invalid texture format: unsupported channels or depth");
-        return TextureFormat::RGBA8;
+        return ETextureFormat::RGBA8;
     }
 
 protected:
-    TextureFormat m_Format;
+    ETextureFormat m_Format;
 
-    Texture(std::string_view name, std::string_view ext, TextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
+    Texture(std::string_view name, std::string_view ext, ETextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
         : ImageBase(name, ext, width, height, FormatToChannels(format), FormatToDepth(format), layers)
         , m_Format(format)
     {
     }
     Texture(std::string_view name, std::string_view ext, uint32_t layers)
         : ImageBase(name, ext, 0, 0, 0, 0, layers)
-        , m_Format(TextureFormat::RGB8)
+        , m_Format(ETextureFormat::RGB8)
     {
     }
 
@@ -140,45 +140,45 @@ protected:
         return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
     }
 
-    uint32_t FormatToChannels(TextureFormat format) const
+    uint32_t FormatToChannels(ETextureFormat format) const
     {
         switch (format)
         {
         // Color formats
-        case TextureFormat::R8:
-        case TextureFormat::R16F:
-        case TextureFormat::R32F:
+        case ETextureFormat::R8:
+        case ETextureFormat::R16F:
+        case ETextureFormat::R32F:
             return 1;
 
-        case TextureFormat::RG8:
-        case TextureFormat::RG16F:
-        case TextureFormat::RG32F:
+        case ETextureFormat::RG8:
+        case ETextureFormat::RG16F:
+        case ETextureFormat::RG32F:
             return 2;
 
-        case TextureFormat::RGB8:
-        case TextureFormat::RGB16F:
-        case TextureFormat::RGB32F:
+        case ETextureFormat::RGB8:
+        case ETextureFormat::RGB16F:
+        case ETextureFormat::RGB32F:
             return 3;
 
-        case TextureFormat::RGBA8:
-        case TextureFormat::RGBA16F:
-        case TextureFormat::RGBA32F:
+        case ETextureFormat::RGBA8:
+        case ETextureFormat::RGBA16F:
+        case ETextureFormat::RGBA32F:
             return 4;
 
         // Depth formats
-        case TextureFormat::DEPTH16:
-        case TextureFormat::DEPTH24:
-        case TextureFormat::DEPTH32:
-        case TextureFormat::DEPTH32F:
+        case ETextureFormat::DEPTH16:
+        case ETextureFormat::DEPTH24:
+        case ETextureFormat::DEPTH32:
+        case ETextureFormat::DEPTH32F:
             return 1;
 
         // Stencil
-        case TextureFormat::STENCIL8:
+        case ETextureFormat::STENCIL8:
             return 1;
 
         // Depth + Stencil
-        case TextureFormat::DEPTH24STENCIL8:
-        case TextureFormat::DEPTH24FSTENCIL8F:
+        case ETextureFormat::DEPTH24STENCIL8:
+        case ETextureFormat::DEPTH24FSTENCIL8F:
             return 2;
         }
 
@@ -186,39 +186,39 @@ protected:
         return 1;
     }
 
-    uint32_t FormatToDepth(TextureFormat format) const
+    uint32_t FormatToDepth(ETextureFormat format) const
     {
         switch (format)
         {
         // Unsigned normalized
-        case TextureFormat::R8:
-        case TextureFormat::RG8:
-        case TextureFormat::RGB8:
-        case TextureFormat::RGBA8:
-        case TextureFormat::STENCIL8:
+        case ETextureFormat::R8:
+        case ETextureFormat::RG8:
+        case ETextureFormat::RGB8:
+        case ETextureFormat::RGBA8:
+        case ETextureFormat::STENCIL8:
             return 1;
 
         // 16-bit float or 16-bit depth
-        case TextureFormat::R16F:
-        case TextureFormat::RG16F:
-        case TextureFormat::RGB16F:
-        case TextureFormat::RGBA16F:
-        case TextureFormat::DEPTH16:
+        case ETextureFormat::R16F:
+        case ETextureFormat::RG16F:
+        case ETextureFormat::RGB16F:
+        case ETextureFormat::RGBA16F:
+        case ETextureFormat::DEPTH16:
             return 2;
 
         // 24-bit depth (stores in 3 bytes, aligns for 4)
-        case TextureFormat::DEPTH24:
-        case TextureFormat::DEPTH24STENCIL8:
-        case TextureFormat::DEPTH24FSTENCIL8F:
+        case ETextureFormat::DEPTH24:
+        case ETextureFormat::DEPTH24STENCIL8:
+        case ETextureFormat::DEPTH24FSTENCIL8F:
             return 3;
 
         // 32-bit float or 32-bit depth
-        case TextureFormat::R32F:
-        case TextureFormat::RG32F:
-        case TextureFormat::RGB32F:
-        case TextureFormat::RGBA32F:
-        case TextureFormat::DEPTH32:
-        case TextureFormat::DEPTH32F:
+        case ETextureFormat::R32F:
+        case ETextureFormat::RG32F:
+        case ETextureFormat::RGB32F:
+        case ETextureFormat::RGBA32F:
+        case ETextureFormat::DEPTH32:
+        case ETextureFormat::DEPTH32F:
             return 4;
         }
 

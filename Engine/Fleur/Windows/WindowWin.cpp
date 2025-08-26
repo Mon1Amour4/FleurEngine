@@ -11,7 +11,7 @@ namespace Fleur
 
 void WindowWin::SetTitle(std::string title)
 {
-    SetWindowText(_hwnd, std::string(_props.Title + " " + title).c_str());
+    SetWindowText(m_HWND, std::string(m_Props.Title + " " + title).c_str());
 }
 
 DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
@@ -24,12 +24,12 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 #ifdef UNICODE
     MultiByteToWideChar(CP_UTF8, 0, props.Title.c_str(), -1, buffer, _countof(buffer));
 #else
-    FL_CORE_ASSERT(sprintf_s(buffer, window->_props.Title.c_str()), "")
+    FL_CORE_ASSERT(sprintf_s(buffer, window->m_Props.Title.c_str()), "")
 #endif
     WNDCLASSEX wndClass = {};
     wndClass.cbSize = sizeof(WNDCLASSEX);
-    wndClass.lpszClassName = window->_props.APP_WINDOW_CLASS_NAME;
-    wndClass.hInstance = window->_hinstance;
+    wndClass.lpszClassName = window->m_Props.APP_WINDOW_CLASS_NAME;
+    wndClass.hInstance = window->m_Hinstance;
     wndClass.hIcon = LoadIcon(nullptr, IDI_WINLOGO);
     wndClass.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wndClass.lpfnWndProc = WindowProcStatic;
@@ -38,29 +38,29 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 
     DWORD style = WS_OVERLAPPEDWINDOW | WS_SYSMENU;
     RECT rect;
-    rect.left = window->_props.x;
-    rect.top = window->_props.y;
-    rect.right = rect.left + window->_props.Width;
-    rect.bottom = rect.top + window->_props.Height;
+    rect.left = window->m_Props.x;
+    rect.top = window->m_Props.y;
+    rect.right = rect.left + window->m_Props.Width;
+    rect.bottom = rect.top + window->m_Props.Height;
 
     AdjustWindowRect(&rect, style, true);
 
-    window->_hwnd = CreateWindowEx(0, window->_props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-                                   nullptr, nullptr, window->_hinstance, nullptr);
+    window->m_HWND = CreateWindowEx(0, window->m_Props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
+                                   nullptr, nullptr, window->m_Hinstance, nullptr);
 
-    FL_CORE_ASSERT(window->_hwnd, "[AppWindow] hasn't been initialized!");
+    FL_CORE_ASSERT(window->m_HWND, "[AppWindow] hasn't been initialized!");
 
     // Associate this instance with the HWND
-    SetWindowLongPtr(window->_hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
+    SetWindowLongPtr(window->m_HWND, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(window));
 
-    ShowWindow(window->_hwnd, SW_SHOW);
-    SetEvent(window->_onThreadCreated);
+    ShowWindow(window->m_HWND, SW_SHOW);
+    SetEvent(window->m_OnThreadCreated);
 
     // Generic Mouse
     window->Rid[0].usUsagePage = 0x01;
     window->Rid[0].usUsage = 0x02;
     window->Rid[0].dwFlags = RIDEV_INPUTSINK;
-    window->Rid[0].hwndTarget = window->_hwnd;
+    window->Rid[0].hwndTarget = window->m_HWND;
 
     // Keyboard, ignores legacy keyboard
     window->Rid[1].usUsagePage = 0x01;
@@ -91,10 +91,10 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
         DispatchMessage(&msg);
     }
 
-    DestroyWindow(window->_hwnd);
+    DestroyWindow(window->m_HWND);
     DestroyIcon(wndClass.hIcon);
     DestroyCursor(wndClass.hCursor);
-    UnregisterClass(window->_props.APP_WINDOW_CLASS_NAME, window->_hinstance);
+    UnregisterClass(window->m_Props.APP_WINDOW_CLASS_NAME, window->m_Hinstance);
 
     return S_OK;
 }
@@ -121,12 +121,12 @@ void WindowWin::InitOpenGLExtensions()
     if (!RegisterClassA(&window_class))
         FL_CORE_ERROR("Failed to register dummy OpenGL window");
 
-    HWND dummy_window = CreateWindowExA(0, window_class.lpszClassName, "Dummy OpenGL Window", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0,
+    HWND dummyWindow = CreateWindowExA(0, window_class.lpszClassName, "Dummy OpenGL Window", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0,
                                         0, window_class.hInstance, nullptr);
-    if (!dummy_window)
+    if (!dummyWindow)
         FL_CORE_ERROR("Failed to create dummy OpenGL window.");
 
-    HDC dummy_dc = GetDC(dummy_window);
+    HDC dummyDC = GetDC(dummyWindow);
 
     PIXELFORMATDESCRIPTOR pfd = {};
     pfd.nSize = sizeof(pfd);
@@ -139,47 +139,46 @@ void WindowWin::InitOpenGLExtensions()
     pfd.cDepthBits = 24;
     pfd.cStencilBits = 8;
 
-    const int pixel_format = ChoosePixelFormat(dummy_dc, &pfd);
-    if (!pixel_format)
+    const int pixelFormat = ChoosePixelFormat(dummyDC, &pfd);
+    if (!pixelFormat)
     {
         FL_CORE_ERROR("Failed to find a suitable pixel format.");
     }
-    if (!SetPixelFormat(dummy_dc, pixel_format, &pfd))
+    if (!SetPixelFormat(dummyDC, pixelFormat, &pfd))
     {
         FL_CORE_ERROR("Failed to set the pixel format.");
     }
 
-    const HGLRC dummy_context = wglCreateContext(dummy_dc);
-    if (!dummy_context)
+    const HGLRC dummyContext = wglCreateContext(dummyDC);
+    if (!dummyContext)
     {
         FL_CORE_ERROR("Failed to create a dummy OpenGL rendering context.");
     }
 
-    if (!wglMakeCurrent(dummy_dc, dummy_context))
+    if (!wglMakeCurrent(dummyDC, dummyContext))
     {
         FL_CORE_ERROR("Failed to activate dummy OpenGL rendering context.");
     }
 
-    gladLoaderLoadWGL(dummy_dc);
+    gladLoaderLoadWGL(dummyDC);
 
-    wglMakeCurrent(dummy_dc, 0);
-    wglDeleteContext(dummy_context);
-    ReleaseDC(dummy_window, dummy_dc);
-    DestroyWindow(dummy_window);
+    wglMakeCurrent(dummyDC, 0);
+    wglDeleteContext(dummyContext);
+    ReleaseDC(dummyWindow, dummyDC);
+    DestroyWindow(dummyWindow);
 }
 
-LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
+LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
-    _mouseDir.x = 0;
-    _mouseDir.y = 0;
+    m_MouseDir.x = 0;
+    m_MouseDir.y = 0;
 
     switch (msg)
     {
     // Activate\Deactivate:
     case WM_CLOSE:
     {
-        FL_CORE_INFO("WM_CLOSE");
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(WindowCloseEvent()));
         break;
     }
 
@@ -188,10 +187,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // Clicks in non-application area like Desktop
     case WM_ACTIVATEAPP:
     {
-        if (LOWORD(wparam))
-            appActive = true;
+        if (LOWORD(wParam))
+            m_IsAppActive = true;
         else
-            appActive = false;
+            m_IsAppActive = false;
         break;
     }
 
@@ -202,11 +201,11 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     {
         // Click on Window Border\Buttons
         // To let Windows handle button click we can't call SetCursor(hwnd) ot ClipCursor() for this tick
-        if (lparam == 0 && frame_action)
+        if (lParam == 0 && m_IsFrameAction)
         {
-            frame_action = false;
-            if (interaction_mode == EInteractionMode::GAMING)
-                set_gaming_mode();
+            m_IsFrameAction = false;
+            if (m_InteractionMode == EInteractionMode::GAMING)
+                SetGamingMode();
             break;
         }
     }
@@ -220,10 +219,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // // Even if windows is not in focus!
     case WM_SETCURSOR:
     {
-        if (!has_input_focus)
-            return DefWindowProc(hwnd, msg, wparam, lparam);
+        if (!m_HasInputFocus)
+            return DefWindowProc(hWnd, msg, wParam, lParam);
 
-        if (interaction_mode == EInteractionMode::GAMING)
+        if (m_InteractionMode == EInteractionMode::GAMING)
             SetCursor(nullptr);
         return TRUE;
         break;
@@ -232,59 +231,59 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
     case WM_MOUSEACTIVATE:
     {
-        if (HIWORD(lparam) == WM_LBUTTONDOWN)
+        if (HIWORD(lParam) == WM_LBUTTONDOWN)
         {
-            if (LOWORD(lparam) != HTCLIENT)
-                frame_action = true;
+            if (LOWORD(lParam) != HTCLIENT)
+                m_IsFrameAction = true;
         }
         break;
     }
 
     case WM_PAINT:
     {
-        if (!isPainted || isResizing || _props.mode == MINIMIZED)
+        if (!m_IsPainted || m_IsResizing || m_Props.mode == MINIMIZED)
             return 0;
 
-        isPainted = false;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowValidateEvent()));
+        m_IsPainted = false;
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(WindowValidateEvent()));
         return 0;
     }
 
     // Window Rsize:
     case WM_ENTERSIZEMOVE:
     {
-        isResizing = true;
-        POINT Point{};
-        GetCursorPos(&Point);
-        ScreenToClient(hwnd, &Point);
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowStartResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth, Point.x, Point.y)));
+        m_IsResizing = true;
+        POINT point{};
+        GetCursorPos(&point);
+        ScreenToClient(hWnd, &point);
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(WindowStartResizeEvent(m_XPos, m_YPos, m_CurrentWidth, m_CurrentHeigth, point.x, point.y)));
         break;
     }
     case WM_SIZE:
     {
-        _currentWidth = LOWORD(lparam);
-        _currentHeigth = HIWORD(lparam);
+        m_CurrentWidth = LOWORD(lParam);
+        m_CurrentHeigth = HIWORD(lParam);
 
-        RECT Rect;
-        GetWindowRect(hwnd, &Rect);
-        _xPos = Rect.left;
-        _yPos = Rect.top;
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
+        RECT rect;
+        GetWindowRect(hWnd, &rect);
+        m_XPos = rect.left;
+        m_YPos = rect.top;
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(WindowResizeEvent(m_XPos, m_YPos, m_CurrentWidth, m_CurrentHeigth)));
 
-        SetWindowMode(wparam);
+        SetWindowMode(wParam);
 
-        if (wparam == SIZE_RESTORED)
+        if (wParam == SIZE_RESTORED)
         {
-            POINT Cursor;
-            GetCursorPos(&Cursor);
-            if (PtInRect(&Rect, Cursor))
+            POINT cursor;
+            GetCursorPos(&cursor);
+            if (PtInRect(&rect, cursor))
             {
                 // Cursor is still inside window area
             }
             else
             {
                 // Cursor is outside window area -> unlock mouse -> killfocus
-                unlock_mouse();
+                UnlockMouse();
                 SetForegroundWindow(GetDesktopWindow());
             }
         }
@@ -292,9 +291,9 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     }
     case WM_EXITSIZEMOVE:
     {
-        isResizing = false;
+        m_IsResizing = false;
 
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent(_xPos, _yPos, _currentWidth, _currentHeigth)));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(WindowEndResizeEvent(m_XPos, m_YPos, m_CurrentWidth, m_CurrentHeigth)));
         break;
     }
 
@@ -302,13 +301,13 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // Raw input:
     case WM_INPUT:
     {
-        if (appActive)
+        if (m_IsAppActive)
         {
             UINT dwSize = 0;
-            GetRawInputData((HRAWINPUT)lparam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
+            GetRawInputData((HRAWINPUT)lParam, RID_INPUT, NULL, &dwSize, sizeof(RAWINPUTHEADER));
             LPBYTE lpb = new BYTE[dwSize];
 
-            if (GetRawInputData((HRAWINPUT)lparam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
+            if (GetRawInputData((HRAWINPUT)lParam, RID_INPUT, lpb, &dwSize, sizeof(RAWINPUTHEADER)) != dwSize)
                 FL_CORE_ERROR("GetRawInputData does not return correct size !");
 
             RAWINPUT* raw = (RAWINPUT*)lpb;
@@ -316,71 +315,71 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
             if (raw->header.dwType == RIM_TYPEKEYBOARD)
             {
                 bool isDown = (raw->data.keyboard.Flags & RI_KEY_BREAK) == 0;
-                EKeyCode crossplatform_keycode = GetKeyCode(raw->data.keyboard.VKey);
+                EKeyCode crossplatformKeycode = GetKeyCode(raw->data.keyboard.VKey);
                 if (isDown)
                 {
-                    pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_PRESSED;
-                    _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, 1)));
+                    m_PressedKeys[crossplatformKeycode] = Input::EKeyState::KEY_PRESSED;
+                    m_EventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatformKeycode, 1)));
                 }
                 else
                 {
-                    pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_RELEASED;
-                    _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
+                    m_PressedKeys[crossplatformKeycode] = Input::EKeyState::KEY_RELEASED;
+                    m_EventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatformKeycode)));
                 }
             }
             else if (raw->header.dwType == RIM_TYPEMOUSE)
             {
-                _prevCursorPos = _cursorPos;
-                _mouseDir.x = raw->data.mouse.lLastX;
-                _mouseDir.y = raw->data.mouse.lLastY;
-                _cursorPos.x += _mouseDir.x;
-                _cursorPos.y += _mouseDir.y;
-                bufferX += _mouseDir.x;
-                bufferY += _mouseDir.y;
+                m_PrevCursorPos = m_CursorPos;
+                m_MouseDir.x = raw->data.mouse.lLastX;
+                m_MouseDir.y = raw->data.mouse.lLastY;
+                m_CursorPos.x += m_MouseDir.x;
+                m_CursorPos.y += m_MouseDir.y;
+                m_BufferX += m_MouseDir.x;
+                m_BufferY += m_MouseDir.y;
 
-                USHORT button_flags = raw->data.mouse.usButtonFlags;
-                if (button_flags != 0)
+                USHORT buttonFlags = raw->data.mouse.usButtonFlags;
+                if (buttonFlags != 0)
                 {
                     EMouseCode button = Mouse::None;
-                    if (button_flags & 0x001)
+                    if (buttonFlags & 0x001)
                     {
                         button = Mouse::Button0;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
                     }
-                    if (button_flags & 0x0002)
+                    if (buttonFlags & 0x0002)
                     {
                         button = Mouse::Button0;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
                     }
-                    if (button_flags & 0x0004)
+                    if (buttonFlags & 0x0004)
                     {
                         button = Mouse::Button1;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
                     }
-                    if (button_flags & 0x0008)
+                    if (buttonFlags & 0x0008)
                     {
                         button = Mouse::Button1;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
                     }
-                    if (button_flags & 0x0010)
+                    if (buttonFlags & 0x0010)
                     {
                         button = Mouse::Button2;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
                     }
-                    if (button_flags & 0x0020)
+                    if (buttonFlags & 0x0020)
                     {
                         button = Mouse::Button2;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
                     }
-                    if (button_flags & 0x0400)  // Mouse Wheel vertical
+                    if (buttonFlags & 0x0400)  // Mouse Wheel vertical
                     {
                         SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(wheelDelta, 0.f)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(wheelDelta, 0.f)));
                     }
-                    if (button_flags & 0x0800)  // Mouse Wheel Horizontal
+                    if (buttonFlags & 0x0800)  // Mouse Wheel Horizontal
                     {
                         SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
-                        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, wheelDelta)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, wheelDelta)));
                     }
                 }
             };
@@ -394,10 +393,10 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // Even if windows is not in focus!
     case WM_MOUSEMOVE:
     {
-        if (!has_input_focus)
+        if (!m_HasInputFocus)
             return true;
 
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(_mouseDir.x, _mouseDir.y)));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseMovedEvent(m_MouseDir.x, m_MouseDir.y)));
         break;
     }
 
@@ -427,24 +426,24 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
 
         if (msg == WM_LBUTTONDOWN || msg == WM_RBUTTONDOWN || msg == WM_MBUTTONDOWN)
         {
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
+            m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonPressedEvent(button)));
         }
         else
         {
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
+            m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseButtonReleasedEvent(button)));
         }
         break;
     }
     case WM_MOUSEWHEEL:
     {
-        float yOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam));
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(yOffset, 0.f)));
+        float yOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(yOffset, 0.f)));
         break;
     }
     case WM_MOUSEHWHEEL:
     {
-        float xOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wparam));
-        _eventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, xOffset)));
+        float xOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, xOffset)));
         break;
     }
 
@@ -457,12 +456,12 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // After creating the window, if you immediately give it focus → it will also come.
     case WM_SETFOCUS:
     {
-        has_input_focus = true;
-        if (frame_action)
+        m_HasInputFocus = true;
+        if (m_IsFrameAction)
             break;
 
-        if (interaction_mode == EInteractionMode::GAMING)
-            set_gaming_mode();
+        if (m_InteractionMode == EInteractionMode::GAMING)
+            SetGamingMode();
 
         break;
     }
@@ -472,28 +471,28 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
     // You called SetFocus() on another window → the old window gets WM_KILLFOCUS, the new one gets WM_SETFOCUS.
     case WM_KILLFOCUS:
     {
-        frame_action = has_input_focus = false;
-        unlock_mouse();
+        m_IsFrameAction = m_HasInputFocus = false;
+        UnlockMouse();
         break;
     }
     case WM_KEYDOWN:
     case WM_KEYUP:
     {
         bool isKeyDown = (msg == WM_KEYDOWN);
-        int window_keycode = static_cast<int>(wparam);
-        EKeyCode crossplatform_keycode = GetKeyCode(window_keycode);
+        int windowKeycode = static_cast<int>(wParam);
+        EKeyCode crossplatformKeycode = GetKeyCode(windowKeycode);
 
         if (isKeyDown)
         {
-            int repeatCount = (lparam >> 16) & 0xFF;
-            bool firstPress = !(lparam & (1 << 30));
-            pressed_keys[crossplatform_keycode] = firstPress ? Input::EKeyState::KEY_PRESSED : Input::EKeyState::KEY_REPEAT;
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatform_keycode, repeatCount)));
+            int repeatCount = (lParam >> 16) & 0xFF;
+            bool firstPress = !(lParam & (1 << 30));
+            m_PressedKeys[crossplatformKeycode] = firstPress ? Input::EKeyState::KEY_PRESSED : Input::EKeyState::KEY_REPEAT;
+            m_EventQueue->PushEvent(std::make_shared<EventVariant>(KeyPressedEvent(crossplatformKeycode, repeatCount)));
         }
         else
         {
-            pressed_keys[crossplatform_keycode] = Input::EKeyState::KEY_RELEASED;
-            _eventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatform_keycode)));
+            m_PressedKeys[crossplatformKeycode] = Input::EKeyState::KEY_RELEASED;
+            m_EventQueue->PushEvent(std::make_shared<EventVariant>(KeyReleasedEvent(crossplatformKeycode)));
         }
         break;
     }
@@ -503,57 +502,57 @@ LRESULT WindowWin::WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam)
         break;
     }
     }
-    return DefWindowProc(hwnd, msg, wparam, lparam);
+    return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
 WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
-    : _eventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
-    , _hinstance(GetModuleHandle(nullptr))
-    , _props(props)
-    , _lastMouse{Input::MOUSE_NONE, Mouse::None}
-    , _cursorPos{0.f, 0.f}
-    , _winThread{}
-    , _winThreadID(nullptr)
-    , _onThreadCreated(CreateEvent(nullptr, FALSE, FALSE, nullptr))
-    , isResizing(false)
-    , isPainted(true)
-    , frame_action(false)
-    , _currentWidth(props.Width)
-    , _currentHeigth(props.Height)
-    , _xPos(props.x)
-    , _yPos(props.y)
-    , _prevCursorPos(_cursorPos)
-    , pressed_keys{Input::EKeyState::KEY_NONE}
-    , interaction_mode(EInteractionMode::GAMING)
-    , is_first_launch(true)
-    , has_input_focus(false)
-    , appActive(false)
-    , bufferX(0)
-    , bufferY(0)
-    , _prevMouseDir(0.f, 0.f)
-    , _mouseDir(0.f, 0.f)
-    , mouse_wheel_data(std::make_pair(0.f, 0.f))
+    : m_EventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
+    , m_Hinstance(GetModuleHandle(nullptr))
+    , m_Props(props)
+    , m_LastMouse{Input::MOUSE_NONE, Mouse::None}
+    , m_CursorPos{0.f, 0.f}
+    , m_WinThread{}
+    , m_WinThreadID(nullptr)
+    , m_OnThreadCreated(CreateEvent(nullptr, FALSE, FALSE, nullptr))
+    , m_IsResizing(false)
+    , m_IsPainted(true)
+    , m_IsFrameAction(false)
+    , m_CurrentWidth(props.Width)
+    , m_CurrentHeigth(props.Height)
+    , m_XPos(props.x)
+    , m_YPos(props.y)
+    , m_PrevCursorPos(m_CursorPos)
+    , m_PressedKeys{Input::EKeyState::KEY_NONE}
+    , m_InteractionMode(EInteractionMode::GAMING)
+    , m_IsFirstLaunch(true)
+    , m_HasInputFocus(false)
+    , m_IsAppActive(false)
+    , m_BufferX(0)
+    , m_BufferY(0)
+    , m_PrevMouseDir(0.f, 0.f)
+    , m_MouseDir(0.f, 0.f)
+    , m_MouseWheelData(std::make_pair(0.f, 0.f))
 {
-    _winThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, _winThreadID);
-    WaitForSingleObject(_onThreadCreated, INFINITE);
+    m_WinThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, m_WinThreadID);
+    WaitForSingleObject(m_OnThreadCreated, INFINITE);
 }
 
 void WindowWin::OnUpdate(float dlTime)
 {
-    glm::vec2 tmp = _mouseDir;
-    _mouseDir.x = std::lerp(_prevMouseDir.x, bufferX, 0.5f);
-    _mouseDir.y = std::lerp(_prevMouseDir.y, bufferY, 0.5f);
-    _prevMouseDir = tmp;
+    glm::vec2 tmp = m_MouseDir;
+    m_MouseDir.x = std::lerp(m_PrevMouseDir.x, m_BufferX, 0.5f);
+    m_MouseDir.y = std::lerp(m_PrevMouseDir.y, m_BufferY, 0.5f);
+    m_PrevMouseDir = tmp;
 
-    bufferX = 0;
-    bufferY = 0;
-    if (!has_input_focus)
-        if (isResizing || _props.mode == MINIMIZED)
+    m_BufferX = 0;
+    m_BufferY = 0;
+    if (!m_HasInputFocus)
+        if (m_IsResizing || m_Props.mode == MINIMIZED)
         {
             FL_CORE_INFO("stop rendering");
             return;
         }
-    _eventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
+    m_EventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
 void WindowWin::OnPostUpdate(float dlTime)
@@ -568,28 +567,28 @@ void WindowWin::OnFixedUpdate()
 
 const void* WindowWin::GetNativeHandle() const
 {
-    return _hwnd;
+    return m_HWND;
 }
 
 Input::EKeyState WindowWin::GetKeyState(EKeyCode keyCode) const
 {
-    return pressed_keys[keyCode];
+    return m_PressedKeys[keyCode];
 }
 
 Input::EMouseState WindowWin::GetMouseState(EMouseCode mouseCode) const
 {
-    return _lastMouse.MouseCode == mouseCode ? _lastMouse.State : Input::EMouseState::MOUSE_NONE;
+    return m_LastMouse.MouseCode == mouseCode ? m_LastMouse.State : Input::EMouseState::MOUSE_NONE;
 }
 
 std::pair<float, float> WindowWin::GetMouseWheelScrollData() const
 {
-    return mouse_wheel_data;
+    return m_MouseWheelData;
 }
 
 void WindowWin::GetMousePos(OUT float& xPos, OUT float& yPos) const
 {
-    xPos = _cursorPos.x;
-    yPos = _cursorPos.y;
+    xPos = m_CursorPos.x;
+    yPos = m_CursorPos.y;
 }
 
 std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
@@ -599,41 +598,41 @@ std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQ
 
 void WindowWin::SetMousePos(float x, float y)
 {
-    _prevCursorPos = _cursorPos;
-    _cursorPos.x = x;
-    _cursorPos.y = y;
+    m_PrevCursorPos = m_CursorPos;
+    m_CursorPos.x = x;
+    m_CursorPos.y = y;
 }
 
 void WindowWin::SetMouseWheelScrollData(float x, float y)
 {
-    mouse_wheel_data.first = x;
-    mouse_wheel_data.second = y;
+    m_MouseWheelData.first = x;
+    m_MouseWheelData.second = y;
 }
 
-void WindowWin::set_gaming_mode()
+void WindowWin::SetGamingMode()
 {
     RECT rect;
-    GetClientRect(_hwnd, &rect);
+    GetClientRect(m_HWND, &rect);
     POINT ul = {rect.left, rect.top};
     POINT lr = {rect.right, rect.bottom};
-    MapWindowPoints(_hwnd, nullptr, &ul, 1);
-    MapWindowPoints(_hwnd, nullptr, &lr, 1);
+    MapWindowPoints(m_HWND, nullptr, &ul, 1);
+    MapWindowPoints(m_HWND, nullptr, &lr, 1);
 
     RECT clipRect = {ul.x, ul.y, lr.x, lr.y};
     ClipCursor(&clipRect);
 
-    POINT Cursor{};
-    GetCursorPos(&Cursor);
-    _prevCursorPos = _cursorPos;
-    _cursorPos.x = Cursor.x;
-    _cursorPos.y = Cursor.y;
+    POINT cursor{};
+    GetCursorPos(&cursor);
+    m_PrevCursorPos = m_CursorPos;
+    m_CursorPos.x = cursor.x;
+    m_CursorPos.y = cursor.y;
 
     SetCursor(NULL);
 }
 
-void WindowWin::unlock_mouse()
+void WindowWin::UnlockMouse()
 {
-    if (interaction_mode == EInteractionMode::GAMING)
+    if (m_InteractionMode == EInteractionMode::GAMING)
     {
         SetCursor(LoadCursor(NULL, IDC_ARROW));
         ClipCursor(nullptr);
@@ -645,13 +644,13 @@ void WindowWin::SetWindowMode(WPARAM mode)
     switch (mode)
     {
     case SIZE_MINIMIZED:
-        _props.mode = MINIMIZED;
+        m_Props.mode = MINIMIZED;
         break;
     case SIZE_MAXIMIZED:
-        _props.mode = MAXIMIZED;
+        m_Props.mode = MAXIMIZED;
         break;
     case SIZE_RESTORED:
-        _props.mode = RESTORED;
+        m_Props.mode = RESTORED;
         break;
     }
 }

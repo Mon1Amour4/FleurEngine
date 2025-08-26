@@ -21,13 +21,13 @@ public:
 
     virtual uint32_t ID() const
     {
-        return fbo;
+        return m_FBO;
     }
 
     virtual void Clear() override;
 
 protected:
-    uint32_t fbo;
+    uint32_t m_FBO;
 
     FramebufferOpenGL(uint32_t width, uint32_t height);
     virtual void AddColorAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment) override;
@@ -37,7 +37,7 @@ protected:
 private:
     virtual void Cleanup() override;
 
-    std::string name;
+    std::string m_Name;
 };
 
 class DefaultFramebufferOpenGL : public FramebufferOpenGL

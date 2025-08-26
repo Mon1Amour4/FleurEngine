@@ -29,11 +29,11 @@ public:
     virtual void Release() override;
 
 private:
-    std::unique_ptr<SurfaceOpenGL> _surface;
-    std::unique_ptr<DefaultFramebufferOpenGL> _backbuffer;
+    std::unique_ptr<SurfaceOpenGL> m_Surface;
+    std::unique_ptr<DefaultFramebufferOpenGL> m_BackBuffer;
 
 protected:
     friend class DeviceOpenGL;
-    SwapchainOpenGL(std::unique_ptr<Surface> _surface);
+    SwapchainOpenGL(std::unique_ptr<Surface> surface);
 };
 }  // namespace Fleur::Graphics

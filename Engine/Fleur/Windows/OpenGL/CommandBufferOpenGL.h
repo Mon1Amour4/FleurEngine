@@ -16,7 +16,7 @@ public:
     virtual void BeginRecording() override;
     virtual void EndRecording() override;
     virtual void Submit() override;
-    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) override;
+    virtual void BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw) override;
     virtual void BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader) override;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) override;
 
@@ -27,26 +27,26 @@ public:
 
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
-    virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) override;
+    virtual void IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex) override;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) override;
     virtual void PopDebugGroup() override;
-    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) override;
+    virtual void SetLabel(EObjectLabel id, uint32_t name, const char* message) override;
 
 private:
-    int ConvertUsage(RenderStage& stage) const;
-    uint32_t _vao;
-    uint32_t _mainVsShader;
-    uint32_t _pixelShader;
-    bool _isLinked;
-    bool _isDataAllocated;
+    int ConvertUsage(ERenderStage& stage) const;
+    uint32_t m_VAO;
+    uint32_t m_MainVsShader;
+    uint32_t m_PixelShader;
+    bool m_IsLinked;
+    bool m_IsDataAllocated;
 
-    uint32_t _texture;
+    uint32_t m_Texture;
 
     friend class DeviceOpenGL;
-    bool _isFree;
+    bool m_IsFree;
     CommandBufferOpenGL(DepthStencilDescriptor desc);
 
-    uint32_t get_death_func_op(EDepthTestOperation op) const;
+    uint32_t GetDeathFuncOp(EDepthTestOperation op) const;
 };
 }  // namespace Fleur::Graphics

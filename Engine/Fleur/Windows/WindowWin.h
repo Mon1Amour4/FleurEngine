@@ -21,11 +21,11 @@ public:
 
     inline virtual unsigned int GetWidth() const override
     {
-        return _props.Width;
+        return m_Props.Width;
     }
     inline virtual unsigned int GetHeight() const override
     {
-        return _props.Height;
+        return m_Props.Height;
     }
 
     virtual const void* GetNativeHandle() const override;
@@ -38,81 +38,81 @@ public:
     std::pair<float, float> GetMouseWheelScrollData() const;
     virtual inline bool HasMouseMoved(float x, float y) const override
     {
-        return !(_cursorPos.x == x && _cursorPos.y == y);
+        return !(m_CursorPos.x == x && m_CursorPos.y == y);
     }
 
     inline virtual void SwitchInteractionMode() override
     {
-        interaction_mode = interaction_mode == EInteractionMode::GAMING ? EInteractionMode::EDITOR : EInteractionMode::GAMING;
-        if (interaction_mode == EInteractionMode::GAMING)
+        m_InteractionMode = m_InteractionMode == EInteractionMode::GAMING ? EInteractionMode::EDITOR : EInteractionMode::GAMING;
+        if (m_InteractionMode == EInteractionMode::GAMING)
         {
-            set_gaming_mode();
+            SetGamingMode();
         }
     }
     inline virtual EInteractionMode GetInteractionMode() const
     {
-        return interaction_mode;
+        return m_InteractionMode;
     }
 
     virtual inline bool IsResizing() const override
     {
-        return isResizing;
+        return m_IsResizing;
     }
     inline virtual glm::vec2 GetMouseDir() const override
     {
-        return _mouseDir;
+        return m_MouseDir;
     }
 
     inline virtual bool IsActive() const override
     {
-        return has_input_focus;
+        return m_HasInputFocus;
     }
 
     virtual void SetTitle(std::string title) override;
 
 private:
-    float _currentWidth, _currentHeigth;
-    int _xPos, _yPos;
+    float m_CurrentWidth, m_CurrentHeigth;
+    int m_XPos, m_YPos;
 
     static DWORD WinThreadMain(_In_ LPVOID lpParameter);
     static LRESULT CALLBACK WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
     static void InitOpenGLExtensions();
 
-    EventQueueWin* _eventQueue;
+    EventQueueWin* m_EventQueue;
 
     // Window handle
-    HWND _hwnd;
-    HINSTANCE _hinstance;  // Relates to the Application
-    WindowProps _props;
+    HWND m_HWND;
+    HINSTANCE m_Hinstance;  // Relates to the Application
+    WindowProps m_Props;
 
     // Threads
-    HANDLE _winThread;
-    LPDWORD _winThreadID;
-    HANDLE _onThreadCreated;
+    HANDLE m_WinThread;
+    LPDWORD m_WinThreadID;
+    HANDLE m_OnThreadCreated;
 
-    bool is_first_launch, isResizing, isPainted, has_input_focus, appActive, frame_action;
+    bool m_IsFirstLaunch, m_IsResizing, m_IsPainted, m_HasInputFocus, m_IsAppActive, m_IsFrameAction;
 
     virtual inline void SetPainted() override
     {
-        isPainted = true;
+        m_IsPainted = true;
     }
 
     virtual void SetMousePos(float x, float y) override;
     virtual void SetMouseWheelScrollData(float x, float y) override;
 
-    glm::vec2 _mouseDir;
-    glm::vec2 _prevMouseDir;
-    Input::MouseInfo _lastMouse;
-    Input::EKeyState pressed_keys[256];
-    glm::vec2 _cursorPos;
-    glm::vec2 _prevCursorPos;
+    glm::vec2 m_MouseDir;
+    glm::vec2 m_PrevMouseDir;
+    Input::MouseInfo m_LastMouse;
+    Input::EKeyState m_PressedKeys[256];
+    glm::vec2 m_CursorPos;
+    glm::vec2 m_PrevCursorPos;
 
-    int bufferX, bufferY = 0;
-    std::pair<float, float> mouse_wheel_data;
+    int m_BufferX, m_BufferY = 0;
+    std::pair<float, float> m_MouseWheelData;
 
-    EInteractionMode interaction_mode;
-    void set_gaming_mode();
-    void unlock_mouse();
+    EInteractionMode m_InteractionMode;
+    void SetGamingMode();
+    void UnlockMouse();
     // Raw Input Device
     RAWINPUTDEVICE Rid[2];
 

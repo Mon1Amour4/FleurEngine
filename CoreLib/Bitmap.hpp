@@ -7,35 +7,35 @@ namespace Fleur
 template <typename Derived>
 struct BitmapFormat_UnsignedByte
 {
-    void SetPixel(uint32_t x, uint32_t y, const glm::vec4& pixel_data)
+    void SetPixel(uint32_t x, uint32_t y, const glm::vec4& pixelData)
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
         glm::vec4 data = underlying.GetPixel(x, y);
 
-        uint8_t* byte_data = reinterpret_cast<uint8_t*>(underlying.Data());
+        uint8_t* byteData = reinterpret_cast<uint8_t*>(underlying.Data());
 
         uint32_t comp = underlying.Components();
         const int offset = comp * (y * underlying.Width() + x);
         if (comp > 0)
-            byte_data[offset + 0] = uint8_t(pixel_data.x * 255.0f);
+            byteData[offset + 0] = uint8_t(pixelData.x * 255.0f);
         if (comp > 1)
-            byte_data[offset + 1] = uint8_t(pixel_data.y * 255.0f);
+            byteData[offset + 1] = uint8_t(pixelData.y * 255.0f);
         if (comp > 2)
-            byte_data[offset + 2] = uint8_t(pixel_data.z * 255.0f);
+            byteData[offset + 2] = uint8_t(pixelData.z * 255.0f);
         if (comp > 3)
-            byte_data[offset + 3] = uint8_t(pixel_data.w * 255.0f);
+            byteData[offset + 3] = uint8_t(pixelData.w * 255.0f);
     }
 
     glm::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         const Derived& underlying = static_cast<const Derived&>(*this);
-        const uint8_t* byte_data = reinterpret_cast<const uint8_t*>(underlying.Data());
+        const uint8_t* byteData = reinterpret_cast<const uint8_t*>(underlying.Data());
         uint32_t comp = underlying.Components();
 
         const int offset = comp * (y * underlying.Width() + x);
-        return glm::vec4(comp > 0 ? float(byte_data[offset + 0]) / 255.0f : 0.0f, comp > 1 ? float(byte_data[offset + 1]) / 255.0f : 0.0f,
-                         comp > 2 ? float(byte_data[offset + 2]) / 255.0f : 0.0f, comp > 3 ? float(byte_data[offset + 3]) / 255.0f : 0.0f);
+        return glm::vec4(comp > 0 ? float(byteData[offset + 0]) / 255.0f : 0.0f, comp > 1 ? float(byteData[offset + 1]) / 255.0f : 0.0f,
+                         comp > 2 ? float(byteData[offset + 2]) / 255.0f : 0.0f, comp > 3 ? float(byteData[offset + 3]) / 255.0f : 0.0f);
     }
 
 protected:
@@ -55,15 +55,15 @@ struct BitmapFormat_Float
         uint32_t comp = underlying.Components();
         const int offset = comp * (y * underlying.Width() + x);
 
-        float* float_data = reinterpret_cast<float*>(underlying.Data());
+        float* floatData = reinterpret_cast<float*>(underlying.Data());
         if (comp > 0)
-            float_data[offset + 0] = pixel_data.x;
+            floatData[offset + 0] = pixel_data.x;
         if (comp > 1)
-            float_data[offset + 1] = pixel_data.y;
+            floatData[offset + 1] = pixel_data.y;
         if (comp > 2)
-            float_data[offset + 2] = pixel_data.z;
+            floatData[offset + 2] = pixel_data.z;
         if (comp > 3)
-            float_data[offset + 3] = pixel_data.w;
+            floatData[offset + 3] = pixel_data.w;
     }
 
     glm::vec4 GetPixel(uint32_t x, uint32_t y) const
@@ -73,9 +73,9 @@ struct BitmapFormat_Float
         uint32_t comp = underlying.Components();
 
         const int offset = comp * (y * underlying.Width() + x);
-        const float* float_data = reinterpret_cast<const float*>(underlying.Data());
-        return glm::vec4(comp > 0 ? float_data[offset + 0] : 0.0f, comp > 1 ? float_data[offset + 1] : 0.0f, comp > 2 ? float_data[offset + 2] : 0.0f,
-                         comp > 3 ? float_data[offset + 3] : 0.0f);
+        const float* floatData = reinterpret_cast<const float*>(underlying.Data());
+        return glm::vec4(comp > 0 ? floatData[offset + 0] : 0.0f, comp > 1 ? floatData[offset + 1] : 0.0f, comp > 2 ? floatData[offset + 2] : 0.0f,
+                         comp > 3 ? floatData[offset + 3] : 0.0f);
     }
 
 protected:
@@ -91,9 +91,9 @@ class Bitmap : public Fmt<Bitmap<Fmt>>
 {
 public:
     Bitmap()
-        : w(0)
-        , h(0)
-        , comp(0)
+        : m_Width(0)
+        , m_Height(0)
+        , m_Components(0)
     {
     }
 
@@ -104,45 +104,45 @@ public:
 
     Bitmap<Fmt>(Bitmap<Fmt>&& other) noexcept
     {
-        w = other.w;
-        h = other.h;
-        comp = other.comp;
-        data = std::move(other.data);
+        m_Width = other.m_Width;
+        m_Height = other.m_Height;
+        m_Components = other.m_Components;
+        m_Data = std::move(other.m_Data);
 
-        other.w = 0;
-        other.h = 0;
-        other.comp = 0;
+        other.m_Width = 0;
+        other.m_Height = 0;
+        other.m_Components = 0;
     }
     Bitmap<Fmt>& operator=(Bitmap<Fmt>&& other) noexcept
     {
         if (this != &other)
         {
-            w = other.w;
-            h = other.h;
-            comp = other.comp;
-            data = std::move(other.data);
+            m_Width = other.m_Width;
+            m_Height = other.m_Height;
+            m_Components = other.m_Components;
+            m_Data = std::move(other.m_Data);
 
-            other.w = 0;
-            other.h = 0;
-            other.comp = 0;
+            other.m_Width = 0;
+            other.m_Height = 0;
+            other.m_Components = 0;
         }
 
         return *this;
     }
 
-    Bitmap(const void* in_data, uint32_t width, uint32_t height, uint32_t channels)
-        : w(width)
-        , h(height)
-        , comp(channels)
-        , data(width * height * channels * Fmt<Bitmap>::GetBytesPerComponent())
+    Bitmap(const void* IN inData, uint32_t width, uint32_t height, uint32_t channels)
+        : m_Width(width)
+        , m_Height(height)
+        , m_Components(channels)
+        , m_Data(width * height * channels * Fmt<Bitmap>::GetBytesPerComponent())
     {
-        memcpy_s(data.data(), data.size(), in_data, data.size());
+        memcpy_s(m_Data.data(), m_Data.size(), inData, m_Data.size());
     }
     Bitmap(uint32_t width, uint32_t height, uint32_t components)
-        : w(width)
-        , h(height)
-        , comp(components)
-        , data(width * height * components * Fmt<Bitmap>::GetBytesPerComponent())
+        : m_Width(width)
+        , m_Height(height)
+        , m_Components(components)
+        , m_Data(width * height * components * Fmt<Bitmap>::GetBytesPerComponent())
     {
     }
 
@@ -158,38 +158,38 @@ public:
 
     uint32_t Width() const
     {
-        return w;
+        return m_Width;
     }
 
     uint32_t Height() const
     {
-        return h;
+        return m_Height;
     }
 
     uint32_t Components() const
     {
-        return comp;
+        return m_Components;
     }
 
     const void* Data() const
     {
-        return reinterpret_cast<const void*>(data.data());
+        return reinterpret_cast<const void*>(m_Data.data());
     }
     void* Data()
     {
-        return reinterpret_cast<void*>(data.data());
+        return reinterpret_cast<void*>(m_Data.data());
     }
 
 
     uint32_t GetSizeBytes() const
     {
-        return data.size();
+        return m_Data.size();
     }
 
 private:
-    std::vector<uint8_t> data;
-    uint32_t w;
-    uint32_t h;
-    uint32_t comp;
+    std::vector<uint8_t> m_Data;
+    uint32_t m_Width;
+    uint32_t m_Height;
+    uint32_t m_Components;
 };
 }  // namespace Fleur

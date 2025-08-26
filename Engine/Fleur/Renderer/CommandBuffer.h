@@ -14,9 +14,9 @@ class Texture;
 struct VertexLayout;
 class Device;
 class Framebuffer;
-enum class FramebufferRWOperation;
+enum class EFramebufferRWOperation;
 
-enum RenderStage;
+enum ERenderStage;
 
 enum class EDepthTestOperation
 {
@@ -39,7 +39,7 @@ struct DepthStencilDescriptor
 class CommandBuffer
 {
 public:
-    enum ObjectLabel
+    enum EObjectLabel
     {
         LABEL_BUFFER = 0,
         LABEL_SHADER = 1,
@@ -53,7 +53,7 @@ public:
     virtual void EndRecording() = 0;
     virtual void Submit() = 0;
 
-    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) = 0;
+    virtual void BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw) = 0;
     virtual void BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
 
@@ -73,7 +73,7 @@ public:
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
     virtual void PopDebugGroup() = 0;
-    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) = 0;
+    virtual void SetLabel(EObjectLabel id, uint32_t name, const char* message) = 0;
 
     virtual Fleur::Graphics::ShaderObject* ShaderObject() const
     {

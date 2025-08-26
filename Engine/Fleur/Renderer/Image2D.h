@@ -140,7 +140,7 @@ private:
 class CubemapImage : public ImageBase
 {
 public:
-    enum class Face
+    enum class EFace
     {
         Right = 0,   // +X
         Left = 1,    // -X
@@ -159,7 +159,7 @@ public:
     CubemapImage& operator=(CubemapImage&& other) noexcept;
     CubemapImage(CubemapImage&& other) noexcept;
 
-    const Fleur::Graphics::Image2D& GetFace(Face face) const;
+    const Fleur::Graphics::Image2D& GetFace(EFace face) const;
 
     const Image2D* Data() const;
 

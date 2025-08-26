@@ -42,7 +42,7 @@ class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
 public:
     friend struct Service<Renderer>;
 
-    Renderer(GraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain);
+    Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain);
     ~Renderer() = default;
 
     Renderer(const Renderer&) = delete;
@@ -54,7 +54,7 @@ public:
     std::shared_ptr<Texture> GetLoadedTexture(std::string_view path) const;
 
     // IRenderer;
-    void DrawModel(RenderStage stage, const Model* model, glm::mat4 modelPos);
+    void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
     // IUpdatable
     void OnUpdate(float dlTime);
@@ -124,7 +124,7 @@ private:
     bool m_IsVsync;
 
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> m_Textures;
-    GraphicsAPI m_Renderer;
+    EGraphicsAPI m_Renderer;
 
     std::unique_ptr<Fleur::IRendererToolchain> m_Toolchain;
 

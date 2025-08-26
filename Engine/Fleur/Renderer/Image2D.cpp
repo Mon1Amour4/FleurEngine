@@ -315,13 +315,13 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
         outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, faceSize, faceSize, m_Channels, m_Depth);
     }
 
-    auto getStride = [this](TextureFormat format)
+    auto getStride = [this](ETextureFormat format)
     {
         switch (format)
         {
-        case TextureFormat::RGB8:
+        case ETextureFormat::RGB8:
             return 3u;
-        case TextureFormat::RGBA8:
+        case ETextureFormat::RGBA8:
             return 4u;
         }
         return 3u;
@@ -381,21 +381,21 @@ Fleur::Graphics::CubemapImage::CubemapImage(CubemapImage&& other) noexcept
 {
 }
 
-const Fleur::Graphics::Image2D& Fleur::Graphics::CubemapImage::GetFace(Face face) const
+const Fleur::Graphics::Image2D& Fleur::Graphics::CubemapImage::GetFace(EFace face) const
 {
     switch (face)
     {
-    case Fleur::Graphics::CubemapImage::Face::Right:
+    case Fleur::Graphics::CubemapImage::EFace::Right:
         return m_Faces[0];
-    case Fleur::Graphics::CubemapImage::Face::Left:
+    case Fleur::Graphics::CubemapImage::EFace::Left:
         return m_Faces[1];
-    case Fleur::Graphics::CubemapImage::Face::Top:
+    case Fleur::Graphics::CubemapImage::EFace::Top:
         return m_Faces[2];
-    case Fleur::Graphics::CubemapImage::Face::Bottom:
+    case Fleur::Graphics::CubemapImage::EFace::Bottom:
         return m_Faces[3];
-    case Fleur::Graphics::CubemapImage::Face::Back:
+    case Fleur::Graphics::CubemapImage::EFace::Back:
         return m_Faces[4];
-    case Fleur::Graphics::CubemapImage::Face::Front:
+    case Fleur::Graphics::CubemapImage::EFace::Front:
         return m_Faces[5];
     }
 }

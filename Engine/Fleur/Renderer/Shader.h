@@ -8,7 +8,7 @@ class Texture;
 class Shader
 {
 public:
-    enum ShaderType
+    enum EShaderType
     {
         None = 0,
         Vertex = 1,

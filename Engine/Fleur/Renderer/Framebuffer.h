@@ -4,7 +4,7 @@
 
 namespace Fleur::Graphics
 {
-enum class FramebufferSettings : uint32_t
+enum class EFramebufferSettings : uint32_t
 {
     COLOR = 1 << 0,
     DEPTH = 1 << 1,
@@ -12,12 +12,12 @@ enum class FramebufferSettings : uint32_t
     DEPTH_STENCIL = 1 << 3
 };
 
-inline FramebufferSettings operator|(FramebufferSettings a, FramebufferSettings b)
+inline EFramebufferSettings operator|(EFramebufferSettings a, EFramebufferSettings b)
 {
-    return static_cast<FramebufferSettings>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+    return static_cast<EFramebufferSettings>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
 }
 
-enum class FramebufferRWOperation
+enum class EFramebufferRWOperation
 {
     READ_ONLY,
     WRITE_ONLY,

@@ -15,7 +15,7 @@ namespace Fleur::Graphics
 class Image2D;
 class CubemapImage;
 class Model;
-enum ImageFormat;
+enum EImageFormat;
 }  // namespace Fleur::Graphics
 
 namespace Fleur
