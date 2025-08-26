@@ -1,36 +1,10 @@
 MESSAGE(STATUS "Fleur tests are ENABLED")
 
+include(../External/googletest.cmake)
 # Googletest configuration
 SET(FLEUR_ROOT ${CMAKE_SOURCE_DIR})
 SET(GOOGLE_TEST_ROOT ${FLEUR_ROOT}/External/googletest)
 SET(GOOGLE_TEST_BUILD ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/External/googletest)
-
-SET(GTEST_SOLUTION ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/External)
-
-SET(BUILD_GMOCK
-    OFF
-    CACHE BOOL "" FORCE
-)
-SET(INSTALL_GTEST
-    ON
-    CACHE BOOL "" FORCE
-)
-SET(GTEST_HAS_ABSL
-    OFF
-    CACHE BOOL "" FORCE
-)
-
-ENABLE_TESTING()
-
-# For Windows: Prevent overriding the parent project's compiler/linker settings "Use shared (DLL) run-time lib even when
-# Google Test is built as static lib."
-IF(FLEUR_PLATFORM_WIN)
-  SET(GTEST_FORCE_SHARED_CRT
-      ON
-      CACHE BOOL "" FORCE
-  )
-ENDIF()
-# End googletest
 
 # Tests project configuration:
 SET(COMMON_TARGET_PROPERTIES PROPERTIES FOLDER "Tests")
@@ -49,25 +23,8 @@ SET(TESTS_HEADERS ${INCLUDE_FOLDER}/Tests.h ${INCLUDE_FOLDER}/CoreLibTests.h)
 
 SET(TESTS_SOURCES ${SRC_FOLDER}/Tests.cpp)
 
-SET(CMAKE_INSTALL_PREFIX
-    ${GOOGLE_TEST_BUILD}
-    CACHE PATH "Install path prefix" FORCE
-)
-
-ADD_SUBDIRECTORY(${GOOGLE_TEST_ROOT} ${GOOGLE_TEST_BUILD})
-
-SET_TARGET_PROPERTIES(
-  gtest_main gtest
-  PROPERTIES ARCHIVE_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/lib
-             LIBRARY_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/lib
-             RUNTIME_OUTPUT_DIRECTORY ${GOOGLE_TEST_BUILD}/bin
-)
-
 ADD_EXECUTABLE(FleurTests ${TESTS_HEADERS} ${TESTS_SOURCES})
 
-SET_TARGET_PROPERTIES(
-  gtest gtest_main ${COMMON_TARGET_PROPERTIES}
-)
 SET_TARGET_PROPERTIES(
   FleurTests ${COMMON_TARGET_PROPERTIES}
 )
