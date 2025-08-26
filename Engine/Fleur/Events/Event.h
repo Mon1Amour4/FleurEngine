@@ -14,28 +14,28 @@ struct EventBase
 {
     std::string ToString() const
     {
-        std::string derived_string(static_cast<const Derived*>(this)->ToStringImpl());
+        std::string derivedString(static_cast<const Derived*>(this)->ToStringImpl());
         std::stringstream ss;
-        ss << event_name << derived_string;
+        ss << m_EventName << derivedString;
         return ss.str();
     }
     bool GetHandled() const
     {
-        return handled;
+        return m_IsHandled;
     }
     void SetHandled()
     {
-        handled = true;
+        m_IsHandled = true;
     }
 
 protected:
     explicit EventBase(const char* name) noexcept
-        : event_name(name)
-        , handled(false)
+        : m_EventName(name)
+        , m_IsHandled(false)
     {
     }
-    const char* event_name;
-    bool handled;
+    const char* m_EventName;
+    bool m_IsHandled;
 };
 
 }  // namespace Fleur

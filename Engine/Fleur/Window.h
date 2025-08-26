@@ -7,7 +7,7 @@
 namespace Fleur
 {
 
-enum WindowMode
+enum EWindowMode
 {
     MINIMIZED = 0,
     MAXIMIZED = 1,
@@ -21,7 +21,7 @@ struct WindowProps
     long y = 100;
     uint32_t Width = 1280;
     uint32_t Height = 720;
-    WindowMode mode = RESTORED;
+    EWindowMode mode = RESTORED;
 
     bool Centered = true;
     bool Resizable = true;
@@ -48,7 +48,7 @@ class Window : public IUpdatable
     friend class Application;
 
 public:
-    enum InteractionMode
+    enum EInteractionMode
     {
         EDITOR = 0,
         GAMING = 1
@@ -71,7 +71,7 @@ public:
     inline virtual glm::vec2 GetMouseDir() const = 0;
     virtual bool HasMouseMoved(float x, float y) const = 0;
 
-    virtual InteractionMode GetInteractionMode() const = 0;
+    virtual EInteractionMode GetInteractionMode() const = 0;
     virtual void SwitchInteractionMode() = 0;
 
     virtual void SetTitle(std::string title) = 0;

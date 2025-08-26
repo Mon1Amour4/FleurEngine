@@ -3,10 +3,10 @@
 
 namespace Fleur
 {
-using KeyCode = uint16_t;
+using EKeyCode = uint16_t;
 namespace Key
 {
-enum : KeyCode
+enum : EKeyCode
 {
     // clang-format off
     Space           = 0,

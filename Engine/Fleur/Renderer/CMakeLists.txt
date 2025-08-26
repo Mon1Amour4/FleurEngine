@@ -40,8 +40,6 @@ SET(PROJECT_SOURCES
     VertexLayout.cpp
     Image2D.cpp
     Color.cpp
-    Toolchain.cpp
-    Skybox.cpp
 )
 
 IF(FLEUR_PLATFORM_WIN)

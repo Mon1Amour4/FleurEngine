@@ -4,8 +4,8 @@
 
 SandboxApp::SandboxApp()
 {
-    SceneLayer* scene_layer = new SceneLayer();
-    PushLayer(scene_layer);
+    SceneLayer* sceneLayer = new SceneLayer();
+    PushLayer(sceneLayer);
 }
 
 SceneLayer::SceneLayer()
@@ -28,10 +28,10 @@ void SceneLayer::OnDetach()
 void SceneLayer::OnEvent(Fleur::EventVariant& event)
 {
     // TODO: FL_TRACE is not recognized here
-    auto LogEventVisitor = Fleur::EventVisitor{[this](Fleur::AppRenderEvent& ev) { OnRenderEvent(ev); },
+    auto logEventVisitor = Fleur::EventVisitor{[this](Fleur::AppRenderEvent& ev) { OnRenderEvent(ev); },
                                                [](const Fleur::EventVariant& ev) { /* FL_TRACE("{0}", ev.ToString());*/ }};
 
-    std::visit(LogEventVisitor, event);
+    std::visit(logEventVisitor, event);
 }
 
 bool SceneLayer::OnRenderEvent(Fleur::AppRenderEvent& event)

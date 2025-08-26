@@ -1,4 +1,4 @@
 #pragma once
 
-static std::string resource = "\\..\\..\\..\\..\\Sandbox\\Resources\\";
-static std::string shaders_win_path = "Windows\\Shaders";
+static std::string s_Resource = "\\..\\..\\..\\..\\Sandbox\\Resources\\";
+static std::string s_ShadersWinPath = "Windows\\Shaders";

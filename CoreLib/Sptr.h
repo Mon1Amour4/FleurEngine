@@ -62,8 +62,8 @@ private:
         uint32_t _weak = 0;
     };
 
-    Allocator _alloc{};
-    _ControlBlock* _cb = nullptr;
+    Allocator m_Alloc{};
+    _ControlBlock* m_Cb = nullptr;
 
     explicit Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept;
 
@@ -73,26 +73,26 @@ private:
 template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(std::remove_extent_t<T>* ptr) noexcept
 {
-    _cb = reinterpret_cast<_ControlBlock*>(_alloc.allocate(sizeof(_ControlBlock)));
-    std::construct_at(_cb);
+    m_Cb = reinterpret_cast<_ControlBlock*>(m_Alloc.allocate(sizeof(_ControlBlock)));
+    std::construct_at(m_Cb);
 
-    _cb->_ptr = ptr;
+    m_Cb->_ptr = ptr;
 
     if (ptr)
-        ++(_cb->_strong);
+        ++(m_Cb->_strong);
 }
 
 template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
-    : _cb(other._cb)
+    : m_Cb(other.m_Cb)
 {
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 }
 
 template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>&& other) noexcept
-    : _cb(std::exchange(other._cb, nullptr))
+    : m_Cb(std::exchange(other.m_Cb, nullptr))
 {
 }
 
@@ -104,10 +104,10 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator
 
     Release();
 
-    _cb = other._cb;
+    m_Cb = other.m_Cb;
 
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 
     return *this;
 }
@@ -120,7 +120,7 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& ot
 
     Release();
 
-    _cb = std::exchange(other._cb, nullptr);
+    m_Cb = std::exchange(other.m_Cb, nullptr);
 
     return *this;
 }
@@ -134,63 +134,63 @@ inline Sptr<T, Allocator>::~Sptr()
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::Get() const noexcept
 {
-    if (!_cb)
+    if (!m_Cb)
         return nullptr;
 
-    return _cb->_ptr;
+    return m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::Get() noexcept
 {
-    if (!_cb)
+    if (!m_Cb)
         return nullptr;
 
-    return _cb->_ptr;
+    return m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const& Sptr<T, Allocator>::operator*() const noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    return *_cb->_ptr;
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
+    return *m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>& Sptr<T, Allocator>::operator*() noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    return *_cb->_ptr;
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
+    return *m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::operator->() const noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    return _cb->_ptr;
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
+    return m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::operator->() noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
-    return _cb->_ptr;
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
+    return m_Cb->_ptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline uint32_t Sptr<T, Allocator>::UseCount() const noexcept
 {
-    return _cb ? _cb->_strong : 0;
+    return m_Cb ? m_Cb->_strong : 0;
 }
 
 template <class T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::operator bool() const noexcept
 {
-    return _cb ? _cb->_ptr != nullptr : false;
+    return m_Cb ? m_Cb->_ptr != nullptr : false;
 }
 
 template <class T, FleurAllocator Allocator>
@@ -200,42 +200,42 @@ inline void Sptr<T, Allocator>::Reset(std::remove_extent_t<T>* ptr)
 
     if (ptr)
     {
-        _cb = reinterpret_cast<_ControlBlock*>(_alloc.allocate(sizeof(_ControlBlock)));
-        std::construct_at(_cb);
+        m_Cb = reinterpret_cast<_ControlBlock*>(m_Alloc.allocate(sizeof(_ControlBlock)));
+        std::construct_at(m_Cb);
 
-        _cb->_ptr = ptr;
-        ++(_cb->_strong);
+        m_Cb->_ptr = ptr;
+        ++(m_Cb->_strong);
     }
 }
 
 template <class T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Release()
 {
-    if (!_cb)
+    if (!m_Cb)
         return;
 
-    --(_cb->_strong);
+    --(m_Cb->_strong);
 
-    if (_cb->_strong == 0)
+    if (m_Cb->_strong == 0)
     {
-        std::destroy_at(_cb->_ptr);
-        _alloc.deallocate(reinterpret_cast<uint8_t*>(_cb->_ptr), sizeof(std::remove_extent_t<T>));
-        _cb->_ptr = nullptr;
+        std::destroy_at(m_Cb->_ptr);
+        m_Alloc.deallocate(reinterpret_cast<uint8_t*>(m_Cb->_ptr), sizeof(std::remove_extent_t<T>));
+        m_Cb->_ptr = nullptr;
 
-        if (_cb->_weak == 0)
+        if (m_Cb->_weak == 0)
         {
-            std::destroy_at(_cb);
-            _alloc.deallocate(reinterpret_cast<uint8_t*>(_cb), sizeof(_ControlBlock));
+            std::destroy_at(m_Cb);
+            m_Alloc.deallocate(reinterpret_cast<uint8_t*>(m_Cb), sizeof(_ControlBlock));
         }
     }
 
-    _cb = nullptr;
+    m_Cb = nullptr;
 }
 
 template <class T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Swap(Sptr<T, Allocator>& other) noexcept
 {
-    std::swap(_cb, other._cb);
+    std::swap(m_Cb, other.m_Cb);
 }
 
 template <class T, FleurAllocator AllocatorT, class U, FleurAllocator AllocatorU>
@@ -348,17 +348,17 @@ std::remove_extent_t<T>* operator-(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 
 template <class T, FleurAllocator Allocator>
 Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept
-    : _cb(cb)
+    : m_Cb(cb)
 {
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 }
 template <NotArrayType T, FleurAllocator Allocator = DefaultAllocator, class... Args>
 Sptr<T, Allocator> MakeShared(Args&&... args)
 {
     Sptr<T, Allocator> Sp;
 
-    uint8_t* MemBlock = Sp._alloc.allocate(sizeof(std::remove_extent_t<T>));
+    uint8_t* MemBlock = Sp.m_Alloc.allocate(sizeof(std::remove_extent_t<T>));
 
     std::remove_extent_t<T>* Ptr = nullptr;
     try
@@ -367,12 +367,12 @@ Sptr<T, Allocator> MakeShared(Args&&... args)
     }
     catch (...)
     {
-        Sp._alloc.deallocate(MemBlock, sizeof(std::remove_extent_t<T>));
+        Sp.m_Alloc.deallocate(MemBlock, sizeof(std::remove_extent_t<T>));
         throw;
     }
 
-    Sp._cb->_ptr = Ptr;
-    ++(Sp._cb->_strong);
+    Sp.m_Cb->_ptr = Ptr;
+    ++(Sp.m_Cb->_strong);
 
     return Sp;
 }
@@ -424,8 +424,8 @@ private:
         uint32_t _weak = 0;
     };
 
-    Allocator _alloc{};
-    _ControlBlock* _cb = nullptr;
+    Allocator m_Alloc{};
+    _ControlBlock* m_Cb = nullptr;
     size_t _size;
 
     explicit Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept;
@@ -436,27 +436,27 @@ template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(size_t size, std::remove_extent_t<T>* ptr) noexcept
     : _size(size)
 {
-    _cb = reinterpret_cast<_ControlBlock*>(_alloc.allocate(sizeof(_ControlBlock)));
-    std::construct_at(_cb);
+    m_Cb = reinterpret_cast<_ControlBlock*>(m_Alloc.allocate(sizeof(_ControlBlock)));
+    std::construct_at(m_Cb);
 
-    _cb->_ptr = ptr;
+    m_Cb->_ptr = ptr;
 
     if (ptr)
-        ++(_cb->_strong);
+        ++(m_Cb->_strong);
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(const Sptr<T, Allocator>& other) noexcept
-    : _cb(other._cb)
+    : m_Cb(other.m_Cb)
     , _size(other._size)
 {
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>&& other) noexcept
-    : _cb(std::exchange(other._cb, nullptr))
+    : m_Cb(std::exchange(other.m_Cb, nullptr))
     , _size(other._size)
 {
 }
@@ -469,11 +469,11 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(const Sptr<T, Allocator
 
     Release();
 
-    _cb = other._cb;
+    m_Cb = other.m_Cb;
     _size = other._size;
 
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 
     return *this;
 }
@@ -486,7 +486,7 @@ inline Sptr<T, Allocator>& Sptr<T, Allocator>::operator=(Sptr<T, Allocator>&& ot
 
     Release();
 
-    _cb = std::exchange(other._cb, nullptr);
+    m_Cb = std::exchange(other.m_Cb, nullptr);
     _size = other._size;
 
     return *this;
@@ -501,43 +501,43 @@ inline Sptr<T, Allocator>::~Sptr()
 template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const* Sptr<T, Allocator>::Get() const noexcept
 {
-    return _cb->_ptr;
+    return m_Cb->_ptr;
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>* Sptr<T, Allocator>::Get() noexcept
 {
-    return _cb->_ptr;
+    return m_Cb->_ptr;
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T> const& Sptr<T, Allocator>::operator[](size_t Idx) const noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
     FL_CORE_ASSERT(Idx < _size, "Index out of bounds");
-    return _cb->_ptr[Idx];
+    return m_Cb->_ptr[Idx];
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline std::remove_extent_t<T>& Sptr<T, Allocator>::operator[](size_t Idx) noexcept
 {
-    FL_CORE_ASSERT(_cb, "Nullptr dereferencing");
-    FL_CORE_ASSERT(_cb->_ptr, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb, "Nullptr dereferencing");
+    FL_CORE_ASSERT(m_Cb->_ptr, "Nullptr dereferencing");
     FL_CORE_ASSERT(Idx < _size, "Index out of bounds");
-    return _cb->_ptr[Idx];
+    return m_Cb->_ptr[Idx];
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline uint32_t Sptr<T, Allocator>::UseCount() const noexcept
 {
-    return _cb ? _cb->_strong : 0;
+    return m_Cb ? m_Cb->_strong : 0;
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline Sptr<T, Allocator>::operator bool() const noexcept
 {
-    return _cb ? _cb->_ptr != nullptr : false;
+    return m_Cb ? m_Cb->_ptr != nullptr : false;
 }
 
 template <ArrayType T, FleurAllocator Allocator>
@@ -547,39 +547,39 @@ inline void Sptr<T, Allocator>::Reset(size_t size, std::remove_extent_t<T>* ptr)
 
     if (ptr)
     {
-        _cb = reinterpret_cast<_ControlBlock*>(_alloc.allocate(sizeof(_ControlBlock)));
-        std::construct_at(_cb);
+        m_Cb = reinterpret_cast<_ControlBlock*>(m_Alloc.allocate(sizeof(_ControlBlock)));
+        std::construct_at(m_Cb);
 
-        _cb->_ptr = ptr;
+        m_Cb->_ptr = ptr;
         _size = size;
 
-        ++(_cb->_strong);
+        ++(m_Cb->_strong);
     }
 }
 
 template <ArrayType T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Release()
 {
-    if (!_cb)
+    if (!m_Cb)
         return;
 
-    --(_cb->_strong);
+    --(m_Cb->_strong);
 
-    if (_cb->_strong == 0)
+    if (m_Cb->_strong == 0)
     {
-        for (size_t Idx = 0; Idx < _size; ++Idx) std::destroy_at(_cb->_ptr + Idx);
+        for (size_t Idx = 0; Idx < _size; ++Idx) std::destroy_at(m_Cb->_ptr + Idx);
 
-        _alloc.deallocate(reinterpret_cast<uint8_t*>(_cb->_ptr), sizeof(std::remove_extent_t<T>));
-        _cb->_ptr = nullptr;
+        m_Alloc.deallocate(reinterpret_cast<uint8_t*>(m_Cb->_ptr), sizeof(std::remove_extent_t<T>));
+        m_Cb->_ptr = nullptr;
 
-        if (_cb->_weak == 0)
+        if (m_Cb->_weak == 0)
         {
-            std::destroy_at(_cb);
-            _alloc.deallocate(reinterpret_cast<uint8_t*>(_cb), sizeof(_ControlBlock));
+            std::destroy_at(m_Cb);
+            m_Alloc.deallocate(reinterpret_cast<uint8_t*>(m_Cb), sizeof(_ControlBlock));
         }
     }
 
-    _cb = nullptr;
+    m_Cb = nullptr;
     _size = 0;
 }
 
@@ -592,7 +592,7 @@ inline size_t Sptr<T, Allocator>::GetSize() const noexcept
 template <ArrayType T, FleurAllocator Allocator>
 inline void Sptr<T, Allocator>::Swap(Sptr<T, Allocator>& other) noexcept
 {
-    std::swap(_cb, other._cb);
+    std::swap(m_Cb, other.m_Cb);
     std::swap(_size, other._size);
 }
 
@@ -694,17 +694,17 @@ std::remove_extent_t<T>* operator-(Sptr<T, Allocator>& ptr, ptrdiff_t n)
 
 template <ArrayType T, FleurAllocator Allocator>
 Sptr<T, Allocator>::Sptr(Sptr<T, Allocator>::_ControlBlock* cb) noexcept
-    : _cb(cb)
+    : m_Cb(cb)
 {
-    if (_cb)
-        ++(_cb->_strong);
+    if (m_Cb)
+        ++(m_Cb->_strong);
 }
 template <ArrayType T, FleurAllocator Allocator = DefaultAllocator, class... Args>
 Sptr<T, Allocator> MakeShared(size_t size, Args&&... args)
 {
     Sptr<T, Allocator> Sp(size, nullptr);
 
-    uint8_t* MemBlock = Sp._alloc.allocate(Sp._size * sizeof(std::remove_extent_t<T>));
+    uint8_t* MemBlock = Sp.m_Alloc.allocate(Sp._size * sizeof(std::remove_extent_t<T>));
 
     std::remove_extent_t<T>* Instance = nullptr;
     size_t Idx = 0;
@@ -717,12 +717,12 @@ Sptr<T, Allocator> MakeShared(size_t size, Args&&... args)
     {
         for (; Idx > 0; --Idx) std::destroy_at(Instance + (Idx - 1));
 
-        Sp._alloc.deallocate(MemBlock, sizeof(std::remove_extent_t<T>));
+        Sp.m_Alloc.deallocate(MemBlock, sizeof(std::remove_extent_t<T>));
         throw;
     }
 
-    Sp._cb->_ptr = Instance;
-    ++(Sp._cb->_strong);
+    Sp.m_Cb->_ptr = Instance;
+    ++(Sp.m_Cb->_strong);
 
     return Sp;
 }
@@ -806,7 +806,7 @@ inline Wptr<T, Allocator>::~Wptr()
 
 template <class T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
-    : _cb(shared._cb)
+    : _cb(shared.m_Cb)
 {
     if (_cb)
         ++(_cb->_weak);
@@ -817,7 +817,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator
 {
     Release();
 
-    _cb = shared._cb;
+    _cb = shared.m_Cb;
 
     if (_cb)
         ++(_cb->_weak);
@@ -947,7 +947,7 @@ inline Wptr<T, Allocator>::~Wptr()
 
 template <ArrayType T, FleurAllocator Allocator>
 inline Wptr<T, Allocator>::Wptr(const Sptr<T, Allocator>& shared) noexcept
-    : _cb(shared._cb)
+    : _cb(shared.m_Cb)
     , _size(shared._size)
 {
     if (_cb)
@@ -959,7 +959,7 @@ inline Wptr<T, Allocator>& Wptr<T, Allocator>::operator=(const Sptr<T, Allocator
 {
     Release();
 
-    _cb = shared._cb;
+    _cb = shared.m_Cb;
     _size = shared._size;
 
     if (_cb)

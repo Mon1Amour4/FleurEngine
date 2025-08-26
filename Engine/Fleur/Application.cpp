@@ -24,8 +24,8 @@ Application& singleton<Application>::instance()
 }
 
 Application::Application()
-    : initialized(false)
-    , m_Running(false)
+    : m_IsInitialized(false)
+    , m_IsRunning(false)
 {
 }
 
@@ -72,7 +72,7 @@ void Application::OnEvent(EventVariant& event)
 
 bool Application::OnWindowClose(WindowCloseEvent& event)
 {
-    m_Running = false;
+    m_IsRunning = false;
     event.SetHandled();
     return true;
 }
@@ -101,9 +101,9 @@ bool Application::OnValidateWindow(WindowValidateEvent& event)
 }
 bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
-    KeyCode crossplatform_key = event.GetKeyCode();
+    EKeyCode crossplatformKey = event.GetKeyCode();
 
-    switch (crossplatform_key)
+    switch (crossplatformKey)
     {
     case Key::D1:
         ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
@@ -119,37 +119,37 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Application::OnRenderEvent(AppRenderEvent& event)
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    auto assets_manager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
     // renderer->ShowWireFrame();
     //  TODO: As for now we use just one opaque shader, but we must think about different passes
     //  using different shaders with blending and probably using pre-passes
 
-    auto model_1 = assets_manager->Get<Model>("WaterCooler");
-    auto locked_model_1 = model_1.lock();
-    if (locked_model_1)
+    auto waterCoolerModel = assetsManager->Get<Model>("WaterCooler");
+    auto waterCoolerModelLocked = waterCoolerModel.lock();
+    if (waterCoolerModelLocked)
     {
-        renderer->DrawModel(Fleur::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_1.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
     }
 
-    auto model_3 = assets_manager->Get<Model>("Sponza");
-    auto locked_model_3 = model_3.lock();
-    if (locked_model_3)
+    auto sponzaModel = assetsManager->Get<Model>("Sponza");
+    auto sponzaModelLocked = sponzaModel.lock();
+    if (sponzaModelLocked)
     {
         glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
         glm::mat4 R = glm::mat4(1.f);
         glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
         glm::mat4 M = T * R * S;
 
-        renderer->DrawModel(Fleur::Graphics::RenderStage::STATIC_GEOMETRY, locked_model_3.get(), M);
+        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponzaModelLocked.get(), M);
     }
 
-    auto model_4 = assets_manager->Get<Model>("gizmo");
-    if (!model_4.expired())
+    auto gizmoModel = assetsManager->Get<Model>("gizmo");
+    if (!gizmoModel.expired())
     {
         glm::mat4 gizmoMatrix(1.0f);
         gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
 
-        renderer->DrawModel(Fleur::Graphics::RenderStage::GIZMO, model_4.lock().get(), gizmoMatrix);
+        renderer->DrawModel(Fleur::Graphics::ERenderStage::GIZMO, gizmoModel.lock().get(), gizmoMatrix);
     }
 
     UNUSED(event);
@@ -175,38 +175,38 @@ Window& Application::GetWindow()
 void Application::Init(ApplicationBootSettings& settings)
 {
     m_EventQueue = EventQueue::CreateEventQueue();
-    m_Window = Window::CreateAppWindow(settings.window_props, *m_EventQueue);
-    _time_manager = Time::CreateTimeManager(settings.fixed_dt);
+    m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
+    m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
 
-    auto fs = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
-    fs.value()->Init();
+    auto fileSystem = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
+    fileSystem.value()->Init();
 
-    auto assets_manager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
-    auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::GraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
+    auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
+    auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::EGraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
-    renderer.value()->SetVSync(settings.vsync);
+    renderer.value()->SetVSync(settings.Vsync);
 
-    auto thread_pool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
-    thread_pool.value()->Init();
+    auto threadPool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
+    threadPool.value()->Init();
 
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assets_manager.value()->Load<Image2D>("fallback.png")->Resource());
+    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
-    assets_manager.value()->Load<Model>("Sponza/Sponza.glb");
-    assets_manager.value()->Load<Model>("gizmo.glb");
-    assets_manager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+    assetsManager.value()->Load<Model>("Sponza/Sponza.glb");
+    assetsManager.value()->Load<Model>("gizmo.glb");
+    assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
-    assets_manager.value()->Load<CubemapImage>("skybox.jpg");
-    assets_manager.value()->Load<Image2D>("left.jpg");
-    assets_manager.value()->Load<Image2D>("front.jpg");
-    assets_manager.value()->Load<Image2D>("right.jpg");
-    assets_manager.value()->Load<Image2D>("back.jpg");
-    assets_manager.value()->Load<Image2D>("bottom.jpg");
-    assets_manager.value()->Load<Image2D>("top.jpg");
-    assets_manager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
+    assetsManager.value()->Load<CubemapImage>("skybox.jpg");
+    assetsManager.value()->Load<Image2D>("left.jpg");
+    assetsManager.value()->Load<Image2D>("front.jpg");
+    assetsManager.value()->Load<Image2D>("right.jpg");
+    assetsManager.value()->Load<Image2D>("back.jpg");
+    assetsManager.value()->Load<Image2D>("bottom.jpg");
+    assetsManager.value()->Load<Image2D>("top.jpg");
+    assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
-    initialized = true;
-    m_Running = true;
+    m_IsInitialized = true;
+    m_IsRunning = true;
 }
 
 void Application::SetVSync(bool active) const
@@ -223,24 +223,24 @@ bool Application::IsVSync() const
 
 void Application::Run()
 {
-    if (!initialized)
+    if (!m_IsInitialized)
     {
         Application::ApplicationBootSettings settings{};
         Init(settings);
     }
 
-    while (m_Running)
+    while (m_IsRunning)
     {
         auto renderer = ServiceLocator::instance().GetService<Renderer>();
-        auto assets_manager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+        auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-        _time_manager->Tick();
+        m_TimeManager->Tick();
 
         char buffer[32];
-        sprintf(buffer, "%d", _time_manager->FPS());
+        sprintf(buffer, "%d", m_TimeManager->FPS());
         m_Window->SetTitle(buffer);
 
-        float dtTime = _time_manager->DeltaTime();
+        float dtTime = m_TimeManager->DeltaTime();
 
         renderer->Clear();
 

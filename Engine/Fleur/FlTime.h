@@ -12,45 +12,45 @@ public:
 
     inline uint64_t Frame() const
     {
-        return frame;
+        return m_Frame;
     }
     inline float DeltaTime() const
     {
-        return delta_time;
+        return m_DeltaTime;
     }
     inline float FixedTime() const
     {
-        return fixed_time;
+        return m_FixedTime;
     }
     inline uint16_t FPS() const
     {
-        return fps;
+        return m_FPS;
     }
     inline float AverageFrameTime() const
     {
-        return average_frametime;
+        return m_AverageFrametime;
     }
 
 protected:
     Time(float fixed_time)
-        : frame(0)
-        , fixed_time(fixed_time)
-        , delta_time(0.f)
-        , fps(0)
-        , fps_time(0.f)
-        , fps_frames(0)
-        , average_frametime(0.f)
-        , application_epoch(0) {};
+        : m_Frame(0)
+        , m_FixedTime(fixed_time)
+        , m_DeltaTime(0.f)
+        , m_FPS(0)
+        , m_FPSTime(0.f)
+        , m_FPSFrames(0)
+        , m_AverageFrametime(0.f)
+        , m_ApplicationEpoch(0) {};
 
-    uint64_t frame;
-    float fixed_time;
-    float delta_time;
-    uint16_t fps;
-    float fps_time;
-    uint16_t fps_frames;
+    uint64_t m_Frame;
+    float m_FixedTime;
+    float m_DeltaTime;
+    uint16_t m_FPS;
+    float m_FPSTime;
+    uint16_t m_FPSFrames;
 
-    float average_frametime;
+    float m_AverageFrametime;
 
-    uint32_t application_epoch;
+    uint32_t m_ApplicationEpoch;
 };
 }  // namespace Fleur

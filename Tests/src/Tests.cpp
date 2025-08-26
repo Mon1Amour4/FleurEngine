@@ -1,7 +1,7 @@
 #include "Tests.h"
 
-int main(int argc, char** argv)
+int main(int argC, char** argV)
 {
-    ::testing::InitGoogleTest(&argc, argv);
+    ::testing::InitGoogleTest(&argC, argV);
     return RUN_ALL_TESTS();
 }

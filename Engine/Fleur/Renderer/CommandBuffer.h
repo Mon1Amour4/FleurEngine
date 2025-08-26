@@ -14,11 +14,11 @@ class Texture;
 struct VertexLayout;
 class Device;
 class Framebuffer;
-enum class FramebufferRWOperation;
+enum class EFramebufferRWOperation;
 
-enum RenderStage;
+enum ERenderStage;
 
-enum class DepthTestOperation
+enum class EDepthTestOperation
 {
     NEVER,
     LESS,
@@ -33,13 +33,13 @@ enum class DepthTestOperation
 struct DepthStencilDescriptor
 {
     bool death_test;
-    DepthTestOperation operation;
+    EDepthTestOperation operation;
 };
 
 class CommandBuffer
 {
 public:
-    enum ObjectLabel
+    enum EObjectLabel
     {
         LABEL_BUFFER = 0,
         LABEL_SHADER = 1,
@@ -53,7 +53,7 @@ public:
     virtual void EndRecording() = 0;
     virtual void Submit() = 0;
 
-    virtual void BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw) = 0;
+    virtual void BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw) = 0;
     virtual void BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader) = 0;
     virtual void BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex) = 0;
 
@@ -62,38 +62,38 @@ public:
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) = 0;
 
     template <typename T>
-    uint32_t UpdateBufferSubData(Buffer::BufferType type, std::span<const T> data)
+    uint32_t UpdateBufferSubData(Buffer::EBufferType type, std::span<const T> data)
     {
         return UpdateBufferSubDataImpl(type, data.data(), data.size_bytes());
     }
 
     virtual void BindTexture(Texture* texture) = 0;
     virtual void Draw(uint32_t vertexCount) = 0;
-    virtual void IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex) = 0;
+    virtual void IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex) = 0;
 
     virtual void PushDebugGroup(uint32_t id, const char* message) = 0;
     virtual void PopDebugGroup() = 0;
-    virtual void SetLabel(ObjectLabel id, uint32_t name, const char* message) = 0;
+    virtual void SetLabel(EObjectLabel id, uint32_t name, const char* message) = 0;
 
     virtual Fleur::Graphics::ShaderObject* ShaderObject() const
     {
-        return shader_object.get();
+        return m_ShaderObject.get();
     }
 
 protected:
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes) = 0;
+    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) = 0;
 
     CommandBuffer(DepthStencilDescriptor desc)
-        : push_debug_group_commands(0)
-        , descriptor(desc) {};
+        : m_PushDebugGroupCommands(0)
+        , m_Descriptor(desc) {};
 
-    uint16_t push_debug_group_commands;
+    uint16_t m_PushDebugGroupCommands;
 
-    std::shared_ptr<Fleur::Graphics::ShaderObject> shader_object;
-    std::unique_ptr<Fleur::Graphics::Buffer> vertex_global_buffer;
-    std::unique_ptr<Fleur::Graphics::Buffer> index_global_buffer;
+    std::shared_ptr<Fleur::Graphics::ShaderObject> m_ShaderObject;
+    std::unique_ptr<Fleur::Graphics::Buffer> m_VertexGlobalBuffer;
+    std::unique_ptr<Fleur::Graphics::Buffer> m_IndexGlobalBuffer;
 
-    DepthStencilDescriptor descriptor;
+    DepthStencilDescriptor m_Descriptor;
 };
 
 }  // namespace Fleur::Graphics

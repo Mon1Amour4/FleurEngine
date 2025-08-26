@@ -12,17 +12,17 @@ InputWin& singleton<InputWin>::instance()
     return inst;
 }
 
-bool InputWin::IsKeyPressedImpl(KeyCode keyCode) const
+bool InputWin::IsKeyPressedImpl(EKeyCode keyCode) const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
-    Input::KeyState state = window.GetKeyState(keyCode);
+    Input::EKeyState state = window.GetKeyState(keyCode);
     return state == Input::KEY_PRESSED || state == Input::KEY_REPEAT;
 }
 
 bool InputWin::IsMouseButtonPressedImpl(uint16_t mouseCode)
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
-    Input::MouseState state = window.GetMouseState(mouseCode);
+    Input::EMouseState state = window.GetMouseState(mouseCode);
     return state == Input::MOUSE_LPRESSED || state == Input::MOUSE_RPRESSED;
 }
 

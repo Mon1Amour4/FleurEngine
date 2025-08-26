@@ -22,7 +22,7 @@ public:
 private:
     virtual void PushEvent(std::shared_ptr<EventVariant>&& e);
 
-    std::queue<std::shared_ptr<EventVariant>> _queue;
-    std::mutex _mutex;
+    std::queue<std::shared_ptr<EventVariant>> m_Queue;
+    std::mutex m_Mutex;
 };
 }  // namespace Fleur

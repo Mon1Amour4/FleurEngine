@@ -15,18 +15,18 @@ namespace Fleur::Graphics
 class Image2D;
 class CubemapImage;
 class Model;
-enum ImageFormat;
+enum EImageFormat;
 }  // namespace Fleur::Graphics
 
 namespace Fleur
 {
-enum Failure
+enum EFailure
 {
     WRONG_PATH,
     NO_DATA
 };
 
-enum LoadingSts
+enum ELoadingSts
 {
     TO_BE_LOADED,
     LOADING,
@@ -38,56 +38,56 @@ template <typename T>
 class ResourceHandle
 {
 public:
-    ResourceHandle(std::shared_ptr<T> resource, LoadingSts status, std::optional<Failure> failure = std::nullopt)
-        : obj(resource)
-        , status(status)
-        , failure(failure) {};
+    ResourceHandle(std::shared_ptr<T> resource, ELoadingSts status, std::optional<EFailure> failure = std::nullopt)
+        : m_Obj(resource)
+        , m_Status(status)
+        , m_Failure(failure) {};
 
     ResourceHandle(std::shared_ptr<T> resource)
-        : obj(resource)
-        , status(status) {};
+        : m_Obj(resource)
+        , m_Status(m_Status) {};
     ResourceHandle() = default;
     ~ResourceHandle() = default;
 
-    LoadingSts Status()
+    ELoadingSts Status()
     {
-        return status;
+        return m_Status;
     }
-    std::optional<Failure> FailureReason()
+    std::optional<EFailure> FailureReason()
     {
-        return failure;
+        return m_Failure;
     }
-    void SetCorrupted(Failure failure)
+    void SetCorrupted(EFailure failure)
     {
-        status = CORRUPTED;
+        m_Status = CORRUPTED;
         failure = failure;
     }
     void SetSuccess()
     {
-        status = SUCCESS;
-        failure = std::nullopt;
+        m_Status = SUCCESS;
+        m_Failure = std::nullopt;
     }
-    void SetStatus(LoadingSts st)
+    void SetStatus(ELoadingSts st)
     {
-        status = st;
+        m_Status = st;
     }
-    void SetFailure(Failure fail)
+    void SetFailure(EFailure fail)
     {
-        failure = fail;
+        m_Failure = fail;
     }
     const std::shared_ptr<T> Resource() const
     {
-        return obj;
+        return m_Obj;
     }
     void SetResource(std::shared_ptr<T> res)
     {
-        obj = res;
+        m_Obj = res;
     }
 
 private:
-    std::shared_ptr<T> obj;
-    LoadingSts status{TO_BE_LOADED};
-    std::optional<Failure> failure;
+    std::shared_ptr<T> m_Obj;
+    ELoadingSts m_Status{TO_BE_LOADED};
+    std::optional<EFailure> m_Failure;
 };
 
 class AssetsManager : public Service<AssetsManager>
@@ -99,23 +99,23 @@ public:
     AssetsManager();
     ~AssetsManager();
 
-    CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
-    CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flip_vertical, unsigned char* data, uint32_t size_b);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flipVertical, unsigned char* data, uint32_t sizeBytes);
+    CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flipVertical, unsigned char* data, uint32_t sizeBytes);
 
     CONST_SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
 
     CONST_SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
-    std::shared_ptr<Fleur::ResourceHandle<Res>> Load(std::string_view path, bool flip_vertical = false, bool async = true)
+    std::shared_ptr<Fleur::ResourceHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
     {
         std::shared_ptr<Fleur::ResourceHandle<Res>> result{nullptr};
         if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::Image2D>)
         {
             if (async)
-                return load_image2d_async(path, flip_vertical);
+                return load_image2d_async(path, flipVertical);
             else
-                return load_image2d(path, flip_vertical);
+                return load_image2d(path, flipVertical);
         }
         else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::Model>)
         {
@@ -127,9 +127,9 @@ public:
         else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::CubemapImage>)
         {
             if (async)
-                return load_cubemap_image_async(path, flip_vertical);
+                return load_cubemap_image_async(path, flipVertical);
             else
-                return load_cubemap_image(path, flip_vertical);
+                return load_cubemap_image(path, flipVertical);
         }
         FL_CORE_ASSERT(false, "");
         return std::shared_ptr<Fleur::ResourceHandle<Res>>{};
@@ -143,24 +143,24 @@ public:
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Model>>::value)
         {
-            auto it = models.find(name.data());
-            if (it != models.end())
+            auto it = m_Models.find(name.data());
+            if (it != m_Models.end())
                 return std::weak_ptr<Res>(it->second);
             else
                 return std::weak_ptr<Res>{};
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Image2D>>::value)
         {
-            auto it = images2d.find(name.data());
-            if (it != images2d.end())
+            auto it = m_Images2D.find(name.data());
+            if (it != m_Images2D.end())
                 return std::weak_ptr<Res>(it->second);
             else
                 return std::weak_ptr<Res>{};
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::CubemapImage>>::value)
         {
-            auto it = cubemap_images.find(name.data());
-            if (it != cubemap_images.end())
+            auto it = m_CubemapImages.find(name.data());
+            if (it != m_CubemapImages.end())
                 return std::weak_ptr<Res>(it->second);
             else
                 return std::weak_ptr<Res>{};
@@ -170,75 +170,75 @@ public:
     }
 
     template <class Res>
-    void Unload(std::string_view res_name)
+    void Unload(std::string_view resourceName)
     {
-        if (res_name.empty())
+        if (resourceName.empty())
             return;
 
-        std::string name = std::filesystem::path(res_name).stem().string();
+        std::string name = std::filesystem::path(resourceName).stem().string();
 
         if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Model>>::value)
         {
-            auto it = models.find(name);
-            if (it != models.end())
+            auto it = m_Models.find(name);
+            if (it != m_Models.end())
             {
                 FL_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                models.unsafe_erase(it);
+                m_Models.unsafe_erase(it);
             }
-            --models_count;
+            --m_ModelsCount;
         }
         else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Image2D>>::value)
         {
-            auto it = images2d.find(name);
-            if (it != images2d.end())
+            auto it = m_Images2D.find(name);
+            if (it != m_Images2D.end())
             {
                 FL_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
                 std::mutex mtx;
                 std::lock_guard<std::mutex> lock(mtx);
-                images2d.unsafe_erase(it);
+                m_Images2D.unsafe_erase(it);
             }
-            --images2d_count;
+            --m_Images2DCount;
         }
         else
             FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type");
     }
 
 private:
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> models;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> m_Models;
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Image2D>> images2d;
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::CubemapImage>> cubemap_images;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Image2D>> m_Images2D;
+    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::CubemapImage>> m_CubemapImages;
 
     //  TODO: What to do with corrupted models?
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Model)> models_to_load_async;
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Image2D)> images2d_to_load_async;
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(CubemapImage)> cubemap_images_to_load_async;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Model)> m_ModelsToLoadAsync;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Image2D)> m_Images2DToLoadAsync;
+    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(CubemapImage)> m_CubemapImagesToLoadAsync;
 
     CONST_SHARED_RES(Model) load_model(std::string_view path);
     CONST_SHARED_RES(Model) load_model_async(std::string_view path);
 
-    CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flip_vertical);
-    CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flipVertical);
+    CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flipVertical);
 
-    CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flip_vertical);
-    CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flip_vertical);
+    CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flipVertical);
+    CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flipVertical);
 
-    std::atomic<uint32_t> models_count;
-    std::atomic<uint32_t> images2d_count;
-    std::atomic<uint32_t> cubemap_images_count;
+    std::atomic<uint32_t> m_ModelsCount;
+    std::atomic<uint32_t> m_Images2DCount;
+    std::atomic<uint32_t> m_CubemapImagesCount;
 
-    uint16_t ImageChannels(std::string_view image2d_ext);
+    uint16_t ImageChannels(std::string_view image2DExt);
 
     template <typename Map>
-    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& handle_out)
+    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
     {
         auto it = map.find(key);
         if (it != map.end())
         {
-            handle_out = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(it->second);
-            handle_out->SetSuccess();
+            handleOut = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(it->second);
+            handleOut->SetSuccess();
             return true;
         }
         return false;

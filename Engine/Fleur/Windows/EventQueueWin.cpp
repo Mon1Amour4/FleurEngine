@@ -19,25 +19,25 @@ void EventQueueWin::OnFixedUpdate()
 
 std::shared_ptr<EventVariant> EventQueueWin::Front()
 {
-    std::lock_guard lock(_mutex);
-    return _queue.front();
+    std::lock_guard lock(m_Mutex);
+    return m_Queue.front();
 }
 
 void EventQueueWin::Pop()
 {
-    std::lock_guard lock(_mutex);
-    _queue.pop();
+    std::lock_guard lock(m_Mutex);
+    m_Queue.pop();
 }
 
 bool EventQueueWin::Empty()
 {
-    return _queue.empty();
+    return m_Queue.empty();
 }
 
 void EventQueueWin::PushEvent(std::shared_ptr<EventVariant>&& e)
 {
-    std::lock_guard lock(_mutex);
-    _queue.push(std::move(e));
+    std::lock_guard lock(m_Mutex);
+    m_Queue.push(std::move(e));
 }
 
 std::unique_ptr<EventQueue> EventQueue::CreateEventQueue()

@@ -7,7 +7,7 @@
 namespace Fleur::Graphics
 {
 
-GLint GetShaderType(Shader::ShaderType type)
+GLint GetShaderType(Shader::EShaderType type)
 {
     switch (type)
     {
@@ -21,33 +21,33 @@ GLint GetShaderType(Shader::ShaderType type)
     }
 }
 
-ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, ShaderType type)
+ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, EShaderType type)
     : Shader(name)
-    , shader_object(0)
-    , _type(type)
+    , m_ShaderObject(0)
+    , m_Type(type)
 {
-    _shaderID = glCreateShader(GetShaderType(type));
-    glShaderSource(_shaderID, 1, &shaderCode, nullptr);
-    glCompileShader(_shaderID);
+    m_ShaderID = glCreateShader(GetShaderType(type));
+    glShaderSource(m_ShaderID, 1, &shaderCode, nullptr);
+    glCompileShader(m_ShaderID);
 
-    std::string shader_type{};
-    if (type == ShaderType::Vertex)
-        shader_type = "vertex";
-    else if (type == ShaderType::Pixel)
-        shader_type = "pixel";
+    std::string shaderType{};
+    if (type == EShaderType::Vertex)
+        shaderType = "vertex";
+    else if (type == EShaderType::Pixel)
+        shaderType = "pixel";
 
     GLint success;
-    glGetShaderiv(_shaderID, GL_COMPILE_STATUS, &success);
+    glGetShaderiv(m_ShaderID, GL_COMPILE_STATUS, &success);
     if (!success)
     {
         char infoLog[512];
-        glGetShaderInfoLog(_shaderID, 512, nullptr, infoLog);
-        FL_CORE_ERROR("[Shader] {0} {1} compilation error: ",name, shader_type, infoLog);
+        glGetShaderInfoLog(m_ShaderID, 512, nullptr, infoLog);
+        FL_CORE_ERROR("[Shader] {0} {1} compilation error: ",name, shaderType, infoLog);
     }
     else
     {
-        FL_CORE_TRACE("[Shader] {0} {1} has compiled", name, shader_type);
-        glObjectLabel(GL_SHADER, _shaderID, -1, this->name.c_str());
+        FL_CORE_TRACE("[Shader] {0} {1} has compiled", name, shaderType);
+        glObjectLabel(GL_SHADER, m_ShaderID, -1, this->m_Name.c_str());
     }
 }
 
@@ -58,17 +58,17 @@ ShaderOpenGL::~ShaderOpenGL()
 
 void ShaderOpenGL::BindToShaderObject(ShaderObject& obj)
 {
-    ShaderObjectOpenGL& obj_gl = dynamic_cast<ShaderObjectOpenGL&>(obj);
-    shader_object = obj_gl.GetObjectID();
+    ShaderObjectOpenGL& objectGL = dynamic_cast<ShaderObjectOpenGL&>(obj);
+    m_ShaderObject = objectGL.GetObjectID();
 }
 
 void ShaderOpenGL::Release()
 {
-    glDeleteShader(_shaderID);
+    glDeleteShader(m_ShaderID);
 
-    shader_object = 0;
-    _shaderID = 0;
-    _type = None;
+    m_ShaderObject = 0;
+    m_ShaderID = 0;
+    m_Type = None;
 }
 
 }  // namespace Fleur::Graphics

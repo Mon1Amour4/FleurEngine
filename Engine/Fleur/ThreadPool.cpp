@@ -1,24 +1,24 @@
 #include "ThreadPool.h"
 
 Fleur::ThreadPool::ThreadPool()
-    : num_workers(std::thread::hardware_concurrency())
-    , running(true)
+    : m_NumWorkers(std::thread::hardware_concurrency())
+    , m_IsRunning(true)
 {
 }
 
 void Fleur::ThreadPool::OnInit()
 {
-    workers.reserve(num_workers);
-    for (size_t i = 0; i < num_workers; i++)
+    m_Workers.reserve(m_NumWorkers);
+    for (size_t i = 0; i < m_NumWorkers; i++)
     {
-        workers.emplace_back(
+        m_Workers.emplace_back(
             [this]()
             {
-                while (running)
+                while (m_IsRunning)
                 {
-                    std::unique_lock<std::mutex> ul(queue_mutex);
-                    condition.wait(ul, [this]() { return !tasks.empty() || !running; });
-                    if (!running)
+                    std::unique_lock<std::mutex> ul(m_QueueMutex);
+                    m_Condition.wait(ul, [this]() { return !m_Tasks.empty() || !m_IsRunning; });
+                    if (!m_IsRunning)
                         return;
                     Task task = GetTask();
                     ul.unlock();
@@ -33,13 +33,13 @@ void Fleur::ThreadPool::OnInit()
 void Fleur::ThreadPool::OnShutdown()
 {
     {
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        running = false;
+        std::lock_guard<std::mutex> lock(m_QueueMutex);
+        m_IsRunning = false;
     }
-    condition.notify_all();
-    for (size_t i = 0; i < num_workers; i++)
+    m_Condition.notify_all();
+    for (size_t i = 0; i < m_NumWorkers; i++)
     {
-        std::thread& thread = workers[i];
+        std::thread& thread = m_Workers[i];
         if (thread.joinable())
         {
             FL_CORE_TRACE("[ThreadPool] Thread closed: id: {0}", PrintThreadID(i));
@@ -51,20 +51,20 @@ void Fleur::ThreadPool::OnShutdown()
 
 void Fleur::ThreadPool::Release()
 {
-    workers.clear();
-    workers.shrink_to_fit();
+    m_Workers.clear();
+    m_Workers.shrink_to_fit();
 }
 
 Fleur::ThreadPool::Task Fleur::ThreadPool::GetTask()
 {
-    Task task = std::move(tasks.front());
-    tasks.pop();
+    Task task = std::move(m_Tasks.front());
+    m_Tasks.pop();
     return task;
 }
 
 std::string Fleur::ThreadPool::PrintThreadID(size_t thread_id) const
 {
     std::ostringstream ss;
-    ss << workers[thread_id].get_id();
+    ss << m_Workers[thread_id].get_id();
     return ss.str();
 }

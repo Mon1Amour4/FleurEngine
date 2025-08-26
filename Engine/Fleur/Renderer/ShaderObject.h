@@ -24,24 +24,24 @@ public:
     {
         if constexpr (GetPureTypeAndCompare<glm::vec3, T>())
         {
-            return set_vec3f_impl(name, var);
+            return SetVec3fImpl(name, var);
         }
         else if constexpr (GetPureTypeAndCompare<glm::mat4, T>())
         {
-            return set_mat4f_impl(name, var);
+            return SetMat4fImpl(name, var);
         }
         else if constexpr (GetPureTypeAndCompare<Texture, T>())
         {
-            return set_text2d_impl(name, var);
+            return SetText2dImpl(name, var);
         }
         // TODO
         else if constexpr (std::is_same_v<Texture, std::remove_cv_t<std::remove_pointer_t<T>>>)
         {
-            return set_text2d_impl(name, var);
+            return SetText2dImpl(name, var);
         }
         else
         {
-            const char* type_name = typeid(T).name();
+            const char* typeName = typeid(T).name();
             FL_CORE_ASSERT(false, "t: {0}", typeid(T).name());
             return false;
         }
@@ -61,8 +61,8 @@ protected:
     {
     }
     std::string name;
-    virtual bool set_vec3f_impl(std::string_view name, const glm::vec3& vec) = 0;
-    virtual bool set_mat4f_impl(std::string_view name, const glm::mat4& matrix) = 0;
-    virtual bool set_text2d_impl(std::string_view name, const Texture& texture) = 0;
+    virtual bool SetVec3fImpl(std::string_view name, const glm::vec3& vec) = 0;
+    virtual bool SetMat4fImpl(std::string_view name, const glm::mat4& matrix) = 0;
+    virtual bool SetText2dImpl(std::string_view name, const Texture& texture) = 0;
 };
 }  // namespace Fleur::Graphics
