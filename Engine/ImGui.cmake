@@ -41,7 +41,7 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
     ${GAMECONTROLLER_FRAMEWORK}
   )
 
-ELSEIF(FLEUR_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows Backend
   LIST(APPEND IMGUI_PLATFORM_HEADERS External/imgui/backends/imgui_impl_win32.h
        External/imgui/backends/imgui_impl_opengl3.h
@@ -88,7 +88,7 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
   # Enable Objective-C++ for .mm files
   SET_SOURCE_FILES_PROPERTIES(External/imgui/backends/imgui_impl_osx.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
-ELSEIF(FLEUR_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows-specific compile definitions
   TARGET_COMPILE_DEFINITIONS(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD WIN32_LEAN_AND_MEAN NOMINMAX)
 
@@ -97,7 +97,7 @@ ELSEIF(FLEUR_PLATFORM STREQUAL "win")
   SET(IMGUI_DEBUG_SOURCE_DIR ${CMAKE_SOURCE_DIR}/Engine/External/imgui/misc/debuggers)
   SET(IMGUI_DEBUG_FILES ${IMGUI_DEBUG_SOURCE_DIR}/imgui.natstepfilter ${IMGUI_DEBUG_SOURCE_DIR}/imgui.natvis)
 
-  SET(IMGUI_DEBUG_DEST_DIR ${CMAKE_BINARY_DIR}/output)
+  SET(IMGUI_DEBUG_DEST_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 
   FOREACH(debug_file IN LISTS IMGUI_DEBUG_FILES)
     GET_FILENAME_COMPONENT(debug_file_name ${debug_file} NAME)
