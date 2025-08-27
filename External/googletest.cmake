@@ -30,16 +30,13 @@ SET(GTEST_SOLUTION ${FLEUR_ROOT}/build/${FLEUR_PLATFORM}/External)
 
 add_subdirectory(${GOOGLETEST_ROOT} ${GOOGLETEST_BINATY_DIR})
 
+# Need to set this PDB outputs cause googletest build as STATIC lib, and for static libs MSVC has two separate paths
+# So pdb files creates at Config/bin (as user defined output for all pdb files) AND lib/Config (as for all STATIC libs)
 SET_TARGET_PROPERTIES(
   gtest gtest_main
   PROPERTIES FOLDER "Tests"
-  PDB_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/Debug/bin"
-  PDB_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/Release/bin"
-  PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin"
-  PDB_OUTPUT_DIRECTORY_MINSIZEREL      "${CMAKE_BINARY_DIR}/MinSizeRel/bin"
+        COMPILE_PDB_OUTPUT_DIRECTORY_DEBUG          "${CMAKE_BINARY_DIR}/Debug/bin"
+        COMPILE_PDB_OUTPUT_DIRECTORY_RELEASE        "${CMAKE_BINARY_DIR}/Release/bin"
+        COMPILE_PDB_OUTPUT_DIRECTORY_RELWITHDEBINFO "${CMAKE_BINARY_DIR}/RelWithDebInfo/bin"
+        COMPILE_PDB_OUTPUT_DIRECTORY_MINSIZEREL     "${CMAKE_BINARY_DIR}/MinSizeRel/bin"
 )
-get_target_property(_gtest_pdb_dir gtest PDB_OUTPUT_DIRECTORY_DEBUG)
-message("gtest PDB_DEBUG = ${_gtest_pdb_dir}")
-
-get_target_property(_gtestmain_pdb_dir gtest_main PDB_OUTPUT_DIRECTORY_DEBUG)
-message("gtest_main PDB_DEBUG = ${_gtestmain_pdb_dir}")
