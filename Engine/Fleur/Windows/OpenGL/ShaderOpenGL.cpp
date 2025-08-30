@@ -58,7 +58,7 @@ ShaderOpenGL::~ShaderOpenGL()
 
 void ShaderOpenGL::BindToShaderObject(ShaderObject& obj)
 {
-    ShaderObjectOpenGL& objectGL = dynamic_cast<ShaderObjectOpenGL&>(obj);
+    ShaderObjectOpenGL& objectGL = static_cast<ShaderObjectOpenGL&>(obj);
     m_ShaderObject = objectGL.GetObjectID();
 }
 
