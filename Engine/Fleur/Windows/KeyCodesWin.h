@@ -2,7 +2,7 @@
 
 #include "KeyCodes.h"
 
-static Fleur::KeyCode GetKeyCode(int winKey)
+static Fleur::EKeyCode GetKeyCode(int winKey)
 {
 #define KEY(x) Fleur::Key::x
 

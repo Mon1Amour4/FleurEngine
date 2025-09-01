@@ -41,7 +41,7 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
     ${GAMECONTROLLER_FRAMEWORK}
   )
 
-ELSEIF(FLEUR_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows Backend
   LIST(APPEND IMGUI_PLATFORM_HEADERS External/imgui/backends/imgui_impl_win32.h
        External/imgui/backends/imgui_impl_opengl3.h
@@ -88,7 +88,7 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
   # Enable Objective-C++ for .mm files
   SET_SOURCE_FILES_PROPERTIES(External/imgui/backends/imgui_impl_osx.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 
-ELSEIF(FLEUR_PLATFORM STREQUAL "win")
+ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows-specific compile definitions
   TARGET_COMPILE_DEFINITIONS(ImGui PRIVATE IMGUI_IMPL_OPENGL_LOADER_GLAD WIN32_LEAN_AND_MEAN NOMINMAX)
 

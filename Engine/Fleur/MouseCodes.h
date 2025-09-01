@@ -2,11 +2,11 @@
 
 namespace Fleur
 {
-using MouseCode = uint16_t;
+using EMouseCode = uint16_t;
 
 namespace Mouse
 {
-enum : MouseCode
+enum : EMouseCode
 {
     Button0 = 0,
     Button1 = 1,
@@ -25,7 +25,7 @@ enum : MouseCode
     None = 20
 };
 
-inline std::string GetMouseButtonName(MouseCode button)
+inline std::string GetMouseButtonName(EMouseCode button)
 {
     switch (button)
     {

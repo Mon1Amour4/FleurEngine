@@ -102,29 +102,29 @@ namespace Fleur::Graphics
 {
 
 DeviceOpenGL::DeviceOpenGL()
-    : ctx(nullptr)
-    , max_textures_units(0)
+    : m_Ctx(nullptr)
+    , m_MaxTexturesUnits(0)
 {
     HWND hwnd = (HWND)Application::instance().GetWindow().GetNativeHandle();
     HDC hdc = GetDC(hwnd);
 
     int pixelFormatAttribs[] = {WGL_DRAW_TO_WINDOW_ARB,
-                                GL_TRUE,
-                                WGL_SUPPORT_OPENGL_ARB,
-                                GL_TRUE,
-                                WGL_DOUBLE_BUFFER_ARB,
-                                GL_TRUE,
-                                WGL_ACCELERATION_ARB,
-                                WGL_FULL_ACCELERATION_ARB,
-                                WGL_PIXEL_TYPE_ARB,
-                                WGL_TYPE_RGBA_ARB,
-                                WGL_COLOR_BITS_ARB,
-                                32,
-                                WGL_DEPTH_BITS_ARB,
-                                24,
-                                WGL_STENCIL_BITS_ARB,
-                                8,
-                                0};
+                                  GL_TRUE,
+                                  WGL_SUPPORT_OPENGL_ARB,
+                                  GL_TRUE,
+                                  WGL_DOUBLE_BUFFER_ARB,
+                                  GL_TRUE,
+                                  WGL_ACCELERATION_ARB,
+                                  WGL_FULL_ACCELERATION_ARB,
+                                  WGL_PIXEL_TYPE_ARB,
+                                  WGL_TYPE_RGBA_ARB,
+                                  WGL_COLOR_BITS_ARB,
+                                  32,
+                                  WGL_DEPTH_BITS_ARB,
+                                  24,
+                                  WGL_STENCIL_BITS_ARB,
+                                  8,
+                                  0};
     int pixelFormat;
     UINT numFormats;
     int res = wglChoosePixelFormatARB(hdc, pixelFormatAttribs, nullptr, 1, &pixelFormat, &numFormats);
@@ -133,16 +133,16 @@ DeviceOpenGL::DeviceOpenGL()
         FL_CORE_ERROR("Failed to choose pixel format");
     }
 
-    if (!num_formats)
+    if (!numFormats)
         FL_CORE_ERROR("Failed to set the OpenGL 4.6 pixel format.");
 
     PIXELFORMATDESCRIPTOR pfd;
-    DescribePixelFormat(hdc, pixel_format, sizeof(pfd), &pfd);
-    if (!SetPixelFormat(hdc, pixel_format, &pfd))
+    DescribePixelFormat(hdc, pixelFormat, sizeof(pfd), &pfd);
+    if (!SetPixelFormat(hdc, pixelFormat, &pfd))
         FL_CORE_ERROR("Failed to set the OpenGL 4.6 pixel format.");
 
     // clang-format off
-    int ctx_attribs[] = {
+    int contextAttribs[] = {
         WGL_CONTEXT_MAJOR_VERSION_ARB,
         4,
         WGL_CONTEXT_MINOR_VERSION_ARB,
@@ -153,11 +153,11 @@ DeviceOpenGL::DeviceOpenGL()
     };
     // clang-format on
 
-    ctx = wglCreateContextAttribsARB(hdc, 0, ctx_attribs);
-    if (!ctx)
+    m_Ctx = wglCreateContextAttribsARB(hdc, 0, contextAttribs);
+    if (!m_Ctx)
         FL_CORE_ERROR("Failed to create OpenGL 4.6 context.");
 
-    if (!wglMakeCurrent(hdc, ctx))
+    if (!wglMakeCurrent(hdc, m_Ctx))
         FL_CORE_ERROR("Failed to activate OpenGL 4.6 rendering context.");
 
     if (!gladLoaderLoadGL())
@@ -173,9 +173,9 @@ DeviceOpenGL::DeviceOpenGL()
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(OpenGLDebugCallbackFunc, nullptr);
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
-    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &max_textures_units);
-    FL_CORE_INFO("  Max texture units: {0}", max_textures_units);
-    ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(max_textures_units);
+    glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &m_MaxTexturesUnits);
+    FL_CORE_INFO("  Max texture units: {0}", m_MaxTexturesUnits);
+    ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(m_MaxTexturesUnits);
     glEnable(GL_DEPTH_TEST);
 
     // Initial values for color\depth\stencil bufers
@@ -199,7 +199,7 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, TextureFormat format, unsigned char* buffer, int width,
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, int width,
                                                      int height) const
 {
     return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, 1);
@@ -217,11 +217,11 @@ std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirec
                                            equirectangular->Height(), 6);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemap_image) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemapImage) const
 {
-    return std::make_shared<TextureOpenGL>(cubemap_image->Name(), cubemap_image->Ext(), reinterpret_cast<const unsigned char*>(cubemap_image->Data()),
-                                           Texture::GetTextureFormat(cubemap_image->Channels(), cubemap_image->Depth()), cubemap_image->Width(),
-                                           cubemap_image->Height(), 6);
+    return std::make_shared<TextureOpenGL>(cubemapImage->Name(), cubemapImage->Ext(), reinterpret_cast<const unsigned char*>(cubemapImage->Data()),
+                                           Texture::GetTextureFormat(cubemapImage->Channels(), cubemapImage->Depth()), cubemapImage->Width(),
+                                           cubemapImage->Height(), 6);
 }
 
 std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
@@ -234,25 +234,25 @@ std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view na
 {
     auto fbo = std::unique_ptr<FramebufferOpenGL>(new FramebufferOpenGL(name, width, height, flags));
 
-    if (flags & static_cast<uint32_t>(FramebufferSettings::COLOR))
+    if (flags & static_cast<uint32_t>(EFramebufferSettings::COLOR))
     {
-        fbo->AddColorAttachment(CreateTexture(name.data() + std::string("color_attachment"), "", TextureFormat::RGBA8, nullptr, width, height));
+        fbo->AddColorAttachment(CreateTexture(name.data() + std::string("color_attachment"), "", ETextureFormat::RGBA8, nullptr, width, height));
     }
-    if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH_STENCIL))
+    if (flags & static_cast<uint32_t>(EFramebufferSettings::DEPTH_STENCIL))
     {
         fbo->AddDepthAttachment(
-            CreateTexture(name.data() + std::string("depth_stencil_attachment"), "", TextureFormat::DEPTH24STENCIL8, nullptr, width, height));
+            CreateTexture(name.data() + std::string("depth_stencil_attachment"), "", ETextureFormat::DEPTH24STENCIL8, nullptr, width, height));
     }
     else
     {
-        if (flags & static_cast<uint32_t>(FramebufferSettings::DEPTH))
+        if (flags & static_cast<uint32_t>(EFramebufferSettings::DEPTH))
         {
-            fbo->AddDepthAttachment(CreateTexture(name.data() + std::string("depth_attachment"), "", TextureFormat::DEPTH24, nullptr, width, height));
+            fbo->AddDepthAttachment(CreateTexture(name.data() + std::string("depth_attachment"), "", ETextureFormat::DEPTH24, nullptr, width, height));
         }
 
-        if (flags & static_cast<uint32_t>(FramebufferSettings::STENCIL))
+        if (flags & static_cast<uint32_t>(EFramebufferSettings::STENCIL))
         {
-            fbo->AddStencilAttachment(CreateTexture(name.data() + std::string("stencil_attachment"), "", TextureFormat::STENCIL8, nullptr, width, height));
+            fbo->AddStencilAttachment(CreateTexture(name.data() + std::string("stencil_attachment"), "", ETextureFormat::STENCIL8, nullptr, width, height));
         }
     }
 
@@ -266,15 +266,15 @@ void DeviceOpenGL::SetVSync(bool active) const
 
 void DeviceOpenGL::Release()
 {
-    if (ctx)
+    if (m_Ctx)
     {
         wglMakeCurrent(nullptr, nullptr);
-        wglDeleteContext(ctx);
-        ctx = nullptr;
+        wglDeleteContext(m_Ctx);
+        m_Ctx = nullptr;
     }
 }
 
-std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(Buffer::BufferType type, RenderStage stage, size_t size)
+std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size)
 {
     return std::unique_ptr<Buffer>(new BufferOpenGL(type, stage, size));
 }
@@ -299,7 +299,7 @@ std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(std::unique_ptr<Surface
     return std::unique_ptr<Swapchain>(new SwapchainOpenGL(std::move(surface)));
 }
 
-Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderType type)
+Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::EShaderType type)
 {
     // TODO: rework shaders
     if (shaderName.empty())
@@ -309,9 +309,9 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::ShaderTy
     }
 
     std::string extension{};
-    if (type == Shader::ShaderType::Vertex)
+    if (type == Shader::EShaderType::Vertex)
         extension = ".vert";
-    else if (type == Shader::ShaderType::Pixel)
+    else if (type == Shader::EShaderType::Pixel)
         extension = ".frag";
 
     auto res = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>()->OpenFile(std::string(shaderName) + extension);

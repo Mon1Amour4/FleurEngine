@@ -62,7 +62,7 @@ IF(APPLE)
   )
 ELSEIF(WIN32)
   SET(FLEUR_PLATFORM
-      "win"
+      "x64"
       CACHE STRING "Current platform"
   )
 ENDIF()
@@ -74,4 +74,10 @@ OPTION(ENABLE_FLEUR_TEST "Enable Fleur testing" OFF)
 SET(FLEUR_LIB_TYPE
     "STATIC"
     CACHE STRING "Library type (STATIC/SHARED)"
+)
+
+set (FLEUR_COPILATION_FLAGS 
+    /std:c++20 /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope 
+    /GR- /EHsc /volatile:iso /utf-8 /W4  
+    #/WX
 )

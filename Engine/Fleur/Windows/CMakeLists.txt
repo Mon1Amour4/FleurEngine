@@ -1,5 +1,4 @@
 # === Windows Dependencies ===
-CMAKE_MINIMUM_REQUIRED(VERSION 3.24)
 
 # === Source Files ===
 SET(PROJECT_HEADERS
@@ -41,46 +40,31 @@ SET(PROJECT_SOURCES
     TimeWin.cpp
 )
 
-# === Output Directory ===
-SET(OUTPUT_DIR "${CMAKE_BINARY_DIR}/output")
-FILE(MAKE_DIRECTORY "${OUTPUT_DIR}")
+# cmake-lint: disable=E1126
+
+# === Create Library ===
+ADD_LIBRARY(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+
+# === WindowsDep Configuration ===
+TARGET_COMPILE_FEATURES(WindowsDep PUBLIC cxx_std_20)
 
 # === Glad Configuration ===
 SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
-# cmake-lint: disable=E1126
-FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad" GLAD_PATH)
+FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../External/glad" GLAD_SOURCES)
 
 # === Glad Subdirectory ===
-ADD_SUBDIRECTORY("${GLAD_PATH}" "${GLAD_BUILD_DIR}")
+ADD_SUBDIRECTORY("${GLAD_SOURCES}" "${GLAD_BUILD_DIR}")
 
-# === WindowsDep Target ===
-ADD_LIBRARY(WindowsDep STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
-
-# === Target Configuration ===
-TARGET_COMPILE_FEATURES(WindowsDep PUBLIC cxx_std_20)
-
-TARGET_INCLUDE_DIRECTORIES(
-  WindowsDep PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}" "${GLAD_PATH}/include")
-
+# === Link Libraries ===
 TARGET_LINK_LIBRARIES(
-  WindowsDep
-  PUBLIC Glad TBB::tbb
-  PRIVATE FleurInterface
+  WindowsDep  
+  PRIVATE FleurInterface TBB::tbb Glad
 )
 
-# === IDE Organization ===
-SET_TARGET_PROPERTIES(
-  WindowsDep
-  PROPERTIES FOLDER "Platform/Windows"
-             ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-             LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-             RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-)
+# === Include Directories ===
+TARGET_INCLUDE_DIRECTORIES(
+  WindowsDep PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-SET_TARGET_PROPERTIES(
-  Glad
-  PROPERTIES FOLDER "External"
-             ARCHIVE_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-             LIBRARY_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-             RUNTIME_OUTPUT_DIRECTORY "${OUTPUT_DIR}"
-)
+# === Target Properties ===
+SET_TARGET_PROPERTIES(WindowsDep PROPERTIES FOLDER "Platform/Windows")
+SET_TARGET_PROPERTIES(Glad PROPERTIES FOLDER "External")

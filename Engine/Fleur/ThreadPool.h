@@ -47,26 +47,26 @@ public:
 
         std::future<return_type> future = task->get_future();
 
-        std::lock_guard<std::mutex> lock(queue_mutex);
-        tasks.emplace([task]() { (*task)(); });
-        condition.notify_one();
+        std::lock_guard<std::mutex> lock(m_QueueMutex);
+        m_Tasks.emplace([task]() { (*task)(); });
+        m_Condition.notify_one();
         return future;
     }
 
 private:
-    uint16_t num_workers;
-    std::vector<std::thread> workers;
-    std::mutex queue_mutex;
-    std::condition_variable condition;
+    uint16_t m_NumWorkers;
+    std::vector<std::thread> m_Workers;
+    std::mutex m_QueueMutex;
+    std::condition_variable m_Condition;
 
-    std::queue<Task> tasks;
+    std::queue<Task> m_Tasks;
 
-    bool running;
+    bool m_IsRunning;
 
     void Release();
     Task GetTask();
 
-    std::string PrintThreadID(size_t thread_id) const;
+    std::string PrintThreadID(size_t threadID) const;
 
 protected:
     void OnInit();

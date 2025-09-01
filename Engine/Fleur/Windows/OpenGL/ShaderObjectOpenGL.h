@@ -14,33 +14,33 @@ public:
 
     inline virtual uint32_t GetObjectID()
     {
-        return program;
+        return m_Program;
     }
 
     virtual void Use() const override;
-    bool AddVar(std::string_view uniform_name, uint32_t id);
+    bool AddVar(std::string_view uniformName, uint32_t id);
 
     virtual void BindMaterial(const Material* material) override;
 
     virtual void Release() override;
 
 private:
-    const Material* material;
-    uint32_t program;
+    const Material* m_Material;
+    uint32_t m_Program;
 
-    std::unique_ptr<ShaderOpenGL> vertex_shader;
-    std::unique_ptr<ShaderOpenGL> pixel_shader;
+    std::unique_ptr<ShaderOpenGL> m_VertexShader;
+    std::unique_ptr<ShaderOpenGL> m_PixelShader;
 
     ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px);
 
 private:
-    std::unordered_map<std::string, uint32_t> uniforms;
+    std::unordered_map<std::string, uint32_t> m_Uniforms;
 
-    uint32_t find_uniform_location(std::string_view uniform_name) const;
+    uint32_t find_uniform_location(std::string_view uniformName) const;
 
 protected:
-    virtual bool set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec) override;
-    virtual bool set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix) override;
-    virtual bool set_text2d_impl(std::string_view uniform_name, const Texture& texture) override;
+    virtual bool SetVec3fImpl(std::string_view uniformName, const glm::vec3& vec) override;
+    virtual bool SetMat4fImpl(std::string_view uniformName, const glm::mat4& matrix) override;
+    virtual bool SetText2dImpl(std::string_view uniformName, const Texture& texture) override;
 };
 }  // namespace Fleur::Graphics

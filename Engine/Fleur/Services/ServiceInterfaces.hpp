@@ -38,25 +38,25 @@ struct Service : public IInitializable
 {
     void Init()
     {
-        if (is_initialized)
+        if (m_IsInitialized)
             return;
         Derived* derived = static_cast<Derived*>(this);
         derived->OnInit();
-        is_initialized = true;
+        m_IsInitialized = true;
     };
 
     void Shutdown()
     {
-        if (shutdown)
+        if (m_IsShutdown)
             return;
         Derived* derived = static_cast<Derived*>(this);
         derived->OnShutdown();
-        shutdown = true;
+        m_IsShutdown = true;
     }
 
 protected:
-    inline static bool is_initialized = false;
-    inline static bool shutdown = false;
+    inline static bool m_IsInitialized = false;
+    inline static bool m_IsShutdown = false;
 };
 
 }  // namespace Fleur

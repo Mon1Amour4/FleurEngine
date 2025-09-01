@@ -6,8 +6,8 @@ namespace Fleur::Graphics
 {
 SurfaceOpenGL::SurfaceOpenGL(const void* window)
 {
-    _window = (HWND)window;
-    _hdc = GetDC(_window);
+    m_Window = (HWND)window;
+    m_HDC = GetDC(m_Window);
 }
 
 SurfaceOpenGL::~SurfaceOpenGL()
@@ -18,7 +18,7 @@ SurfaceOpenGL::~SurfaceOpenGL()
 Surface::Rect SurfaceOpenGL::GetRect() const
 {
     RECT rect;
-    if (GetClientRect(_window, &rect))
+    if (GetClientRect(m_Window, &rect))
     {
         return {rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top};
     }
@@ -28,19 +28,19 @@ Surface::Rect SurfaceOpenGL::GetRect() const
 
 const void* SurfaceOpenGL::GetNativeHandle() const
 {
-    return _window;
+    return m_Window;
 }
 
 HDC SurfaceOpenGL::GetHdc() const
 {
-    return _hdc;
+    return m_HDC;
 }
 
 void SurfaceOpenGL::Release()
 {
-    if (_hdc)
-        ReleaseDC(_window, _hdc);
-    _hdc = nullptr;
+    if (m_HDC)
+        ReleaseDC(m_Window, m_HDC);
+    m_HDC = nullptr;
 }
 
 }  // namespace Fleur::Graphics

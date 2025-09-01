@@ -11,37 +11,37 @@ class Skybox
 {
 public:
     template <typename T, std::size_t N>
-    Skybox(std::shared_ptr<Texture> cm, std::span<T, N> in_vertices)
-        : cubemap(cm)
+    Skybox(std::shared_ptr<Texture> cubemap, std::span<T, N> IN vertices)
+        : m_Cubemap(cubemap)
 
     {
-        FL_CORE_ASSERT(in_vertices.size() != 0, "");
+        FL_CORE_ASSERT(vertices.size() != 0, "");
 
-        vertices.assign(in_vertices.begin(), in_vertices.end());
+        m_Vertices.assign(vertices.begin(), vertices.end());
         ShaderComponentContext ctx{};
-        ctx.skybox_cubemap_text.second = cm.get();
-        auto skybox_material = Material::CreateMaterial(ctx);
-        material.reset(skybox_material);
+        ctx.skybox_cubemap_text.second = cubemap.get();
+        auto skyboxMaterial = Material::CreateMaterial(ctx);
+        m_Material.reset(skyboxMaterial);
     }
 
     const Material* GetMaterial() const
     {
-        return material.get();
+        return m_Material.get();
     }
 
     uint32_t GetVertexCount() const
     {
-        return vertices.size();
+        return m_Vertices.size();
     };
 
     const float* Data() const
     {
-        return vertices.data();
+        return m_Vertices.data();
     }
 
 private:
-    std::unique_ptr<Material> material;
-    std::shared_ptr<Texture> cubemap;
-    std::vector<float> vertices;
+    std::unique_ptr<Material> m_Material;
+    std::shared_ptr<Texture> m_Cubemap;
+    std::vector<float> m_Vertices;
 };
 }  // namespace Fleur::Graphics

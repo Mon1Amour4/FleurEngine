@@ -4,7 +4,7 @@
 
 namespace Fleur::Graphics
 {
-enum RenderStage;
+enum ERenderStage;
 
 class BufferOpenGL final : public Buffer
 {
@@ -16,13 +16,13 @@ public:
     virtual uint32_t NativeType() const override;
 
 private:
-    uint32_t buffer_object_id;
-    uint32_t buffer_native_type;
+    uint32_t m_Id;
+    uint32_t m_BufferNativeType;
 
 protected:
     friend class DeviceOpenGL;
-    int native_usage(RenderStage& stage) const;
-    int native_buffer_type(const BufferType& type) const;
-    BufferOpenGL(BufferType type, RenderStage stage, size_t size_bytes);
+    int NativeUsage(ERenderStage& stage) const;
+    int NativeBufferType(const EBufferType& type) const;
+    BufferOpenGL(EBufferType type, ERenderStage stage, size_t sizeBytes);
 };
 }  // namespace Fleur::Graphics

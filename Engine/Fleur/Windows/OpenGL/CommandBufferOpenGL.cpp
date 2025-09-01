@@ -11,23 +11,23 @@
 
 namespace Fleur::Graphics
 {
-CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor desc)
-    : CommandBuffer(desc)
-    , _mainVsShader(-1)
-    , _pixelShader(-1)
-    , _isLinked(false)
-    , _isDataAllocated(false)
-    , _texture(0)
-    , _isFree(true)
+CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor descriptor)
+    : CommandBuffer(descriptor)
+    , m_MainVsShader(-1)
+    , m_PixelShader(-1)
+    , m_IsLinked(false)
+    , m_IsDataAllocated(false)
+    , m_Texture(0)
+    , m_IsFree(true)
 {
-    glCreateVertexArrays(1, &_vao);
+    glCreateVertexArrays(1, &m_VAO);
 }
 
 CommandBufferOpenGL::~CommandBufferOpenGL()
 {
-    glDeleteVertexArrays(1, &_vao);
+    glDeleteVertexArrays(1, &m_VAO);
 
-    for (size_t i = 0; i < push_debug_group_commands; i++)
+    for (size_t i = 0; i < m_PushDebugGroupCommands; i++)
     {
         PopDebugGroup();
     }
@@ -35,15 +35,15 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
 
 void CommandBufferOpenGL::BeginRecording()
 {
-    if (descriptor.death_test)
+    if (m_Descriptor.death_test)
         glDepthMask(true);
     else
         glDepthMask(false);
 
-    glDepthFunc(get_death_func_op(descriptor.operation));
+    glDepthFunc(GetDeathFuncOp(m_Descriptor.operation));
 
-    glBindVertexArray(_vao);
-    _isFree = false;
+    glBindVertexArray(m_VAO);
+    m_IsFree = false;
 }
 
 void CommandBufferOpenGL::EndRecording()
@@ -52,14 +52,14 @@ void CommandBufferOpenGL::EndRecording()
 
 void CommandBufferOpenGL::Submit()
 {
-    _isFree = true;
+    m_IsFree = true;
 }
 
-void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, FramebufferRWOperation rw)
+void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw)
 {
-    if (rw == FramebufferRWOperation::READ_ONLY)
+    if (rw == EFramebufferRWOperation::READ_ONLY)
         glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
-    else if (rw == FramebufferRWOperation::WRITE_ONLY)
+    else if (rw == EFramebufferRWOperation::WRITE_ONLY)
         glBindFramebuffer(GL_DRAW_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
     else
     {
@@ -70,56 +70,56 @@ void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, FramebufferRW
 
 void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
 {
-    vertex_global_buffer = std::move(vertexBuffer);
-    auto buff = static_cast<const BufferOpenGL*>(vertex_global_buffer.get());
+    m_VertexGlobalBuffer = std::move(vertexBuffer);
+    auto buff = static_cast<const BufferOpenGL*>(m_VertexGlobalBuffer.get());
 
-    glVertexArrayVertexBuffer(_vao, 0, buff->GetBufferID(), 0, layout.Stride());
+    glVertexArrayVertexBuffer(m_VAO, 0, buff->GetBufferID(), 0, layout.Stride());
 
     VertexLayout::LayoutIterator* it;
     for (it = layout.GetIteratorBegin(); it && !it->IsDone(); it = layout.GetNextIterator())
     {
         GLuint index = static_cast<GLuint>(it->GetIndex());
-        glVertexArrayAttribFormat(_vao, index, it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE, static_cast<GLuint>(it->GetOffset()));
-        glVertexArrayAttribBinding(_vao, index, 0);
+        glVertexArrayAttribFormat(m_VAO, index, it->GetComponentsAmount(), it->GetAPIDatatype(), GL_FALSE, static_cast<GLuint>(it->GetOffset()));
+        glVertexArrayAttribBinding(m_VAO, index, 0);
         if (it->GetIsEnabled())
-            glEnableVertexArrayAttrib(_vao, index);
+            glEnableVertexArrayAttrib(m_VAO, index);
     }
 }
 
 void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
 {
-    index_global_buffer = std::move(buffer);
-    auto buff = static_cast<const BufferOpenGL*>(index_global_buffer.get());
+    m_IndexGlobalBuffer = std::move(buffer);
+    auto buff = static_cast<const BufferOpenGL*>(m_IndexGlobalBuffer.get());
 
-    glVertexArrayElementBuffer(_vao, buff->GetBufferID());
+    glVertexArrayElementBuffer(m_VAO, buff->GetBufferID());
 }
 
-uint32_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::BufferType type, const void* data, size_t size_bytes)
+uint32_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes)
 {
-    if (type == Buffer::BufferType::Vertex)
-        return vertex_global_buffer->UpdateSubData(data, size_bytes);
+    if (type == Buffer::EBufferType::Vertex)
+        return m_VertexGlobalBuffer->UpdateSubData(data, sizeBytes);
     else
-        return index_global_buffer->UpdateSubData(data, size_bytes);
+        return m_IndexGlobalBuffer->UpdateSubData(data, sizeBytes);
 }
 
 void CommandBufferOpenGL::BindTexture(Texture* texture)
 {
-    TextureOpenGL& text_gl = static_cast<TextureOpenGL&>(*texture);
+    TextureOpenGL& textureGL = static_cast<TextureOpenGL&>(*texture);
 
-    glBindTextureUnit(text_gl.GetTextureUnit(), *text_gl.GetTextureID());
+    glBindTextureUnit(textureGL.GetTextureUnit(), *textureGL.GetTextureID());
 }
 
 void CommandBufferOpenGL::Draw(uint32_t vertexCount)
 {
-    glBindVertexArray(_vao);
+    glBindVertexArray(m_VAO);
 
     glDrawArrays(GL_TRIANGLES, 0, vertexCount);
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t index_count, size_t index_offset_bytes, uint32_t base_vertex)
+void CommandBufferOpenGL::IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex)
 {
-    glDrawElementsBaseVertex(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, reinterpret_cast<void*>(index_offset_bytes), base_vertex);
+    glDrawElementsBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, reinterpret_cast<void*>(indexOffsetBytes), baseVertex);
 }
 
 void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
@@ -133,16 +133,16 @@ void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
     GLsizei length = static_cast<GLsizei>(std::strlen(message));
     glPushDebugGroup(GL_DEBUG_SOURCE_APPLICATION, id, length, message);
 
-    push_debug_group_commands++;
+    m_PushDebugGroupCommands++;
 }
 
 void CommandBufferOpenGL::PopDebugGroup()
 {
     glPopDebugGroup();
-    push_debug_group_commands--;
+    m_PushDebugGroupCommands--;
 }
 
-void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* message)
+void CommandBufferOpenGL::SetLabel(EObjectLabel id, uint32_t name, const char* message)
 {
     if (!message || !*message || *message == '\n')
     {
@@ -174,7 +174,7 @@ void CommandBufferOpenGL::SetLabel(ObjectLabel id, uint32_t name, const char* me
 
 void CommandBufferOpenGL::BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader)
 {
-    shader_object = shader;
+    m_ShaderObject = shader;
 }
 
 void CommandBufferOpenGL::BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex)
@@ -184,7 +184,7 @@ void CommandBufferOpenGL::BindDescriptorSet(const DescriptorBuffer& descriptorSe
     FL_CORE_INFO("[OpenGL unused function: BindDescriptorSet]");
 }
 
-int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
+int CommandBufferOpenGL::ConvertUsage(ERenderStage& stage) const
 {
     switch (stage)
     {
@@ -195,25 +195,25 @@ int CommandBufferOpenGL::ConvertUsage(RenderStage& stage) const
     }
 }
 
-uint32_t CommandBufferOpenGL::get_death_func_op(DepthTestOperation op) const
+uint32_t CommandBufferOpenGL::GetDeathFuncOp(EDepthTestOperation op) const
 {
     switch (op)
     {
-    case Fleur::Graphics::DepthTestOperation::NEVER:
+    case Fleur::Graphics::EDepthTestOperation::NEVER:
         return GL_NEVER;
-    case Fleur::Graphics::DepthTestOperation::LESS:
+    case Fleur::Graphics::EDepthTestOperation::LESS:
         return GL_LESS;
-    case Fleur::Graphics::DepthTestOperation::LESS_OR_EQUAL:
+    case Fleur::Graphics::EDepthTestOperation::LESS_OR_EQUAL:
         return GL_LEQUAL;
-    case Fleur::Graphics::DepthTestOperation::GREATER:
+    case Fleur::Graphics::EDepthTestOperation::GREATER:
         return GL_GREATER;
-    case Fleur::Graphics::DepthTestOperation::EQUAL:
+    case Fleur::Graphics::EDepthTestOperation::EQUAL:
         return GL_EQUAL;
-    case Fleur::Graphics::DepthTestOperation::NOT_EQUAL:
+    case Fleur::Graphics::EDepthTestOperation::NOT_EQUAL:
         return GL_NOTEQUAL;
-    case Fleur::Graphics::DepthTestOperation::GREATER_OR_EQUAL:
+    case Fleur::Graphics::EDepthTestOperation::GREATER_OR_EQUAL:
         return GL_GEQUAL;
-    case Fleur::Graphics::DepthTestOperation::ALWAYS:
+    case Fleur::Graphics::EDepthTestOperation::ALWAYS:
         return GL_ALWAYS;
     default:
         return GL_LESS;

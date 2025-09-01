@@ -10,9 +10,9 @@ namespace Fleur::Graphics
 
 struct uniform_info
 {
-    GLint location;
-    GLsizei count;
-    GLenum type;
+    GLint Location;
+    GLsizei Count;
+    GLenum Type;
 };
 
 ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs, Shader* px)
@@ -22,49 +22,49 @@ ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs
 
 ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px)
     : ShaderObject(name)
-    , program(glCreateProgram())
-    , vertex_shader(nullptr)
-    , pixel_shader(nullptr)
-    , material(nullptr)
+    , m_Program(glCreateProgram())
+    , m_VertexShader(nullptr)
+    , m_PixelShader(nullptr)
+    , m_Material(nullptr)
 {
-    vertex_shader.reset(static_cast<ShaderOpenGL*>(vs));
-    pixel_shader.reset(static_cast<ShaderOpenGL*>(px));
+    m_VertexShader.reset(static_cast<ShaderOpenGL*>(vs));
+    m_PixelShader.reset(static_cast<ShaderOpenGL*>(px));
 
-    glAttachShader(program, vertex_shader->GetID());
-    glAttachShader(program, pixel_shader->GetID());
+    glAttachShader(m_Program, m_VertexShader->GetID());
+    glAttachShader(m_Program, m_PixelShader->GetID());
 
-    glLinkProgram(program);
+    glLinkProgram(m_Program);
     GLint success;
-    glGetProgramiv(program, GL_LINK_STATUS, &success);
+    glGetProgramiv(m_Program, GL_LINK_STATUS, &success);
     if (!success)
     {
         char infoLog[512];
-        glGetProgramInfoLog(program, 512, nullptr, infoLog);
+        glGetProgramInfoLog(m_Program, 512, nullptr, infoLog);
         FL_CORE_ERROR("[ShaderObject] program linking error: ", infoLog);
     }
 
-    GLint uniform_count = 0;
-    glGetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniform_count);
-    if (uniform_count > 0)
+    GLint uniformCount = 0;
+    glGetProgramiv(m_Program, GL_ACTIVE_UNIFORMS, &uniformCount);
+    if (uniformCount > 0)
     {
         GLint max_name_len = 0;
-        glGetProgramiv(program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len);
+        glGetProgramiv(m_Program, GL_ACTIVE_UNIFORM_MAX_LENGTH, &max_name_len);
 
         auto uniform_name = std::make_unique<char[]>(max_name_len);
 
-        for (GLint i = 0; i < uniform_count; ++i)
+        for (GLint i = 0; i < uniformCount; ++i)
         {
             GLsizei length = 0;
             uniform_info info = {};
-            glGetActiveUniform(program, i, max_name_len, &length, &info.count, &info.type, uniform_name.get());
-            info.location = glGetUniformLocation(program, uniform_name.get());
+            glGetActiveUniform(m_Program, i, max_name_len, &length, &info.Count, &info.Type, uniform_name.get());
+            info.Location = glGetUniformLocation(m_Program, uniform_name.get());
 
-            AddVar(std::string(uniform_name.get(), length), info.location);
+            AddVar(std::string(uniform_name.get(), length), info.Location);
         }
     }
-    vertex_shader->BindToShaderObject(*this);
-    pixel_shader->BindToShaderObject(*this);
-    glObjectLabel(GL_PROGRAM, program, -1, this->name.c_str());
+    m_VertexShader->BindToShaderObject(*this);
+    m_PixelShader->BindToShaderObject(*this);
+    glObjectLabel(GL_PROGRAM, m_Program, -1, this->name.c_str());
     glUseProgram(0);
 }
 
@@ -75,37 +75,37 @@ ShaderObjectOpenGL::~ShaderObjectOpenGL()
 
 void ShaderObjectOpenGL::Release()
 {
-    glDeleteProgram(program);
-    program = 0;
+    glDeleteProgram(m_Program);
+    m_Program = 0;
 
-    material = nullptr;
+    m_Material = nullptr;
 
-    if (vertex_shader.get())
+    if (m_VertexShader.get())
     {
-        vertex_shader->Release();
-        vertex_shader.reset();
+        m_VertexShader->Release();
+        m_VertexShader.reset();
     }
-    if (pixel_shader.get())
+    if (m_PixelShader.get())
     {
-        pixel_shader->Release();
-        pixel_shader.reset();
+        m_PixelShader->Release();
+        m_PixelShader.reset();
     }
-    uniforms.clear();
+    m_Uniforms.clear();
 }
 
 void ShaderObjectOpenGL::Use() const
 {
-    glUseProgram(program);
+    glUseProgram(m_Program);
 }
 
 void ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
-    this->material = material;
-    const ShaderComponentContext& ctx = this->material->GetShaderContext();
+    this->m_Material = material;
+    const ShaderComponentContext& ctx = this->m_Material->GetShaderContext();
     if (ctx.albedo_text.second)
-        set_text2d_impl(ctx.albedo_text.first, *ctx.albedo_text.second);
+        SetText2dImpl(ctx.albedo_text.first, *ctx.albedo_text.second);
     if (ctx.skybox_cubemap_text.second)
-        set_text2d_impl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
+        SetText2dImpl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
 uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
@@ -113,23 +113,23 @@ uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name
     if (uniform_name.empty())
         return -1;
 
-    auto it = uniforms.find(uniform_name.data());
-    return (it != uniforms.end()) ? it->second : -1;
+    auto it = m_Uniforms.find(uniform_name.data());
+    return (it != m_Uniforms.end()) ? it->second : -1;
 }
 
-bool ShaderObjectOpenGL::AddVar(std::string_view uniform_name, uint32_t id)
+bool ShaderObjectOpenGL::AddVar(std::string_view uniformName, uint32_t id)
 {
-    GLint location = find_uniform_location(uniform_name);
+    GLint location = find_uniform_location(uniformName);
     if (location != -1)
         return true;
 
-    uniforms.emplace(uniform_name.data(), id);
+    m_Uniforms.emplace(uniformName.data(), id);
     return true;
 }
 
-bool ShaderObjectOpenGL::set_vec3f_impl(std::string_view uniform_name, const glm::vec3& vec)
+bool ShaderObjectOpenGL::SetVec3fImpl(std::string_view uniformName, const glm::vec3& vec)
 {
-    GLint location = find_uniform_location(uniform_name);
+    GLint location = find_uniform_location(uniformName);
     if (location == -1)
         return false;
 
@@ -137,9 +137,9 @@ bool ShaderObjectOpenGL::set_vec3f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm::mat4& matrix)
+bool ShaderObjectOpenGL::SetMat4fImpl(std::string_view uniformName, const glm::mat4& matrix)
 {
-    GLint location = find_uniform_location(uniform_name);
+    GLint location = find_uniform_location(uniformName);
     if (location == -1)
         return false;
 
@@ -147,18 +147,18 @@ bool ShaderObjectOpenGL::set_mat4f_impl(std::string_view uniform_name, const glm
     return true;
 }
 
-bool ShaderObjectOpenGL::set_text2d_impl(std::string_view uniform_name, const Texture& texture)
+bool ShaderObjectOpenGL::SetText2dImpl(std::string_view uniformName, const Texture& texture)
 {
-    GLint location = find_uniform_location(uniform_name);
+    GLint location = find_uniform_location(uniformName);
     if (location == -1)
     {
         FL_CORE_ASSERT(false, "");
         return false;
     }
 
-    const TextureOpenGL& text_gl = static_cast<const TextureOpenGL&>(texture);
-    glUniform1i(location, text_gl.GetTextureUnit());
-    glBindTextureUnit(text_gl.GetTextureUnit(), *text_gl.GetTextureID());
+    const TextureOpenGL& textureGL = static_cast<const TextureOpenGL&>(texture);
+    glUniform1i(location, textureGL.GetTextureUnit());
+    glBindTextureUnit(textureGL.GetTextureUnit(), *textureGL.GetTextureID());
     return true;
 }
 

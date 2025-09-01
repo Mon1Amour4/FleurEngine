@@ -6,7 +6,7 @@
 #include "Image2D.h"
 #include "Texture.h"
 
-using img_text_pair = std::pair<std::shared_ptr<Fleur::Graphics::Image2D>, std::shared_ptr<Fleur::Graphics::Texture>>;
+using ImgTextPair = std::pair<std::shared_ptr<Fleur::Graphics::Image2D>, std::shared_ptr<Fleur::Graphics::Texture>>;
 
 namespace Fleur
 {
@@ -26,21 +26,21 @@ public:
 
     std::shared_ptr<Fleur::Graphics::Texture> LoadTexture(std::shared_ptr<Fleur::Graphics::Image2D> img, const Fleur::Graphics::Device* device) override
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        return pairs_.emplace_back(std::make_pair(img, device->CreateTexture(img->Name(), img->Ext()))).second;
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        return m_Pairs.emplace_back(std::make_pair(img, device->CreateTexture(img->Name(), img->Ext()))).second;
     }
 
     void Update() override
     {
-        std::lock_guard<std::mutex> lock(mutex_);
-        for (auto it = pairs_.begin(); it != pairs_.end();)
+        std::lock_guard<std::mutex> lock(m_Mutex);
+        for (auto it = m_Pairs.begin(); it != m_Pairs.end();)
         {
             if (it->first->IsValid())
             {
                 Fleur::Graphics::ImagePostCreation settings{it->first->Width(), it->first->Height(), it->first->Channels(), it->first->Depth(),
                                                             it->first->Data()};
                 it->second->PostCreate(settings);
-                it = pairs_.erase(it);
+                it = m_Pairs.erase(it);
             }
             else
             {
@@ -50,8 +50,8 @@ public:
     }
 
 private:
-    std::list<img_text_pair> pairs_;
-    std::mutex mutex_;
+    std::list<ImgTextPair> m_Pairs;
+    std::mutex m_Mutex;
 };
 
 }  // namespace Fleur

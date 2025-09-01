@@ -17,7 +17,7 @@ public:
     virtual void Release() override;
 
 private:
-    HWND _window;  // shouldn't be here
-    HDC _hdc;      // WIN32: Handle to Device Context
+    HWND m_Window;  // shouldn't be here
+    HDC m_HDC;      // WIN32: Handle to Device Context
 };
 }  // namespace Fleur::Graphics
