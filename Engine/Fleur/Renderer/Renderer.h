@@ -21,8 +21,6 @@
 #include "Texture.h"
 #include "Toolchain.h"
 #include "VertexLayout.h"
-#include "glm/ext.hpp"
-#include "glm/glm.hpp"
 #include "tbb/concurrent_unordered_map.h"
 
 #pragma region concepts

@@ -2,7 +2,6 @@
 
 #include "ShaderObject.h"
 #include "Texture.h"
-#include "glm/common.hpp"
 
 namespace Fleur::Graphics
 {
