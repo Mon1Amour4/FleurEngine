@@ -1,9 +1,5 @@
 #include "VertexLayout.h"
 
-#if defined(FLEUR_PLATFORM_WIN)
-#include "glad/gl.h"
-#elif defined(FLEUR_PLATFORM_MACOS)
-#endif
 namespace Fleur::Graphics
 {
 // Layout:
@@ -17,20 +13,22 @@ VertexLayout::VertexLayout()
 uint32_t VertexLayout::GetAPIDataType(EDataType type) const
 {
 #if defined(FLEUR_PLATFORM_WIN)
+
+    // TODO Get rid of this
     switch (type)
     {
     case EDataType::FLOAT:
-        return GL_FLOAT;
+        return 0x1406;
     case EDataType::FLOAT_VEC2:
-        return GL_FLOAT_VEC2;
+        return 0x8B50;
     case EDataType::FLOAT_VEC3:
-        return GL_FLOAT_VEC3;
+        return 0x8B51;
     case EDataType::FLOAT_VEC4:
-        return GL_FLOAT_VEC4;
+        return 0x8B52;
     case EDataType::INSIGNED_BYTE:
-        return GL_UNSIGNED_BYTE;
+        return 0x1401;
     case EDataType::SHORT:
-        return GL_SHORT;
+        return 0x1402;
     default:
         return 0;
     }

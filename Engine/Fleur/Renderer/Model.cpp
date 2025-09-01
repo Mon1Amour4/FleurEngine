@@ -2,6 +2,7 @@
 
 #include <filesystem>
 
+// TODO Model must not know about parser
 #include "External/cgltf/cgltf.h"
 #include "Renderer.h"
 #include "fstream"

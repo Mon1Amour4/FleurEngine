@@ -1,7 +1,5 @@
 #pragma once
 
-#include <cstdint>
-
 #include "Event.h"
 #include "MouseCodes.h"
 

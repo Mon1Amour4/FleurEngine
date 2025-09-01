@@ -5,8 +5,10 @@
 #include "External/cgltf/cgltf.h"
 #endif
 
+#if !defined(STB_IMAGE_WRITE_IMPLEMENTATION)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "../External/stb_image/stb_image_write.h"
+#include "External/stb_image/stb_image_write.h"
+#endif
 
 // #define STB_IMAGE_IMPLEMENTATION
 #include "External/stb_image/stb_image.h"
@@ -198,8 +200,7 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d_async(std::string_v
             return it->second;
     }
 
-    handle =
-        m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
+    handle = m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
@@ -295,8 +296,7 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemoryAsync(std::
     if (it != m_Images2DToLoadAsync.end() && it->second->Status() != CORRUPTED)
         return it->second;
 
-    handle =
-        m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
+    handle = m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::ResourceHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
     threadPool->Submit(
@@ -422,8 +422,7 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
     handle = m_CubemapImagesToLoadAsync.emplace(path, std::make_shared<Fleur::ResourceHandle<CubemapImage>>()).first->second;
 
     threadPool->Submit(
-        [this](std::shared_ptr<Fleur::ResourceHandle<Image2D>> imgHandle, std::shared_ptr<Fleur::ResourceHandle<CubemapImage>> cubemapHandle,
-               bool flipVertical)
+        [this](std::shared_ptr<Fleur::ResourceHandle<Image2D>> imgHandle, std::shared_ptr<Fleur::ResourceHandle<CubemapImage>> cubemapHandle, bool flipVertical)
         {
             auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -445,9 +444,9 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
             {
                 // equirectangular image
                 auto crossLayout = m_Images2D
-                                        .emplace(imgHandle->Resource()->Name().data() + std::string("_cross_layout"),
-                                                 std::make_shared<Image2D>(imgHandle->Resource()->FromEquirectangularToCross()))
-                                        .first->second;
+                                       .emplace(imgHandle->Resource()->Name().data() + std::string("_cross_layout"),
+                                                std::make_shared<Image2D>(imgHandle->Resource()->FromEquirectangularToCross()))
+                                       .first->second;
 
 
                 stbi_write_jpg("D:\\Engine\\GameEngine\\Sandbox\\Resources\\Images\\MyTestCross.jpg", crossLayout->Width(), crossLayout->Height(),

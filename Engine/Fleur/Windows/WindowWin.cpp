@@ -506,7 +506,7 @@ LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 }
 
 WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
-    : m_EventQueue(dynamic_cast<EventQueueWin*>(&eventQueue))
+    : m_EventQueue(static_cast<EventQueueWin*>(&eventQueue))
     , m_Hinstance(GetModuleHandle(nullptr))
     , m_Props(props)
     , m_LastMouse{Input::MOUSE_NONE, Mouse::None}

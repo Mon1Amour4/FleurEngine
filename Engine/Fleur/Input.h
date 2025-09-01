@@ -2,8 +2,6 @@
 
 #include "KeyCodes.h"
 #include "MouseCodes.h"
-#include "glm/ext.hpp"
-#include "glm/glm.hpp"
 
 namespace Fleur
 {

@@ -20,7 +20,7 @@ option(TBB_BUILD_TBBMALLOC "Build TBB scalable memory allocator" OFF)
 option(TBB_BUILD_TBBMALLOC_PROXY "Build malloc replacement library" OFF)
 option(TBB_BUILD_TESTS "Build internal TBB tests (not recommended)" OFF)
 option(TBB_TEST "Enable testing " OFF)
-option(TBB_STRICT "Treat compiler warnings as errors " ON)
+option(TBB_STRICT "Treat compiler warnings as errors " OFF)
 option(TBB_ENABLE_RUNTIME_DEPENDENCY_VERIFICATION "Enable runtime dependency signature verification" ON)
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/External/tbb)

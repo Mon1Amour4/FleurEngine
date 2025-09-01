@@ -1,8 +1,5 @@
 #pragma once
 
-#include "glm/ext.hpp"
-#include "glm/glm.hpp"
-
 struct aiScene;
 struct aiMesh;
 struct aiMaterial;

@@ -1,8 +1,5 @@
 #pragma once
 
-#include <glm/ext.hpp>
-#include <glm/glm.hpp>
-
 #include "Services/ServiceInterfaces.hpp"
 
 using vec3 = glm::vec3;
