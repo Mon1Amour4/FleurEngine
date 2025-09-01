@@ -1,10 +1,9 @@
 #include "ShaderObjectOpenGL.h"
 
-#include <glm/gtc/type_ptr.hpp>
+#include <glad/wgl.h>
 
-#include "../../Renderer/Material.h"
+#include "Renderer/Material.h"
 #include "TextureOpenGL.h"
-#include "glad/gl.h"
 
 namespace Fleur::Graphics
 {
@@ -21,7 +20,7 @@ ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs
     return new ShaderObjectOpenGL(name, vs, px);
 }
 
-ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px) 
+ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px)
     : ShaderObject(name)
     , program(glCreateProgram())
     , vertex_shader(nullptr)

@@ -1,8 +1,9 @@
 #include "ShaderOpenGL.h"
 
+#include <glad/wgl.h>
+
 #include "ShaderObjectOpenGL.h"
 #include "TextureOpenGL.h"
-#include "glad/gl.h"
 
 namespace Fleur::Graphics
 {
@@ -41,8 +42,8 @@ ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, Shader
     if (!success)
     {
         char infoLog[512];
-        glGetShaderInfoLog(_shaderID, 512, nullptr, infoLog);
-        FL_CORE_ERROR("[Shader] {0} {1} compilation error: ",name, shader_type, infoLog);
+        glGetShaderInfoLog(m_ShaderID, 512, nullptr, infoLog);
+        FL_CORE_ERROR("[Shader] {0} {1} compilation error: ", name, shaderType, infoLog);
     }
     else
     {

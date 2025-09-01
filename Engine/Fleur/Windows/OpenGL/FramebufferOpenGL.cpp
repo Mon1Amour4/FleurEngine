@@ -1,7 +1,8 @@
 #include "FramebufferOpenGL.h"
 
+#include <glad/wgl.h>
+
 #include "TextureOpenGL.h"
-#include "glad/gl.h"
 
 Fleur::Graphics::DefaultFramebufferOpenGL::DefaultFramebufferOpenGL(uint32_t width, uint32_t height)
     : FramebufferOpenGL(width, height)

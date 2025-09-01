@@ -1,10 +1,8 @@
 #include "SwapchainOpenGL.h"
 
+#include <glad/wgl.h>
+
 #include "OpenGL/SurfaceOpenGL.h"
-// clang-format off
-#include "glad/wgl.h"
-#include "glad/gl.h"
-// clang-format on
 
 namespace Fleur::Graphics
 {

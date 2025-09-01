@@ -1,6 +1,6 @@
 #include "SurfaceOpenGL.h"
 
-#include <glad/gl.h>
+#include <glad/wgl.h>
 
 namespace Fleur::Graphics
 {

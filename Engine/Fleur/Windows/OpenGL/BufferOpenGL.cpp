@@ -1,7 +1,8 @@
 #include "BufferOpenGL.h"
 
-#include "../../Renderer/Graphics.hpp"
-#include "glad/gl.h"
+#include <glad/wgl.h>
+
+#include "Renderer/Graphics.hpp"
 
 namespace Fleur::Graphics
 {

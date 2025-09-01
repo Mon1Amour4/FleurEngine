@@ -1,17 +1,16 @@
 ﻿#include "DeviceOpenGL.h"
 
+#include <glad/wgl.h>
+
 #include "Application.h"
 #include "BufferOpenGL.h"
 #include "CommandBufferOpenGL.h"
 #include "CommandPoolOpenGL.h"
 #include "CommandQueueOpenGL.h"
 #include "FramebufferOpenGL.h"
+#include "Renderer.h"
 #include "ShaderOpenGL.h"
 #include "SwapchainOpenGL.h"
-// clang-format off
-#include "glad/wgl.h"
-// clang-format on
-#include "Renderer.h"
 #include "TextureOpenGL.h"
 
 void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
@@ -109,26 +108,26 @@ DeviceOpenGL::DeviceOpenGL()
     HWND hwnd = (HWND)Application::instance().GetWindow().GetNativeHandle();
     HDC hdc = GetDC(hwnd);
 
-    int pixel_format_attribs[] = {WGL_DRAW_TO_WINDOW_ARB,
-                                  GL_TRUE,
-                                  WGL_SUPPORT_OPENGL_ARB,
-                                  GL_TRUE,
-                                  WGL_DOUBLE_BUFFER_ARB,
-                                  GL_TRUE,
-                                  WGL_ACCELERATION_ARB,
-                                  WGL_FULL_ACCELERATION_ARB,
-                                  WGL_PIXEL_TYPE_ARB,
-                                  WGL_TYPE_RGBA_ARB,
-                                  WGL_COLOR_BITS_ARB,
-                                  32,
-                                  WGL_DEPTH_BITS_ARB,
-                                  24,
-                                  WGL_STENCIL_BITS_ARB,
-                                  8,
-                                  0};
-    int pixel_format;
-    UINT num_formats;
-    int res = wglChoosePixelFormatARB(hdc, pixel_format_attribs, nullptr, 1, &pixel_format, &num_formats);
+    int pixelFormatAttribs[] = {WGL_DRAW_TO_WINDOW_ARB,
+                                GL_TRUE,
+                                WGL_SUPPORT_OPENGL_ARB,
+                                GL_TRUE,
+                                WGL_DOUBLE_BUFFER_ARB,
+                                GL_TRUE,
+                                WGL_ACCELERATION_ARB,
+                                WGL_FULL_ACCELERATION_ARB,
+                                WGL_PIXEL_TYPE_ARB,
+                                WGL_TYPE_RGBA_ARB,
+                                WGL_COLOR_BITS_ARB,
+                                32,
+                                WGL_DEPTH_BITS_ARB,
+                                24,
+                                WGL_STENCIL_BITS_ARB,
+                                8,
+                                0};
+    int pixelFormat;
+    UINT numFormats;
+    int res = wglChoosePixelFormatARB(hdc, pixelFormatAttribs, nullptr, 1, &pixelFormat, &numFormats);
     if (!res)
     {
         FL_CORE_ERROR("Failed to choose pixel format");

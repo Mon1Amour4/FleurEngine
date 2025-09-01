@@ -1,6 +1,6 @@
 #include "TextureOpenGL.h"
 
-#include "glad/wgl.h"
+#include <glad/wgl.h>
 
 Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers)
     : Texture(name, ext, layers)
@@ -27,8 +27,8 @@ Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
         is_created = true;
 }
 
-Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fleur::Graphics::CubemapInitData& images, TextureFormat format,
-                                              uint32_t width, uint32_t height, uint32_t layers)
+Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fleur::Graphics::CubemapInitData& images,
+                                              ETextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
     : Texture(name, ext, format, width, height, layers)
     , texture_unit(0)
     , texture_id(0)
@@ -210,8 +210,8 @@ void Fleur::Graphics::TextureOpenGL::create_texture_2d(const unsigned char* buff
     uint32_t mipmap_levels = calculate_mipmap_level(width, height);
     glTextureStorage2D(texture_id, mipmap_levels, get_color_format(format), width, height);
 
-    if(buffer)
-        glTextureSubImage2D(texture_id, 0, 0, 0, width, height, get_pixel_format(format), GL_UNSIGNED_BYTE, buffer);
+    if (buffer)
+        glTextureSubImage2D(m_TextureID, 0, 0, 0, m_Width, m_Height, GetPixelFormat(m_Format), GL_UNSIGNED_BYTE, buffer);
 
     glTextureParameteri(texture_id, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     glTextureParameteri(texture_id, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -244,8 +244,8 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap(uint32_t face_size, const un
                             0,                         // xoffset
                             0,                         // yoffset
                             face,                      // zoffset = face index
-                            width,                     // width
-                            height,                    // height
+                            m_Width,                   // width
+                            m_Height,                  // height
                             1,                         // depth = 1
                             get_pixel_format(format),  // format
                             GL_UNSIGNED_BYTE,
@@ -281,8 +281,8 @@ void Fleur::Graphics::TextureOpenGL::create_cubemap_from_images(const Fleur::Gra
                             0,                         // xoffset
                             0,                         // yoffset
                             face,                      // zoffset = face index
-                            width,                     // width
-                            height,                    // height
+                            m_Width,                   // width
+                            m_Height,                  // height
                             1,                         // depth = 1
                             get_pixel_format(format),  // format
                             GL_UNSIGNED_BYTE,

@@ -1,15 +1,13 @@
 #include "CommandBufferOpenGL.h"
 
-#include <glm/ext.hpp>
-#include <glm/glm.hpp>
+#include <glad/wgl.h>
 
-#include "../../Renderer/Graphics.hpp"
 #include "BufferOpenGL.h"
 #include "Renderer.h"
+#include "Renderer/Graphics.hpp"
 #include "ShaderObjectOpenGL.h"
 #include "TextureOpenGL.h"
 #include "VertexLayout.h"
-#include "glad/gl.h"
 
 namespace Fleur::Graphics
 {
