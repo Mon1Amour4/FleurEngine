@@ -1,8 +1,6 @@
 #pragma once
 
 #include "EventQueue.h"
-#include "glm/ext.hpp"
-#include "glm/glm.hpp"
 
 namespace Fleur
 {

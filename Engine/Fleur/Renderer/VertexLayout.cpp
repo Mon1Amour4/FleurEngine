@@ -1,9 +1,5 @@
 #include "VertexLayout.h"
 
-#if defined(FLEUR_PLATFORM_WIN)
-#include "glad/gl.h"
-#elif defined(FLEUR_PLATFORM_MACOS)
-#endif
 namespace Fleur::Graphics
 {
 // Layout:
