@@ -1,7 +1,7 @@
 #pragma once
 #include <flpch.h>
 
-#include "../../../CoreLib/Bitmap.hpp"
+#include "Bitmap.hpp"
 
 namespace Fleur::Graphics
 {
