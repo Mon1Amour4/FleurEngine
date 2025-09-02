@@ -17,7 +17,7 @@ struct ShaderComponentContext
 class FLEUR_API Material
 {
 public:
-    static Material* CreateMaterial(ShaderComponentContext& ctx)
+    [[nodiscard]] static Material* CreateMaterial(ShaderComponentContext& ctx)
     {
         return new Material(ctx);
     }

@@ -29,7 +29,7 @@ public:
         return m_Material.get();
     }
 
-    uint32_t GetVertexCount() const
+    [[nodiscard]] uint32_t GetVertexCount() const
     {
         return static_cast<uint32_t>(m_Vertices.size());
     };

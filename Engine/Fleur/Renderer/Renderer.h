@@ -126,11 +126,11 @@ private:
 
     std::unique_ptr<Fleur::IRendererToolchain> m_Toolchain;
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view path);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view path);
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view name, Color color, int width, int height);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view name, Color color, int width, int height);
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
 
     struct DrawInfo
     {

@@ -49,16 +49,16 @@ public:
             return m_PrimitiveIndexEnd;
         }
 
-        inline uint32_t VertexSize() const
+        [[nodiscard]] inline uint32_t VertexSize() const
         {
             return m_PrimitiveVertexCount * sizeof(float);
         }
-        inline uint32_t IndexSize() const
+        [[nodiscard]] inline uint32_t IndexSize() const
         {
             return m_PrimitiveIndicesCount * sizeof(uint32_t);
         }
 
-        inline uint32_t MaterialIdx() const
+        [[nodiscard]] inline uint32_t MaterialIdx() const
         {
             return m_MatIdx;
         }
@@ -135,15 +135,15 @@ public:
     {
         return m_ModelIndicesCount;
     }
-    inline const VertexData* GetVerticesData() const
+    [[nodiscard]] inline const VertexData* GetVerticesData() const
     {
         return m_Vertices.data();
     }
-    inline const uint32_t* GetIndicesData() const
+    [[nodiscard]] inline const uint32_t* GetIndicesData() const
     {
         return m_Indices.data();
     }
-    const std::vector<Fleur::Graphics::Model::Mesh>* GetMeshesPtr() const
+    [[nodiscard]] const std::vector<Fleur::Graphics::Model::Mesh>* GetMeshesPtr() const
     {
         return &m_Meshes;
     }

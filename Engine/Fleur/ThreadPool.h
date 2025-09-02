@@ -64,7 +64,7 @@ private:
     bool m_IsRunning;
 
     void Release();
-    Task GetTask();
+    [[nodiscard]] Task GetTask();
 
     std::string PrintThreadID(size_t threadID) const;
 

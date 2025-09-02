@@ -38,14 +38,14 @@ public:
     virtual void Bind() = 0;
     virtual void Unbind() = 0;
 
-    const Fleur::Graphics::Texture* GetColorAttachment(uint32_t index = 0) const
+    [[nodiscard]] const Fleur::Graphics::Texture* GetColorAttachment(uint32_t index = 0) const
     {
         if (m_ColorAttachments.size() > 0 && index <= m_ColorAttachments.size() - 1)
             return m_ColorAttachments[index].get();
         return nullptr;
     }
 
-    Fleur::Graphics::Texture* GetDepthAttachment() const
+    [[nodiscard]] Fleur::Graphics::Texture* GetDepthAttachment() const
     {
         return m_DepthAttachment.get();
     }
