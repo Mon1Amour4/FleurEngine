@@ -52,26 +52,26 @@ Camera* Camera::GetActiveCamera()
     return s_ActiveCamera;
 }
 
-void Camera::OnUpdate(float dlTime)
+void Camera::OnUpdate(float dtTime)
 {
     if (Input::IsKeyPressed(Key::W))
     {
-        m_Position += m_Speed * m_CameraForward * dlTime;
+        m_Position += m_Speed * m_CameraForward * dtTime;
     }
     if (Input::IsKeyPressed(Key::S))
     {
-        m_Position -= m_Speed * m_CameraForward * dlTime;
+        m_Position -= m_Speed * m_CameraForward * dtTime;
     }
     if (Input::IsKeyPressed(Key::A))
     {
-        m_Position -= glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dlTime;
+        m_Position -= glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dtTime;
     }
     if (Input::IsKeyPressed(Key::D))
     {
-        m_Position += glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dlTime;
+        m_Position += glm::normalize(glm::cross(m_CameraForward, m_Up)) * m_Speed * dtTime;
     }
 
-    std::pair<float, float> mouseWheelScroll;
+    std::pair<int, int> mouseWheelScroll;
     if (Input::IsMouseWheelScrolled(mouseWheelScroll))
     {
         if (mouseWheelScroll.first != 0.f)
@@ -84,13 +84,14 @@ void Camera::OnUpdate(float dlTime)
         }
     }
 
-    RotateCamera(dlTime);
+    RotateCamera(dtTime);
 
     m_View = glm::lookAt(m_Position, m_Position + m_CameraForward, m_Up);
 }
 
-void Camera::OnPostUpdate(float dlTime)
+void Camera::OnPostUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 
