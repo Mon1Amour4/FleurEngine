@@ -13,7 +13,7 @@ struct ImagePostCreation
     uint32_t width;
     uint32_t height;
     uint16_t channels;
-    uint32_t depth;
+    uint16_t depth;
     const void* data;
 };
 
@@ -50,22 +50,22 @@ public:
     {
         return m_Channels;
     }
-    uint32_t Depth() const
+    uint16_t Depth() const
     {
         return m_Depth;
     }
 
-    uint32_t Layers() const
+    uint16_t Layers() const
     {
         return m_Layers;
     }
 
-    uint32_t SizeBytes() const
+    [[nodiscard]] size_t SizeBytes() const
     {
         return m_SizeBytes;
     }
 
-    bool IsValid() const
+    [[nodiscard]] bool IsValid() const
     {
         return m_IsCreated;
     }
@@ -88,21 +88,16 @@ protected:
         , m_Layers(1)
         , m_SizeBytes(0)
         , m_IsCreated(false) {};
-    ImageBase(std::string_view name, std::string_view ext, uint32_t layers);
-    ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint32_t layers);
+    ImageBase(std::string_view name, std::string_view ext, uint16_t layers);
+    ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint16_t layers);
 
-    std::string m_Name;
-    std::string m_Extension;
+    std::string m_Name, m_Extension;
 
-    uint32_t m_Width;
-    uint32_t m_Height;
+    uint32_t m_Width, m_Height;
 
-    uint16_t m_Channels;
-    uint16_t m_Depth;
+    uint16_t m_Channels, m_Depth, m_Layers;
 
-    uint32_t m_Layers;
-
-    uint32_t m_SizeBytes;
+    size_t m_SizeBytes;
 
     bool m_IsCreated;
 };
