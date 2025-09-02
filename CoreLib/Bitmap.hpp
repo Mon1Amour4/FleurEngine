@@ -181,7 +181,7 @@ public:
     }
 
 
-    uint32_t GetSizeBytes() const
+    size_t GetSizeBytes() const
     {
         return m_Data.size();
     }
