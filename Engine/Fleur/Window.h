@@ -67,7 +67,7 @@ public:
     virtual inline bool IsResizing() const = 0;
 
     inline virtual glm::vec2 GetMouseDir() const = 0;
-    virtual bool HasMouseMoved(float x, float y) const = 0;
+    virtual bool HasMouseMoved(int x, int y) const = 0;
 
     virtual EInteractionMode GetInteractionMode() const = 0;
     virtual void SwitchInteractionMode() = 0;
@@ -77,8 +77,8 @@ public:
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 
 private:
-    virtual void SetMousePos(float x, float y) = 0;
+    virtual void SetMousePos(int x, int y) = 0;
     virtual void SetPainted() = 0;
-    virtual void SetMouseWheelScrollData(float x, float y) = 0;
+    virtual void SetMouseWheelScrollData(int x, int y) = 0;
 };
 }  // namespace Fleur

@@ -35,7 +35,7 @@ enum class ETextureUsage
     SPECULAR = 2
 };
 
-enum ERenderStage
+enum ERenderStage : uint8_t
 {
     STATIC_GEOMETRY,
     DYNAMIC_DRAW,

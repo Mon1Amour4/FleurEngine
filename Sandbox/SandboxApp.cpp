@@ -15,6 +15,7 @@ SceneLayer::SceneLayer()
 
 void SceneLayer::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
 }
 
 void SceneLayer::OnAttach()
@@ -29,7 +30,10 @@ void SceneLayer::OnEvent(Fleur::EventVariant& event)
 {
     // TODO: FL_TRACE is not recognized here
     auto logEventVisitor = Fleur::EventVisitor{[this](Fleur::AppRenderEvent& ev) { OnRenderEvent(ev); },
-                                               [](const Fleur::EventVariant& ev) { /* FL_TRACE("{0}", ev.ToString());*/ }};
+                                               [](const Fleur::EventVariant& ev)
+                                               {
+                                                   UNUSED(ev); /* FL_TRACE("{0}", ev.ToString());*/
+                                               }};
 
     std::visit(logEventVisitor, event);
 }

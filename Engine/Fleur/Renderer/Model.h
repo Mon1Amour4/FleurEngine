@@ -95,7 +95,7 @@ public:
         }
         inline uint32_t PrimitivesCount() const
         {
-            return m_Primitives.size();
+            return static_cast<uint32_t>(m_Primitives.size());
         }
 
     private:

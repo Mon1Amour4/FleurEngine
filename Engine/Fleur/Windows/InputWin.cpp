@@ -26,15 +26,15 @@ bool InputWin::IsMouseButtonPressedImpl(uint16_t mouseCode)
     return state == Input::MOUSE_LPRESSED || state == Input::MOUSE_RPRESSED;
 }
 
-std::pair<float, float> InputWin::GetMousePositionImpl() const
+std::pair<int, int> InputWin::GetMousePositionImpl() const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
-    float xPos, yPos;
+    int xPos, yPos;
     window.GetMousePos(xPos, yPos);
     return {xPos, yPos};
 }
 
-bool InputWin::IsMouseWheelScrolledImpl(std::pair<float, float>& pair) const
+bool InputWin::IsMouseWheelScrolledImpl(std::pair<int, int>& pair) const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     pair = window.GetMouseWheelScrollData();
@@ -43,19 +43,19 @@ bool InputWin::IsMouseWheelScrolledImpl(std::pair<float, float>& pair) const
     return false;
 }
 
-float InputWin::GetMouseXImpl() const
+int InputWin::GetMouseXImpl() const
 {
     auto [x, y] = GetMousePositionImpl();
     return x;
 }
 
-float InputWin::GetMouseYImpl() const
+int InputWin::GetMouseYImpl() const
 {
     auto [x, y] = GetMousePositionImpl();
     return y;
 }
 
-glm::vec2 InputWin::GetMouseDirImpl() const
+glm::ivec2 InputWin::GetMouseDirImpl() const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     return window.GetMouseDir();

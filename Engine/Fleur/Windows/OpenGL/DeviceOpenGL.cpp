@@ -15,6 +15,9 @@
 
 void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
+    UNUSED(userParam);
+    UNUSED(length);
+
     if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
         return;
 
@@ -109,22 +112,22 @@ DeviceOpenGL::DeviceOpenGL()
     HDC hdc = GetDC(hwnd);
 
     int pixelFormatAttribs[] = {WGL_DRAW_TO_WINDOW_ARB,
-                                  GL_TRUE,
-                                  WGL_SUPPORT_OPENGL_ARB,
-                                  GL_TRUE,
-                                  WGL_DOUBLE_BUFFER_ARB,
-                                  GL_TRUE,
-                                  WGL_ACCELERATION_ARB,
-                                  WGL_FULL_ACCELERATION_ARB,
-                                  WGL_PIXEL_TYPE_ARB,
-                                  WGL_TYPE_RGBA_ARB,
-                                  WGL_COLOR_BITS_ARB,
-                                  32,
-                                  WGL_DEPTH_BITS_ARB,
-                                  24,
-                                  WGL_STENCIL_BITS_ARB,
-                                  8,
-                                  0};
+                                GL_TRUE,
+                                WGL_SUPPORT_OPENGL_ARB,
+                                GL_TRUE,
+                                WGL_DOUBLE_BUFFER_ARB,
+                                GL_TRUE,
+                                WGL_ACCELERATION_ARB,
+                                WGL_FULL_ACCELERATION_ARB,
+                                WGL_PIXEL_TYPE_ARB,
+                                WGL_TYPE_RGBA_ARB,
+                                WGL_COLOR_BITS_ARB,
+                                32,
+                                WGL_DEPTH_BITS_ARB,
+                                24,
+                                WGL_STENCIL_BITS_ARB,
+                                8,
+                                0};
     int pixelFormat;
     UINT numFormats;
     int res = wglChoosePixelFormatARB(hdc, pixelFormatAttribs, nullptr, 1, &pixelFormat, &numFormats);
@@ -199,35 +202,35 @@ std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, int width,
-                                                     int height) const
+std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, uint32_t width,
+                                                     uint32_t height) const
 {
-    return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, 1);
+    return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, static_cast<uint16_t>(1));
 }
 
 std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext) const
 {
-    return std::make_shared<TextureOpenGL>(name, ext, 1);
+    return std::make_shared<TextureOpenGL>(name, ext, static_cast<uint16_t>(1));
 }
 
 std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
 {
     return std::make_shared<TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(), reinterpret_cast<const unsigned char*>(equirectangular->Data()),
                                            Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()), equirectangular->Width(),
-                                           equirectangular->Height(), 6);
+                                           equirectangular->Height(), static_cast<uint16_t>(6));
 }
 
 std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemapImage) const
 {
     return std::make_shared<TextureOpenGL>(cubemapImage->Name(), cubemapImage->Ext(), reinterpret_cast<const unsigned char*>(cubemapImage->Data()),
                                            Texture::GetTextureFormat(cubemapImage->Channels(), cubemapImage->Depth()), cubemapImage->Width(),
-                                           cubemapImage->Height(), 6);
+                                           cubemapImage->Height(), static_cast<uint16_t>(6));
 }
 
 std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
 {
     return std::make_shared<TextureOpenGL>(name, images.right->Ext(), images, Texture::GetTextureFormat(images.right->Channels(), images.right->Depth()),
-                                           images.right->Width(), images.right->Height(), 6);
+                                           images.right->Width(), images.right->Height(), static_cast<uint16_t>(6));
 }
 
 std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const

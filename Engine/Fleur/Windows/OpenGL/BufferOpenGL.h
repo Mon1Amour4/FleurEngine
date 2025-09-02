@@ -4,7 +4,7 @@
 
 namespace Fleur::Graphics
 {
-enum ERenderStage;
+enum ERenderStage : uint8_t;
 
 class BufferOpenGL final : public Buffer
 {
@@ -12,7 +12,7 @@ public:
     virtual ~BufferOpenGL() override;
 
     uint32_t GetBufferID() const;
-    virtual uint32_t UpdateSubDataImpl(const void* data, size_t size) override;
+    virtual size_t UpdateSubDataImpl(const void* data, size_t size) override;
     virtual uint32_t NativeType() const override;
 
 private:

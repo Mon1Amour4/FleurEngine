@@ -27,7 +27,7 @@ void Fleur::TimeWin::CalcDeltaTime()
     ++m_FPSFrames;
     if (m_FPSTime >= 1.f)
     {
-        m_FPS = m_FPSFrames / m_FPSTime;
+        m_FPS = static_cast<uint16_t>(m_FPSFrames / m_FPSTime);
         m_AverageFrametime = m_FPSTime / m_FPSFrames;
         m_ApplicationEpoch++;
         m_FPSTime = 0;

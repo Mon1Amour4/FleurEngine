@@ -11,6 +11,8 @@ struct VertexLayout;
 
 class CommandBufferOpenGL final : public CommandBuffer
 {
+    friend class DeviceOpenGL;
+
 public:
     virtual ~CommandBufferOpenGL() override;
     virtual void BeginRecording() override;
@@ -23,7 +25,7 @@ public:
     virtual void BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout) override;
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) override;
 
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) override;
+    virtual size_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) override;
 
     virtual void BindTexture(Texture* texture) override;
     virtual void Draw(uint32_t vertexCount) override;
@@ -35,16 +37,10 @@ public:
 
 private:
     int ConvertUsage(ERenderStage& stage) const;
-    uint32_t m_VAO;
-    uint32_t m_MainVsShader;
-    uint32_t m_PixelShader;
-    bool m_IsLinked;
-    bool m_IsDataAllocated;
+    uint32_t m_VAO, m_Texture;
+    int m_MainVsShader, m_PixelShader;
+    bool m_IsLinked, m_IsDataAllocated, m_IsFree;
 
-    uint32_t m_Texture;
-
-    friend class DeviceOpenGL;
-    bool m_IsFree;
     CommandBufferOpenGL(DepthStencilDescriptor desc);
 
     uint32_t GetDeathFuncOp(EDepthTestOperation op) const;

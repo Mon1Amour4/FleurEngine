@@ -11,7 +11,7 @@ SwapchainOpenGL::SwapchainOpenGL(std::unique_ptr<Surface> surface)
     auto rawSurface = static_cast<SurfaceOpenGL*>(surface.release());
     this->m_Surface = std::unique_ptr<SurfaceOpenGL>(rawSurface);
 
-    auto rect = this->m_Surface->GetRect();
+    Surface::Rect rect = this->m_Surface->GetRect();
 
     m_BackBuffer = std::make_unique<DefaultFramebufferOpenGL>(rect.width, rect.height);
 

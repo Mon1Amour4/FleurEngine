@@ -17,11 +17,11 @@ public:
 
     virtual void PostCreate(ImagePostCreation& settings) override;
 
-    TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers);
+    TextureOpenGL(std::string_view name, std::string_view ext, uint16_t layers);
     TextureOpenGL(std::string_view name, std::string_view ext, const unsigned char* buffer, ETextureFormat format, uint32_t width, uint32_t height,
-                  uint32_t layers);
+                  uint16_t layers);
     TextureOpenGL(std::string_view name, std::string_view ext, const Fleur::Graphics::CubemapInitData& images, ETextureFormat format, uint32_t width,
-                  uint32_t height, uint32_t layers);
+                  uint32_t height, uint16_t layers);
 
 private:
     uint32_t m_TextureUnit;

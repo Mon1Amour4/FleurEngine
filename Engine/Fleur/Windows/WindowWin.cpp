@@ -45,8 +45,8 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
 
     AdjustWindowRect(&rect, style, true);
 
-    window->m_HWND = CreateWindowEx(0, window->m_Props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top,
-                                   nullptr, nullptr, window->m_Hinstance, nullptr);
+    window->m_HWND = CreateWindowEx(0, window->m_Props.APP_WINDOW_CLASS_NAME, buffer, style, rect.left, rect.top, rect.right - rect.left,
+                                    rect.bottom - rect.top, nullptr, nullptr, window->m_Hinstance, nullptr);
 
     FL_CORE_ASSERT(window->m_HWND, "[AppWindow] hasn't been initialized!");
 
@@ -73,12 +73,12 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
         DWORD error = GetLastError();
         if (error)
         {
-            LPSTR buffer = nullptr;
+            LPSTR riwBuffer = nullptr;
             size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL, error,
-                                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&buffer, 0, NULL);
+                                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&riwBuffer, 0, NULL);
 
-            std::string message(buffer, size);
-            LocalFree(buffer);
+            std::string message(riwBuffer, size);
+            LocalFree(riwBuffer);
 
             FL_CORE_ERROR("Raw Input Device registration failed, error code: {0}, message: {1}", error, message);
         }
@@ -122,7 +122,7 @@ void WindowWin::InitOpenGLExtensions()
         FL_CORE_ERROR("Failed to register dummy OpenGL window");
 
     HWND dummyWindow = CreateWindowExA(0, window_class.lpszClassName, "Dummy OpenGL Window", 0, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, 0,
-                                        0, window_class.hInstance, nullptr);
+                                       0, window_class.hInstance, nullptr);
     if (!dummyWindow)
         FL_CORE_ERROR("Failed to create dummy OpenGL window.");
 
@@ -374,12 +374,12 @@ LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     if (buttonFlags & 0x0400)  // Mouse Wheel vertical
                     {
                         SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
-                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(wheelDelta, 0.f)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(wheelDelta, 0)));
                     }
                     if (buttonFlags & 0x0800)  // Mouse Wheel Horizontal
                     {
                         SHORT wheelDelta = (SHORT)raw->data.mouse.usButtonData;
-                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, wheelDelta)));
+                        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0, wheelDelta)));
                     }
                 }
             };
@@ -436,14 +436,14 @@ LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
     case WM_MOUSEWHEEL:
     {
-        float yOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
-        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(yOffset, 0.f)));
+        int yOffset = static_cast<int>(GET_WHEEL_DELTA_WPARAM(wParam));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(yOffset, 0)));
         break;
     }
     case WM_MOUSEHWHEEL:
     {
-        float xOffset = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam));
-        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0.f, xOffset)));
+        int xOffset = static_cast<int>(GET_WHEEL_DELTA_WPARAM(wParam));
+        m_EventQueue->PushEvent(std::make_shared<EventVariant>(MouseScrolledEvent(0, xOffset)));
         break;
     }
 
@@ -529,19 +529,20 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , m_IsAppActive(false)
     , m_BufferX(0)
     , m_BufferY(0)
-    , m_PrevMouseDir(0.f, 0.f)
-    , m_MouseDir(0.f, 0.f)
-    , m_MouseWheelData(std::make_pair(0.f, 0.f))
+    , m_PrevMouseDir(0, 0)
+    , m_MouseDir(0, 0)
+    , m_MouseWheelData(std::make_pair(0, 0))
 {
     m_WinThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, m_WinThreadID);
     WaitForSingleObject(m_OnThreadCreated, INFINITE);
 }
 
-void WindowWin::OnUpdate(float dlTime)
+void WindowWin::OnUpdate(float dtTime)
 {
-    glm::vec2 tmp = m_MouseDir;
-    m_MouseDir.x = std::lerp(m_PrevMouseDir.x, m_BufferX, 0.5f);
-    m_MouseDir.y = std::lerp(m_PrevMouseDir.y, m_BufferY, 0.5f);
+    UNUSED(dtTime);
+    glm::ivec2 tmp = m_MouseDir;
+    m_MouseDir.x = static_cast<int>(std::lerp(m_PrevMouseDir.x, m_BufferX, 0.5f));
+    m_MouseDir.y = static_cast<int>(std::lerp(m_PrevMouseDir.y, m_BufferY, 0.5f));
     m_PrevMouseDir = tmp;
 
     m_BufferX = 0;
@@ -555,8 +556,9 @@ void WindowWin::OnUpdate(float dlTime)
     m_EventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
-void WindowWin::OnPostUpdate(float dlTime)
+void WindowWin::OnPostUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 
@@ -580,12 +582,12 @@ Input::EMouseState WindowWin::GetMouseState(EMouseCode mouseCode) const
     return m_LastMouse.MouseCode == mouseCode ? m_LastMouse.State : Input::EMouseState::MOUSE_NONE;
 }
 
-std::pair<float, float> WindowWin::GetMouseWheelScrollData() const
+std::pair<int, int> WindowWin::GetMouseWheelScrollData() const
 {
     return m_MouseWheelData;
 }
 
-void WindowWin::GetMousePos(OUT float& xPos, OUT float& yPos) const
+void WindowWin::GetMousePos(OUT int& xPos, OUT int& yPos) const
 {
     xPos = m_CursorPos.x;
     yPos = m_CursorPos.y;
@@ -596,14 +598,14 @@ std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQ
     return std::make_unique<WindowWin>(props, eventQueue);
 }
 
-void WindowWin::SetMousePos(float x, float y)
+void WindowWin::SetMousePos(int x, int y)
 {
     m_PrevCursorPos = m_CursorPos;
     m_CursorPos.x = x;
     m_CursorPos.y = y;
 }
 
-void WindowWin::SetMouseWheelScrollData(float x, float y)
+void WindowWin::SetMouseWheelScrollData(int x, int y)
 {
     m_MouseWheelData.first = x;
     m_MouseWheelData.second = y;

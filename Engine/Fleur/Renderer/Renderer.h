@@ -136,8 +136,8 @@ private:
     {
         const Model* Model;
         glm::mat4 ModelMatrix;
-        uint32_t IndexGlobalOffsetBytes;
-        uint32_t VertexGlobalOffsetBytes;
+        size_t IndexGlobalOffsetBytes;
+        size_t VertexGlobalOffsetBytes;
     };
 
     std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;

@@ -2,7 +2,7 @@
 
 #include <glad/wgl.h>
 
-Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, uint32_t layers)
+Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, uint16_t layers)
     : Texture(name, ext, layers)
     , m_TextureUnit(0)
     , m_TextureID(0)
@@ -10,7 +10,7 @@ Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
 }
 
 Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const unsigned char* buffer, ETextureFormat format, uint32_t width,
-                                              uint32_t height, uint32_t layers)
+                                              uint32_t height, uint16_t layers)
     : Texture(name, ext, format, width, height, layers)
     , m_TextureUnit(0)
     , m_TextureID(0)
@@ -28,7 +28,7 @@ Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string
 }
 
 Fleur::Graphics::TextureOpenGL::TextureOpenGL(std::string_view name, std::string_view ext, const Fleur::Graphics::CubemapInitData& images,
-                                              ETextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
+                                              ETextureFormat format, uint32_t width, uint32_t height, uint16_t layers)
     : Texture(name, ext, format, width, height, layers)
     , m_TextureUnit(0)
     , m_TextureID(0)

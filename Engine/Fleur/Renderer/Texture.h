@@ -124,12 +124,12 @@ public:
 protected:
     ETextureFormat m_Format;
 
-    Texture(std::string_view name, std::string_view ext, ETextureFormat format, uint32_t width, uint32_t height, uint32_t layers)
+    Texture(std::string_view name, std::string_view ext, ETextureFormat format, uint32_t width, uint32_t height, uint16_t layers)
         : ImageBase(name, ext, width, height, FormatToChannels(format), FormatToDepth(format), layers)
         , m_Format(format)
     {
     }
-    Texture(std::string_view name, std::string_view ext, uint32_t layers)
+    Texture(std::string_view name, std::string_view ext, uint16_t layers)
         : ImageBase(name, ext, 0, 0, 0, 0, layers)
         , m_Format(ETextureFormat::RGB8)
     {
@@ -140,7 +140,7 @@ protected:
         return 1 + static_cast<uint32_t>(std::floor(std::log2(std::max(width, height))));
     }
 
-    uint32_t FormatToChannels(ETextureFormat format) const
+    uint16_t FormatToChannels(ETextureFormat format) const
     {
         switch (format)
         {
@@ -186,7 +186,7 @@ protected:
         return 1;
     }
 
-    uint32_t FormatToDepth(ETextureFormat format) const
+    uint16_t FormatToDepth(ETextureFormat format) const
     {
         switch (format)
         {

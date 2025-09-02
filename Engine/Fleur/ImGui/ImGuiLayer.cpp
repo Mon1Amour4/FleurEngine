@@ -26,6 +26,7 @@ void ImGuiLayer::OnDetach()
 
 void ImGuiLayer::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 

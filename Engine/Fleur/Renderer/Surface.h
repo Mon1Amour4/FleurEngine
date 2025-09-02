@@ -7,7 +7,8 @@ class Surface
 public:
     struct Rect
     {
-        int64_t x, y, width, height;
+        int x, y;
+        uint32_t width, height;
     };
 
     virtual ~Surface() = default;

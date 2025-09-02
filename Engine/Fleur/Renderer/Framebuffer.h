@@ -82,6 +82,7 @@ protected:
     }
     virtual void AddDepthAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment, bool combined = true)
     {
+        UNUSED(combined);
         m_DepthAttachment = attachment;
     }
     virtual void AddStencilAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment)

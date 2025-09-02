@@ -16,7 +16,7 @@ class Device;
 class Framebuffer;
 enum class EFramebufferRWOperation;
 
-enum ERenderStage;
+enum ERenderStage : uint8_t;
 
 enum class EDepthTestOperation
 {
@@ -62,7 +62,7 @@ public:
     virtual void BindIndexBuffer(std::unique_ptr<Buffer> buffer) = 0;
 
     template <typename T>
-    uint32_t UpdateBufferSubData(Buffer::EBufferType type, std::span<const T> data)
+    size_t UpdateBufferSubData(Buffer::EBufferType type, std::span<const T> data)
     {
         return UpdateBufferSubDataImpl(type, data.data(), data.size_bytes());
     }
@@ -81,7 +81,7 @@ public:
     }
 
 protected:
-    virtual uint32_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) = 0;
+    virtual size_t UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes) = 0;
 
     CommandBuffer(DepthStencilDescriptor desc)
         : m_PushDebugGroupCommands(0)

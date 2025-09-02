@@ -148,8 +148,8 @@ bool FileSystem::FUCreateFile(const std::string& fileName, std::string_view fold
     std::ofstream file(std::filesystem::path(res.value()) / fileName);
     if (file)
     {
-        return true;
         file.close();
+        return true;
     }
     else
         return false;

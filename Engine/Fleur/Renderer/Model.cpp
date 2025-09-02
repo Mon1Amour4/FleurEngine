@@ -9,7 +9,7 @@
 
 Fleur::Graphics::Model::Model(std::string_view modelName, cgltf_data* data)
     : m_Name(modelName)
-    , m_MeshCount(data->meshes_count)
+    , m_MeshCount(static_cast<uint32_t>(data->meshes_count))
     , m_ModelVertexCount(0)
     , m_ModelIndicesCount(0)
 {
@@ -55,9 +55,9 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
 Fleur::Graphics::Model::Mesh::Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials, std::vector<Fleur::Graphics::VertexData>& vertices,
                                    std::vector<uint32_t>& indices)
     : m_MeshName(mesh->name)
-    , m_MeshVertexStart(vertices.size())
+    , m_MeshVertexStart(static_cast<uint32_t>(vertices.size()))
     , m_MeshVertexEnd(0)
-    , m_MeshIndexStart(indices.size())
+    , m_MeshIndexStart(static_cast<uint32_t>(indices.size()))
     , m_MeshIndexEnd(0)
     , m_MeshVertexCount(0)
     , m_MeshIndicesCount(0)
@@ -70,8 +70,8 @@ Fleur::Graphics::Model::Mesh::Mesh(cgltf_mesh* mesh, const cgltf_material* baseM
         m_MeshVertexCount += primitive.VertexCount();
         m_MeshIndicesCount += primitive.IndexCount();
     }
-    m_MeshVertexEnd = vertices.size();
-    m_MeshIndexEnd = indices.size();
+    m_MeshVertexEnd = static_cast<uint32_t>(vertices.size());
+    m_MeshIndexEnd = static_cast<uint32_t>(indices.size());
 }
 
 void Fleur::Graphics::Model::PostLoad(cgltf_data* data)
@@ -89,7 +89,7 @@ const Fleur::Graphics::Material* Fleur::Graphics::Model::GetMaterial(uint32_t id
 
 void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
 {
-    m_MeshCount = data->meshes_count;
+    m_MeshCount = static_cast<uint32_t>(data->meshes_count);
 
     auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
     auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
@@ -128,9 +128,9 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
 
                     unsigned char* imageData = reinterpret_cast<unsigned char*>(imageBuffer->buffer->data) + imageBuffer->offset;
                     if (async)
-                        image = assetsManager->LoadImage2DFromMemoryAsync(textureName, false, imageData, imageBuffer->size);
+                        image = assetsManager->LoadImage2DFromMemoryAsync(textureName, false, imageData, static_cast<uint32_t>(imageBuffer->size));
                     else
-                        image = assetsManager->LoadImage2DFromMemory(textureName, false, imageData, imageBuffer->size);
+                        image = assetsManager->LoadImage2DFromMemory(textureName, false, imageData, static_cast<uint32_t>(imageBuffer->size));
                 }
                 else if (baseColorTexture->image->uri)
                 {
@@ -143,9 +143,9 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
             {
                 cgltf_float* color = currentMaterial->pbr_metallic_roughness.base_color_factor;
                 int channels = 0;
-                for (size_t i = 0; i < 4; i++)
+                for (size_t j = 0; j < 4; j++)
                 {
-                    if (*(color + i) > 0)
+                    if (*(color + j) > 0)
                         ++channels;
                 }
                 std::string materialName;
@@ -185,11 +185,11 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
             {
                 auto attrib = primitive.attributes[k];
                 if (attrib.type == cgltf_attribute_type_position)
-                    m_ModelVertexCount += attrib.data->count;
+                    m_ModelVertexCount += static_cast<uint32_t>(attrib.data->count);
             }
-            m_ModelIndicesCount += primitive.indices->count;
+            m_ModelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
         }
-        Mesh* emplaced_mesh = &m_Meshes.emplace_back(mesh, data->materials, m_Vertices, m_Indices);
+        m_Meshes.emplace_back(mesh, data->materials, m_Vertices, m_Indices);
     }
     m_Vertices.reserve(m_ModelVertexCount);
     m_Indices.reserve(m_ModelIndicesCount);
@@ -203,7 +203,7 @@ Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, u
     , m_PrimitiveVertexEnd(0)
     , m_PrimitiveIndexStart(0)
     , m_PrimitiveIndexEnd(0)
-    , m_PrimitiveIndicesCount(primitive->indices->count)
+    , m_PrimitiveIndicesCount(static_cast<uint32_t>(primitive->indices->count))
 {
     FL_CORE_ASSERT(primitive->type == cgltf_primitive_type_triangles, "Mesh is not triangulated");
 
@@ -211,12 +211,12 @@ Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, u
     {
         if (primitive->attributes[i].type == cgltf_attribute_type_position)
         {
-            m_PrimitiveVertexCount = primitive->attributes[i].data->count;
+            m_PrimitiveVertexCount = static_cast<uint32_t>(primitive->attributes[i].data->count);
         }
     }
 
-    m_PrimitiveVertexStart = vertices.size();
-    m_PrimitiveIndexStart = indices.size();
+    m_PrimitiveVertexStart = static_cast<uint32_t>(vertices.size());
+    m_PrimitiveIndexStart = static_cast<uint32_t>(indices.size());
 
     const cgltf_accessor* primitiveIndicesBuffer = primitive->indices;
 
@@ -235,8 +235,8 @@ Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, u
         const cgltf_accessor* accessor = attribute.data;
 
         const uint8_t* attributeGlobalBuffer = static_cast<const uint8_t*>(accessor->buffer_view->buffer->data);
-        size_t primitiveIndeciesStartIdx = accessor->buffer_view->offset + accessor->offset;
-        const float* ptr = reinterpret_cast<const float*>(attributeGlobalBuffer + primitiveIndeciesStartIdx);
+        size_t startIdx = accessor->buffer_view->offset + accessor->offset;
+        const float* ptr = reinterpret_cast<const float*>(attributeGlobalBuffer + startIdx);
 
         if (attribute.type == cgltf_attribute_type_position)
             positions = ptr;
@@ -288,6 +288,6 @@ Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, u
         map[vi] = newIndex;
         indices.push_back(newIndex);
     }
-    m_PrimitiveVertexEnd = vertices.size() - 1;
-    m_PrimitiveIndexEnd = indices.size() - 1;
+    m_PrimitiveVertexEnd = static_cast<uint32_t>(vertices.size()) - 1;
+    m_PrimitiveIndexEnd = static_cast<uint32_t>(indices.size()) - 1;
 }
