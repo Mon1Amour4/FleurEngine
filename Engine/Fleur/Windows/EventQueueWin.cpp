@@ -4,11 +4,13 @@ namespace Fleur
 {
 void EventQueueWin::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 
-void EventQueueWin::OnPostUpdate(float dlTime)
+void EventQueueWin::OnPostUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 

@@ -55,8 +55,8 @@ public:
     void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
     // IUpdatable
-    void OnUpdate(float dlTime);
-    void OnPostUpdate(float dlTime);
+    void OnUpdate(float dtTime);
+    void OnPostUpdate(float dtTime);
     void OnFixedUpdate();
 
     void Clear();

@@ -29,13 +29,15 @@ void Layer::OnDetach()
 {
 }
 
-void Layer::OnUpdate(float dlTime)
+void Layer::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 
-void Layer::OnPostUpdate(float dlTime)
+void Layer::OnPostUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 

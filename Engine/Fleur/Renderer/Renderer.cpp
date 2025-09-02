@@ -279,8 +279,9 @@ bool Renderer::IsVSync()
     return m_IsVsync;
 }
 
-void Renderer::OnUpdate(float dlTime)
+void Renderer::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     m_Toolchain->Update();
     static bool isSkyboxCreated = false;
 

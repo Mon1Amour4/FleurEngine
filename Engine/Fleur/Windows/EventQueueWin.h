@@ -11,8 +11,8 @@ class EventQueueWin final : public EventQueue
     friend class WindowWin;
 
 public:
-    virtual void OnUpdate(float dlTime) override;
-    virtual void OnPostUpdate(float dlTime) override;
+    virtual void OnUpdate(float dtTime) override;
+    virtual void OnPostUpdate(float dtTime) override;
     virtual void OnFixedUpdate() override;
 
     virtual std::shared_ptr<EventVariant> Front() override;

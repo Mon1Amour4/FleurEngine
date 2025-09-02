@@ -15,8 +15,8 @@ public:
 
     WindowWin(const WindowProps& props, EventQueue& eventQueue);
 
-    virtual void OnUpdate(float dlTime) override;
-    virtual void OnPostUpdate(float dlTime) override;
+    virtual void OnUpdate(float dtTime) override;
+    virtual void OnPostUpdate(float dtTime) override;
     virtual void OnFixedUpdate() override;
 
     inline virtual unsigned int GetWidth() const override

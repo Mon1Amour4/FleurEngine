@@ -22,8 +22,8 @@ namespace Fleur
 
 struct IUpdatable
 {
-    void OnUpdate(float dlTime);
-    void OnPostUpdate(float dlTime);
+    void OnUpdate(float dtTime);
+    void OnPostUpdate(float dtTime);
     void OnFixedUpdate();
 };
 

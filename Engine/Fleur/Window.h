@@ -53,8 +53,8 @@ public:
     };
     virtual ~Window() = default;
 
-    virtual void OnUpdate(float dlTime) = 0;
-    virtual void OnPostUpdate(float dlTime) = 0;
+    virtual void OnUpdate(float dtTime) = 0;
+    virtual void OnPostUpdate(float dtTime) = 0;
     virtual void OnFixedUpdate() = 0;
 
     virtual unsigned int GetWidth() const = 0;

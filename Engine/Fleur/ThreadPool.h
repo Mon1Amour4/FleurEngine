@@ -14,7 +14,7 @@ namespace Fleur
 
 class ThreadPool : public Service<ThreadPool>
 {
-    friend class Service<ThreadPool>;
+    friend struct Service<ThreadPool>;
 
 public:
     struct Task
