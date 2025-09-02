@@ -2,16 +2,20 @@
 
 #if !defined(CGLTF_IMPLEMENTATION)
 #define CGLTF_IMPLEMENTATION
-#include "External/cgltf/cgltf.h"
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#include <External/cgltf/cgltf.h>
 #endif
 
 #if !defined(STB_IMAGE_WRITE_IMPLEMENTATION)
 #define STB_IMAGE_WRITE_IMPLEMENTATION
-#include "External/stb_image/stb_image_write.h"
+#include <External/stb_image/stb_image_write.h>
 #endif
 
-// #define STB_IMAGE_IMPLEMENTATION
-#include "External/stb_image/stb_image.h"
+#include <External/stb_image/stb_image.h>
+
+#pragma warning(pop)
+
 #include "FileSystem/FileSystem.h"
 #include "Services/ServiceLocator.h"
 
