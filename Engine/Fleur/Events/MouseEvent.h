@@ -26,18 +26,18 @@ protected:
 class FLEUR_API MouseMovedEvent final : public EventBase<MouseMovedEvent>
 {
 public:
-    MouseMovedEvent(float x, float y) noexcept
+    MouseMovedEvent(uint32_t x, uint32_t y) noexcept
         : EventBase(EVENT_NAME(MouseMovedEvent))
         , m_MouseX(x)
         , m_MouseY(y)
     {
     }
 
-    inline float GetX() const
+    inline uint32_t GetX() const
     {
         return m_MouseX;
     }
-    inline float GetY() const
+    inline uint32_t GetY() const
     {
         return m_MouseY;
     }
@@ -52,24 +52,24 @@ protected:
 
 private:
     friend struct Fleur::EventBase<MouseMovedEvent>;
-    float m_MouseX, m_MouseY;
+    uint32_t m_MouseX, m_MouseY;
 };
 
 class FLEUR_API MouseScrolledEvent final : public EventBase<MouseScrolledEvent>
 {
 public:
-    MouseScrolledEvent(float xOffset, float yOffset) noexcept
+    MouseScrolledEvent(int xOffset, int yOffset) noexcept
         : EventBase(EVENT_NAME(MouseScrolledEvent))
         , m_OffsetX(xOffset)
         , m_OffsetY(yOffset)
     {
     }
 
-    inline float GetXOffset() const
+    inline int GetXOffset() const
     {
         return m_OffsetX;
     }
-    inline float GetYOffset() const
+    inline int GetYOffset() const
     {
         return m_OffsetY;
     }
@@ -84,7 +84,7 @@ protected:
 
 private:
     friend struct Fleur::EventBase<MouseScrolledEvent>;
-    float m_OffsetX, m_OffsetY;
+    int m_OffsetX, m_OffsetY;
 };
 
 class FLEUR_API MouseButtonPressedEvent final : public EventBase<MouseButtonPressedEvent>, MouseButtonEvent<MouseButtonPressedEvent>

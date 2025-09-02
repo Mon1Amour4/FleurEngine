@@ -18,7 +18,7 @@ class CubemapImage;
 class Texture2D;
 class TextureCubemap;
 class Framebuffer;
-enum ERenderStage;
+enum ERenderStage : uint8_t;
 enum class EFramebufferSettings : uint32_t;
 struct CubemapInitData;
 struct DepthStencilDescriptor;
@@ -26,35 +26,35 @@ struct DepthStencilDescriptor;
 class Device
 {
 public:
-    static std::unique_ptr<Device> CreateDevice();
+    [[nodiscard]] static std::unique_ptr<Device> CreateDevice();
     virtual ~Device() = default;
 
-    virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size) = 0;
+    [[nodiscard]] virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size) = 0;
 
-    virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandQueue> CreateCommandQueue([[nodiscard]]) = 0;
 
-    virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue [[nodiscard]]) = 0;
 
-    virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor) = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor [[nodiscard]]) = 0;
 
-    virtual std::unique_ptr<Swapchain> CreateSwapchain(std::unique_ptr<Surface> surface) = 0;
+    [[nodiscard]] virtual std::unique_ptr<Swapchain> CreateSwapchain(std::unique_ptr<Surface> surface [[nodiscard]]) = 0;
 
-    virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
+    [[nodiscard]] virtual std::unique_ptr<Surface> CreateSurface(const void* window [[nodiscard]]) = 0;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, int width,
-                                                   int height) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer,
+                                                                 [[nodiscard]] uint32_t width, uint32_t height) cons [[nodiscard]] t = 0;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) cons [[nodiscard]] t = 0;
 
-    virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
-    virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemapImage) const = 0;
-    virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemapImage) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) cons [[nodiscard]] t [[nodiscard]] = 0;
 
 
-    virtual std::unique_ptr<Framebuffer> CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const = 0;
+    [[nodiscard]] virtual std::unique_ptr<Framebuffer> CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const = 0;
 
     // Yes, I know, raw pointer, so be careful here
-    virtual Shader* CreateShader(std::string_view shaderName, Shader::EShaderType type) = 0;
+    [[nodiscard]] virtual Shader* CreateShader(std::string_view shaderName, Shader::EShaderType type) = 0;
 
     virtual void SetVSync(bool active) const = 0;
 

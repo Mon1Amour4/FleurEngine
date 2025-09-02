@@ -47,7 +47,7 @@ uint32_t VertexLayout::GetAPIDataType(EDataType type) const
 #endif
 }
 
-uint32_t VertexLayout::GetSizeOfDataType(EDataType type) const
+uint16_t VertexLayout::GetSizeOfDataType(EDataType type) const
 {
     switch (type)
     {

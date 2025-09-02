@@ -34,7 +34,7 @@ public:
         return platform_instance().IsKeyPressedImpl(keyCode);
     }
 
-    static inline bool IsMouseWheelScrolled(std::pair<float, float>& data)
+    static inline bool IsMouseWheelScrolled(std::pair<int, int>& data)
     {
         return platform_instance().IsMouseWheelScrolledImpl(data);
     }
@@ -44,22 +44,22 @@ public:
         return platform_instance().IsMouseButtonPressedImpl(mouseCode);
     }
 
-    static inline float GetMouseX()
+    static inline int GetMouseX()
     {
         return platform_instance().GetMouseXImpl();
     }
 
-    static inline float GetMouseY()
+    static inline int GetMouseY()
     {
         return platform_instance().GetMouseYImpl();
     }
 
-    static inline std::pair<float, float> GetMousePosition()
+    static inline std::pair<int, int> GetMousePosition()
     {
         return platform_instance().GetMousePositionImpl();
     }
 
-    static inline glm::vec2 GetMouseDir()
+    static inline glm::ivec2 GetMouseDir()
     {
         return platform_instance().GetMouseDirImpl();
     }
@@ -74,11 +74,11 @@ protected:
     [[nodiscard]] virtual bool IsKeyPressedImpl(EKeyCode keyCode) const = 0;
 
     virtual bool IsMouseButtonPressedImpl(EMouseCode mouseCode) = 0;
-    [[nodiscard]] virtual bool IsMouseWheelScrolledImpl(std::pair<float, float>& pair) const = 0;
-    [[nodiscard]] virtual std::pair<float, float> GetMousePositionImpl() const = 0;
-    [[nodiscard]] virtual float GetMouseXImpl() const = 0;
-    [[nodiscard]] virtual float GetMouseYImpl() const = 0;
-    [[nodiscard]] virtual glm::vec2 GetMouseDirImpl() const = 0;
+    [[nodiscard]] virtual bool IsMouseWheelScrolledImpl(std::pair<int, int>& pair) const = 0;
+    [[nodiscard]] virtual std::pair<int, int> GetMousePositionImpl() const = 0;
+    [[nodiscard]] virtual int GetMouseXImpl() const = 0;
+    [[nodiscard]] virtual int GetMouseYImpl() const = 0;
+    [[nodiscard]] virtual glm::ivec2 GetMouseDirImpl() const = 0;
 
 private:
     static Input& platform_instance();

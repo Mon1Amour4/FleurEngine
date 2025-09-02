@@ -36,7 +36,7 @@ private:
 private:
     std::unordered_map<std::string, uint32_t> m_Uniforms;
 
-    uint32_t find_uniform_location(std::string_view uniformName) const;
+    int find_uniform_location(std::string_view uniformName) const;
 
 protected:
     virtual bool SetVec3fImpl(std::string_view uniformName, const glm::vec3& vec) override;

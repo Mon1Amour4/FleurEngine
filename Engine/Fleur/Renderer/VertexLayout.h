@@ -76,22 +76,22 @@ public:
 
     uint32_t GetAPIDataType(EDataType type) const;
 
-    uint32_t GetSizeOfDataType(EDataType type) const;
+    [[nodiscard]] uint16_t GetSizeOfDataType(EDataType type) const;
 
-    inline uint32_t Stride() const
+    inline uint16_t Stride() const
     {
         return m_Stride;
     }
 
-    LayoutIterator* GetIteratorBegin();
+    [[nodiscard]] LayoutIterator* GetIteratorBegin();
 
-    LayoutIterator* GetNextIterator();
+    [[nodiscard]] LayoutIterator* GetNextIterator();
 
     void ReleaseIterator();
 
 private:
     std::vector<VertexAttribute> m_Attribs;
-    uint32_t m_Stride;
+    uint16_t m_Stride;
     LayoutIterator* m_It;
 };
 }  // namespace Fleur::Graphics

@@ -14,7 +14,7 @@ namespace Fleur
 
 class ThreadPool : public Service<ThreadPool>
 {
-    friend class Service<ThreadPool>;
+    friend struct Service<ThreadPool>;
 
 public:
     struct Task
@@ -64,7 +64,7 @@ private:
     bool m_IsRunning;
 
     void Release();
-    Task GetTask();
+    [[nodiscard]] Task GetTask();
 
     std::string PrintThreadID(size_t threadID) const;
 

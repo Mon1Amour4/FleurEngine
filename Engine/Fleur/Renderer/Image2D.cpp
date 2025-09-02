@@ -5,7 +5,7 @@
 
 
 // ImageBase
-Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t layers)
+Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint16_t layers)
     : m_Name(name)
     , m_Extension(ext)
     , m_Width(0)
@@ -18,7 +18,7 @@ Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ex
 {
 }
 Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth,
-                                      uint32_t layers)
+                                      uint16_t layers)
     : m_Name(name)
     , m_Extension(ext)
     , m_Width(width)
@@ -208,9 +208,9 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
         const FacePos& fp = facePos[face];
 
-        for (size_t coord_u = 0; coord_u < faceSize; coord_u++)
+        for (uint32_t coord_u = 0; coord_u < faceSize; coord_u++)
         {
-            for (size_t coord_v = 0; coord_v < faceSize; coord_v++)
+            for (uint32_t coord_v = 0; coord_v < faceSize; coord_v++)
             {
                 float u = normU[coord_u];
                 float v = normV[coord_v];
@@ -268,13 +268,13 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
 
                 // bilinear interpolation:
-                uint32_t leftX = std::floor(x);
+                uint32_t leftX = static_cast<uint32_t>(std::floor(x));
 
                 FL_CORE_ASSERT(leftX >= 0, "");
 
                 uint32_t rightX = std::min(static_cast<uint32_t>(std::floor(leftX + 1)), m_Width - 1);
 
-                uint32_t topY = std::floor(y);
+                uint32_t topY = static_cast<uint32_t>(std::floor(y));
                 uint32_t bottomY = std::min(static_cast<uint32_t>(topY + 1), m_Height - 1);
 
                 float shiftX = x - leftX;
@@ -296,8 +296,8 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
                 glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
-                int outX = fp.x * faceSize + coord_u;
-                int outY = fp.y * faceSize + coord_v;
+                uint32_t outX = fp.x * faceSize + coord_u;
+                uint32_t outY = fp.y * faceSize + coord_v;
                 outBitmap.SetPixel(outX, outY, color);
             }
         }
@@ -314,19 +314,6 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
     {
         outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, faceSize, faceSize, m_Channels, m_Depth);
     }
-
-    auto getStride = [this](ETextureFormat format)
-    {
-        switch (format)
-        {
-        case ETextureFormat::RGB8:
-            return 3u;
-        case ETextureFormat::RGBA8:
-            return 4u;
-        }
-        return 3u;
-    };
-    uint32_t stride = getStride(Texture::GetTextureFormat(m_Channels, m_Depth));
 
     auto uploadFace = [&](uint32_t startX, uint32_t startY, uint32_t outFace)
     {

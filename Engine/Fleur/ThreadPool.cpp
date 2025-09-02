@@ -1,7 +1,7 @@
 #include "ThreadPool.h"
 
 Fleur::ThreadPool::ThreadPool()
-    : m_NumWorkers(std::thread::hardware_concurrency())
+    : m_NumWorkers(static_cast<uint16_t>(std::thread::hardware_concurrency()))
     , m_IsRunning(true)
 {
 }

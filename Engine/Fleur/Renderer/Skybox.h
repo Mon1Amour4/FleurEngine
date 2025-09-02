@@ -29,9 +29,9 @@ public:
         return m_Material.get();
     }
 
-    uint32_t GetVertexCount() const
+    [[nodiscard]] uint32_t GetVertexCount() const
     {
-        return m_Vertices.size();
+        return static_cast<uint32_t>(m_Vertices.size());
     };
 
     const float* Data() const

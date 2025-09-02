@@ -55,8 +55,8 @@ public:
     void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
     // IUpdatable
-    void OnUpdate(float dlTime);
-    void OnPostUpdate(float dlTime);
+    void OnUpdate(float dtTime);
+    void OnPostUpdate(float dtTime);
     void OnFixedUpdate();
 
     void Clear();
@@ -126,18 +126,18 @@ private:
 
     std::unique_ptr<Fleur::IRendererToolchain> m_Toolchain;
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view path);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view path);
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view name, Color color, int width, int height);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::string_view name, Color color, int width, int height);
 
-    std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
+    [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
 
     struct DrawInfo
     {
         const Model* Model;
         glm::mat4 ModelMatrix;
-        uint32_t IndexGlobalOffsetBytes;
-        uint32_t VertexGlobalOffsetBytes;
+        size_t IndexGlobalOffsetBytes;
+        size_t VertexGlobalOffsetBytes;
     };
 
     std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;

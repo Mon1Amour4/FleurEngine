@@ -8,7 +8,7 @@ namespace Fleur
 class FLEUR_API WindowResizeEvent : public EventBase<WindowResizeEvent>
 {
 public:
-    WindowResizeEvent(float x, float y, float width, float height) noexcept
+    WindowResizeEvent(int x, int y, uint32_t width, uint32_t height) noexcept
         : EventBase(EVENT_NAME(WindowResizeEvent))
         , m_X(x)
         , m_Y(y)
@@ -17,19 +17,19 @@ public:
     {
     }
 
-    inline float GetWidth() const
+    inline uint32_t GetWidth() const
     {
         return m_Width;
     }
-    inline float GetHeight() const
+    inline uint32_t GetHeight() const
     {
         return m_Height;
     }
-    inline float GetX() const
+    inline int GetX() const
     {
         return m_X;
     }
-    inline float GetY() const
+    inline int GetY() const
     {
         return m_Y;
     }
@@ -44,13 +44,14 @@ protected:
 
 private:
     friend struct Fleur::EventBase<WindowResizeEvent>;
-    float m_X, m_Y, m_Width, m_Height;
+    int m_X, m_Y;
+    uint32_t m_Width, m_Height;
 };
 
 class FLEUR_API WindowStartResizeEvent : public EventBase<WindowStartResizeEvent>
 {
 public:
-    WindowStartResizeEvent(float x, float y, float width, float height, int cursorX, int cursorY) noexcept
+    WindowStartResizeEvent(int x, int y, uint32_t width, uint32_t height, int cursorX, int cursorY) noexcept
         : EventBase(EVENT_NAME(WindowStartResizeEvent))
         , m_X(x)
         , m_Y(y)
@@ -94,15 +95,21 @@ protected:
     }
 
 private:
-    int m_X, m_Y, m_Width, m_Height, m_CursorX, m_CursorY;
+    int m_X, m_Y, m_CursorX, m_CursorY;
+    uint32_t m_Width, m_Height;
+
     friend struct Fleur::EventBase<WindowStartResizeEvent>;
 };
 
 class FLEUR_API WindowEndResizeEvent : public EventBase<WindowEndResizeEvent>
 {
 public:
-    WindowEndResizeEvent(float x, float y, float width, float height) noexcept
+    WindowEndResizeEvent(int x, int y, uint32_t width, uint32_t height) noexcept
         : EventBase(EVENT_NAME(WindowEndResizeEvent))
+        , m_X(x)
+        , m_Y(y)
+        , m_Width(width)
+        , m_Height(height)
     {
     }
     inline int Width() const
@@ -130,7 +137,8 @@ protected:
     }
 
 private:
-    int m_X, m_Y, m_Width, m_Height;
+    int m_X, m_Y;
+    uint32_t m_Width, m_Height;
     friend struct Fleur::EventBase<WindowEndResizeEvent>;
 };
 

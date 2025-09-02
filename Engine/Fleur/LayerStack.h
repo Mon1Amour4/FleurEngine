@@ -19,7 +19,7 @@ public:
     void PopLayer(Layer* layer);
     void PopOverlay(Layer* overlay);
 
-    std::vector<Layer*>::iterator begin();
-    std::vector<Layer*>::iterator end();
+    [[nodiscard]] std::vector<Layer*>::iterator begin();
+    [[nodiscard]] std::vector<Layer*>::iterator end();
 };
 }  // namespace Fleur

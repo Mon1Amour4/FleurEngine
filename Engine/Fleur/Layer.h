@@ -17,8 +17,8 @@ public:
     virtual void OnAttach();
     virtual void OnDetach();
 
-    virtual void OnUpdate(float dlTime);
-    virtual void OnPostUpdate(float dlTime);
+    virtual void OnUpdate(float dtTime);
+    virtual void OnPostUpdate(float dtTime);
     virtual void OnFixedUpdate();
 
     virtual void OnEvent(EventVariant& event);

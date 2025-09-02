@@ -108,7 +108,7 @@ void ShaderObjectOpenGL::BindMaterial(const Material* material)
         SetText2dImpl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
-uint32_t ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
+int ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
 {
     if (uniform_name.empty())
         return -1;

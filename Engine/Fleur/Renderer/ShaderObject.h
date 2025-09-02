@@ -45,7 +45,7 @@ public:
         }
     }
 
-    static ShaderObject* CreateShaderObject(std::string_view name, Shader* vs, Shader* px);
+    [[nodiscard]] static ShaderObject* CreateShaderObject(std::string_view name, Shader* vs, Shader* px);
 
     virtual void Use() const = 0;
 
@@ -59,8 +59,8 @@ protected:
     {
     }
     std::string name;
-    virtual bool SetVec3fImpl(std::string_view name, const glm::vec3& vec) = 0;
-    virtual bool SetMat4fImpl(std::string_view name, const glm::mat4& matrix) = 0;
-    virtual bool SetText2dImpl(std::string_view name, const Texture& texture) = 0;
+    [[nodiscard]] virtual bool SetVec3fImpl(std::string_view name, const glm::vec3& vec) = 0;
+    [[nodiscard]] virtual bool SetMat4fImpl(std::string_view name, const glm::mat4& matrix) = 0;
+    [[nodiscard]] virtual bool SetText2dImpl(std::string_view name, const Texture& texture) = 0;
 };
 }  // namespace Fleur::Graphics

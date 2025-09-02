@@ -15,7 +15,6 @@ namespace Fleur::Graphics
 class Image2D;
 class CubemapImage;
 class Model;
-enum EImageFormat;
 }  // namespace Fleur::Graphics
 
 namespace Fleur
@@ -94,17 +93,18 @@ class AssetsManager : public Service<AssetsManager>
 {
 public:
     friend class Application;
-    friend class Service<AssetsManager>;
+    friend struct Service<AssetsManager>;
 
     AssetsManager();
     ~AssetsManager();
 
-    CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flipVertical, unsigned char* data, uint32_t sizeBytes);
-    CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flipVertical, unsigned char* data, uint32_t sizeBytes);
+    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
+    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
 
-    CONST_SHARED_RES(Image2D) LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint32_t channels, uint32_t width, uint32_t height);
+    [[nodiscard]] CONST_SHARED_RES(Image2D)
+        LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint16_t channels, uint32_t width, uint32_t height);
 
-    CONST_SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
+    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
     std::shared_ptr<Fleur::ResourceHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
@@ -136,7 +136,7 @@ public:
     }
 
     template <class Res>
-    std::weak_ptr<Res> Get(std::string_view name)
+    [[nodiscard]] std::weak_ptr<Res> Get(std::string_view name)
     {
         if (name.empty())
             return std::weak_ptr<Res>{};
@@ -216,14 +216,14 @@ private:
     tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Image2D)> m_Images2DToLoadAsync;
     tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(CubemapImage)> m_CubemapImagesToLoadAsync;
 
-    CONST_SHARED_RES(Model) load_model(std::string_view path);
-    CONST_SHARED_RES(Model) load_model_async(std::string_view path);
+    [[nodiscard]] CONST_SHARED_RES(Model) load_model(std::string_view path);
+    [[nodiscard]] CONST_SHARED_RES(Model) load_model_async(std::string_view path);
 
-    CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flipVertical);
-    CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flipVertical);
+    [[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flipVertical);
+    [[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flipVertical);
 
-    CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flipVertical);
-    CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flipVertical);
+    [[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flipVertical);
+    [[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flipVertical);
 
     std::atomic<uint32_t> m_ModelsCount;
     std::atomic<uint32_t> m_Images2DCount;

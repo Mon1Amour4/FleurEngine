@@ -20,7 +20,7 @@ Surface::Rect SurfaceOpenGL::GetRect() const
     RECT rect;
     if (GetClientRect(m_Window, &rect))
     {
-        return {rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top};
+        return {rect.left, rect.top, static_cast<uint32_t>(rect.right - rect.left), static_cast<uint32_t>(rect.bottom - rect.top)};
     }
 
     return {0, 0, 0, 0};

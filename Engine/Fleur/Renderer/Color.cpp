@@ -22,9 +22,10 @@ uint32_t Fleur::Graphics::Color::Channels(const Color& color)
     for (size_t i = 3; i >= 0; i--)
     {
         if (color.m_Data[i] > 0)
-            return count;
+            break;
         --count;
     }
+    return count;
 }
 
 uint8_t Fleur::Graphics::Color::ConvertFloatToByte(float val) const

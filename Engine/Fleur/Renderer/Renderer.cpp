@@ -127,8 +127,8 @@ void Renderer::OnInit()
     m_SkyboxCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skyboxLayout);
 
     // gizmo
-    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject("gizmo_shader", m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex),
-                                                                               m_Device->CreateShader("gizmo", Shader::EShaderType::Pixel)));
+    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject(
+        "gizmo_shader", m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex), m_Device->CreateShader("gizmo", Shader::EShaderType::Pixel)));
     DepthStencilDescriptor gizmoDescriptor{false, EDepthTestOperation::ALWAYS};
     m_GizmoCmd = m_Device->CreateCommandBuffer(gizmoDescriptor);
     m_GizmoCmd->BindShaderObject(gizmoShader);
@@ -208,8 +208,7 @@ void Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model
         draw.VertexGlobalOffsetBytes =
             m_StaticGeometryCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
 
-        draw.IndexGlobalOffsetBytes =
-            m_StaticGeometryCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+        draw.IndexGlobalOffsetBytes = m_StaticGeometryCmd->UpdateBufferSubData(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
 
         m_StaticGeometryModels.emplace(model->GetName().data(), draw);
         m_StaticGeometryModelsVector.emplace_back(draw);
@@ -280,8 +279,9 @@ bool Renderer::IsVSync()
     return m_IsVsync;
 }
 
-void Renderer::OnUpdate(float dlTime)
+void Renderer::OnUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     m_Toolchain->Update();
     static bool isSkyboxCreated = false;
 
@@ -381,7 +381,7 @@ void Renderer::OnUpdate(float dlTime)
                 auto primitive = mesh.Primitives() + i;
                 m_GizmoCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
                 m_GizmoCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
-                                        draw_info.VertexGlobalOffsetBytes / sizeof(VertexData));
+                                        static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
 
                 indexInnerOffsetBytes += primitive->IndexSize();
                 m_GizmoCmd->PopDebugGroup();
@@ -416,8 +416,9 @@ void Renderer::OnUpdate(float dlTime)
     m_CopyFBOCmd->PopDebugGroup();
 }
 
-void Renderer::OnPostUpdate(float dlTime)
+void Renderer::OnPostUpdate(float dtTime)
 {
+    UNUSED(dtTime);
     // TODO
 }
 
@@ -428,6 +429,8 @@ void Renderer::OnFixedUpdate()
 
 void Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
+    UNUSED(y);
+    UNUSED(x);
     m_GizmoFBO->Bind();
     uint32_t flags = m_GizmoFBO->Flags();
     m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
@@ -486,7 +489,7 @@ void Renderer::StaticGeometryPass() const
                 m_StaticGeometryCmd->PushDebugGroup(0, mesh.Name().data());
                 m_StaticGeometryCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
                 m_StaticGeometryCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
-                                                 draw_info.VertexGlobalOffsetBytes / sizeof(VertexData));
+                                                 static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
 
                 indexInnerOffsetBytes += primitive->IndexSize();
                 m_StaticGeometryCmd->PopDebugGroup();

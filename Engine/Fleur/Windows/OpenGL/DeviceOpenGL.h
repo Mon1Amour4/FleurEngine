@@ -21,8 +21,8 @@ public:
     virtual Shader* CreateShader(std::string_view shaderName, Shader::EShaderType type) override;
     virtual std::unique_ptr<Surface> CreateSurface(const void* window) override;
 
-    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, int width,
-                                                   int height) const override;
+    virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, uint32_t width,
+                                                   uint32_t height) const override;
 
     virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const override;
 

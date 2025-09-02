@@ -40,8 +40,8 @@ public:
 
     void Activate();
 
-    void OnUpdate(float dlTime);
-    void OnPostUpdate(float dlTime);
+    void OnUpdate(float dtTime);
+    void OnPostUpdate(float dtTime);
     void OnFixedUpdate();
 
     float FarClip() const;

@@ -15,8 +15,8 @@ public:
 
     WindowWin(const WindowProps& props, EventQueue& eventQueue);
 
-    virtual void OnUpdate(float dlTime) override;
-    virtual void OnPostUpdate(float dlTime) override;
+    virtual void OnUpdate(float dtTime) override;
+    virtual void OnPostUpdate(float dtTime) override;
     virtual void OnFixedUpdate() override;
 
     inline virtual unsigned int GetWidth() const override
@@ -34,9 +34,9 @@ public:
 
     Input::EKeyState GetKeyState(EKeyCode keyCode) const;
     Input::EMouseState GetMouseState(EMouseCode mouseCode) const;
-    void GetMousePos(float& xPos, float& yPos) const;
-    std::pair<float, float> GetMouseWheelScrollData() const;
-    virtual inline bool HasMouseMoved(float x, float y) const override
+    void GetMousePos(int& xPos, int& yPos) const;
+    std::pair<int, int> GetMouseWheelScrollData() const;
+    virtual inline bool HasMouseMoved(int x, int y) const override
     {
         return !(m_CursorPos.x == x && m_CursorPos.y == y);
     }
@@ -71,7 +71,7 @@ public:
     virtual void SetTitle(std::string title) override;
 
 private:
-    float m_CurrentWidth, m_CurrentHeigth;
+    uint32_t m_CurrentWidth, m_CurrentHeigth;
     int m_XPos, m_YPos;
 
     static DWORD WinThreadMain(_In_ LPVOID lpParameter);
@@ -97,18 +97,18 @@ private:
         m_IsPainted = true;
     }
 
-    virtual void SetMousePos(float x, float y) override;
-    virtual void SetMouseWheelScrollData(float x, float y) override;
+    virtual void SetMousePos(int x, int y) override;
+    virtual void SetMouseWheelScrollData(int x, int y) override;
 
-    glm::vec2 m_MouseDir;
-    glm::vec2 m_PrevMouseDir;
+    glm::ivec2 m_MouseDir;
+    glm::ivec2 m_PrevMouseDir;
     Input::MouseInfo m_LastMouse;
     Input::EKeyState m_PressedKeys[256];
-    glm::vec2 m_CursorPos;
-    glm::vec2 m_PrevCursorPos;
+    glm::ivec2 m_CursorPos;
+    glm::ivec2 m_PrevCursorPos;
 
     int m_BufferX, m_BufferY = 0;
-    std::pair<float, float> m_MouseWheelData;
+    std::pair<int, int> m_MouseWheelData;
 
     EInteractionMode m_InteractionMode;
     void SetGamingMode();

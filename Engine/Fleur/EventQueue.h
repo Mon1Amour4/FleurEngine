@@ -11,11 +11,11 @@ public:
     EventQueue() = default;
     FLEUR_NON_COPYABLE_NON_MOVABLE(EventQueue)
 
-    virtual void OnUpdate(float dlTime) = 0;
-    virtual void OnPostUpdate(float dlTime) = 0;
+    virtual void OnUpdate(float dtTime) = 0;
+    virtual void OnPostUpdate(float dtTime) = 0;
     virtual void OnFixedUpdate() = 0;
 
-    virtual std::shared_ptr<EventVariant> Front() = 0;
+    [[nodiscard]] virtual std::shared_ptr<EventVariant> Front() = 0;
     virtual void Pop() = 0;
     virtual bool Empty() = 0;
 

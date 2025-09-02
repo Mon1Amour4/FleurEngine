@@ -14,7 +14,8 @@ namespace Fleur
 struct IRendererToolchain
 {
     virtual ~IRendererToolchain() = default;
-    virtual std::shared_ptr<Fleur::Graphics::Texture> LoadTexture(std::shared_ptr<Fleur::Graphics::Image2D> img, const Fleur::Graphics::Device* device) = 0;
+    [[nodiscard]] virtual std::shared_ptr<Fleur::Graphics::Texture> LoadTexture(std::shared_ptr<Fleur::Graphics::Image2D> img,
+                                                                                const Fleur::Graphics::Device* device) = 0;
     virtual void Update() = 0;
 };
 

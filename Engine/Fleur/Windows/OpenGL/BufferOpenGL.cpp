@@ -8,7 +8,7 @@ namespace Fleur::Graphics
 {
 
 BufferOpenGL::BufferOpenGL(EBufferType type, ERenderStage stage, size_t sizeBytes)
-    : Buffer(m_Type, sizeBytes)
+    : Buffer(type, sizeBytes)
     , m_Id(UINT32_MAX)
 {
     FL_CORE_ASSERT(sizeBytes > 0, "Buffer can't be 0 sized");
@@ -22,11 +22,11 @@ BufferOpenGL::~BufferOpenGL()
     glDeleteBuffers(1, &m_Id);
 }
 
-uint32_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
+size_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
 {
     FL_CORE_ASSERT(m_UsedBytesIdx + sizeBytes <= m_EndIdx, "Buffer overflow");
 
-    uint32_t offset_before_write = m_UsedBytesIdx;
+    size_t offset_before_write = m_UsedBytesIdx;
 
     glNamedBufferSubData(m_Id, m_UsedBytesIdx, sizeBytes, data);
     m_UsedBytesIdx += sizeBytes;
@@ -51,6 +51,8 @@ int BufferOpenGL::NativeUsage(ERenderStage& stage) const
         return GL_STATIC_DRAW;
     case DYNAMIC_DRAW:
         return GL_DYNAMIC_DRAW;
+    default:
+        return GL_STATIC_DRAW;
     }
 }
 int BufferOpenGL::NativeBufferType(const EBufferType& type) const
