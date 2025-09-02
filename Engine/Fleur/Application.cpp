@@ -128,7 +128,8 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     auto waterCoolerModelLocked = waterCoolerModel.lock();
     if (waterCoolerModelLocked)
     {
-        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(), glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(),
+                            glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
     }
 
     auto sponzaModel = assetsManager->Get<Model>("Sponza");
@@ -237,7 +238,7 @@ void Application::Run()
         m_TimeManager->Tick();
 
         char buffer[32];
-        sprintf(buffer, "%d", m_TimeManager->FPS());
+        sprintf_s(buffer, "%d", m_TimeManager->FPS());
         m_Window->SetTitle(buffer);
 
         float dtTime = m_TimeManager->DeltaTime();
@@ -263,7 +264,7 @@ void Application::Run()
 
         renderer->OnUpdate(dtTime);
         renderer->Present();
-        m_Window->SetMouseWheelScrollData(0.f, 0.f);
+        m_Window->SetMouseWheelScrollData(0, 0);
     }
 }
 
