@@ -31,24 +31,24 @@ public:
 
     [[nodiscard]] virtual std::unique_ptr<Buffer> CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size) = 0;
 
-    [[nodiscard]] virtual std::unique_ptr<CommandQueue> CreateCommandQueue([[nodiscard]]) = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandQueue> CreateCommandQueue() = 0;
 
-    [[nodiscard]] virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue [[nodiscard]]) = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandPool> CreateCommandPool(const CommandQueue& queue) = 0;
 
-    [[nodiscard]] virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor [[nodiscard]]) = 0;
+    [[nodiscard]] virtual std::unique_ptr<CommandBuffer> CreateCommandBuffer(DepthStencilDescriptor descriptor) = 0;
 
-    [[nodiscard]] virtual std::unique_ptr<Swapchain> CreateSwapchain(std::unique_ptr<Surface> surface [[nodiscard]]) = 0;
+    [[nodiscard]] virtual std::unique_ptr<Swapchain> CreateSwapchain(std::unique_ptr<Surface> surface) = 0;
 
-    [[nodiscard]] virtual std::unique_ptr<Surface> CreateSurface(const void* window [[nodiscard]]) = 0;
+    [[nodiscard]] virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
 
     [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer,
-                                                                 [[nodiscard]] uint32_t width, uint32_t height) cons [[nodiscard]] t = 0;
+                                                                 uint32_t width, uint32_t height) const = 0;
 
-    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) cons [[nodiscard]] t = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const = 0;
 
     [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
     [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemapImage) const = 0;
-    [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) cons [[nodiscard]] t [[nodiscard]] = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(std::string_view name, const CubemapInitData& images) const = 0;
 
 
     [[nodiscard]] virtual std::unique_ptr<Framebuffer> CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const = 0;
