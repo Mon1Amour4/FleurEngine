@@ -4,12 +4,10 @@ This project includes several third-party libraries. Their source code and licen
 
 | Library | Path | License |
 | --- | --- | --- |
-| abseil | `Engine/External/abseil` | Apache-2.0 |
 | glad | `Engine/External/glad` | MIT + Apache-2.0 + Public Domain (Khronos) |
 | glm | `Engine/External/glm` | Happy Bunny / MIT |
 | imgui | `Engine/External/imgui` | MIT |
 | metal-cpp | `Engine/External/metal-cpp` | Apache-2.0 |
-| protobuf | `Engine/External/protobuf` | BSD-3-Clause |
 | spdlog | `Engine/External/spdlog` | MIT |
 | stb_image | `Engine/External/stb_image` | MIT or Public Domain |
 | googletest | `External/googletest` | BSD-3-Clause |
