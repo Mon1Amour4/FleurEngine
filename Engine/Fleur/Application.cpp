@@ -183,15 +183,16 @@ void Application::Init(ApplicationBootSettings& settings)
     fileSystem.value()->Init();
 
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
-    auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::EGraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
+    // auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::EGraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
+    auto renderer = ServiceLocator::instance().Register<Fleur::Graphics::OpenGLRenderer>();
     renderer.value()->Init();
-    renderer.value()->SetVSync(settings.Vsync);
+    // renderer.value()->SetVSync(settings.Vsync);
 
     auto threadPool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
     threadPool.value()->Init();
 
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
+    // auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
     assetsManager.value()->Load<Model>("Sponza/Sponza.glb");
     assetsManager.value()->Load<Model>("gizmo.glb");

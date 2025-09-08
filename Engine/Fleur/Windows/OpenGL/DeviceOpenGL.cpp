@@ -178,7 +178,7 @@ DeviceOpenGL::DeviceOpenGL()
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &m_MaxTexturesUnits);
     FL_CORE_INFO("  Max texture units: {0}", m_MaxTexturesUnits);
-    ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(m_MaxTexturesUnits);
+    // ServiceLocator::instance().GetService<Fleur::Graphics::OpenGLRenderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(m_MaxTexturesUnits);
     glEnable(GL_DEPTH_TEST);
 
     // Initial values for color\depth\stencil bufers

@@ -38,6 +38,7 @@ SET(ENGINE_HEADERS
     Fleur/ThreadPool.h
     Fleur/FlTime.h
     Fleur/AssetsManager.h
+    Fleur/EngineTypes.hpp
     # Third Party
     External/stb_image/stb_image.h
     External/stb_image/stb_image_write.h

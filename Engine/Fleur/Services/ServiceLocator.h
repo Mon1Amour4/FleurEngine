@@ -3,6 +3,7 @@
 #include <unordered_map>
 
 #include "AssetsManager.h"
+#include "EngineTypes.hpp"
 #include "FileSystem/FileSystem.h"
 #include "Renderer.h"
 #include "ServiceInterfaces.hpp"
@@ -13,8 +14,8 @@ namespace Fleur
 {
 
 #pragma region Templates
-using service_variant = std::variant<std::shared_ptr<Fleur::Graphics::Renderer>, std::shared_ptr<Fleur::FS::FileSystem>, std::shared_ptr<Fleur::ThreadPool>,
-                                     std::shared_ptr<Fleur::AssetsManager>>;
+using service_variant = std::variant<std::shared_ptr<Fleur::Graphics::OpenGLRenderer>, std::shared_ptr<Fleur::FS::FileSystem>,
+                                     std::shared_ptr<Fleur::ThreadPool>, std::shared_ptr<Fleur::AssetsManager>>;
 
 #pragma endregion
 
@@ -26,7 +27,7 @@ public:
     template <typename T, typename... Args>
     std::optional<std::shared_ptr<T>> Register(Args&&... args)
     {
-        static_assert(std::is_constructible_v<T, Args...>, "Type T is not constructible with provided arguments.");
+        // static_assert(std::is_constructible_v<T, Args...>, "Type T is not constructible with provided arguments.");
         auto ptr = std::make_shared<T>(std::forward<Args>(args)...);
         service_variant variant = ptr;
         auto [it, inserted] = services.try_emplace(std::type_index(typeid(T)), std::move(variant));

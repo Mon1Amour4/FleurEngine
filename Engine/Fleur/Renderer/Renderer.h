@@ -7,6 +7,7 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "EngineTypes.hpp"
 #include "Framebuffer.h"
 #include "Graphics.hpp"
 #include "Image2D.h"
@@ -34,6 +35,23 @@ concept is_graphic_resource = requires(Resource t) {
 namespace Fleur::Graphics
 {
 
+struct FLEUR_API OpenGLRenderer : public Fleur::Engine::IRenderer, public Service<Fleur::Graphics::OpenGLRenderer>, public IUpdatable
+{
+    friend struct Service<OpenGLRenderer>;
+
+    virtual ~OpenGLRenderer() override {};
+    virtual void DrawModel() override {};
+    virtual void Clear() override {};
+    virtual void SwapBuffers() override {};
+
+    void OnUpdate(float dtTime) {};
+    void OnPostUpdate(float dtTime) {};
+    void OnFixedUpdate() {};
+
+protected:
+    void OnInit() {};
+    void OnShutdown() {};
+};
 
 class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
 {
