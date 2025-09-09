@@ -1,9 +1,9 @@
 # === CoreLib - Independent Utility Library ===
 
 # === Source Files ===
-SET(CORELIB_HEADERS CoreLibConcepts.h Uptr.h Sptr.h singleton.hpp DefaultAllocator.h Bitmap.hpp)
+SET(CORELIB_HEADERS CoreLibConcepts.h Uptr.h Sptr.h singleton.hpp DefaultAllocator.h Bitmap.hpp Allocator.h)
 
-SET(CORELIB_SOURCES CoreLib.cpp)
+SET(CORELIB_SOURCES CoreLib.cpp Allocator.cpp)
 
 # === Library Target ===
 ADD_LIBRARY(CoreLib STATIC ${CORELIB_SOURCES} ${CORELIB_HEADERS})
