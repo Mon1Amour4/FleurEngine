@@ -1,5 +1,6 @@
 #include "Application.h"
 
+#include "Allocator.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
@@ -175,6 +176,12 @@ Window& Application::GetWindow()
 
 void Application::Init(ApplicationBootSettings& settings)
 {
+    // constexpr Fleur::Core::CustomAllocator<int> allocator{};
+    // std::vector<int, Fleur::Core::CustomAllocator<int>> vector;
+    // vector.reserve(10);
+    // int* a = allocator.allocate(10);
+    // allocator.deallocate(a, 10);
+
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
     m_TimeManager = Time::CreateTimeManager(settings.FixedDt);

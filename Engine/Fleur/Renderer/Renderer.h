@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Allocator.h"
 #include "Application.h"
 #include "Buffer.h"
 #include "Camera.h"
@@ -142,7 +143,7 @@ private:
 
     std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;
     std::unordered_map<std::string, DrawInfo> m_GizmoModels;
-    std::vector<DrawInfo> m_StaticGeometryModelsVector;
+    std::vector<DrawInfo, Fleur::Core::CustomAllocator<DrawInfo>> m_StaticGeometryModelsVector;
     std::vector<DrawInfo> m_GizmoModelsVector;
 
     // Service

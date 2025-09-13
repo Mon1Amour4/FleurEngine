@@ -1,5 +1,7 @@
 #include "LayerStack.h"
 
+#include "Allocator.h"
+
 namespace Fleur
 {
 
@@ -7,7 +9,7 @@ class LayerStack::LayerStackImpl
 {
     friend class LayerStack;
 
-    std::vector<Layer*> m_Layers;
+    std::vector<Layer*, Fleur::Core::CustomAllocator<Layer*>> m_Layers;
     std::vector<Layer*>::iterator m_LayerInsert;
 };
 
