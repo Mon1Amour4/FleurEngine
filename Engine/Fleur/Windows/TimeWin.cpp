@@ -1,5 +1,6 @@
 #include "TimeWin.h"
 
+#include "Allocator.h"
 #include "Application.h"
 
 std::unique_ptr<Fleur::Time> Fleur::Time::CreateTimeManager(float fixedTime)
@@ -33,6 +34,8 @@ void Fleur::TimeWin::CalcDeltaTime()
         m_FPSTime = 0;
         m_FPSFrames = 0;
         FL_CORE_TRACE("second: {0}, average_frametime: {1}", m_ApplicationEpoch, m_AverageFrametime);
+        Fleur::Core::Benchmark::EndOfFrame();
+        Fleur::Core::Benchmark::Print();
     }
     timer = now;
 

@@ -272,6 +272,7 @@ void Application::Run()
         renderer->OnUpdate(dtTime);
         renderer->Present();
         m_Window->SetMouseWheelScrollData(0, 0);
+        Fleur::Core::Benchmark::Frame();
     }
 }
 
