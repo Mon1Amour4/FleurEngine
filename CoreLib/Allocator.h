@@ -46,11 +46,14 @@ struct CustomAllocator
         mark = Benchmark();
     }
     constexpr ~CustomAllocator() = default;
-
+    template <class U>
+    constexpr CustomAllocator(const CustomAllocator<U>&) noexcept
+    {
+    }
     [[nodiscard]] constexpr T* allocate(size_t n)
     {
-        mark.Start();
         FL_CORE_INFO("[ALLOCATOR] Allocated {0} bytes for {1} of type", n * sizeof(T), n);
+        mark.Start();
         T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
         mark.End();
         return ptr;

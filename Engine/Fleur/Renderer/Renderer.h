@@ -141,10 +141,14 @@ private:
         size_t VertexGlobalOffsetBytes;
     };
 
-    std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;
-    std::unordered_map<std::string, DrawInfo> m_GizmoModels;
+    std::unordered_map<std::string, DrawInfo, std::hash<std::string>, std::equal_to<std::string>,
+                       Fleur::Core::CustomAllocator<std::pair<const std::string, DrawInfo>>>
+        m_StaticGeometryModels;
+    std::unordered_map<std::string, DrawInfo, std::hash<std::string>, std::equal_to<std::string>,
+                       Fleur::Core::CustomAllocator<std::pair<const std::string, DrawInfo>>>
+        m_GizmoModels;
     std::vector<DrawInfo, Fleur::Core::CustomAllocator<DrawInfo>> m_StaticGeometryModelsVector;
-    std::vector<DrawInfo> m_GizmoModelsVector;
+    std::vector<DrawInfo, Fleur::Core::CustomAllocator<DrawInfo>> m_GizmoModelsVector;
 
     // Service
 
