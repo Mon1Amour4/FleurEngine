@@ -137,12 +137,12 @@ public:
 
     void Print()
     {
-        std::cout << "\n\n";
+        std::cout << "\nChunk: " << std::to_string(m_Used) << " - " << m_Capacity << "\n ";
 
         Ty* prev = m_Head;
         bool inRange = false;
 
-        for (size_t i = 0; i < slots; i++)
+        for (size_t i = 0; i < m_Capacity; i++)
         {
             Ty* ptr = m_Head + i;
 
@@ -170,7 +170,7 @@ public:
 
         if (inRange)
         {
-            std::cout << slots - 1 << ": " << *prev << "], ";
+            std::cout << m_Capacity - 1 << ": " << *prev << "], ";
         }
 
         std::cout << std::endl;
