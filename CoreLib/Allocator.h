@@ -98,16 +98,21 @@ struct CustomAllocator
 template <class Ty>
 struct Chunk
 {
-};
-
-template <class Ty>
-struct Pool
-{
-    Pool(unsigned char* ptr)
-        : m_Head(reinterpret_cast<Ty*>(ptr))
-        , m_Tail(m_Head + (slots - 1))
-        , m_Current(m_Head)
+public:
+    Chunk(Ty* ptr)
     {
+        m_Current = m_Head = ptr;
+        m_Tail = m_Head + m_Capacity;
+    }
+
+    void SetNextChunk(Chunk<Ty>* nextChunk)
+    {
+        assert(nextChunk);
+
+        if (!next)
+            next = nextChunk;
+        else
+            next->SetNextChunk(nextChunk);
     }
 
     template <size_t Num>
@@ -116,14 +121,18 @@ struct Pool
         Ty* testPtr = m_Current + Num;
         if (testPtr <= m_Tail)
         {
-            Ty* ptr = m_Current;
-            m_Current += Num;
-            return ptr;
+            Ty* prevPtr = m_Current;
+            m_Current = testPtr;
+            m_Used += Num;
+            return prevPtr;
         }
-        else
+
+        if (next)
         {
-            return nullptr;
+            next->RequestMemory<Num>();
         }
+
+        return nullptr;
     }
 
     void Print()
@@ -167,11 +176,43 @@ struct Pool
         std::cout << std::endl;
     }
 
+
 private:
-    const size_t slots = PAGE_SIZE / sizeof(Ty);
-    Ty* m_Head;
-    Ty* m_Tail;
-    Ty* m_Current;
+    const size_t m_Capacity = PAGE_SIZE / sizeof(Ty);
+    size_t m_Used = 0;
+    Ty* m_Head = nullptr;
+    Ty* m_Tail = nullptr;
+    Ty* m_Current = nullptr;
+    Chunk<Ty>* next = nullptr;
+};
+
+template <class Ty>
+struct Pool
+{
+    Pool(unsigned char* ptr)
+    {
+        m_HeadChunk = new Chunk<Ty>(reinterpret_cast<Ty*>(ptr));
+    }
+
+    template <size_t Num>
+    Ty* RequestMemory()
+    {
+        return m_HeadChunk->RequestMemory<Num>();
+    }
+
+    void Extend(Chunk<Ty>* chunk)
+    {
+        m_HeadChunk->SetNextChunk(chunk);
+    }
+
+    void Print()
+    {
+        std::cout << "\nPrinting Pool: \n";
+        m_HeadChunk->Print();
+    }
+
+private:
+    Chunk<Ty>* m_HeadChunk;
 };
 
 template <unsigned int Size>
@@ -209,6 +250,22 @@ struct Arena
         else
         {
             // Not enought space in current arena
+        }
+    }
+
+    template <class Ty>
+    Chunk<Ty>* TryToGetNewChunk(Pool<Ty>* pool)
+    {
+        if (m_Current + PAGE_SIZE <= m_Tail)
+        {
+            // Arena has enought space for new chunk, give it
+            Ty* ptr = reinterpret_cast<Ty*>(m_Current);
+            m_Current += PAGE_SIZE;
+            return new Chunk<Ty>(ptr);
+        }
+        else
+        {
+            return nullptr;
         }
     }
 
@@ -255,7 +312,23 @@ struct MemoryManager
     constexpr [[nodiscard]] T* allocate()
     {
         Pool<T>* pool = m_LocalArena.GetPool<T>();
-        return pool->RequestMemory<static_cast<size_t>(Num)>();
+        T* ptrType = pool->RequestMemory<static_cast<size_t>(Num)>();
+        if (!ptrType)
+        {
+            // Not enought space in chunk
+            // Trying to get another chunk for that pool from Arena
+            Chunk<T>* newChunk = m_LocalArena.TryToGetNewChunk<T>(pool);
+            if (newChunk)
+            {
+                pool->Extend(newChunk);
+                return newChunk->RequestMemory<Num>();
+            }
+            else
+            {
+                // TODO Not enought space in arena, allocate new arena?
+                return nullptr;
+            }
+        }
     }
     void Print()
     {
