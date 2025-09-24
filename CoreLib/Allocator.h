@@ -96,6 +96,47 @@ struct CustomAllocator
     Benchmark mark;
 };
 
+struct FreeBlock
+{
+    FreeBlock(unsigned char* ptr, size_t size)
+        : m_Ptr(ptr)
+        , m_Size(size)
+    {
+    }
+    ~FreeBlock() = default;
+
+    auto operator<=>(const FreeBlock& other) const
+    {
+        std::uintptr_t thisPtr = reinterpret_cast<std::uintptr_t>(m_Ptr);
+        std::uintptr_t otherPtr = reinterpret_cast<std::uintptr_t>(other.m_Ptr);
+        return thisPtr <=> otherPtr;
+    }
+
+    void RemoveBlock()
+    {
+        if (m_Prev)
+        {
+            if (m_Next)
+                m_Prev->m_Next = m_Next;
+            else
+                m_Prev->m_Next = nullptr;
+        }
+    }
+
+    void SetNext(FreeBlock* next)
+    {
+        if (!m_Next)
+            m_Next = next;
+        else
+            m_Next->SetNext(next);
+    }
+
+    unsigned char* m_Ptr = nullptr;
+    uint32_t m_Size = 0;
+    FreeBlock* m_Next = nullptr;
+    FreeBlock* m_Prev = nullptr;
+};
+
 template <size_t TypeSize, size_t NumObjects>
 struct Chunk
 {
@@ -135,6 +176,40 @@ public:
         }
 
         return nullptr;
+    }
+
+    bool deallocate(unsigned char* ptr, uint32_t num)
+    {
+        unsigned char* blockEndPtr = ptr + TypeSize * num;
+        if (blockEndPtr < m_Current)
+        {
+            FreeBlock* block = new FreeBlock(ptr, TypeSize * num);
+            if (!m_HeadFreeBlock)
+            {
+                m_HeadFreeBlock = block;
+                return true;
+            }
+            else
+            {
+                m_HeadFreeBlock->SetNext(block);
+                return true;
+            }
+        }
+        else if (blockEndPtr == m_Current)
+        {
+            unsigned char* deallocatedPtr = m_Current - (TypeSize * num);
+            if (deallocatedPtr >= m_Head)
+            {
+                m_Current = deallocatedPtr;
+                return true;
+            }
+            else
+            {
+                return false;
+                // TODO Handle this case;
+            }
+        }
+        return false;
     }
 
     void PrintBucket()
@@ -194,6 +269,9 @@ public:
             std::cout << "\n\n";
         }
         PrintBucket();
+
+        if (next)
+            next->Print();
     }
 
 private:
@@ -203,6 +281,7 @@ private:
     unsigned char* m_Tail = nullptr;
     unsigned char* m_Current = nullptr;
     Chunk<TypeSize, NumObjects>* next = nullptr;
+    FreeBlock* m_HeadFreeBlock = nullptr;
 };
 
 template <size_t TypeSize, size_t NumObjects>
@@ -223,6 +302,7 @@ struct Pool
     void Extend(Chunk<TypeSize, NumObjects>* chunk)
     {
         m_HeadChunk->SetNextChunk(chunk);
+        m_NumChunks++;
     }
 
     void Print()
@@ -377,6 +457,10 @@ struct MemoryManager
         {
             // TODO think about large object strategy
         }
+    }
+
+    void deallocate(void* ptr, size_t num)
+    {
     }
 
     void Print()
