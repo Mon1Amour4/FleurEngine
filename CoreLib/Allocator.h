@@ -6,6 +6,7 @@ namespace Fleur::Core
 {
 
 static constexpr size_t PAGE_SIZE = 4 * 1024 * 1024;
+static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 1;
 
 consteval size_t get_powered_size(size_t power)
 {
@@ -95,17 +96,17 @@ struct CustomAllocator
     Benchmark mark;
 };
 
-template <class Ty>
+template <size_t TypeSize, size_t NumObjects>
 struct Chunk
 {
 public:
-    Chunk(Ty* ptr)
+    Chunk(unsigned char* ptr)
     {
         m_Current = m_Head = ptr;
-        m_Tail = m_Head + m_Capacity;
+        m_Tail = m_Head + m_CapacityBytes;
     }
 
-    void SetNextChunk(Chunk<Ty>* nextChunk)
+    void SetNextChunk(Chunk<TypeSize, NumObjects>* nextChunk)
     {
         assert(nextChunk);
 
@@ -116,103 +117,123 @@ public:
     }
 
     template <size_t Num>
-    Ty* RequestMemory()
+    unsigned char* RequestMemory()
     {
-        Ty* testPtr = m_Current + Num;
-        if (testPtr <= m_Tail)
+        constexpr size_t requestedSize = Num * TypeSize;
+        unsigned char* requestedPtr = m_Current + Num * TypeSize - 1;
+        if (requestedPtr < m_Tail)
         {
-            Ty* prevPtr = m_Current;
-            m_Current = testPtr;
-            m_Used += Num;
+            unsigned char* prevPtr = m_Current;
+            m_Current = requestedPtr;
+            m_UsedBytes += requestedSize;
             return prevPtr;
         }
 
         if (next)
         {
-            next->RequestMemory<Num>();
+            next->RequestMemory<NumObjects>();
         }
 
         return nullptr;
     }
 
-    void Print()
+    void PrintBucket()
     {
-        std::cout << "\nChunk: " << std::to_string(m_Used) << " - " << m_Capacity << "\n ";
+        const char emptyCell = '-';
+        const char occupiedCell = 'x';
+        const int cellsPerRow = 10;
 
-        Ty* prev = m_Head;
-        bool inRange = false;
+        const uint32_t numCells = m_CapacityBytes / TypeSize;
 
-        for (size_t i = 0; i < m_Capacity; i++)
+        std::cout << "\nBucket View (" << m_UsedBytes << "/" << m_CapacityBytes << ")\n";
+
+        uint32_t filled = m_UsedBytes / TypeSize;
+        for (uint32_t i = 0; i < numCells; i += cellsPerRow)
         {
-            Ty* ptr = m_Head + i;
-
-            if (i > 0 && *ptr == *prev)
+            std::cout << "\\";
+            for (uint32_t j = 0; j < cellsPerRow; j++)
             {
-                if (!inRange)
-                {
-                    std::cout << "[" << i - 1 << ": " << *prev << " - ";
-                    inRange = true;
-                }
+                uint32_t index = i + j;
+                if (index < filled)
+                    std::cout << occupiedCell;
+                else
+                    std::cout << emptyCell;
             }
-            else
-            {
-                if (inRange)
-                {
-                    std::cout << i - 1 << ": " << *prev << "], ";
-                    inRange = false;
-                }
-
-                std::cout << "[" << i << ": " << *ptr << "], ";
-            }
-
-            prev = ptr;
+            std::cout << "/\n";
         }
-
-        if (inRange)
-        {
-            std::cout << m_Capacity - 1 << ": " << *prev << "], ";
-        }
-
-        std::cout << std::endl;
     }
 
+    void Print()
+    {
+        static constexpr char emptyCell = ' ';
+        static constexpr char occupiedCell = 'x';
+        static constexpr uint32_t cellsPerRow = 40;
+
+        std::cout << "\nChunk: " << m_UsedBytes << " / " << m_CapacityBytes << "\n";
+
+        const uint32_t numCells = m_CapacityBytes / TypeSize;
+
+        uint32_t maxIndex = numCells ? numCells - 1 : 0;
+        int width = (maxIndex > 0) ? static_cast<int>(std::log10(maxIndex)) + 1 : 1;
+
+        uint32_t numRows = (numCells + cellsPerRow - 1) / cellsPerRow;
+
+        for (uint32_t row = 0; row < numRows; row++)
+        {
+            uint32_t start = row * cellsPerRow;
+            uint32_t end = std::min(start + cellsPerRow, numCells);
+
+            for (uint32_t i = start; i < end; i++) std::cout << '[' << std::setw(width) << i << "] ";
+            std::cout << "\n";
+
+            for (uint32_t i = start; i < end; i++)
+            {
+                unsigned char* ptr = m_Head + (i * TypeSize);
+                std::cout << "[ " << (ptr < m_Current ? occupiedCell : emptyCell) << "] ";
+            }
+            std::cout << "\n\n";
+        }
+        PrintBucket();
+    }
 
 private:
-    const size_t m_Capacity = PAGE_SIZE / sizeof(Ty);
-    size_t m_Used = 0;
-    Ty* m_Head = nullptr;
-    Ty* m_Tail = nullptr;
-    Ty* m_Current = nullptr;
-    Chunk<Ty>* next = nullptr;
+    const size_t m_CapacityBytes = NumObjects * TypeSize;
+    size_t m_UsedBytes = 0;
+    unsigned char* m_Head = nullptr;
+    unsigned char* m_Tail = nullptr;
+    unsigned char* m_Current = nullptr;
+    Chunk<TypeSize, NumObjects>* next = nullptr;
 };
 
-template <class Ty>
+template <size_t TypeSize, size_t NumObjects>
 struct Pool
 {
     Pool(unsigned char* ptr)
     {
-        m_HeadChunk = new Chunk<Ty>(reinterpret_cast<Ty*>(ptr));
+        m_HeadChunk = new Chunk<TypeSize, NumObjects>(ptr);
+        ++m_NumChunks;
     }
 
     template <size_t Num>
-    Ty* RequestMemory()
+    unsigned char* RequestMemory()
     {
         return m_HeadChunk->RequestMemory<Num>();
     }
 
-    void Extend(Chunk<Ty>* chunk)
+    void Extend(Chunk<TypeSize, NumObjects>* chunk)
     {
         m_HeadChunk->SetNextChunk(chunk);
     }
 
     void Print()
     {
-        std::cout << "\nPrinting Pool: \n";
+        std::cout << "\nPrinting Pool: \n" << "Number of chunks: " << std::to_string(m_NumChunks) << "\n";
         m_HeadChunk->Print();
     }
 
 private:
-    Chunk<Ty>* m_HeadChunk;
+    Chunk<TypeSize, NumObjects>* m_HeadChunk;
+    uint32_t m_NumChunks = 0;
 };
 
 template <unsigned int Size>
@@ -220,48 +241,52 @@ struct Arena
 {
     Arena()
     {
-        m_Capacity = Size;
-        m_Head = static_cast<unsigned char*>(malloc(m_Capacity));
-        memset(m_Head, 0, m_Capacity);
+        m_CapacityBytes = Size;
+        m_Head = static_cast<unsigned char*>(malloc(m_CapacityBytes));
+        memset(m_Head, 0, m_CapacityBytes);
 
         // assert(m_Head);
 
         m_Current = m_Head;
-        m_Tail = m_Head + (m_Capacity - 1);
+        m_Tail = m_Head + (m_CapacityBytes);
     }
 
-    template <class Ty>
-    constexpr Pool<Ty>* GetPool()
+    template <uint32_t TypeSize, size_t NumObjects = PAGE_SIZE / TypeSize>
+    [[nodiscard]] constexpr Pool<TypeSize, NumObjects>* GetPool()
     {
-        uint32_t power = static_cast<uint32_t>(std::ceil(std::log2(sizeof(Ty))));
+        constexpr size_t requestedSize = TypeSize * NumObjects;
+        uint32_t power = static_cast<uint32_t>(std::ceil(std::log2(TypeSize)));
 
         if (IsPoolCreated(power))
-            return static_cast<Pool<Ty>*>(map[power]);
+            return static_cast<Pool<TypeSize, NumObjects>*>(map[power]);
 
         // Test if we have enought capacity
-        unsigned char* testPtr = m_Current += PAGE_SIZE;
-        if (testPtr <= m_Tail)
+        unsigned char* requestedPtr = m_Current + requestedSize;
+        if (requestedPtr < m_Tail)
         {
-            map[power] = new Pool<Ty>(m_Current);
-            m_Current += PAGE_SIZE;
+            map[power] = new Pool<TypeSize, NumObjects>(m_Current);
+            m_Current = requestedPtr;
+            m_UsedBytes += requestedSize;
             BitSet(power);
-            return static_cast<Pool<Ty>*>(map[power]);
+            return static_cast<Pool<TypeSize, NumObjects>*>(map[power]);
         }
         else
         {
             // Not enought space in current arena
+            return nullptr;
         }
     }
 
-    template <class Ty>
-    Chunk<Ty>* TryToGetNewChunk(Pool<Ty>* pool)
+    template <size_t TypeSize, size_t NumObjects = PAGE_SIZE / TypeSize>
+    [[nodiscard]] constexpr Chunk<TypeSize, NumObjects>* TryToGetNewChunk(Pool<TypeSize, NumObjects>* pool)
     {
-        if (m_Current + PAGE_SIZE <= m_Tail)
+        unsigned char* requestedPtr = m_Current + NumObjects * TypeSize;
+        if (requestedPtr < m_Tail)
         {
             // Arena has enought space for new chunk, give it
-            Ty* ptr = reinterpret_cast<Ty*>(m_Current);
-            m_Current += PAGE_SIZE;
-            return new Chunk<Ty>(ptr);
+            unsigned char* prevPtr = m_Current;
+            m_Current = requestedPtr;
+            return new Chunk<TypeSize, NumObjects>(prevPtr);
         }
         else
         {
@@ -276,9 +301,12 @@ struct Arena
 
 private:
     unsigned char* m_Head;
+
+    // one-past-the-end
     unsigned char* m_Tail;
+
     unsigned char* m_Current;
-    size_t m_Capacity;
+    size_t m_CapacityBytes, m_UsedBytes = 0;
     uint32_t bitmap{0};
 
     std::unordered_map<uint32_t, void*> map;
@@ -311,28 +339,49 @@ struct MemoryManager
     template <class T, size_t Num, size_t Align = 0>
     constexpr [[nodiscard]] T* allocate()
     {
-        Pool<T>* pool = m_LocalArena.GetPool<T>();
-        T* ptrType = pool->RequestMemory<static_cast<size_t>(Num)>();
-        if (!ptrType)
+        constexpr size_t typeSize = sizeof(T);
+        constexpr bool isObjectLarge = typeSize >= SIZE_OF_LARGE_TYPE;
+        if (!isObjectLarge)
         {
-            // Not enought space in chunk
-            // Trying to get another chunk for that pool from Arena
-            Chunk<T>* newChunk = m_LocalArena.TryToGetNewChunk<T>(pool);
-            if (newChunk)
+            auto pool = m_LocalArena.GetPool<typeSize, 80>();
+            if (pool)
             {
-                pool->Extend(newChunk);
-                return newChunk->RequestMemory<Num>();
+                unsigned char* requestedMemory = pool->RequestMemory<Num>();
+                if (!requestedMemory)
+                {
+                    // Not enought space in chunk
+                    // Trying to get another chunk for that pool from Arena
+                    auto newChunk = m_LocalArena.TryToGetNewChunk<typeSize>(pool);
+                    if (newChunk)
+                    {
+                        pool->Extend(newChunk);
+                        return reinterpret_cast<T*>(newChunk->RequestMemory<Num>());
+                    }
+                    else
+                    {
+                        // TODO Not enought space in arena for new chunk, allocate new arena?
+                        return nullptr;
+                    }
+                }
+                else
+                {
+                    return reinterpret_cast<T*>(requestedMemory);
+                }
             }
             else
             {
-                // TODO Not enought space in arena, allocate new arena?
-                return nullptr;
+                // TODO there is no Pool for this type size AND no space for new Pool in current Arena
             }
         }
+        else
+        {
+            // TODO think about large object strategy
+        }
     }
+
     void Print()
     {
-        auto Pool = m_LocalArena.GetPool<int>();
+        auto Pool = m_LocalArena.GetPool<sizeof(int)>();
         Pool->Print();
     }
 
