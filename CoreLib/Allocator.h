@@ -98,7 +98,7 @@ struct CustomAllocator
 
 struct FreeBlock
 {
-    FreeBlock(unsigned char* ptr, size_t size)
+    FreeBlock(unsigned char* ptr, uint32_t size)
         : m_Ptr(ptr)
         , m_Size(size)
     {
@@ -143,29 +143,32 @@ struct Chunk
 public:
     Chunk(unsigned char* ptr)
     {
+        // Chunk size must not exceed uint32_t size
+        // assert(m_CapacityBytes <= UINT32_MAX);
+
         m_Current = m_Head = ptr;
         m_Tail = m_Head + m_CapacityBytes;
     }
 
-    void SetNextChunk(Chunk<TypeSize, NumObjects>* nextChunk)
+    void SetNextChunkRecursive(Chunk<TypeSize, NumObjects>* nextChunk)
     {
         assert(nextChunk);
 
         if (!next)
             next = nextChunk;
         else
-            next->SetNextChunk(nextChunk);
+            next->SetNextChunkRecursive(nextChunk);
     }
 
-    template <size_t Num>
+    template <uint32_t Num>
     unsigned char* RequestMemory()
     {
-        constexpr size_t requestedSize = Num * TypeSize;
-        unsigned char* requestedPtr = m_Current + Num * TypeSize - 1;
+        constexpr uint32_t requestedSize = Num * TypeSize;
+        unsigned char* requestedPtr = m_Current + (requestedSize - 1);
         if (requestedPtr < m_Tail)
         {
             unsigned char* prevPtr = m_Current;
-            m_Current = requestedPtr;
+            m_Current = requestedPtr + 1;
             m_UsedBytes += requestedSize;
             return prevPtr;
         }
@@ -180,10 +183,12 @@ public:
 
     bool deallocate(unsigned char* ptr, uint32_t num)
     {
-        unsigned char* blockEndPtr = ptr + TypeSize * num;
+        uint32_t requestedSize = TypeSize * num;
+        unsigned char* blockEndPtr = ptr + requestedSize;
         if (blockEndPtr < m_Current)
         {
-            FreeBlock* block = new FreeBlock(ptr, TypeSize * num);
+            m_UsedBytes -= requestedSize;
+            FreeBlock* block = new FreeBlock(ptr, requestedSize);
             if (!m_HeadFreeBlock)
             {
                 m_HeadFreeBlock = block;
@@ -201,6 +206,7 @@ public:
             if (deallocatedPtr >= m_Head)
             {
                 m_Current = deallocatedPtr;
+                m_UsedBytes -= requestedSize;
                 return true;
             }
             else
@@ -274,9 +280,25 @@ public:
             next->Print();
     }
 
+    unsigned char* Tail() const
+    {
+        return m_Tail;
+    }
+
+    Chunk<TypeSize, NumObjects>* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
+    {
+        if (ptr < m_Tail && ptr >= m_Head)
+            return this;
+
+        if (next)
+            return next->IsPtrToBlockIsInChunkRecursive(ptr);
+        else
+            return nullptr;
+    }
+
 private:
-    const size_t m_CapacityBytes = NumObjects * TypeSize;
-    size_t m_UsedBytes = 0;
+    const uint32_t m_CapacityBytes = NumObjects * TypeSize;
+    uint32_t m_UsedBytes = 0;
     unsigned char* m_Head = nullptr;
     unsigned char* m_Tail = nullptr;
     unsigned char* m_Current = nullptr;
@@ -301,7 +323,7 @@ struct Pool
 
     void Extend(Chunk<TypeSize, NumObjects>* chunk)
     {
-        m_HeadChunk->SetNextChunk(chunk);
+        m_HeadChunk->SetNextChunkRecursive(chunk);
         m_NumChunks++;
     }
 
@@ -309,6 +331,14 @@ struct Pool
     {
         std::cout << "\nPrinting Pool: \n" << "Number of chunks: " << std::to_string(m_NumChunks) << "\n";
         m_HeadChunk->Print();
+    }
+
+    Chunk<TypeSize, NumObjects>* GetChunkByPtrToBlock(unsigned char* ptr)
+    {
+        if (m_HeadChunk)
+            return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
+        else
+            return nullptr;
     }
 
 private:
@@ -459,8 +489,20 @@ struct MemoryManager
         }
     }
 
+    template <class T>
     void deallocate(void* ptr, size_t num)
     {
+        unsigned char* charPtr = reinterpret_cast<unsigned char*>(ptr);
+        constexpr size_t typeSize = sizeof(T);
+        constexpr bool isObjectLarge = typeSize >= SIZE_OF_LARGE_TYPE;
+        if (!isObjectLarge)
+        {
+            auto pool = m_LocalArena.GetPool<typeSize, 80>();
+            if (pool)
+            {
+                pool->GetChunkByPtrToBlock(charPtr)->deallocate(charPtr, num);
+            }
+        }
     }
 
     void Print()
@@ -475,5 +517,26 @@ private:
     Arena<m_Capacity> m_LocalArena;
 };
 
-
+// template <class T>
+// class PoolAllocator
+//{
+// public:
+//     using value_type = T;
+//
+//     PoolAllocator(MemoryManager* mngr)
+//         : manager(mngr)
+//     {
+//     }
+//
+//     void* allocate(size_t num, size_t align)
+//     {
+//     }
+//
+//     void deallocate(size_t num, size_t align)
+//     {
+//     }
+//
+// private:
+//     MemoryManager* manager;
+// };
 }  // namespace Fleur::Core

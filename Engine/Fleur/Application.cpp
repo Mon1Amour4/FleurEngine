@@ -177,7 +177,7 @@ Window& Application::GetWindow()
 void Application::Init(ApplicationBootSettings& settings)
 {
     Fleur::Core::MemoryManager<8 * 1024 * 1024> manager{};
-    manager.allocate<int, 40>();
+    auto ptr_ = manager.allocate<int, 40>();
     manager.Print();
     manager.allocate<int, 30>();
     manager.Print();
@@ -189,8 +189,8 @@ void Application::Init(ApplicationBootSettings& settings)
     auto ptr = manager.allocate<int, 40>();
     manager.Print();
 
-    manager.deallocate(ptr, 40);
-
+    manager.deallocate<int>(ptr, 40);
+    manager.Print();
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
     m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
