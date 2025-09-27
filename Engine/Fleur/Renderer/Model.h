@@ -1,5 +1,4 @@
 #pragma once
-#include "Allocator.h"
 
 struct aiScene;
 struct aiMesh;
@@ -20,9 +19,7 @@ public:
     class FLEUR_API Primitive
     {
     public:
-        Primitive(const cgltf_primitive* primitive, uint32_t material,
-                  std::vector<Fleur::Graphics::VertexData, Fleur::Core::CustomAllocator<VertexData>>& vertices,
-                  std::vector<uint32_t, Fleur::Core::CustomAllocator<uint32_t>>& indices);
+        Primitive(const cgltf_primitive* primitive, uint32_t material, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Primitive() = default;
 
         inline uint32_t VertexCount() const
@@ -82,9 +79,7 @@ public:
     class FLEUR_API Mesh
     {
     public:
-        Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials,
-             std::vector<Fleur::Graphics::VertexData, Fleur::Core::CustomAllocator<VertexData>>& vertices,
-             std::vector<uint32_t, Fleur::Core::CustomAllocator<uint32_t>>& indices);
+        Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
         ~Mesh() = default;
 
         inline std::string_view Name() const
@@ -104,7 +99,7 @@ public:
         }
 
     private:
-        std::vector<Primitive, Fleur::Core::CustomAllocator<Primitive>> m_Primitives;
+        std::vector<Primitive> m_Primitives;
 
         std::string m_MeshName;
 
@@ -148,7 +143,7 @@ public:
     {
         return m_Indices.data();
     }
-    [[nodiscard]] const std::vector<Fleur::Graphics::Model::Mesh, Fleur::Core::CustomAllocator<Fleur::Graphics::Model::Mesh>>* GetMeshesPtr() const
+    [[nodiscard]] const std::vector<Fleur::Graphics::Model::Mesh>* GetMeshesPtr() const
     {
         return &m_Meshes;
     }
@@ -162,11 +157,11 @@ private:
     uint32_t m_MeshCount;
     uint32_t m_ModelVertexCount;
     uint32_t m_ModelIndicesCount;
-    std::vector<Fleur::Graphics::VertexData, Fleur::Core::CustomAllocator<VertexData>> m_Vertices;
-    std::vector<uint32_t, Fleur::Core::CustomAllocator<uint32_t>> m_Indices;
-    std::vector<Model::Mesh, Fleur::Core::CustomAllocator<Model::Mesh>> m_Meshes;
+    std::vector<Fleur::Graphics::VertexData> m_Vertices;
+    std::vector<uint32_t> m_Indices;
+    std::vector<Model::Mesh> m_Meshes;
 
-    std::vector<Material, Fleur::Core::CustomAllocator<Material>> m_Materials;
+    std::vector<Material> m_Materials;
 
     void process_model(cgltf_data* data, bool async = true);
 };

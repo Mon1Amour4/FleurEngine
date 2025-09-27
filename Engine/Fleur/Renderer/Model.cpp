@@ -53,8 +53,8 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
 }
 
 Fleur::Graphics::Model::Mesh::Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials,
-                                   std::vector<Fleur::Graphics::VertexData, Fleur::Core::CustomAllocator<VertexData>>& vertices,
-                                   std::vector<uint32_t, Fleur::Core::CustomAllocator<uint32_t>>& indices)
+                                   std::vector<Fleur::Graphics::VertexData>& vertices,
+                                   std::vector<uint32_t>& indices)
     : m_MeshName(mesh->name)
     , m_MeshVertexStart(static_cast<uint32_t>(vertices.size()))
     , m_MeshVertexEnd(0)
@@ -98,7 +98,7 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
     m_Materials.reserve(data->materials_count);
 
     int textureIdx = MAXINT;
-    std::map<uint32_t, const Texture*, std::less<uint32_t>, Fleur::Core::CustomAllocator<std::pair<const uint32_t, const Texture*>>> loaded_textures;
+    std::map<uint32_t, const Texture*> loaded_textures;
     for (size_t i = 0; i < m_Materials.capacity(); i++)
     {
         uint32_t solidTextureIdx = 0;
@@ -197,8 +197,8 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
 }
 
 Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, uint32_t material,
-                                             std::vector<Fleur::Graphics::VertexData, Fleur::Core::CustomAllocator<VertexData>>& vertices,
-                                             std::vector<uint32_t, Fleur::Core::CustomAllocator<uint32_t>>& indices)
+                                             std::vector<Fleur::Graphics::VertexData>& vertices,
+                                             std::vector<uint32_t>& indices)
     : m_MatIdx(material)
     , m_PrimitiveVertexCount(0)
     , m_PrimitiveVertexStart(0)
@@ -256,7 +256,7 @@ Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, u
         return 0;
     };
 
-    std::unordered_map<uint32_t, uint32_t, std::hash<uint32_t>, std::equal_to<uint32_t>, Fleur::Core::CustomAllocator<std::pair<const uint32_t, uint32_t>>> map;
+    std::unordered_map<uint32_t, uint32_t> map;
     for (size_t j = 0; j < primitiveIndicesBuffer->count; ++j)
     {
         uint32_t vi = readIndex(j);

@@ -1,1 +1,2 @@
-#include "CoreLibTests.h"
+// #include "CoreLibTests.h"
+#include "MemoryManagerTests.h"

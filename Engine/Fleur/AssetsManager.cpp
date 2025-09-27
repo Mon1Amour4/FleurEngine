@@ -1,5 +1,4 @@
 #include "AssetsManager.h"
-#include "Allocator.h"
 
 #if !defined(CGLTF_IMPLEMENTATION)
 #define CGLTF_IMPLEMENTATION
@@ -387,8 +386,7 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromColor(std::string
 
     uint32_t colorData = color.Data();
 
-    Fleur::Core::CustomAllocator<unsigned char> allocator{};
-    unsigned char* data = allocator.allocate(size);
+    unsigned char* data = new unsigned char[size];
     for (size_t i = 0; i < width * height; ++i)
     {
         std::memcpy(data + i * channels, &colorData, channels);

@@ -1,10 +1,7 @@
 #pragma once
-#include <chrono>
-#include <iostream>
-#include <unordered_map>
-namespace Fleur::Core
-{
 
+namespace MM
+{
 static constexpr size_t PAGE_SIZE = 4 * 1024 * 1024;
 static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 1;
 
@@ -36,105 +33,81 @@ struct Benchmark
     std::chrono::time_point<std::chrono::steady_clock> start;
 
 public:
-    Benchmark();
-    ~Benchmark();
+    Benchmark() = default;
+    ~Benchmark() = default;
 
     void Start();
     void End();
-    static void Print()
+    static void Print();
+    inline void Deallocate()
     {
-        std::cout << "Number of Allocation: " << m_NumAllocations << std::endl
-                  << "Number of deallocations: " << m_NumDeallocations << std::endl
-                  << "All allocations time: " << FormatToSecMsMcs(m_SumAllocTime) << std::endl
-                  << "longest allocation time: " << FormatToSecMsMcs(m_LongestAllocTime) << std::endl
-                  << "Average allocation time: " << FormatToSecMsMcs(m_AverageAllocTime) << std::endl
-                  << std::endl;
+        ++m_NumDeallocations;
     }
-    void Deallocate();
-    static void Frame();
+    static void Frame()
+    {
+        ++frames;
+    }
     static void EndOfFrame();
     static std::string FormatToSecMsMcs(std::chrono::microseconds timer);
 };
 
-template <typename T>
-struct CustomAllocator
+// template <typename T>
+// struct CustomAllocator
+//{
+//     using value_type = T;
+//
+//     constexpr CustomAllocator() noexcept
+//     {
+//         mark = Benchmark();
+//     }
+//     constexpr ~CustomAllocator() = default;
+//     template <class U>
+//     constexpr CustomAllocator(const CustomAllocator<U>&) noexcept
+//     {
+//     }
+//     [[nodiscard]] constexpr T* allocate(size_t n)
+//     {
+//         FL_CORE_INFO("[ALLOCATOR] Allocated {0} bytes for {1} of type", n * sizeof(T), n);
+//         mark.Start();
+//         T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
+//         mark.End();
+//         return ptr;
+//     }
+//     constexpr void deallocate(T* p, size_t n)
+//     {
+//         FL_CORE_INFO("[ALLOCATOR] Deallocated {0} bytes for {1} of type", n * sizeof(T), n);
+//         free(p);
+//
+//         mark.Deallocate();
+//     }
+//     bool operator==(const CustomAllocator&) const noexcept
+//     {
+//         return true;
+//     }
+//     bool operator!=(const CustomAllocator&) const noexcept
+//     {
+//         return false;
+//     }
+//     Benchmark mark;
+// };
+
+class FreeBlock
 {
-    using value_type = T;
-
-    constexpr CustomAllocator() noexcept
-    {
-        mark = Benchmark();
-    }
-    constexpr ~CustomAllocator() = default;
-    template <class U>
-    constexpr CustomAllocator(const CustomAllocator<U>&) noexcept
-    {
-    }
-    [[nodiscard]] constexpr T* allocate(size_t n)
-    {
-        FL_CORE_INFO("[ALLOCATOR] Allocated {0} bytes for {1} of type", n * sizeof(T), n);
-        mark.Start();
-        T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
-        mark.End();
-        return ptr;
-    }
-    constexpr void deallocate(T* p, size_t n)
-    {
-        FL_CORE_INFO("[ALLOCATOR] Deallocated {0} bytes for {1} of type", n * sizeof(T), n);
-        free(p);
-
-        mark.Deallocate();
-    }
-    bool operator==(const CustomAllocator&) const noexcept
-    {
-        return true;
-    }
-    bool operator!=(const CustomAllocator&) const noexcept
-    {
-        return false;
-    }
-    Benchmark mark;
-};
-
-struct FreeBlock
-{
-    FreeBlock(unsigned char* ptr, uint32_t size)
-        : m_Ptr(ptr)
-        , m_Size(size)
-    {
-    }
+public:
+    FreeBlock(unsigned char* ptr, uint32_t size);
     ~FreeBlock() = default;
 
-    auto operator<=>(const FreeBlock& other) const
-    {
-        std::uintptr_t thisPtr = reinterpret_cast<std::uintptr_t>(m_Ptr);
-        std::uintptr_t otherPtr = reinterpret_cast<std::uintptr_t>(other.m_Ptr);
-        return thisPtr <=> otherPtr;
-    }
+    auto operator<=>(const FreeBlock& other) const;
 
-    void RemoveBlock()
-    {
-        if (m_Prev)
-        {
-            if (m_Next)
-                m_Prev->m_Next = m_Next;
-            else
-                m_Prev->m_Next = nullptr;
-        }
-    }
+    void RemoveBlock();
 
-    void SetNext(FreeBlock* next)
-    {
-        if (!m_Next)
-            m_Next = next;
-        else
-            m_Next->SetNext(next);
-    }
+    void SetNext(FreeBlock* next);
 
-    unsigned char* m_Ptr = nullptr;
-    uint32_t m_Size = 0;
-    FreeBlock* m_Next = nullptr;
-    FreeBlock* m_Prev = nullptr;
+private:
+    unsigned char* m_Ptr;
+    uint32_t m_Size;
+    FreeBlock* m_Next;
+    FreeBlock* m_Prev;
 };
 
 template <size_t TypeSize, size_t NumObjects>
@@ -144,7 +117,7 @@ public:
     Chunk(unsigned char* ptr)
     {
         // Chunk size must not exceed uint32_t size
-        // assert(m_CapacityBytes <= UINT32_MAX);
+        assert(m_CapacityBytes <= UINT32_MAX);
 
         m_Current = m_Head = ptr;
         m_Tail = m_Head + m_CapacityBytes;
@@ -409,6 +382,11 @@ struct Arena
         return Arena<Size>();
     };
 
+    void Free()
+    {
+        delete m_Head;
+    }
+
 private:
     unsigned char* m_Head;
 
@@ -444,6 +422,10 @@ struct MemoryManager
     MemoryManager()
     {
         m_LocalArena = Arena<m_Capacity>();
+    }
+    ~MemoryManager()
+    {
+        m_LocalArena.Free();
     }
 
     template <class T, size_t Num, size_t Align = 0>
@@ -539,4 +521,4 @@ private:
 // private:
 //     MemoryManager* manager;
 // };
-}  // namespace Fleur::Core
+}  // namespace MM

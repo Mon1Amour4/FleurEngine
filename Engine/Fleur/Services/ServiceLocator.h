@@ -54,8 +54,6 @@ public:
 
 private:
     ServiceLocator() = default;
-    std::unordered_map<std::type_index, service_variant, std::hash<std::type_index>, std::equal_to<std::type_index>,
-                       Fleur::Core::CustomAllocator<std::pair<const std::type_index, service_variant>>>
-        services;
+    std::unordered_map<std::type_index, service_variant> services;
 };
 }  // namespace Fleur

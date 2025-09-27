@@ -191,8 +191,8 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
         {},     {}   // 10,11
     };
 
-    std::vector<float, Fleur::Core::CustomAllocator<float>> normU(faceSize);
-    std::vector<float, Fleur::Core::CustomAllocator<float>> normV(faceSize);
+    std::vector<float> normU(faceSize);
+    std::vector<float> normV(faceSize);
     for (uint32_t i = 0; i < faceSize; ++i)
     {
         normU[i] = ((i + 0.5f) / faceSize) * 2.f - 1.f;

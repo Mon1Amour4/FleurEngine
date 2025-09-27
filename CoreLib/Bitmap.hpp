@@ -1,7 +1,6 @@
 #pragma once
-#include <glm/ext/vector_float4.hpp>
 
-#include "Allocator.h"
+#include <glm/ext/vector_float4.hpp>
 
 namespace Fleur
 {
@@ -189,7 +188,7 @@ public:
     }
 
 private:
-    std::vector<uint8_t, Fleur::Core::CustomAllocator<uint8_t>> m_Data;
+    std::vector<uint8_t> m_Data;
     uint32_t m_Width;
     uint32_t m_Height;
     uint32_t m_Components;

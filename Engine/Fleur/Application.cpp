@@ -1,6 +1,5 @@
 #include "Application.h"
 
-#include "Allocator.h"
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
@@ -176,21 +175,6 @@ Window& Application::GetWindow()
 
 void Application::Init(ApplicationBootSettings& settings)
 {
-    Fleur::Core::MemoryManager<8 * 1024 * 1024> manager{};
-    auto ptr_ = manager.allocate<int, 40>();
-    manager.Print();
-    manager.allocate<int, 30>();
-    manager.Print();
-
-    manager.allocate<int, 10>();
-    sizeof(Fleur::Core::Arena<8 * 1024 * 1024>);
-
-    manager.Print();
-    auto ptr = manager.allocate<int, 40>();
-    manager.Print();
-
-    manager.deallocate<int>(ptr, 40);
-    manager.Print();
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
     m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
@@ -281,7 +265,7 @@ void Application::Run()
         renderer->OnUpdate(dtTime);
         renderer->Present();
         m_Window->SetMouseWheelScrollData(0, 0);
-        Fleur::Core::Benchmark::Frame();
+        //Fleur::Core::Benchmark::Frame();
     }
 }
 

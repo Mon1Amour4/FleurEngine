@@ -1,7 +1,5 @@
 #include "FileSystem.h"
 
-#include "Allocator.h"
-
 #if defined(FLEUR_PLATFORM_WIN)
 #include "FileSystemPathsWin.h"
 #endif
@@ -24,7 +22,7 @@ class FileSystem::FileSystemImpl
     const std::string m_ImagesPath = "Images";
     const std::string m_ModelsPath = "Models";
     const std::string m_ScenesPath = "Scenes";
-    const std::vector<std::string_view, Fleur::Core::CustomAllocator<std::string_view>> m_SearchPaths = {m_ShadersPath.data(), m_ImagesPath.data(),
+    const std::vector<std::string_view> m_SearchPaths = {m_ShadersPath.data(), m_ImagesPath.data(),
                                                                                                          m_ModelsPath.data(), m_ScenesPath.data()};
 };
 

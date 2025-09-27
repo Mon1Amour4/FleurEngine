@@ -2,7 +2,6 @@
 
 #include <mutex>
 
-#include "Allocator.h"
 #include "EventQueue.h"
 
 namespace Fleur
@@ -24,7 +23,7 @@ public:
 private:
     virtual void PushEvent(std::shared_ptr<EventVariant>&& e);
 
-    std::queue<std::shared_ptr<EventVariant>, std::deque<std::shared_ptr<EventVariant>, Fleur::Core::CustomAllocator<std::shared_ptr<EventVariant>>>> m_Queue;
+    std::queue<std::shared_ptr<EventVariant>, std::deque<std::shared_ptr<EventVariant>>> m_Queue;
     std::mutex m_Mutex;
 };
 }  // namespace Fleur
