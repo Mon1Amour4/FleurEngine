@@ -77,7 +77,7 @@ SET(FLEUR_LIB_TYPE
 )
 
 set (FLEUR_COPILATION_FLAGS 
-    /std:c++20 /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope 
+    /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope 
     /GR- /EHsc /volatile:iso /utf-8 /W4  
-    #WX
+    #/WX
 )

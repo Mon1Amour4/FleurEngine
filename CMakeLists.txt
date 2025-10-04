@@ -71,6 +71,7 @@ ENDIF()
 ENABLE_TESTING()
 
 # === Subdirectories ===
+ADD_SUBDIRECTORY(MemoryManager)
 ADD_SUBDIRECTORY(CoreLib)
 ADD_SUBDIRECTORY(Engine)
 ADD_SUBDIRECTORY(Sandbox)

@@ -61,36 +61,36 @@ std::string MM::Benchmark::FormatToSecMsMcs(std::chrono::microseconds timer)
 
 // FreeBlock
 
-MM::FreeBlock::FreeBlock(unsigned char* ptr, uint32_t size)
-    : m_Ptr(ptr)
-    , m_Size(size)
-    , m_Next(nullptr)
-    , m_Prev(nullptr)
-{
-}
-
-auto MM::FreeBlock::operator<=>(const FreeBlock& other) const
-{
-    std::uintptr_t thisPtr = reinterpret_cast<std::uintptr_t>(m_Ptr);
-    std::uintptr_t otherPtr = reinterpret_cast<std::uintptr_t>(other.m_Ptr);
-    return thisPtr <=> otherPtr;
-}
-
-void MM::FreeBlock::RemoveBlock()
-{
-    if (m_Prev)
-    {
-        if (m_Next)
-            m_Prev->m_Next = m_Next;
-        else
-            m_Prev->m_Next = nullptr;
-    }
-}
-
-void MM::FreeBlock::SetNext(FreeBlock* next)
-{
-    if (!m_Next)
-        m_Next = next;
-    else
-        m_Next->SetNext(next);
-}
+// MM::FreeBlock::FreeBlock(unsigned char* ptr, uint32_t size)
+//     : m_Ptr(ptr)
+//     , m_Size(size)
+//     , m_Next(nullptr)
+//     , m_Prev(nullptr)
+//{
+// }
+//
+// auto MM::FreeBlock::operator<=>(const FreeBlock& other) const
+//{
+//     std::uintptr_t thisPtr = reinterpret_cast<std::uintptr_t>(m_Ptr);
+//     std::uintptr_t otherPtr = reinterpret_cast<std::uintptr_t>(other.m_Ptr);
+//     return thisPtr <=> otherPtr;
+// }
+//
+// void MM::FreeBlock::RemoveBlock()
+//{
+//     if (m_Prev)
+//     {
+//         if (m_Next)
+//             m_Prev->m_Next = m_Next;
+//         else
+//             m_Prev->m_Next = nullptr;
+//     }
+// }
+//
+// void MM::FreeBlock::SetNext(FreeBlock* next)
+//{
+//     if (!m_Next)
+//         m_Next = next;
+//     else
+//         m_Next->SetNext(next);
+// }

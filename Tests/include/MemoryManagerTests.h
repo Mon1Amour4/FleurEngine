@@ -9,6 +9,14 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
 {
     MM::MemoryManager<8 * 1024 * 1024> manager;
     int* ptr = manager.allocate<int, 40>();
+    manager.Print();
+
+    manager.deallocate<int, 40>(ptr);
+    manager.Print();
+
+    manager.allocate<int, 100>();
+    manager.Print();
+
     EXPECT_NE(ptr, nullptr) << "Allocate returned nullptr for valid request";
     manager.Print();
 }
