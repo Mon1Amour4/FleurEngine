@@ -60,20 +60,56 @@ public:
     static std::string FormatToSecMsMcs(std::chrono::microseconds timer);
 };
 
-template <class T>
-class BitSet
+uint64_t bit_set(uint64_t number, uint8_t n) noexcept
+{
+    return number | (static_cast<uint64_t>(1) << n);
+}
+
+uint64_t bit_clear(uint64_t number, uint8_t n) noexcept
+{
+    return number & ~(static_cast<uint64_t>(1) << n);
+}
+
+uint64_t bit_toggle(uint64_t number, uint8_t n) noexcept
+{
+    return number ^ (static_cast<uint64_t>(1) << n);
+}
+
+// True = 1
+// False = 0
+constexpr bool bit_check(uint64_t number, uint8_t n) noexcept
+{
+    return (number & (static_cast<uint64_t>(1) << n)) != 0;
+}
+
+template <typename T>
+class BitSet64
 {
 public:
-    BitSet()
+    constexpr BitSet64() noexcept
     {
+        static_assert(sizeof(T) <= 64, "Type is too large (>64 bytes)");
         bitmap = 0;
     }
 
-    bool CheckBit(uint32_t idx)
+    bool CheckBit(uint8_t idx) const
     {
+        return bit_check(bitmap, idx);
     }
-    void SetBit(uint32_t idx, bool flag)
+
+    void SetBit(uint8_t idx)
     {
+        bitmap = bit_set(bitmap, idx);
+    }
+
+    void ClearBit(uint8_t idx)
+    {
+        bitmap = bit_clear(bitmap, idx);
+    }
+
+    void ToggleBit(uint8_t idx)
+    {
+        bitmap = bit_toggle(bitmap, idx);
     }
 
 private:
@@ -199,7 +235,7 @@ public:
             m_Current = blockEndPtr;
 
             std::ptrdiff_t diff = blockEndPtr - m_Head;
-            bitmap.SetBit(diff, true);
+            bitmap.SetBit(diff);
 
             return true;
         }
@@ -212,7 +248,7 @@ public:
                 m_UsedBytes -= requestedSize;
 
                 std::ptrdiff_t diff = blockEndPtr - m_Head;
-                bitmap.SetBit(diff, true);
+                bitmap.SetBit(diff);
 
                 return true;
             }
@@ -310,7 +346,7 @@ private:
     unsigned char* m_Tail;
     unsigned char* m_Current;
     Chunk<SlotSize, NumSlots>* next;
-    BitSet<uint64_t> bitmap;
+    BitSet64<uint64_t> bitmap;
 };
 
 template <uint32_t SlotSize, uint32_t SlotNum>
