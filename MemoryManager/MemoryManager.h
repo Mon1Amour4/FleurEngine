@@ -155,6 +155,8 @@ public:
         // Chunk size must not exceed uint32_t size
         assert(m_CapacityBytes <= std::numeric_limits<uint32_t>::max());
 
+        std::cout << "Chunk{" << SlotSize << "," << NumSlots << "} has been created\n";
+
         m_Current = m_Head = ptr;
         m_Tail = m_Head + m_CapacityBytes;
     }
@@ -249,13 +251,13 @@ public:
         }
     }
 
-    void Print()
+    void Print(uint32_t chunkNum)
     {
         static constexpr char emptyCell = ' ';
         static constexpr char occupiedCell = 'x';
         static constexpr uint32_t cellsPerRow = 40;
 
-        std::cout << "\nChunk: " << m_UsedBytes << " / " << m_CapacityBytes << "\n";
+        std::cout << "\nChunk_" << chunkNum << "{" << SlotSize << ", " << NumSlots << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
 
         const uint32_t numCells = m_CapacityBytes / SlotSize;
 
@@ -282,7 +284,7 @@ public:
         PrintBucket();
 
         if (next)
-            next->Print();
+            next->Print(chunkNum++);
     }
 
     unsigned char* Tail() const
@@ -318,7 +320,8 @@ struct Pool
         : m_NumChunks(0)
         , m_HeadChunk(nullptr)
     {
-        std::cout << "Pool{" << SlotSize << "," << SlotNum << "} has been created";
+        std::cout << "Pool{" << SlotSize << "," << SlotNum << "} has been created\n";
+
         m_HeadChunk = new Chunk<SlotSize, SlotNum>(ptr);
 
         ++m_NumChunks;
@@ -337,16 +340,13 @@ struct Pool
 
     void Print()
     {
-        std::cout << "\nPrinting Pool{" << SlotSize << "," << SlotNum << "}: << Number of chunks: " << std::to_string(m_NumChunks) << "\n";
-        m_HeadChunk->Print();
+        std::cout << "\nPrinting Pool{" << SlotSize << "," << SlotNum << "}: Chunks: " << std::to_string(m_NumChunks);
+        m_HeadChunk->Print(0);
     }
 
     Chunk<SlotSize, SlotNum>* GetChunkByPtrToBlock(unsigned char* ptr)
     {
-        if (m_HeadChunk)
-            return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
-        else
-            return nullptr;
+        return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
     }
 
 private:
