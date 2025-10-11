@@ -1,7 +1,5 @@
 #pragma once
 
-#include <fstream>
-#include <iostream>
 #include <random>
 
 #include "MemoryManager.h"
@@ -17,10 +15,8 @@ using SyntheticTypesVariant =
 
 TEST(TEST_SUITE_NAME, AllocateNotNull)
 {
-    std::ofstream MyFile("MemorySnapshot.txt");
-
     MM::MemoryManager manager(ManagerConfig);
-
+    manager.ClearFile("MemorySnapshot.txt");
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> actionDist(0, 0);  // 0 = alloc, 1 = free
@@ -50,19 +46,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic4>(count));
         case 4:
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic5>(count));
-        /*case 5:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic6>(count));
-        case 6:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic7>(count));
-        case 7:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic8>(count));
-        case 8:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic9>(count));
-        case 9:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic10>(count));
-        case 10:
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic11>(count));*/
-        default:
+
             return nullptr;
         }
     };
@@ -87,24 +71,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         case 4:
             manager.deallocate<Synthetic::Synthetic5>(static_cast<Synthetic::Synthetic5*>(rec.ptr), rec.count);
             break;
-            /* case 5:
-                 manager.deallocate<Synthetic::Synthetic6>(static_cast<Synthetic::Synthetic6*>(rec.ptr), rec.count);
-                 break;
-             case 6:
-                 manager.deallocate<Synthetic::Synthetic7>(static_cast<Synthetic::Synthetic7*>(rec.ptr), rec.count);
-                 break;
-             case 7:
-                 manager.deallocate<Synthetic::Synthetic8>(static_cast<Synthetic::Synthetic8*>(rec.ptr), rec.count);
-                 break;
-             case 8:
-                 manager.deallocate<Synthetic::Synthetic9>(static_cast<Synthetic::Synthetic9*>(rec.ptr), rec.count);
-                 break;
-             case 9:
-                 manager.deallocate<Synthetic::Synthetic10>(static_cast<Synthetic::Synthetic10*>(rec.ptr), rec.count);
-                 break;
-             case 10:
-                 manager.deallocate<Synthetic::Synthetic11>(static_cast<Synthetic::Synthetic11*>(rec.ptr), rec.count);
-                 break;*/
+
         default: /* unreachable */
             break;
         }
@@ -137,8 +104,8 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         }
         std::cout << i;
         manager.Print();
+        manager.SaveSnapshotToFile("MemorySnapshot.txt");
     }
-    MyFile.close();
     for (const auto& rec : allocated) do_deallocate(rec);
     allocated.clear();
 }

@@ -1,5 +1,6 @@
 #include "MemoryManager.h"
 
+//======================================================================
 // Bits
 uint64_t MM::bit_set(uint64_t number, uint8_t n) noexcept
 {
@@ -23,7 +24,7 @@ bool MM::bit_check(uint64_t number, uint8_t n) noexcept
     return (number & (static_cast<uint64_t>(1) << n)) != 0;
 }
 
-
+//======================================================================
 // Benchmark
 size_t MM::Benchmark::m_NumAllocations = 0;
 size_t MM::Benchmark::m_NumDeallocations = 0;
@@ -82,7 +83,7 @@ std::string MM::Benchmark::FormatToSecMsMcs(std::chrono::microseconds timer)
     return str;
 }
 
-
+//======================================================================
 // Memory Manager
 MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize)
     : m_PageSize(pageSize)
@@ -104,8 +105,26 @@ void MM::MemoryManager::Print()
 {
     m_LocalArena->Print();
 }
+void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName)
+{
+    std::ofstream myFile;
+    myFile.open(fileName.data(), std::ios::app);
 
+    if (myFile.good())
+        m_LocalArena->ArenaSnapshotToStream(myFile);
 
+    myFile.close();
+}
+
+void MM::MemoryManager::ClearFile(std::string_view fileName)
+{
+    std::ofstream myFile;
+
+    myFile.open(fileName.data());
+    myFile.close();
+}
+
+//======================================================================
 // Arena
 MM::Arena::Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize)
     : m_PageSize(pageSize)
@@ -176,7 +195,7 @@ void MM::Arena::Free()
 
 void MM::Arena::Print()
 {
-    std::cout << "\n//---------------------------- ARENA-PRINTING ----------------------------\\ \n";
+    std::cout << "//---------------------------- \i ARENA-PRINTING \i0 ----------------------------\\ \\par";
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
     for (auto& pair : map)
@@ -186,6 +205,19 @@ void MM::Arena::Print()
     std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
 }
 
+void MM::Arena::ArenaSnapshotToStream(std::ofstream& stream)
+{
+    stream << "\n//---------------------------- ARENA-PRINTING ----------------------------\\ \n";
+    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
+    stream << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
+    for (auto& pair : map)
+    {
+        reinterpret_cast<Pool*>(pair.second)->PoolSpapshotToStream(stream);
+    }
+    stream << "\n//--------------------------------- END ----------------------------\\ \n";
+}
+
+//======================================================================
 // Pool
 MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     : m_NumChunks(0)
@@ -220,6 +252,12 @@ void MM::Pool::Print()
     m_HeadChunk->Print(0);
 }
 
+void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
+{
+    stream << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
+    m_HeadChunk->ChunkSnapshotToStream(0, stream);
+}
+
 bool MM::Pool::FreeSlot(unsigned char* ptr)
 {
     auto chunk = m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
@@ -233,7 +271,7 @@ bool MM::Pool::FreeSlot(unsigned char* ptr)
         return false;
 }
 
-
+//======================================================================
 // Chunk
 MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     : m_SlotSize(slotSize)
@@ -347,7 +385,7 @@ void MM::Chunk::Print(uint32_t chunkNum)
 
         for (uint32_t i = start; i < end; ++i)
         {
-            const bool isOccupied = bitmap.CheckBit(i);
+            const bool isOccupied = bitmap.IsBitOccupied(i);
 
             if (isOccupied)
                 std::cout << FG_White << BG_Red << "  X " << Reset << " ";
@@ -361,6 +399,68 @@ void MM::Chunk::Print(uint32_t chunkNum)
 
     if (next)
         next->Print(chunkNum++);
+}
+
+void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
+{
+    struct PrintSlot
+    {
+        PrintSlot(uint32_t slotNum, bool isFree)
+            : m_IsFree(isFree)
+            , m_Slot_num(slotNum) {};
+
+        void ToStream(std::string& upper, std::string& down)
+        {
+            upper += '[';
+            down += ' ';
+
+            if (m_Slot_num <= 9)
+            {
+                upper += std::to_string(m_Slot_num);
+            }
+            else if (m_Slot_num > 9 && m_Slot_num < 100)
+            {
+                upper += std::to_string(m_Slot_num);
+                down += " ";
+            }
+            if (m_IsFree)
+                down += '0';
+            else
+                down += 'X';
+
+            upper += "] ";
+            down += "  ";
+        }
+        void ToStreanMinimalistic(std::string& string)
+        {
+            if (m_IsFree)
+                string += '0';
+            else
+                string += 'X';
+        }
+
+        bool m_IsFree;
+        uint32_t m_Slot_num;
+    };
+
+    std::string strUpper;
+    std::string strDown;
+    strUpper.reserve(160);
+    strDown.reserve(160);
+
+    stream << "\nChunk_" << chunkNum << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+
+    for (size_t i = 0; i < m_SlotsCount; i++)
+    {
+        PrintSlot slot(i, !bitmap.IsBitOccupied(i));
+        // slot.ToStream(strUpper, strDown);
+        slot.ToStreanMinimalistic(strUpper);
+    }
+    stream << strUpper << '\n';
+    stream << strDown << '\n';
+
+    if (next)
+        next->ChunkSnapshotToStream(chunkNum++, stream);
 }
 
 MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)

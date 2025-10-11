@@ -1,4 +1,7 @@
 #pragma once
+
+#include <fstream>
+#include <iostream>
 #include <limits>
 
 namespace MM
@@ -24,6 +27,7 @@ constexpr uint32_t get_pow2_ceil(uint32_t number)
     return n + 1;
 }
 
+//======================================================================
 struct Benchmark
 {
     static size_t m_NumAllocations;
@@ -62,14 +66,18 @@ uint64_t bit_clear(uint64_t number, uint8_t n) noexcept;
 
 uint64_t bit_toggle(uint64_t number, uint8_t n) noexcept;
 
-// True = 1
-// False = 0
+// True     = 1 = Occupied
+// False    = 0 = Free
 bool bit_check(uint64_t number, uint8_t n) noexcept;
 
 #pragma endregion
 
 #pragma region BitSet64
-
+//======================================================================
+/*
+ * @brief General purpose bits container, stores up to 64 flags. 0 - free, 1 - occupied
+ * @details Bits operations sucs as set\check\clear\toggle.
+ */
 class BitSet64
 {
 public:
@@ -83,7 +91,7 @@ public:
         m_Bitmap = 0;
     }
 
-    bool CheckBit(uint8_t idx) const
+    bool IsBitOccupied(uint8_t idx) const
     {
         return bit_check(m_Bitmap, idx);
     }
@@ -156,25 +164,7 @@ private:
 //     Benchmark mark;
 // };
 
-// class FreeBlock
-//{
-// public:
-//     FreeBlock(unsigned char* ptr, uint32_t size);
-//     ~FreeBlock() = default;
-//
-//     auto operator<=>(const FreeBlock& other) const;
-//
-//     void RemoveBlock();
-//
-//     void SetNext(FreeBlock* next);
-//
-// private:
-//     unsigned char* m_Ptr;
-//     uint32_t m_Size;
-//     FreeBlock* m_Next;
-//     FreeBlock* m_Prev;
-// };
-
+//======================================================================
 struct Chunk
 {
 public:
@@ -190,6 +180,7 @@ public:
     void PrintBucket();
 
     void Print(uint32_t chunkNum);
+    void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
 
     Chunk* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr);
 
@@ -206,6 +197,7 @@ private:
     BitSet64 bitmap;
 };
 
+//======================================================================
 struct Pool
 {
     Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
@@ -216,6 +208,7 @@ struct Pool
     void Extend(Chunk* chunk);
 
     void Print();
+    void PoolSpapshotToStream(std::ofstream& stream);
 
     bool FreeSlot(unsigned char* ptr);
 
@@ -226,6 +219,7 @@ private:
     const uint32_t m_SlotsCount;
 };
 
+//======================================================================
 struct Arena
 {
     Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize);
@@ -244,6 +238,8 @@ struct Arena
 
     void Print();
 
+    void ArenaSnapshotToStream(std::ofstream& stream);
+
 
 private:
     const uint32_t m_PageSize;
@@ -261,6 +257,12 @@ private:
     std::unordered_map<uint32_t, void*> map;
 };
 
+//======================================================================
+/*
+ * @brief Memory Manager designed for Fleur Game Engine.
+ * @details Manages memory arenas, poools, controls allocation\deallocation.
+ * Core component.
+ */
 struct MemoryManager
 {
     MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize);
@@ -350,6 +352,10 @@ struct MemoryManager
 
     void Print();
 
+    void SaveSnapshotToFile(std::string_view fileName);
+
+    void ClearFile(std::string_view fileName);
+
 private:
     const uint32_t m_ArenaSize;
     const uint32_t m_PageSize;
@@ -358,26 +364,4 @@ private:
     Arena* m_LocalArena;
 };
 
-// template <class T>
-// class PoolAllocator
-//{
-// public:
-//     using value_type = T;
-//
-//     PoolAllocator(MemoryManager* mngr)
-//         : manager(mngr)
-//     {
-//     }
-//
-//     void* allocate(size_t num, size_t align)
-//     {
-//     }
-//
-//     void deallocate(size_t num, size_t align)
-//     {
-//     }
-//
-// private:
-//     MemoryManager* manager;
-// };
 }  // namespace MM
