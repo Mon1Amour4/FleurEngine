@@ -1,5 +1,29 @@
 #include "MemoryManager.h"
 
+// Bits
+uint64_t MM::bit_set(uint64_t number, uint8_t n) noexcept
+{
+    return number | (static_cast<uint64_t>(1) << n);
+}
+
+uint64_t MM::bit_clear(uint64_t number, uint8_t n) noexcept
+{
+    return number & ~(static_cast<uint64_t>(1) << n);
+}
+
+uint64_t MM::bit_toggle(uint64_t number, uint8_t n) noexcept
+{
+    return number ^ (static_cast<uint64_t>(1) << n);
+}
+
+// True = 1
+// False = 0
+bool MM::bit_check(uint64_t number, uint8_t n) noexcept
+{
+    return (number & (static_cast<uint64_t>(1) << n)) != 0;
+}
+
+
 // Benchmark
 size_t MM::Benchmark::m_NumAllocations = 0;
 size_t MM::Benchmark::m_NumDeallocations = 0;
@@ -59,38 +83,293 @@ std::string MM::Benchmark::FormatToSecMsMcs(std::chrono::microseconds timer)
 }
 
 
-// FreeBlock
+// Memory Manager
+MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize)
+    : m_PageSize(pageSize)
+    , m_MinSlotSize(minSlotSize)
+    , m_ArenaSize(arenaSize)
+    , m_Capacity(capacity)
+{
+    assert(capacity > 0 && pageSize > 0, minSlotSize > 0, "Value must be > 0");
+    assert(arenaSize <= capacity, "Arena size can't exceed MM capacity");
 
-// MM::FreeBlock::FreeBlock(unsigned char* ptr, uint32_t size)
-//     : m_Ptr(ptr)
-//     , m_Size(size)
-//     , m_Next(nullptr)
-//     , m_Prev(nullptr)
-//{
-// }
-//
-// auto MM::FreeBlock::operator<=>(const FreeBlock& other) const
-//{
-//     std::uintptr_t thisPtr = reinterpret_cast<std::uintptr_t>(m_Ptr);
-//     std::uintptr_t otherPtr = reinterpret_cast<std::uintptr_t>(other.m_Ptr);
-//     return thisPtr <=> otherPtr;
-// }
-//
-// void MM::FreeBlock::RemoveBlock()
-//{
-//     if (m_Prev)
-//     {
-//         if (m_Next)
-//             m_Prev->m_Next = m_Next;
-//         else
-//             m_Prev->m_Next = nullptr;
-//     }
-// }
-//
-// void MM::FreeBlock::SetNext(FreeBlock* next)
-//{
-//     if (!m_Next)
-//         m_Next = next;
-//     else
-//         m_Next->SetNext(next);
-// }
+    m_LocalArena = new MM::Arena(1024 * 1024 * 8, pageSize, minSlotSize);
+}
+MM::MemoryManager::~MemoryManager()
+{
+    m_LocalArena->Free();
+}
+
+void MM::MemoryManager::Print()
+{
+    m_LocalArena->Print();
+}
+
+
+// Arena
+MM::Arena::Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize)
+    : m_PageSize(pageSize)
+    , m_MinSlotSize(minSlotSize)
+    , m_CapacityBytes(capacity)
+    , m_UsedBytes(0)
+{
+    m_Head = static_cast<unsigned char*>(malloc(m_CapacityBytes));
+    memset(m_Head, 0, m_CapacityBytes);
+
+    assert(m_Head);
+
+    m_Current = m_Head;
+    m_Tail = m_Head + (m_CapacityBytes);
+}
+MM::Arena MM::Arena::operator=(const Arena& other)
+{
+    return Arena(other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
+};
+
+MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
+{
+    // Test if we have enought capacity
+    size_t updatedUsed = m_UsedBytes + m_PageSize;
+    if (updatedUsed <= m_CapacityBytes)
+    {
+        map[slotSize] = new Pool(m_Current, slotSize, m_PageSize / slotSize);
+        m_Current += m_PageSize;
+        m_UsedBytes += m_PageSize;
+        return static_cast<Pool*>(map[slotSize]);
+    }
+    else
+    {
+        // Not enought space in current arena
+        assert(false);
+        return nullptr;
+    }
+}
+MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
+{
+    if (auto val = map.find(slotSize); val != map.end())
+        return static_cast<Pool*>(val->second);
+
+    return nullptr;
+}
+
+MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
+{
+    unsigned char* requestedPtr = m_Current + m_PageSize;
+    if (requestedPtr < m_Tail)
+    {
+        // Arena has enought space for new chunk, give it
+        unsigned char* prevPtr = m_Current;
+        m_Current = requestedPtr;
+        return new Chunk(prevPtr, slotSize, slotsCount);
+    }
+    else
+    {
+        assert(false);
+        return nullptr;
+    }
+}
+
+void MM::Arena::Free()
+{
+    delete m_Head;
+}
+
+void MM::Arena::Print()
+{
+    std::cout << "\n//---------------------------- ARENA-PRINTING ----------------------------\\ \n";
+    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
+    std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
+    for (auto& pair : map)
+    {
+        reinterpret_cast<Pool*>(pair.second)->Print();
+    }
+    std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
+}
+
+// Pool
+MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
+    : m_NumChunks(0)
+    , m_SlotSize(slotSize)
+    , m_SlotsCount(slotCount)
+    , m_HeadChunk(nullptr)
+{
+    assert(m_SlotSize > 0, "Value Value must be > 0");
+    assert(m_SlotsCount > 0 && m_SlotsCount <= 64, "Pool Slot size can't be lesst than MIN_SLOT_SIZE");
+
+    std::cout << "Pool{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
+
+    m_HeadChunk = new Chunk(ptr, m_SlotSize, m_SlotsCount);
+
+    ++m_NumChunks;
+}
+
+unsigned char* MM::Pool::AcquireSlotFromPool()
+{
+    return m_HeadChunk->TryAcquireSlotInChunkChain();
+}
+
+void MM::Pool::Extend(MM::Chunk* chunk)
+{
+    m_HeadChunk->SetNextChunkRecursive(chunk);
+    m_NumChunks++;
+}
+
+void MM::Pool::Print()
+{
+    std::cout << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
+    m_HeadChunk->Print(0);
+}
+
+bool MM::Pool::FreeSlot(unsigned char* ptr)
+{
+    auto chunk = m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
+    if (chunk)
+    {
+        chunk->FreeChunkSlot(ptr);
+        std::cout << "Slot has freed";
+        return true;
+    }
+    else
+        return false;
+}
+
+
+// Chunk
+MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
+    : m_SlotSize(slotSize)
+    , m_SlotsCount(slotCount)
+    , m_CapacityBytes(PAGE_SIZE)
+    , m_UsedBytes(0)
+    , m_Head(nullptr)
+    , m_Tail(nullptr)
+    , next(nullptr)
+    , bitmap(m_SlotsCount)
+{
+    std::cout << "Chunk{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
+
+    m_Head = ptr;
+    m_Tail = m_Head + m_CapacityBytes;
+}
+
+unsigned char* MM::Chunk::TryAcquireSlotInChunkChain()
+{
+    if (!bitmap.IsFull())
+    {
+        uint32_t oldCapacity = m_UsedBytes;
+        m_UsedBytes += m_SlotSize;
+
+        if (m_UsedBytes > m_CapacityBytes)
+            __debugbreak();
+
+        uint8_t slot = oldCapacity / m_SlotSize;
+        bitmap.SetBit(slot);
+        unsigned char* nextPtr = m_Head + slot;
+        assert(nextPtr < m_Tail);
+        return nextPtr;
+    }
+
+    if (next)
+    {
+        next->TryAcquireSlotInChunkChain();
+    }
+
+    return nullptr;
+}
+
+void MM::Chunk::SetNextChunkRecursive(Chunk* nextChunk)
+{
+    assert(nextChunk);
+
+    if (!next)
+        next = nextChunk;
+    else
+        next->SetNextChunkRecursive(nextChunk);
+}
+
+void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
+{
+    bitmap.ClearBit((ptr - m_Head) / m_SlotSize);
+    m_UsedBytes -= m_SlotSize;
+}
+
+void MM::Chunk::PrintBucket()
+{
+    const char emptyCell = '-';
+    const char occupiedCell = 'x';
+    const int cellsPerRow = 10;
+
+    const uint32_t numCells = m_CapacityBytes / m_SlotSize;
+
+    std::cout << "\nBucket View (" << m_UsedBytes << "/" << m_CapacityBytes << ")\n";
+
+    uint32_t filled = m_UsedBytes / m_SlotSize;
+    for (uint32_t i = 0; i < numCells; i += cellsPerRow)
+    {
+        std::cout << "\\";
+        for (uint32_t j = 0; j < cellsPerRow; j++)
+        {
+            uint32_t index = i + j;
+            if (index < filled)
+                std::cout << occupiedCell;
+            else
+                std::cout << emptyCell;
+        }
+        std::cout << "/\n";
+    }
+}
+
+void MM::Chunk::Print(uint32_t chunkNum)
+{
+    constexpr const char* Reset = "\033[0m";
+    constexpr const char* FG_Black = "\033[30m";
+    constexpr const char* FG_White = "\033[97m";
+    constexpr const char* BG_Red = "\033[41m";
+    constexpr const char* BG_Green = "\033[42m";
+
+    static constexpr char emptyCell = ' ';
+    static constexpr char occupiedCell = 'x';
+    static constexpr uint32_t cellsPerRow = 40;
+
+    std::cout << "\nChunk_" << chunkNum << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+
+    const uint32_t numCells = m_CapacityBytes / m_SlotSize;
+    const uint32_t maxIndex = numCells ? numCells - 1 : 0;
+    const int width = (maxIndex > 0) ? static_cast<int>(std::log10(maxIndex)) + 1 : 1;
+    const uint32_t numRows = (numCells + cellsPerRow - 1) / cellsPerRow;
+
+    for (uint32_t row = 0; row < numRows; ++row)
+    {
+        const uint32_t start = row * cellsPerRow;
+        const uint32_t end = std::min(start + cellsPerRow, numCells);
+
+        for (uint32_t i = start; i < end; ++i) std::cout << '[' << std::setw(width) << i << "] ";
+        std::cout << "\n";
+
+        for (uint32_t i = start; i < end; ++i)
+        {
+            const bool isOccupied = bitmap.CheckBit(i);
+
+            if (isOccupied)
+                std::cout << FG_White << BG_Red << "  X " << Reset << " ";
+            else
+                std::cout << FG_Black << BG_Green << "  O " << Reset << " ";
+        }
+
+        std::cout << "\n\n";
+    }
+    // PrintBucket();
+
+    if (next)
+        next->Print(chunkNum++);
+}
+
+MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
+{
+    if (ptr < m_Tail && ptr >= m_Head)
+        return this;
+
+    if (next)
+        return next->IsPtrToBlockIsInChunkRecursive(ptr);
+    else
+        return nullptr;
+}

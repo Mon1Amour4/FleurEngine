@@ -22,7 +22,8 @@ SET(INCLUDE_FOLDER ${CMAKE_CURRENT_SOURCE_DIR}/include)
 SET(TESTS_HEADERS 
   ${INCLUDE_FOLDER}/Tests.h 
   ${INCLUDE_FOLDER}/CoreLibTests.h 
-  ${INCLUDE_FOLDER}/MemoryManagerTests.h)
+  ${INCLUDE_FOLDER}/MemoryManagerTests.h
+  ${INCLUDE_FOLDER}/SyntheticTypes.hpp)
 
 SET(TESTS_SOURCES ${SRC_FOLDER}/Tests.cpp)
 

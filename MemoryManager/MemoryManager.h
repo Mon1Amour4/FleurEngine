@@ -4,7 +4,7 @@
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
-static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 1;
+static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 4;
 static constexpr size_t MIN_SLOT_SIZE = 64;
 
 consteval size_t get_powered_size(size_t power)
@@ -12,10 +12,9 @@ consteval size_t get_powered_size(size_t power)
     return size_t{1} << power;
 }
 
-template <uint32_t Number>
-constexpr uint32_t get_pow2_ceil()
+constexpr uint32_t get_pow2_ceil(uint32_t number)
 {
-    uint32_t n = Number;
+    uint32_t n = number;
     n--;
     n |= n >> 1;
     n |= n >> 2;
@@ -23,11 +22,6 @@ constexpr uint32_t get_pow2_ceil()
     n |= n >> 8;
     n |= n >> 16;
     return n + 1;
-}
-
-bool IsWithinPool(uint32_t used, uint32_t capacity, uint32_t allocationSize)
-{
-    return used + allocationSize <= capacity;
 }
 
 struct Benchmark
@@ -60,61 +54,67 @@ public:
     static std::string FormatToSecMsMcs(std::chrono::microseconds timer);
 };
 
-uint64_t bit_set(uint64_t number, uint8_t n) noexcept
-{
-    return number | (static_cast<uint64_t>(1) << n);
-}
+#pragma region Bits
 
-uint64_t bit_clear(uint64_t number, uint8_t n) noexcept
-{
-    return number & ~(static_cast<uint64_t>(1) << n);
-}
+uint64_t bit_set(uint64_t number, uint8_t n) noexcept;
 
-uint64_t bit_toggle(uint64_t number, uint8_t n) noexcept
-{
-    return number ^ (static_cast<uint64_t>(1) << n);
-}
+uint64_t bit_clear(uint64_t number, uint8_t n) noexcept;
+
+uint64_t bit_toggle(uint64_t number, uint8_t n) noexcept;
 
 // True = 1
 // False = 0
-constexpr bool bit_check(uint64_t number, uint8_t n) noexcept
-{
-    return (number & (static_cast<uint64_t>(1) << n)) != 0;
-}
+bool bit_check(uint64_t number, uint8_t n) noexcept;
 
-template <typename T>
+#pragma endregion
+
+#pragma region BitSet64
+
 class BitSet64
 {
 public:
-    constexpr BitSet64() noexcept
+    BitSet64(uint8_t bits)
+        : m_Bitmap(0)
+        , m_Bits(bits)
     {
-        static_assert(sizeof(T) <= 64, "Type is too large (>64 bytes)");
-        bitmap = 0;
+        assert(m_Bits <= 64, "Type is too large (>64 bytes)");
+        assert(m_Bits > 0, "Bits must be more than 0");
+
+        m_Bitmap = 0;
     }
 
     bool CheckBit(uint8_t idx) const
     {
-        return bit_check(bitmap, idx);
+        return bit_check(m_Bitmap, idx);
     }
 
     void SetBit(uint8_t idx)
     {
-        bitmap = bit_set(bitmap, idx);
+        m_Bitmap = bit_set(m_Bitmap, idx);
     }
 
     void ClearBit(uint8_t idx)
     {
-        bitmap = bit_clear(bitmap, idx);
+        m_Bitmap = bit_clear(m_Bitmap, idx);
     }
 
     void ToggleBit(uint8_t idx)
     {
-        bitmap = bit_toggle(bitmap, idx);
+        m_Bitmap = bit_toggle(m_Bitmap, idx);
+    }
+
+    bool IsFull() const
+    {
+        uint64_t mask = ~0ull >> (64 - m_Bits);
+        return m_Bitmap == mask;
     }
 
 private:
-    T bitmap;
+    uint64_t m_Bitmap;
+    uint8_t m_Bits;
 };
+
+#pragma endregion
 
 // template <typename T>
 // struct CustomAllocator
@@ -175,357 +175,132 @@ private:
 //     FreeBlock* m_Prev;
 // };
 
-template <size_t SlotSize, size_t NumSlots>
 struct Chunk
 {
 public:
-    Chunk(unsigned char* ptr)
-        : m_CapacityBytes(SlotSize * NumSlots)
-        , m_UsedBytes(0)
-        , m_Head(nullptr)
-        , m_Tail(nullptr)
-        , m_Current(nullptr)
-        , next(nullptr)
-        , bitmap()
-    {
-        // Chunk size must not exceed uint32_t size
-        assert(m_CapacityBytes <= std::numeric_limits<uint32_t>::max());
+    Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
+    ~Chunk() = default;
 
-        std::cout << "Chunk{" << SlotSize << "," << NumSlots << "} has been created\n";
+    void SetNextChunkRecursive(Chunk* nextChunk);
 
-        m_Current = m_Head = ptr;
-        m_Tail = m_Head + m_CapacityBytes;
-    }
+    unsigned char* TryAcquireSlotInChunkChain();
 
-    void SetNextChunkRecursive(Chunk<SlotSize, NumSlots>* nextChunk)
-    {
-        assert(nextChunk);
+    void FreeChunkSlot(unsigned char* ptr);
 
-        if (!next)
-            next = nextChunk;
-        else
-            next->SetNextChunkRecursive(nextChunk);
-    }
+    void PrintBucket();
 
-    unsigned char* RequestSlotRecursive()
-    {
-        if (IsWithinPool(m_UsedBytes, m_CapacityBytes, SlotSize))
-        {
-            unsigned char* prevPtr = m_Current;
-            m_Current += SlotSize;
-            m_UsedBytes += SlotSize;
-            return prevPtr;
-        }
+    void Print(uint32_t chunkNum);
 
-        if (next)
-        {
-            next->RequestSlotRecursive();
-        }
-
-        return nullptr;
-    }
-
-    bool deallocate(unsigned char* ptr, uint32_t num)
-    {
-        uint32_t requestedSize = SlotSize * num;
-        unsigned char* blockEndPtr = ptr + requestedSize;
-        if (blockEndPtr < m_Current)
-        {
-            m_UsedBytes -= requestedSize;
-            m_Current = blockEndPtr;
-
-            std::ptrdiff_t diff = blockEndPtr - m_Head;
-            bitmap.SetBit(diff);
-
-            return true;
-        }
-        else if (blockEndPtr == m_Current)
-        {
-            unsigned char* deallocatedPtr = m_Current - (SlotSize * num);
-            if (deallocatedPtr >= m_Head)
-            {
-                m_Current = deallocatedPtr;
-                m_UsedBytes -= requestedSize;
-
-                std::ptrdiff_t diff = blockEndPtr - m_Head;
-                bitmap.SetBit(diff);
-
-                return true;
-            }
-            else
-            {
-                return false;
-                // TODO Handle this case;
-            }
-        }
-        return false;
-    }
-
-    void PrintBucket()
-    {
-        const char emptyCell = '-';
-        const char occupiedCell = 'x';
-        const int cellsPerRow = 10;
-
-        const uint32_t numCells = m_CapacityBytes / SlotSize;
-
-        std::cout << "\nBucket View (" << m_UsedBytes << "/" << m_CapacityBytes << ")\n";
-
-        uint32_t filled = m_UsedBytes / SlotSize;
-        for (uint32_t i = 0; i < numCells; i += cellsPerRow)
-        {
-            std::cout << "\\";
-            for (uint32_t j = 0; j < cellsPerRow; j++)
-            {
-                uint32_t index = i + j;
-                if (index < filled)
-                    std::cout << occupiedCell;
-                else
-                    std::cout << emptyCell;
-            }
-            std::cout << "/\n";
-        }
-    }
-
-    void Print(uint32_t chunkNum)
-    {
-        static constexpr char emptyCell = ' ';
-        static constexpr char occupiedCell = 'x';
-        static constexpr uint32_t cellsPerRow = 40;
-
-        std::cout << "\nChunk_" << chunkNum << "{" << SlotSize << ", " << NumSlots << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
-
-        const uint32_t numCells = m_CapacityBytes / SlotSize;
-
-        uint32_t maxIndex = numCells ? numCells - 1 : 0;
-        int width = (maxIndex > 0) ? static_cast<int>(std::log10(maxIndex)) + 1 : 1;
-
-        uint32_t numRows = (numCells + cellsPerRow - 1) / cellsPerRow;
-
-        for (uint32_t row = 0; row < numRows; row++)
-        {
-            uint32_t start = row * cellsPerRow;
-            uint32_t end = std::min(start + cellsPerRow, numCells);
-
-            for (uint32_t i = start; i < end; i++) std::cout << '[' << std::setw(width) << i << "] ";
-            std::cout << "\n";
-
-            for (uint32_t i = start; i < end; i++)
-            {
-                unsigned char* ptr = m_Head + (i * SlotSize);
-                std::cout << "[ " << (ptr < m_Current ? occupiedCell : emptyCell) << "] ";
-            }
-            std::cout << "\n\n";
-        }
-        PrintBucket();
-
-        if (next)
-            next->Print(chunkNum++);
-    }
-
-    unsigned char* Tail() const
-    {
-        return m_Tail;
-    }
-
-    Chunk<SlotSize, NumSlots>* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
-    {
-        if (ptr < m_Tail && ptr >= m_Head)
-            return this;
-
-        if (next)
-            return next->IsPtrToBlockIsInChunkRecursive(ptr);
-        else
-            return nullptr;
-    }
+    Chunk* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr);
 
 private:
+    const uint32_t m_SlotSize;
     const uint32_t m_CapacityBytes;
+    const uint32_t m_SlotsCount;
+
     uint32_t m_UsedBytes;
+
     unsigned char* m_Head;
     unsigned char* m_Tail;
-    unsigned char* m_Current;
-    Chunk<SlotSize, NumSlots>* next;
-    BitSet64<uint64_t> bitmap;
+    Chunk* next;
+    BitSet64 bitmap;
 };
 
-template <uint32_t SlotSize, uint32_t SlotNum>
 struct Pool
 {
-    Pool(unsigned char* ptr)
-        : m_NumChunks(0)
-        , m_HeadChunk(nullptr)
-    {
-        std::cout << "Pool{" << SlotSize << "," << SlotNum << "} has been created\n";
+    Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
+    ~Pool() = default;
 
-        m_HeadChunk = new Chunk<SlotSize, SlotNum>(ptr);
+    unsigned char* AcquireSlotFromPool();
 
-        ++m_NumChunks;
-    }
+    void Extend(Chunk* chunk);
 
-    unsigned char* RequestSlot()
-    {
-        return m_HeadChunk->RequestSlotRecursive();
-    }
+    void Print();
 
-    void Extend(Chunk<SlotSize, SlotNum>* chunk)
-    {
-        m_HeadChunk->SetNextChunkRecursive(chunk);
-        m_NumChunks++;
-    }
-
-    void Print()
-    {
-        std::cout << "\nPrinting Pool{" << SlotSize << "," << SlotNum << "}: Chunks: " << std::to_string(m_NumChunks);
-        m_HeadChunk->Print(0);
-    }
-
-    Chunk<SlotSize, SlotNum>* GetChunkByPtrToBlock(unsigned char* ptr)
-    {
-        return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
-    }
+    bool FreeSlot(unsigned char* ptr);
 
 private:
-    Chunk<SlotSize, SlotNum>* m_HeadChunk;
+    Chunk* m_HeadChunk;
     uint32_t m_NumChunks;
+    const uint32_t m_SlotSize;
+    const uint32_t m_SlotsCount;
 };
 
-template <unsigned int Size>
 struct Arena
 {
-    Arena()
+    Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize);
+    ~Arena()
     {
-        m_CapacityBytes = Size;
-        m_Head = static_cast<unsigned char*>(malloc(m_CapacityBytes));
-        memset(m_Head, 0, m_CapacityBytes);
-
-        assert(m_Head);
-
-        m_Current = m_Head;
-        m_Tail = m_Head + (m_CapacityBytes);
+        Free();
     }
+    void Free();
 
-    template <size_t SlotSize, size_t SlotsNum>
-    [[nodiscard]] constexpr Chunk<SlotSize, SlotsNum>* TryToGetNewChunk(Pool<SlotSize, SlotsNum>* pool)
-    {
-        unsigned char* requestedPtr = m_Current + SlotSize * SlotsNum;
-        if (requestedPtr < m_Tail)
-        {
-            // Arena has enought space for new chunk, give it
-            unsigned char* prevPtr = m_Current;
-            m_Current = requestedPtr;
-            return new Chunk<SlotSize, SlotsNum>(prevPtr);
-        }
-        else
-        {
-            return nullptr;
-        }
-    }
+    [[nodiscard]] Pool* CreatePool(uint32_t slotSize);
+    [[nodiscard]] Pool* GetPool(uint32_t slotSize);
 
-    template <uint32_t SlotSize, uint32_t SlotsNum = PAGE_SIZE / SlotSize>
-    [[nodiscard]] constexpr Pool<SlotSize, SlotsNum>* GetPool()
-    {
-        if (auto val = map.find(SlotSize); val != map.end())
-            return static_cast<Pool<SlotSize, SlotsNum>*>(val->second);
+    [[nodiscard]] Chunk* TryToGetNewChunk(Pool* pool, uint32_t slotSize, uint8_t slotsCount);
 
-        return nullptr;
-    }
+    Arena operator=(const Arena& other);
 
-    template <uint32_t SlotSize, uint32_t SlotsNum = PAGE_SIZE / SlotSize>
-    [[nodiscard]] constexpr Pool<SlotSize, SlotsNum>* CreatePool()
-    {
-        auto pool = GetPool<SlotSize, SlotsNum>();
-        if (pool)
-            return pool;
+    void Print();
 
-        // Test if we have enought capacity
-        size_t updatedUsed = m_UsedBytes + SlotSize;
-        if (updatedUsed <= m_CapacityBytes)
-        {
-            map[SlotSize] = new Pool<SlotSize, SlotsNum>(m_Current);
-            m_Current += SlotSize;
-            return static_cast<Pool<SlotSize, SlotsNum>*>(map[SlotSize]);
-        }
-        else
-        {
-            // Not enought space in current arena
-            return nullptr;
-        }
-    }
-
-    Arena<Size> operator=(const Arena& other)
-    {
-        return Arena<Size>();
-    };
-
-    void Free()
-    {
-        delete m_Head;
-    }
-
-    void Print()
-    {
-        if (auto val = map.find(256); val != map.end())
-            static_cast<Pool<256, PAGE_SIZE / 256>*>(val->second)->Print();
-        if (auto val = map.find(512); val != map.end())
-            static_cast<Pool<512, PAGE_SIZE / 512>*>(val->second)->Print();
-    }
 
 private:
+    const uint32_t m_PageSize;
+    const uint32_t m_MinSlotSize;
+    const size_t m_CapacityBytes;
+
     unsigned char* m_Head;
 
     // one-past-the-end
     unsigned char* m_Tail;
 
     unsigned char* m_Current;
-    size_t m_CapacityBytes, m_UsedBytes = 0;
+    size_t m_UsedBytes;
 
     std::unordered_map<uint32_t, void*> map;
 };
 
-template <size_t Size>
 struct MemoryManager
 {
-    MemoryManager()
-    {
-        static_assert(Size > 0, "Allocation size must be > 0");
+    MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize);
+    ~MemoryManager();
 
-        m_LocalArena = Arena<m_Capacity>();
-    }
-    ~MemoryManager()
+    template <class T, size_t Align = 0>
+    [[nodiscard]] T* allocate(uint32_t count)
     {
-        m_LocalArena.Free();
-    }
+        uint32_t sizeOfType = sizeof(T);
+        assert(count > 0 && sizeOfType * count <= std::numeric_limits<uint32_t>::max(), "Allocation size must be > 0");
 
-    template <class T, size_t Num, size_t Align = 0>
-    constexpr [[nodiscard]] T* allocate()
-    {
-        static_assert(Num > 0 && sizeof(T) * Num <= std::numeric_limits<uint32_t>::max(), "Allocation size must be > 0");
+        uint32_t requestedBytes = sizeOfType * count;
+        uint32_t slotSize = get_pow2_ceil(requestedBytes);
+        if (slotSize < m_MinSlotSize)
+            slotSize = m_MinSlotSize;
 
-        constexpr uint32_t requestedSize = sizeof(T) * Num;
-        constexpr uint32_t ceiledSize = get_pow2_ceil<requestedSize>();
-        constexpr uint32_t slotsNumber = PAGE_SIZE / ceiledSize;
-        constexpr bool isObjectLarge = ceiledSize >= SIZE_OF_LARGE_TYPE;
-        if constexpr (!isObjectLarge)
+        uint8_t slotsPerPage = m_PageSize / slotSize;
+
+
+        bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE;
+        if (!isObjectLarge)
         {
-            Pool<ceiledSize, slotsNumber>* pool = nullptr;
+            Pool* pool = nullptr;
 
-            pool = m_LocalArena.GetPool<ceiledSize, slotsNumber>();
+            pool = m_LocalArena->GetPool(slotSize);
             if (!pool)
-                pool = m_LocalArena.CreatePool<ceiledSize, slotsNumber>();
+                pool = m_LocalArena->CreatePool(slotSize);
 
             if (pool)
             {
-                unsigned char* requestedMemory = pool->RequestSlot();
+                unsigned char* requestedMemory = pool->AcquireSlotFromPool();
                 if (!requestedMemory)
                 {
                     // Not enought space in chunk
                     // Trying to get another chunk for that pool from Arena
-                    auto newChunk = m_LocalArena.TryToGetNewChunk<ceiledSize, slotsNumber>(pool);
+                    auto newChunk = m_LocalArena->TryToGetNewChunk(pool, slotSize, slotsPerPage);
                     if (newChunk)
                     {
                         pool->Extend(newChunk);
-                        return reinterpret_cast<T*>(newChunk->RequestSlotRecursive());
+                        return reinterpret_cast<T*>(newChunk->TryAcquireSlotInChunkChain());
                     }
                     else
                     {
@@ -541,43 +316,46 @@ struct MemoryManager
             else
             {
                 // TODO couldn't create new Pool
+                assert(false);
             }
         }
         else
         {
             // TODO think about large object strategy
+            __debugbreak();
         }
     }
 
-    template <class T, uint32_t num>
-    void deallocate(void* ptr)
+    template <class T>
+    void deallocate(void* ptr, uint32_t num)
     {
-        constexpr uint32_t deallocationSize = sizeof(T) * num;
-        assert(deallocationSize <= std::numeric_limits<uint32_t>::max());
+        uint32_t blockSizeBytes = sizeof(T) * num;
+        assert(blockSizeBytes <= std::numeric_limits<uint32_t>::max());
 
-        constexpr uint32_t ceiledSize = get_pow2_ceil<deallocationSize>();
-        constexpr uint32_t slotsNumber = PAGE_SIZE / ceiledSize;
+        uint32_t alignedBlockSize = get_pow2_ceil(blockSizeBytes);
 
-        unsigned char* charPtr = reinterpret_cast<unsigned char*>(ptr);
-        const bool isObjectLarge = deallocationSize >= SIZE_OF_LARGE_TYPE;
+        unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
+        const bool isObjectLarge = blockSizeBytes >= SIZE_OF_LARGE_TYPE;
         if (!isObjectLarge)
         {
-            auto pool = m_LocalArena.GetPool<ceiledSize, slotsNumber>();
+            auto pool = m_LocalArena->GetPool(alignedBlockSize);
             if (pool)
             {
-                pool->GetChunkByPtrToBlock(charPtr)->deallocate(charPtr, num);
+                bool res = pool->FreeSlot(bytePtr);
+                if (!res)
+                    __debugbreak();
             }
         }
     }
 
-    void Print()
-    {
-        m_LocalArena.Print();
-    }
+    void Print();
 
 private:
-    static constexpr size_t m_Capacity = get_pow2_ceil<Size>();
-    Arena<m_Capacity> m_LocalArena;
+    const uint32_t m_ArenaSize;
+    const uint32_t m_PageSize;
+    const size_t m_Capacity;
+    const uint8_t m_MinSlotSize;
+    Arena* m_LocalArena;
 };
 
 // template <class T>
