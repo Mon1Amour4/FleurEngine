@@ -34,6 +34,8 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     // helper: allocate N objects of the chosen synthetic type, return pointer as void*
     auto do_allocate = [&](int type, int count) -> void*
     {
+        std::cout << "\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << "}\n";
+
         switch (type)
         {
         case 0:
@@ -54,6 +56,8 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     // helper: deallocate using the exact type and count
     auto do_deallocate = [&](const AllocRecord& rec)
     {
+        std::cout << "\nDeallocation{type: " << std::to_string(rec.type) << ", count: " << std::to_string(rec.count) << "}\n";
+
         switch (rec.type)
         {
         case 0:
@@ -96,13 +100,11 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         }
         else
         {
-            // MyFile << "\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << "}\n";
-            std::cout << "\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << "}\n";
             void* ptr = do_allocate(type, count);
             ASSERT_NE(ptr, nullptr);
             allocated.push_back(AllocRecord{type, count, ptr});
         }
-        std::cout << i;
+        std::cout << std::to_string(i) << "\n";
         manager.Print();
         manager.SaveSnapshotToFile("MemorySnapshot.txt");
     }

@@ -195,7 +195,7 @@ void MM::Arena::Free()
 
 void MM::Arena::Print()
 {
-    std::cout << "//---------------------------- \i ARENA-PRINTING \i0 ----------------------------\\ \\par";
+    std::cout << "//---------------------------- ARENA-PRINTING ----------------------------\\\n";
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
     for (auto& pair : map)
@@ -264,11 +264,13 @@ bool MM::Pool::FreeSlot(unsigned char* ptr)
     if (chunk)
     {
         chunk->FreeChunkSlot(ptr);
-        std::cout << "Slot has freed";
         return true;
     }
     else
+    {
+        __debugbreak();
         return false;
+    }
 }
 
 //======================================================================
@@ -328,6 +330,10 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
 {
     bitmap.ClearBit((ptr - m_Head) / m_SlotSize);
     m_UsedBytes -= m_SlotSize;
+    std::cout << "Slot has freed\n";
+
+    if (m_UsedBytes < 0)
+        __debugbreak();
 }
 
 void MM::Chunk::PrintBucket()
@@ -398,7 +404,7 @@ void MM::Chunk::Print(uint32_t chunkNum)
     // PrintBucket();
 
     if (next)
-        next->Print(chunkNum++);
+        next->Print(++chunkNum);
 }
 
 void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
@@ -460,7 +466,7 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
     stream << strDown << '\n';
 
     if (next)
-        next->ChunkSnapshotToStream(chunkNum++, stream);
+        next->ChunkSnapshotToStream(++chunkNum, stream);
 }
 
 MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
