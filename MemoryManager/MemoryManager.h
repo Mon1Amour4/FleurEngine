@@ -98,6 +98,9 @@ public:
 
     void SetBit(uint8_t idx)
     {
+        if (idx > m_Bits - 1)
+            __debugbreak();
+
         m_Bitmap = bit_set(m_Bitmap, idx);
     }
 
@@ -302,17 +305,23 @@ struct MemoryManager
                     if (newChunk)
                     {
                         pool->Extend(newChunk);
-                        return reinterpret_cast<T*>(newChunk->TryAcquireSlotInChunkChain());
+                        requestedMemory = newChunk->TryAcquireSlotInChunkChain();
                     }
                     else
                     {
                         // TODO Not enought space in arena for new chunk, allocate new arena?
-                        return nullptr;
+                        requestedMemory = nullptr;
                     }
+                }
+                if (requestedMemory)
+                {
+                    // placement new
+                    return new (requestedMemory) T;
                 }
                 else
                 {
-                    return reinterpret_cast<T*>(requestedMemory);
+                    __debugbreak();
+                    return nullptr;
                 }
             }
             else
@@ -346,6 +355,11 @@ struct MemoryManager
                 bool res = pool->FreeSlot(bytePtr);
                 if (!res)
                     __debugbreak();
+                else
+                {
+                    // placement new deallocation
+                    reinterpret_cast<T*>(bytePtr)->~T();
+                }
             }
         }
     }
