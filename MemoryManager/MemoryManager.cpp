@@ -303,14 +303,14 @@ unsigned char* MM::Chunk::TryAcquireSlotInChunkChain()
 
         uint8_t slot = oldCapacity / m_SlotSize;
         bitmap.SetBit(slot);
-        unsigned char* nextPtr = m_Head + slot;
+        unsigned char* nextPtr = m_Head + (slot * m_SlotSize);
         assert(nextPtr < m_Tail);
         return nextPtr;
     }
 
     if (next)
     {
-        next->TryAcquireSlotInChunkChain();
+        return next->TryAcquireSlotInChunkChain();
     }
 
     return nullptr;
