@@ -124,6 +124,14 @@ void MM::MemoryManager::ClearFile(std::string_view fileName)
     myFile.close();
 }
 
+uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
+{
+    uint32_t slotSize = get_pow2_ceil(original);
+    if (slotSize < m_MinSlotSize)
+        slotSize = m_MinSlotSize;
+    return slotSize;
+}
+
 //======================================================================
 // Arena
 MM::Arena::Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize)
@@ -196,12 +204,14 @@ void MM::Arena::Free()
 void MM::Arena::Print()
 {
     std::cout << "//---------------------------- ARENA-PRINTING ----------------------------\\\n";
+
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
     for (auto& pair : map)
     {
         reinterpret_cast<Pool*>(pair.second)->Print();
     }
+
     std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
 }
 

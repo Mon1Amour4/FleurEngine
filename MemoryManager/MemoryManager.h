@@ -27,6 +27,7 @@ constexpr uint32_t get_pow2_ceil(uint32_t number)
     return n + 1;
 }
 
+#pragma region Benchmark
 //======================================================================
 struct Benchmark
 {
@@ -57,6 +58,7 @@ public:
     static void EndOfFrame();
     static std::string FormatToSecMsMcs(std::chrono::microseconds timer);
 };
+#pragma endregion
 
 #pragma region Bits
 
@@ -124,49 +126,9 @@ private:
     uint64_t m_Bitmap;
     uint8_t m_Bits;
 };
-
 #pragma endregion
 
-// template <typename T>
-// struct CustomAllocator
-//{
-//     using value_type = T;
-//
-//     constexpr CustomAllocator() noexcept
-//     {
-//         mark = Benchmark();
-//     }
-//     constexpr ~CustomAllocator() = default;
-//     template <class U>
-//     constexpr CustomAllocator(const CustomAllocator<U>&) noexcept
-//     {
-//     }
-//     [[nodiscard]] constexpr T* allocate(size_t n)
-//     {
-//         FL_CORE_INFO("[ALLOCATOR] Allocated {0} bytes for {1} of type", n * sizeof(T), n);
-//         mark.Start();
-//         T* ptr = static_cast<T*>(malloc(n * sizeof(T)));
-//         mark.End();
-//         return ptr;
-//     }
-//     constexpr void deallocate(T* p, size_t n)
-//     {
-//         FL_CORE_INFO("[ALLOCATOR] Deallocated {0} bytes for {1} of type", n * sizeof(T), n);
-//         free(p);
-//
-//         mark.Deallocate();
-//     }
-//     bool operator==(const CustomAllocator&) const noexcept
-//     {
-//         return true;
-//     }
-//     bool operator!=(const CustomAllocator&) const noexcept
-//     {
-//         return false;
-//     }
-//     Benchmark mark;
-// };
-
+#pragma region Chunk
 //======================================================================
 struct Chunk
 {
@@ -199,7 +161,9 @@ private:
     Chunk* next;
     BitSet64 bitmap;
 };
+#pragma endregion
 
+#pragma region Pool
 //======================================================================
 struct Pool
 {
@@ -221,7 +185,9 @@ private:
     const uint32_t m_SlotSize;
     const uint32_t m_SlotsCount;
 };
+#pragma endregion
 
+#pragma region Arena
 //======================================================================
 struct Arena
 {
@@ -259,14 +225,16 @@ private:
 
     std::unordered_map<uint32_t, void*> map;
 };
+#pragma endregion
 
+#pragma region MemoryManager
 //======================================================================
 /*
  * @brief Memory Manager designed for Fleur Game Engine.
  * @details Manages memory arenas, poools, controls allocation\deallocation.
  * Core component.
  */
-struct MemoryManager
+class MemoryManager
 {
     MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize);
     ~MemoryManager();
@@ -278,17 +246,15 @@ struct MemoryManager
         assert(count > 0 && sizeOfType * count <= std::numeric_limits<uint32_t>::max(), "Allocation size must be > 0");
 
         uint32_t requestedBytes = sizeOfType * count;
-        uint32_t slotSize = get_pow2_ceil(requestedBytes);
-        if (slotSize < m_MinSlotSize)
-            slotSize = m_MinSlotSize;
+        uint32_t slotSize = CalculateSlotSize(requestedBytes);
 
         uint8_t slotsPerPage = m_PageSize / slotSize;
-
 
         bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE;
         if (!isObjectLarge)
         {
             Pool* pool = nullptr;
+            unsigned char* requestedMemory = nullptr;
 
             pool = m_LocalArena->GetPool(slotSize);
             if (!pool)
@@ -296,7 +262,7 @@ struct MemoryManager
 
             if (pool)
             {
-                unsigned char* requestedMemory = pool->AcquireSlotFromPool();
+                requestedMemory = pool->AcquireSlotFromPool();
                 if (!requestedMemory)
                 {
                     // Not enought space in chunk
@@ -320,6 +286,7 @@ struct MemoryManager
                 }
                 else
                 {
+                    // No space in pool, couldn't create new chunk
                     __debugbreak();
                     return nullptr;
                 }
@@ -327,6 +294,7 @@ struct MemoryManager
             else
             {
                 // TODO couldn't create new Pool
+                // Not enought space in arena? Create new arena?
                 assert(false);
             }
         }
@@ -376,6 +344,9 @@ private:
     const size_t m_Capacity;
     const uint8_t m_MinSlotSize;
     Arena* m_LocalArena;
+
+    uint32_t CalculateSlotSize(uint32_t original);
 };
+#pragma endregion
 
 }  // namespace MM
