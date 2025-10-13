@@ -44,6 +44,8 @@ SET(ENGINE_HEADERS
     # Main Headers
     Fleur.h
     flpch.h
+    # Concepts
+     Fleur/Concepts.hpp
 )
 
 SET(ENGINE_SOURCES
