@@ -346,7 +346,10 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
     std::cout << "Slot has freed\n";
 
     if (bitmap.UsedBits() != m_UsedBytes / m_SlotSize)
+    {
+        std::cout << "Used bits aren't same as used: " << std::to_string(m_UsedBytes) << " slot size: " << std::to_string(m_SlotSize) << ", bitmap bits:"<<std::to_string(bitmap.UsedBits()) << ",chunk address : " << this << "\n ";
         __debugbreak();
+    }
 
     if (m_UsedBytes < 0)
         __debugbreak();
@@ -389,7 +392,7 @@ void MM::Chunk::Print(uint32_t chunkNum)
     static constexpr char occupiedCell = 'x';
     static constexpr uint32_t cellsPerRow = 40;
 
-    std::cout << "\nChunk_" << chunkNum << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+    std::cout << "\nChunk_" << chunkNum << "{" << this << "}" <<"{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
 
     const uint32_t numCells = m_CapacityBytes / m_SlotSize;
     const uint32_t maxIndex = numCells ? numCells - 1 : 0;
