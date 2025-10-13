@@ -23,7 +23,8 @@ SET(TESTS_HEADERS
   ${INCLUDE_FOLDER}/Tests.h 
   ${INCLUDE_FOLDER}/CoreLibTests.h 
   ${INCLUDE_FOLDER}/MemoryManagerTests.h
-  ${INCLUDE_FOLDER}/SyntheticTypes.hpp)
+  ${INCLUDE_FOLDER}/SyntheticTypes.hpp
+  ${INCLUDE_FOLDER}/ConceptTests.hpp)
 
 SET(TESTS_SOURCES ${SRC_FOLDER}/Tests.cpp)
 
