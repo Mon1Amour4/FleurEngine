@@ -1,30 +1,6 @@
 #include "MemoryManager.h"
 
 //======================================================================
-// Bits
-uint64_t MM::bit_set(uint64_t number, uint8_t n) noexcept
-{
-    return number | (static_cast<uint64_t>(1) << n);
-}
-
-uint64_t MM::bit_clear(uint64_t number, uint8_t n) noexcept
-{
-    return number & ~(static_cast<uint64_t>(1) << n);
-}
-
-uint64_t MM::bit_toggle(uint64_t number, uint8_t n) noexcept
-{
-    return number ^ (static_cast<uint64_t>(1) << n);
-}
-
-// True = 1
-// False = 0
-bool MM::bit_check(uint64_t number, uint8_t n) noexcept
-{
-    return (number & (static_cast<uint64_t>(1) << n)) != 0;
-}
-
-//======================================================================
 // Benchmark
 size_t MM::Benchmark::m_NumAllocations = 0;
 size_t MM::Benchmark::m_NumDeallocations = 0;
@@ -91,8 +67,8 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     , m_ArenaSize(arenaSize)
     , m_Capacity(capacity)
 {
-    assert(capacity > 0 && pageSize > 0, minSlotSize > 0, "Value must be > 0");
-    assert(arenaSize <= capacity, "Arena size can't exceed MM capacity");
+    assert(capacity > 0 && pageSize > 0, minSlotSize > 0);
+    assert(arenaSize <= capacity);
 
     m_LocalArena = new MM::Arena(1024 * 1024 * 8, pageSize, minSlotSize);
 }
@@ -134,7 +110,7 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
 
 //======================================================================
 // Arena
-MM::Arena::Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize)
+MM::Arena::Arena(size_t capacity, uint32_t pageSize, uint32_t minSlotSize)
     : m_PageSize(pageSize)
     , m_MinSlotSize(minSlotSize)
     , m_CapacityBytes(capacity)
@@ -235,8 +211,8 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     , m_SlotsCount(slotCount)
     , m_HeadChunk(nullptr)
 {
-    assert(m_SlotSize > 0, "Value Value must be > 0");
-    assert(m_SlotsCount > 0 && m_SlotsCount <= 64, "Pool Slot size can't be lesst than MIN_SLOT_SIZE");
+    assert(m_SlotSize > 0);
+    assert(m_SlotsCount > 0 && m_SlotsCount <= 64);
 
     std::cout << "Pool{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
 

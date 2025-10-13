@@ -7,10 +7,12 @@ SET(CORELIB_HEADERS
   Sptr.h 
   singleton.hpp 
   DefaultAllocator.h 
-  Bitmap.hpp)
+  Bitmap.hpp
+  BitSet64.h)
 
 SET(CORELIB_SOURCES 
-  CoreLib.cpp)
+  CoreLib.cpp
+  BitSet64.cpp)
 
 # === Library Target ===
 ADD_LIBRARY(CoreLib STATIC ${CORELIB_SOURCES} ${CORELIB_HEADERS})

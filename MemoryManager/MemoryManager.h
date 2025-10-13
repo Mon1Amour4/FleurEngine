@@ -5,6 +5,7 @@
 #include <limits>
 
 #include "../Engine/Fleur/Concepts.hpp"
+#include "BitSet64.h"
 
 namespace MM
 {
@@ -62,74 +63,6 @@ public:
 };
 #pragma endregion
 
-#pragma region Bits
-
-uint64_t bit_set(uint64_t number, uint8_t n) noexcept;
-
-uint64_t bit_clear(uint64_t number, uint8_t n) noexcept;
-
-uint64_t bit_toggle(uint64_t number, uint8_t n) noexcept;
-
-// True     = 1 = Occupied
-// False    = 0 = Free
-bool bit_check(uint64_t number, uint8_t n) noexcept;
-
-#pragma endregion
-
-#pragma region BitSet64
-//======================================================================
-/*
- * @brief General purpose bits container, stores up to 64 flags. 0 - free, 1 - occupied
- * @details Bits operations sucs as set\check\clear\toggle.
- */
-class BitSet64
-{
-public:
-    BitSet64(uint8_t bits)
-        : m_Bitmap(0)
-        , m_Bits(bits)
-    {
-        assert(m_Bits <= 64, "Type is too large (>64 bytes)");
-        assert(m_Bits > 0, "Bits must be more than 0");
-
-        m_Bitmap = 0;
-    }
-
-    bool IsBitOccupied(uint8_t idx) const
-    {
-        return bit_check(m_Bitmap, idx);
-    }
-
-    void SetBit(uint8_t idx)
-    {
-        if (idx > m_Bits - 1)
-            __debugbreak();
-
-        m_Bitmap = bit_set(m_Bitmap, idx);
-    }
-
-    void ClearBit(uint8_t idx)
-    {
-        m_Bitmap = bit_clear(m_Bitmap, idx);
-    }
-
-    void ToggleBit(uint8_t idx)
-    {
-        m_Bitmap = bit_toggle(m_Bitmap, idx);
-    }
-
-    bool IsFull() const
-    {
-        uint64_t mask = ~0ull >> (64 - m_Bits);
-        return m_Bitmap == mask;
-    }
-
-private:
-    uint64_t m_Bitmap;
-    uint8_t m_Bits;
-};
-#pragma endregion
-
 #pragma region Chunk
 //======================================================================
 struct Chunk
@@ -161,7 +94,7 @@ private:
     unsigned char* m_Head;
     unsigned char* m_Tail;
     Chunk* next;
-    BitSet64 bitmap;
+    Fleur::Core::BitSet64 bitmap;
 };
 #pragma endregion
 
@@ -185,7 +118,7 @@ private:
     Chunk* m_HeadChunk;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
-    const uint32_t m_SlotsCount;
+    const uint8_t m_SlotsCount;
 };
 #pragma endregion
 
@@ -193,7 +126,7 @@ private:
 //======================================================================
 struct Arena
 {
-    Arena(size_t capacity, size_t pageSize, uint32_t minSlotSize);
+    Arena(size_t capacity, uint32_t pageSize, uint32_t minSlotSize);
     ~Arena()
     {
         Free();
@@ -247,7 +180,7 @@ public:
     [[nodiscard]] T* allocate(uint32_t count)
     {
         uint32_t sizeOfType = sizeof(T);
-        assert(count > 0 && sizeOfType * count <= std::numeric_limits<uint32_t>::max(), "Allocation size must be > 0");
+        assert(count > 0 && sizeOfType * count <= std::numeric_limits<uint32_t>::max());
 
         uint32_t requestedBytes = sizeOfType * count;
         uint32_t slotSize = CalculateSlotSize(requestedBytes);
