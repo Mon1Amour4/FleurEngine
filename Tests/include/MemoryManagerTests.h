@@ -35,15 +35,30 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         switch (type)
         {
         case 0:
+        {
+            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic1) * count << "\n";
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic1>(count));
+        }
         case 1:
+        {
+            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic2) * count << "\n";
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic2>(count));
+        }
         case 2:
+        {
+            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic3) * count << "\n";
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic3>(count));
+        }
         case 3:
+        {
+            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic4) * count << "\n";
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic4>(count));
+        }
         case 4:
+        {
+            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic5) * count << "\n";
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic5>(count));
+        }
 
             return nullptr;
         }

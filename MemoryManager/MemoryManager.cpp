@@ -152,7 +152,6 @@ MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
     else
     {
         // Not enought space in current arena
-        assert(false);
         return nullptr;
     }
 }
@@ -218,7 +217,7 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     assert(m_SlotSize > 0);
     assert(m_SlotsCount > 0 && m_SlotsCount <= 64);
 
-    std::cout << "Pool{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
+    std::cout << "--[CREATED] Pool{" << std::to_string(m_SlotSize) << "," << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n";
 
     m_HeadChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
 
@@ -282,7 +281,7 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     , next(nullptr)
     , bitmap(m_SlotsCount)
 {
-    std::cout << "Chunk{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
+    std::cout << "--[CREATED] Chunk{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
 
     m_Head = ptr;
     m_Tail = m_Head + m_CapacityBytes;

@@ -235,6 +235,7 @@ public:
             {
                 // TODO couldn't create new Pool
                 // Not enought space in arena? Create new arena?
+                __debugbreak();
                 assert(false);
             }
         }
