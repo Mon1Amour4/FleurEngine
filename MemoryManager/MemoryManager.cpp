@@ -329,13 +329,25 @@ void MM::Chunk::SetNextChunkRecursive(Chunk* nextChunk)
         next->SetNextChunkRecursive(nextChunk);
 }
 
+MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
+{
+    if (ptr < m_Tail && ptr >= m_Head)
+        return this;
+
+    if (next)
+        return next->IsPtrToBlockIsInChunkRecursive(ptr);
+    else
+        return nullptr;
+}
+
 void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
 {
     bitmap.ClearBit((ptr - m_Head) / m_SlotSize);
     m_UsedBytes -= m_SlotSize;
     std::cout << "Slot has freed\n";
 
-    bitmap.UsedBits();
+    if (bitmap.UsedBits() != m_UsedBytes / m_SlotSize)
+        __debugbreak();
 
     if (m_UsedBytes < 0)
         __debugbreak();
@@ -366,7 +378,6 @@ void MM::Chunk::PrintBucket()
         std::cout << "/\n";
     }
 }
-
 void MM::Chunk::Print(uint32_t chunkNum)
 {
     constexpr const char* Reset = "\033[0m";
@@ -411,7 +422,6 @@ void MM::Chunk::Print(uint32_t chunkNum)
     if (next)
         next->Print(++chunkNum);
 }
-
 void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 {
     struct PrintSlot
@@ -472,15 +482,4 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 
     if (next)
         next->ChunkSnapshotToStream(++chunkNum, stream);
-}
-
-MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
-{
-    if (ptr < m_Tail && ptr >= m_Head)
-        return this;
-
-    if (next)
-        return next->IsPtrToBlockIsInChunkRecursive(ptr);
-    else
-        return nullptr;
 }
