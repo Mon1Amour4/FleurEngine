@@ -3,6 +3,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <new>
 
 #include "../Engine/Fleur/Concepts.hpp"
 #include "BitSet64.h"
@@ -69,7 +70,7 @@ struct Chunk
 {
 public:
     Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
-    ~Chunk() = default;
+    ~Chunk();
 
     void SetNextChunkRecursive(Chunk* nextChunk);
 
@@ -103,7 +104,7 @@ private:
 struct Pool
 {
     Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
-    ~Pool() = default;
+    ~Pool();
 
     unsigned char* AcquireSlotFromPool();
 
@@ -126,12 +127,14 @@ private:
 //======================================================================
 struct Arena
 {
-    Arena(size_t capacity, uint32_t pageSize, uint32_t minSlotSize);
+    Arena(unsigned char* ptr, size_t capacity, size_t pageSize, uint32_t minSlotSize);
     ~Arena()
     {
-        Free();
+        for (auto& pair : map)
+        {
+            reinterpret_cast<Pool*>(pair.second)->~Pool();
+        }
     }
-    void Free();
 
     [[nodiscard]] Pool* CreatePool(uint32_t slotSize);
     [[nodiscard]] Pool* GetPool(uint32_t slotSize);
@@ -276,11 +279,16 @@ public:
     void ClearFile(std::string_view fileName);
 
 private:
-    const uint32_t m_ArenaSize;
-    const uint32_t m_PageSize;
-    const size_t m_Capacity;
-    const uint8_t m_MinSlotSize;
+    unsigned char* m_Head;
     Arena* m_LocalArena;
+
+    const size_t m_Capacity;
+    uint32_t m_UsedBytes;
+
+    const uint32_t m_PageSize;
+    const uint8_t m_MinSlotSize;
+
+    const uint32_t m_ArenaSize;
 
     uint32_t CalculateSlotSize(uint32_t original);
 };

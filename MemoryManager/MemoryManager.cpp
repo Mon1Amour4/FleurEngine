@@ -66,15 +66,27 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     , m_MinSlotSize(minSlotSize)
     , m_ArenaSize(arenaSize)
     , m_Capacity(capacity)
+    , m_Head(nullptr)
+    , m_UsedBytes(0)
 {
     assert(capacity > 0 && pageSize > 0, minSlotSize > 0);
     assert(arenaSize <= capacity);
 
-    m_LocalArena = new MM::Arena(1024 * 1024 * 8, pageSize, minSlotSize);
+    m_Head = reinterpret_cast<unsigned char*>(malloc(capacity));
+
+    assert(m_Head);
+
+    std::cout << "Memory Manager has allocated " << std::to_string(capacity) << "bytes\n";
+
+    m_LocalArena = new (static_cast<void*>(m_Head)) Arena(m_Head + sizeof(Arena), arenaSize - sizeof(Arena), pageSize, minSlotSize);
+
+    assert(m_LocalArena);
+
+    m_UsedBytes += m_ArenaSize;
 }
 MM::MemoryManager::~MemoryManager()
 {
-    m_LocalArena->Free();
+    m_LocalArena->~Arena();
 }
 
 void MM::MemoryManager::Print()
@@ -91,7 +103,6 @@ void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName)
 
     myFile.close();
 }
-
 void MM::MemoryManager::ClearFile(std::string_view fileName)
 {
     std::ofstream myFile;
@@ -110,15 +121,13 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
 
 //======================================================================
 // Arena
-MM::Arena::Arena(size_t capacity, uint32_t pageSize, uint32_t minSlotSize)
+MM::Arena::Arena(unsigned char* ptr, size_t capacity, size_t pageSize, uint32_t minSlotSize)
     : m_PageSize(pageSize)
     , m_MinSlotSize(minSlotSize)
     , m_CapacityBytes(capacity)
     , m_UsedBytes(0)
+    , m_Head(ptr)
 {
-    m_Head = static_cast<unsigned char*>(malloc(m_CapacityBytes));
-    memset(m_Head, 0, m_CapacityBytes);
-
     assert(m_Head);
 
     m_Current = m_Head;
@@ -126,7 +135,7 @@ MM::Arena::Arena(size_t capacity, uint32_t pageSize, uint32_t minSlotSize)
 }
 MM::Arena MM::Arena::operator=(const Arena& other)
 {
-    return Arena(other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
+    return Arena(nullptr, other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
 };
 
 MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
@@ -135,7 +144,7 @@ MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
     size_t updatedUsed = m_UsedBytes + m_PageSize;
     if (updatedUsed <= m_CapacityBytes)
     {
-        map[slotSize] = new Pool(m_Current, slotSize, m_PageSize / slotSize);
+        map[slotSize] = new (m_Current) Pool(m_Current + sizeof(Pool), slotSize, m_PageSize / slotSize);
         m_Current += m_PageSize;
         m_UsedBytes += m_PageSize;
         return static_cast<Pool*>(map[slotSize]);
@@ -163,18 +172,13 @@ MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_
         // Arena has enought space for new chunk, give it
         unsigned char* prevPtr = m_Current;
         m_Current = requestedPtr;
-        return new Chunk(prevPtr, slotSize, slotsCount);
+        return new (prevPtr) Chunk(prevPtr + sizeof(Chunk), slotSize, slotsCount);
     }
     else
     {
         assert(false);
         return nullptr;
     }
-}
-
-void MM::Arena::Free()
-{
-    delete m_Head;
 }
 
 void MM::Arena::Print()
@@ -216,9 +220,16 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
 
     std::cout << "Pool{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
 
-    m_HeadChunk = new Chunk(ptr, m_SlotSize, m_SlotsCount);
+    m_HeadChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
+
+    assert(m_HeadChunk);
 
     ++m_NumChunks;
+}
+
+MM::Pool::~Pool()
+{
+    m_HeadChunk->~Chunk();
 }
 
 unsigned char* MM::Pool::AcquireSlotFromPool()
@@ -275,6 +286,12 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
 
     m_Head = ptr;
     m_Tail = m_Head + m_CapacityBytes;
+}
+
+MM::Chunk::~Chunk()
+{
+    if (next)
+        next->~Chunk();
 }
 
 unsigned char* MM::Chunk::TryAcquireSlotInChunkChain()
