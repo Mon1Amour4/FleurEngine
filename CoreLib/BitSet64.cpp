@@ -98,11 +98,5 @@ bool Fleur::Core::BitSet64::IsFull() const
 
 uint8_t Fleur::Core::BitSet64::UsedBits() const
 {
-    uint8_t counter = 0;
-    for (uint8_t i = 0; i < m_Bits; i++)
-    {
-        if (IsBitOccupied(i))
-            counter++;
-    }
-    return counter;
+    return static_cast<uint8_t>(std::popcount(m_Bitmap));
 }

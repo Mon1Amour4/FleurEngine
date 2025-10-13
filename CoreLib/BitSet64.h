@@ -2,6 +2,7 @@
 
 #include <intrin.h>
 
+#include <bit>
 #include <cassert>
 #include <cstdint>
 
