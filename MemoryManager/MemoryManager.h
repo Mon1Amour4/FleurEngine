@@ -4,6 +4,8 @@
 #include <iostream>
 #include <limits>
 
+#include "../Engine/Fleur/Concepts.hpp"
+
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -241,6 +243,7 @@ public:
     ~MemoryManager();
 
     template <class T, size_t Align = 0>
+        requires Fleur::Concepts::IsDefaultConstructible<T>
     [[nodiscard]] T* allocate(uint32_t count)
     {
         uint32_t sizeOfType = sizeof(T);
