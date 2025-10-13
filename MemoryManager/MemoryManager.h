@@ -236,6 +236,7 @@ private:
  */
 class MemoryManager
 {
+public:
     MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize);
     ~MemoryManager();
 
