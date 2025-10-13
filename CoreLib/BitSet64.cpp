@@ -22,6 +22,40 @@ bool Fleur::Core::bit_check(uint64_t number, uint8_t n)
     return (number & (static_cast<uint64_t>(1) << n)) != 0;
 }
 
+bool Fleur::Core::bit_scan_forward(uint32_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanForward(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+bool Fleur::Core::bit_scan_forward64(uint64_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanForward64(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+
+bool Fleur::Core::bit_scan_reverse(uint32_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanReverse(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+bool Fleur::Core::bit_scan_reverse64(uint64_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanReverse64(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+
 //======================================================================
 Fleur::Core::BitSet64::BitSet64(uint8_t bits)
     : m_Bitmap(0)
@@ -64,5 +98,4 @@ bool Fleur::Core::BitSet64::IsFull() const
 
 uint8_t Fleur::Core::BitSet64::UsedBits() const
 {
-    return 0;
 }

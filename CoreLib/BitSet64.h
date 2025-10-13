@@ -1,5 +1,7 @@
 #pragma once
 
+#include <intrin.h>
+
 #include <cassert>
 #include <cstdint>
 
@@ -17,6 +19,13 @@ uint64_t bit_toggle(uint64_t number, uint8_t n);
 // True     = 1 = Occupied
 // False    = 0 = Free
 bool bit_check(uint64_t number, uint8_t n);
+
+bool bit_scan_forward(uint32_t number, uint32_t* idx);
+bool bit_scan_forward64(uint64_t number, uint32_t* idx);
+
+bool bit_scan_reverse(uint32_t number, uint32_t* idx);
+bool bit_scan_reverse64(uint64_t number, uint32_t* idx);
+
 
 #pragma endregion
 

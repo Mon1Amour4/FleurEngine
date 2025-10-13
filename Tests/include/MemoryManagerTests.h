@@ -6,10 +6,6 @@
 #include "SyntheticTypes.hpp"
 #include "gtest/gtest.h"
 
-using SyntheticTypesVariant =
-    std::variant<Synthetic::Synthetic1, Synthetic::Synthetic2, Synthetic::Synthetic3, Synthetic::Synthetic4, Synthetic::Synthetic5/*, Synthetic::Synthetic6,
-                 Synthetic::Synthetic7, Synthetic::Synthetic8, Synthetic::Synthetic9, Synthetic::Synthetic10, Synthetic::Synthetic11*/>;
-
 #define TEST_SUITE_NAME MemoryManagerTest
 #define ManagerConfig 8 * 1024 * 1024, 16 * 1024, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
 
@@ -19,7 +15,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     manager.ClearFile("MemorySnapshot.txt");
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, 0);  // 0 = alloc, 1 = free
+    std::uniform_int_distribution<> actionDist(0, 1);  // 0 = alloc, 1 = free
     std::uniform_int_distribution<> countDist(1, 10);
     std::uniform_int_distribution<> typeDist(0, 4);
 

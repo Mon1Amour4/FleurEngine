@@ -318,6 +318,8 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
     m_UsedBytes -= m_SlotSize;
     std::cout << "Slot has freed\n";
 
+    bitmap.UsedBits();
+
     if (m_UsedBytes < 0)
         __debugbreak();
 }
