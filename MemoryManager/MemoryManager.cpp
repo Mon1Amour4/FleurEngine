@@ -341,7 +341,8 @@ MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
 
 void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
 {
-    bitmap.ClearBit((ptr - m_Head) / m_SlotSize);
+    uint32_t clearBit = (ptr - m_Head) / m_SlotSize;
+    bitmap.ClearBit(clearBit);
     m_UsedBytes -= m_SlotSize;
     std::cout << "Slot has freed\n";
 
