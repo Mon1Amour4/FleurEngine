@@ -26,7 +26,10 @@ SET(TESTS_HEADERS
   ${INCLUDE_FOLDER}/SyntheticTypes.hpp
   ${INCLUDE_FOLDER}/ConceptTests.hpp)
 
-SET(TESTS_SOURCES ${SRC_FOLDER}/Tests.cpp)
+SET(TESTS_SOURCES 
+  ${SRC_FOLDER}/Tests.cpp
+  # MemoryManager .natvis file
+  ${SRC_FOLDER}/../../MemoryManager/MemoryManager.natvis)
 
 ADD_EXECUTABLE(FleurTests ${TESTS_HEADERS} ${TESTS_SOURCES})
 

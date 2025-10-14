@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010"> 
+<Type Name="Fleur::Core::BitSet64">
+	<DisplayString>Bits={m_Bits}, Bitmap={m_Bitmap,b}</DisplayString>
+</Type>
+
+<Type Name="MM::Arena">
+	<DisplayString>
+		Arena: {m_UsedBytes}/{m_CapacityBytes} bytes ({((float)m_UsedBytes * 100.0f) / (float)m_CapacityBytes,g}%)
+	</DisplayString>
+	<Expand>
+		<Item Name="Page Size">m_PageSize,nvo</Item>
+		<Item Name="Min Slot Size">m_MinSlotSize,nvo</Item>
+		<Item Name="Used Bytes">m_UsedBytes,nvo</Item>
+		<Item Name="Capacity Bytes">m_CapacityBytes</Item>
+		<Item Name="Usage (%)">((m_CapacityBytes == 0) ? 0 : ((m_UsedBytes * 100) / m_CapacityBytes))</Item>
+		
+		<Item Name="Head">m_Head,nvo</Item>
+		<Item Name="Tail">m_Tail,nvo</Item>
+		<Item Name="Current">m_Current,nvo</Item>
+		
+		<Item Name="Pools (map)">map</Item>
+	</Expand>
+</Type>
+	
+<Type Name="MM::Pool">
+	<DisplayString>
+		Pool: SlotSize={m_SlotSize}, SlotsPerChunk={m_SlotsCount}, Chunks={m_NumChunks}
+	</DisplayString>
+	<Expand>
+		<Item Name="Slot Size">m_SlotSize</Item>
+		<Item Name="Slots Per Chunk">m_SlotsCount,nvo</Item>
+		<Item Name="Chunks Count">m_NumChunks</Item>
+		<Item Name="Head Chunk">m_HeadChunk,x</Item>
+	</Expand>
+</Type>
+
+<Type Name="MM::MemoryManager">
+	<DisplayString>
+		Capacity={m_Capacity} bytes, Used={m_UsedBytes} bytes ({(double)m_UsedBytes / (double)m_Capacity * 100.0,g}%)
+	</DisplayString>
+	<Expand>
+		<Item Name="Page Size">m_PageSize</Item>
+		<Item Name="Min Slot Size">m_MinSlotSize, nvo</Item>
+		
+		<Item Name="Arena Size">m_ArenaSize</Item>
+		<Item Name="Capacity Bytes">m_Capacity</Item>
+		<Item Name="Used Bytes">m_UsedBytes</Item>
+		<Item Name="Arena">m_LocalArena</Item>
+		<Item Name="Head">m_Head</Item>
+	</Expand>
+</Type>
+</AutoVisualizer>
