@@ -120,3 +120,28 @@ uint8_t Fleur::Core::BitSet64::UsedBits() const
 {
     return static_cast<uint8_t>(std::popcount(m_Bitmap));
 }
+
+uint64_t Fleur::Core::BitSet64::Get() const
+{
+    return m_Bitmap;
+}
+
+bool Fleur::Core::BitSet64::ScanFirstSetForward(uint32_t* val) const
+{
+    if (m_Bits < 32)
+        return bit_scan_forward(static_cast<uint32_t>(m_Bitmap), val);
+
+    return bit_scan_forward64(m_Bitmap, val);
+}
+bool Fleur::Core::BitSet64::ScanFirstFreeForward(uint32_t* val) const
+{
+    if (m_Bits < 32)
+        return bit_scan_forward(static_cast<uint32_t>(~m_Bitmap), val);
+
+    return bit_scan_forward64(~m_Bitmap, val);
+}
+
+uint8_t Fleur::Core::BitSet64::MaskCount() const
+{
+    return m_Bits;
+}

@@ -53,6 +53,21 @@ public:
 
     uint8_t UsedBits() const;
 
+    uint64_t Get() const;
+
+    /*
+        If a set bit is found, the bit position of the first set bit is written to the address specified in the first parameter and the function returns true.
+        If no bit is found, the function returns false and the value written to the address in the first parameter is undefined.
+    */
+    bool ScanFirstSetForward(uint32_t* val) const;
+    /*
+        If a free bit is found, the bit position of the first free bit is written to the address specified in the first parameter and the function returns true.
+        If no bit is found, the function returns false and the value written to the address in the first parameter is undefined.
+    */
+    bool ScanFirstFreeForward(uint32_t* val) const;
+
+    uint8_t MaskCount() const;
+
 private:
     uint64_t m_Bitmap;
     uint8_t m_Bits;
