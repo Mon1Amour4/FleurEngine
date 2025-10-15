@@ -56,6 +56,26 @@ bool Fleur::Core::bit_scan_reverse64(uint64_t number, uint32_t* idx)
 #endif
 }
 
+std::ostream& Fleur::Core::operator<<(std::ostream& os, const Fleur::Core::BitSet64& obj)
+{
+    uint64_t bitsCount = obj.MaskCount();
+    uint64_t bitmap = obj.Get();
+
+    char* buffer = new char[bitsCount + 1];
+    buffer[bitsCount] = '\0';
+
+    for (size_t i = 0; i < bitsCount; i++)
+    {
+        const bool bitSet = (bitmap & (1ull << i)) != 0;
+        buffer[bitsCount - 1 - i] = bitSet ? '1' : '0';
+    }
+    os << buffer;
+
+    delete[] buffer;
+
+    return os;
+}
+
 //======================================================================
 Fleur::Core::BitSet64::BitSet64(uint8_t bits)
     : m_Bitmap(0)

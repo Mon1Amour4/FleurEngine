@@ -5,6 +5,7 @@
 #include <bit>
 #include <cassert>
 #include <cstdint>
+#include <ostream>
 
 namespace Fleur::Core
 {
@@ -56,5 +57,8 @@ private:
     uint64_t m_Bitmap;
     uint8_t m_Bits;
 };
+
+std::ostream& operator<<(std::ostream& os, const BitSet64& obj);
+
 #pragma endregion
 }  // namespace Fleur::Core
