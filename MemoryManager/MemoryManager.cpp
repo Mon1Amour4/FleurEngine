@@ -217,7 +217,8 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     assert(m_SlotSize > 0);
     assert(m_SlotsCount > 0 && m_SlotsCount <= 64);
 
-    std::cout << "--[CREATED] Pool{" << std::to_string(m_SlotSize) << "," << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n";
+    std::cout << "--[CREATED]\n";
+    std::cout << "  Pool{" << std::to_string(m_SlotSize) << ", " << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n ";
 
     m_HeadChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
 
@@ -250,7 +251,7 @@ void MM::Pool::Print()
 
 void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 {
-    stream << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
+    stream << "\nPrinting Pool{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} : Chunks: " << std::to_string(m_NumChunks);
     m_HeadChunk->ChunkSnapshotToStream(0, stream);
 }
 
@@ -281,7 +282,8 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     , next(nullptr)
     , bitmap(m_SlotsCount)
 {
-    std::cout << "--[CREATED] Chunk{" << m_SlotSize << "," << m_SlotsCount << "} has been created\n";
+    std::cout << "--[CREATED]\n";
+    std::cout << "  Chunk{" << m_SlotSize << ", " << m_SlotsCount << "} has been created\n ";
 
     m_Head = ptr;
     m_Tail = m_Head + m_CapacityBytes;
@@ -303,9 +305,26 @@ unsigned char* MM::Chunk::TryAcquireSlotInChunkChain()
         if (m_UsedBytes > m_CapacityBytes)
             __debugbreak();
 
-        uint8_t slot = oldCapacity / m_SlotSize;
-        bitmap.SetBit(slot);
-        unsigned char* nextPtr = m_Head + (slot * m_SlotSize);
+        // uint8_t freeSlot = oldCapacity / m_SlotSize;
+        uint32_t freeSlotNew = 0;
+        bitmap.ScanFirstFreeForward(&freeSlotNew);
+
+        uint64_t oldBitmap = bitmap.Get();
+
+        std::cout << "--[AcquireSlot]\n";
+        std::cout << "   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
+                  << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl;
+        std::cout << "   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap;
+
+        bitmap.SetBit(freeSlotNew);
+
+        std::cout << ", bitmap after: " << bitmap << std::endl;
+
+        if (oldBitmap == bitmap.Get())
+            __debugbreak();
+
+        unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
+
         assert(nextPtr < m_Tail);
         return nextPtr;
     }
@@ -342,13 +361,21 @@ MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
 void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
 {
     uint32_t clearBit = (ptr - m_Head) / m_SlotSize;
+    uint32_t old_m_UsedBytes = m_UsedBytes;
+    uint64_t old_bitmap = bitmap.Get();
+
+    std::cout << "--[Slot Free]\n";
+    std::cout << "   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(clearBit) << ", old bitmap:" << bitmap;
+
     bitmap.ClearBit(clearBit);
     m_UsedBytes -= m_SlotSize;
-    std::cout << "Slot has freed\n";
+
+    std::cout << ", bitmap after: " << bitmap << " old used: " << std::to_string(old_m_UsedBytes) << std::endl;
 
     if (bitmap.UsedBits() != m_UsedBytes / m_SlotSize)
     {
-        std::cout << "Used bits aren't same as used: " << std::to_string(m_UsedBytes) << " slot size: " << std::to_string(m_SlotSize) << ", bitmap bits:"<<std::to_string(bitmap.UsedBits()) << ",chunk address : " << this << "\n ";
+        std::cout << "Used bits aren't same as used: " << std::to_string(m_UsedBytes) << " slot size: " << std::to_string(m_SlotSize)
+                  << ", bitmap bits:" << std::to_string(bitmap.UsedBits()) << ",chunk address : " << this << "\n ";
         __debugbreak();
     }
 
@@ -393,7 +420,8 @@ void MM::Chunk::Print(uint32_t chunkNum)
     static constexpr char occupiedCell = 'x';
     static constexpr uint32_t cellsPerRow = 40;
 
-    std::cout << "\nChunk_" << chunkNum << "{" << this << "}" <<"{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+    std::cout << "\nChunk_" << chunkNum << "{" << this << "}" << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes
+              << "\n";
 
     const uint32_t numCells = m_CapacityBytes / m_SlotSize;
     const uint32_t maxIndex = numCells ? numCells - 1 : 0;
@@ -472,7 +500,7 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
     strUpper.reserve(160);
     strDown.reserve(160);
 
-    stream << "\nChunk_" << chunkNum << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+    stream << "\nChunk_" << chunkNum << "{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
 
     for (size_t i = 0; i < m_SlotsCount; i++)
     {
