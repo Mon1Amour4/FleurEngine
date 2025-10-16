@@ -387,6 +387,9 @@ MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(unsigned char* ptr)
 
 void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
 {
+    if (m_UsedBytes == 0)
+        __debugbreak();
+
     uint32_t clearBit = (ptr - m_Head) / m_SlotSize;
     uint32_t old_m_UsedBytes = m_UsedBytes;
     uint64_t old_bitmap = bitmap.Get();
@@ -395,6 +398,7 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
     std::cout << "   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(clearBit) << ", old bitmap:" << bitmap;
 
     bitmap.ClearBit(clearBit);
+
     m_UsedBytes -= m_SlotSize;
 
     std::cout << ", bitmap after: " << bitmap << " old used: " << std::to_string(old_m_UsedBytes) << std::endl;
