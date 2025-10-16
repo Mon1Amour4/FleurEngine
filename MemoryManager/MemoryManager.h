@@ -82,6 +82,7 @@ public:
 
     void Print(uint32_t chunkNum);
     void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
+    void ChunkSnapshot(uint32_t chunkNum, char*& buffer);
 
     Chunk* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr);
 
@@ -96,6 +97,17 @@ private:
     unsigned char* m_Tail;
     Chunk* next;
     Fleur::Core::BitSet64 bitmap;
+
+    struct PrintSlot
+    {
+        PrintSlot(uint32_t slotNum, bool isFree);
+
+        void ToStream(std::string& upper, std::string& down);
+        void ToStreanMinimalistic(std::string& string);
+
+        bool m_IsFree;
+        uint32_t m_Slot_num;
+    };
 };
 #pragma endregion
 
@@ -112,6 +124,7 @@ struct Pool
 
     void Print();
     void PoolSpapshotToStream(std::ofstream& stream);
+    void PoolSpapshot(char*& buffer);
 
     bool FreeSlot(unsigned char* ptr);
 
@@ -146,6 +159,7 @@ struct Arena
     void Print();
 
     void ArenaSnapshotToStream(std::ofstream& stream);
+    void ArenaSnapshot(char* buffer);
 
 
 private:

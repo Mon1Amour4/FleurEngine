@@ -95,13 +95,22 @@ void MM::MemoryManager::Print()
 }
 void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName)
 {
+    char* buffer = new char[4096];
+    buffer[4095] = '\0';
+
+    m_LocalArena->ArenaSnapshot(buffer);
+
     std::ofstream myFile;
     myFile.open(fileName.data(), std::ios::app);
 
     if (myFile.good())
-        m_LocalArena->ArenaSnapshotToStream(myFile);
-
+    {
+        myFile << buffer;
+    }
     myFile.close();
+
+
+    delete[] buffer;
 }
 void MM::MemoryManager::ClearFile(std::string_view fileName)
 {
@@ -206,6 +215,18 @@ void MM::Arena::ArenaSnapshotToStream(std::ofstream& stream)
     stream << "\n//--------------------------------- END ----------------------------\\ \n";
 }
 
+void MM::Arena::ArenaSnapshot(char* buffer)
+{
+    buffer += std::sprintf(buffer, "//---------------------------- ARENA-PRINTING ----------------------------\\\n");
+    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
+    buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", m_UsedBytes, m_CapacityBytes, percentage);
+    for (auto& pair : map)
+    {
+        reinterpret_cast<Pool*>(pair.second)->PoolSpapshot(buffer);
+    }
+    buffer += std::sprintf(buffer, "//--------------------------------- END ----------------------------\\ \n");
+}
+
 //======================================================================
 // Pool
 MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
@@ -253,6 +274,12 @@ void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 {
     stream << "\nPrinting Pool{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} : Chunks: " << std::to_string(m_NumChunks);
     m_HeadChunk->ChunkSnapshotToStream(0, stream);
+}
+
+void MM::Pool::PoolSpapshot(char*& buffer)
+{
+    buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
+    m_HeadChunk->ChunkSnapshot(0, buffer);
 }
 
 bool MM::Pool::FreeSlot(unsigned char* ptr)
@@ -455,46 +482,6 @@ void MM::Chunk::Print(uint32_t chunkNum)
 }
 void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 {
-    struct PrintSlot
-    {
-        PrintSlot(uint32_t slotNum, bool isFree)
-            : m_IsFree(isFree)
-            , m_Slot_num(slotNum) {};
-
-        void ToStream(std::string& upper, std::string& down)
-        {
-            upper += '[';
-            down += ' ';
-
-            if (m_Slot_num <= 9)
-            {
-                upper += std::to_string(m_Slot_num);
-            }
-            else if (m_Slot_num > 9 && m_Slot_num < 100)
-            {
-                upper += std::to_string(m_Slot_num);
-                down += " ";
-            }
-            if (m_IsFree)
-                down += '0';
-            else
-                down += 'X';
-
-            upper += "] ";
-            down += "  ";
-        }
-        void ToStreanMinimalistic(std::string& string)
-        {
-            if (m_IsFree)
-                string += '0';
-            else
-                string += 'X';
-        }
-
-        bool m_IsFree;
-        uint32_t m_Slot_num;
-    };
-
     std::string strUpper;
     std::string strDown;
     strUpper.reserve(160);
@@ -513,4 +500,66 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 
     if (next)
         next->ChunkSnapshotToStream(++chunkNum, stream);
+}
+void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
+{
+    std::string strUpper;
+    std::string strDown;
+    strUpper.reserve(160);
+    strDown.reserve(160);
+
+    buffer += std::sprintf(buffer, "Chunk_%d{%p}{%d, %d}{%d/%d}\n", chunkNum, this, m_SlotSize, m_SlotsCount, m_UsedBytes, m_CapacityBytes);
+
+    for (size_t i = 0; i < m_SlotsCount; i++)
+    {
+        PrintSlot slot(i, !bitmap.IsBitOccupied(i));
+        slot.ToStream(strUpper, strDown);
+        // slot.ToStreanMinimalistic(strUpper);
+    }
+    buffer += std::sprintf(buffer, "%s", strUpper.c_str());
+    buffer += std::sprintf(buffer, "%s", "\n");
+    buffer += std::sprintf(buffer, "%s", strDown.c_str());
+    buffer += std::sprintf(buffer, "%s", "\n");
+
+    if (next)
+    {
+        next->ChunkSnapshot(++chunkNum, buffer);
+    }
+}
+
+//======================================================================
+// Chunk::PrintSlot
+MM::Chunk::PrintSlot::PrintSlot(uint32_t slotNum, bool isFree)
+    : m_IsFree(isFree)
+    , m_Slot_num(slotNum)
+{
+}
+void MM::Chunk::PrintSlot::ToStream(std::string& upper, std::string& down)
+{
+    upper += '[';
+    down += ' ';
+
+    if (m_Slot_num <= 9)
+    {
+        upper += std::to_string(m_Slot_num);
+    }
+    else if (m_Slot_num > 9 && m_Slot_num < 100)
+    {
+        upper += std::to_string(m_Slot_num);
+        down += " ";
+    }
+    if (m_IsFree)
+        down += '0';
+    else
+        down += 'X';
+
+    upper += "] ";
+    down += "  ";
+}
+void MM::Chunk::PrintSlot::ToStreanMinimalistic(std::string& string)
+{
+    if (m_IsFree)
+        string += '0';
+    else
+        string += 'X';
 }
