@@ -8,6 +8,44 @@
 #include "../Engine/Fleur/Concepts.hpp"
 #include "BitSet64.h"
 
+#pragma region MemoryManager Debug pfolining definitions
+//======================================================================
+#if 1 /*MEMORYMANAGER_PROFILING*/
+#define MM_ASSERT(expression) \
+    do                        \
+    {                         \
+        assert(expression);   \
+    } while (0);
+
+#define MM_DEBUG_BREAK(expression) \
+    do                             \
+    {                              \
+        if (expression == true)    \
+        {                          \
+            __debugbreak();        \
+        }                          \
+    } while (0);
+
+#define MM_DEBUG_EXPRESSION(code) \
+    do                            \
+    {                             \
+        code;                     \
+    } while (0);
+
+#define MM_PRINT(str)     \
+    do                    \
+    {                     \
+        std::cout << str; \
+    } while (0);
+#else
+#define MM_ASSERT(expression) ((void)0)
+#define MM_DEBUG_BREAK(expression) ((void)0)
+#define MM_DEBUG_EXPRESSION(code) ((void)0);
+#define MM_PRINT(str) ((void)0)
+#endif
+
+#pragma endregion
+
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -84,7 +122,7 @@ public:
     void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
     void ChunkSnapshot(uint32_t chunkNum, char*& buffer);
 
-    Chunk* IsPtrToBlockIsInChunkRecursive(unsigned char* ptr);
+    Chunk* IsPtrToBlockIsInChunkRecursive(const unsigned char const*);
 
 private:
     const uint32_t m_SlotSize;
@@ -127,6 +165,8 @@ struct Pool
     void PoolSpapshot(char*& buffer);
 
     bool FreeSlot(unsigned char* ptr);
+
+    bool IsInChunkChain(const unsigned char const* ptr) const;
 
 private:
     Chunk* m_HeadChunk;
@@ -236,7 +276,10 @@ public:
                 if (requestedMemory)
                 {
                     // placement new
-                    return new (requestedMemory) T;
+                    T* ptr = nullptr;
+                    ptr = new (requestedMemory) T;
+                    std::cout << "Return ptr{" << static_cast<void*>(ptr) << "}\n";
+                    return ptr;
                 }
                 else
                 {
@@ -289,7 +332,7 @@ public:
 
     void Print();
 
-    void SaveSnapshotToFile(std::string_view fileName);
+    void SaveSnapshotToFile(std::string_view fileName, uint32_t iteration);
 
     void ClearFile(std::string_view fileName);
 
