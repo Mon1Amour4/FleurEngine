@@ -150,12 +150,13 @@ MM::Arena MM::Arena::operator=(const Arena& other)
 MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
 {
     // Test if we have enought capacity
-    size_t updatedUsed = m_UsedBytes + m_PageSize;
-    if (updatedUsed <= m_CapacityBytes)
+    uint32_t requestedSize = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    size_t overallSize = m_UsedBytes + requestedSize;
+    if (overallSize <= m_CapacityBytes)
     {
         map[slotSize] = new (m_Current) Pool(m_Current + sizeof(Pool), slotSize, m_PageSize / slotSize);
-        m_Current += m_PageSize;
-        m_UsedBytes += m_PageSize;
+        m_Current += requestedSize;
+        m_UsedBytes += requestedSize;
         return static_cast<Pool*>(map[slotSize]);
     }
     else
@@ -174,7 +175,7 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
 {
-    unsigned char* requestedPtr = m_Current + m_PageSize;
+    unsigned char* requestedPtr = m_Current + (m_PageSize + sizeof(Chunk));
     if (requestedPtr < m_Tail)
     {
         // Arena has enought space for new chunk, give it
