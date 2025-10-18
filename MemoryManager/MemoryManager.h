@@ -38,10 +38,10 @@
         std::cout << str; \
     } while (0);
 #else
-#define MM_ASSERT(expression) ((void)0)
-#define MM_DEBUG_BREAK(expression) ((void)0)
+#define MM_ASSERT(expression) ((void)0);
+#define MM_DEBUG_BREAK(expression) ((void)0);
 #define MM_DEBUG_EXPRESSION(code) ((void)0);
-#define MM_PRINT(str) ((void)0)
+#define MM_PRINT(str) ((void)0);
 #endif
 
 #pragma endregion
@@ -306,7 +306,7 @@ public:
                 else
                 {
                     // No space in pool, couldn't create new chunk
-                    __debugbreak();
+                    MM_DEBUG_BREAK(true);
                     return nullptr;
                 }
             }
@@ -314,14 +314,14 @@ public:
             {
                 // TODO couldn't create new Pool
                 // Not enought space in arena? Create new arena?
-                __debugbreak();
+                MM_DEBUG_BREAK(true);
                 assert(false);
             }
         }
         else
         {
             // TODO think about large object strategy
-            __debugbreak();
+            MM_DEBUG_BREAK(true);
         }
     }
 

@@ -179,7 +179,7 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     , m_Head(nullptr)
     , m_UsedBytes(0)
 {
-    MM_ASSERT(capacity > 0 && pageSize > 0, minSlotSize > 0);
+    MM_ASSERT(capacity > 0 && pageSize > 0 && minSlotSize > 0);
     MM_ASSERT(arenaSize <= capacity);
 
     m_Head = reinterpret_cast<unsigned char*>(malloc(capacity));
@@ -300,7 +300,7 @@ MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_
             unsigned char* newChunkChar = reinterpret_cast<unsigned char*>(newChunk);
 
             MM_DEBUG_BREAK(pool->IsInChunkChain(newChunkChar));
-
+            MM_DEBUG_BREAK(m_Current >= m_Tail);
             return newChunk;
         })
 
@@ -308,7 +308,7 @@ MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_
     }
     else
     {
-        MM_DEBUG_BREAK(false);
+        MM_DEBUG_BREAK(true);
         return nullptr;
     }
 }
