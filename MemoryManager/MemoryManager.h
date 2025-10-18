@@ -144,7 +144,7 @@ public:
     void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
     void ChunkSnapshot(uint32_t chunkNum, char*& buffer);
 
-    Chunk* IsPtrToBlockIsInChunkRecursive(const unsigned char const*);
+    Chunk* IsPtrToBlockIsInChunkRecursive(const unsigned char* const);
 
 private:
     const uint32_t m_SlotSize;
@@ -188,7 +188,7 @@ struct Pool
 
     bool FreeSlot(unsigned char* ptr);
 
-    bool IsInChunkChain(const unsigned char const* ptr) const;
+    bool IsInChunkChain(const unsigned char* const ptr) const;
 
 private:
     Chunk* m_HeadChunk;

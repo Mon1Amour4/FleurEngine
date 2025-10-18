@@ -421,7 +421,7 @@ bool MM::Pool::FreeSlot(unsigned char* ptr)
     }
 }
 
-bool MM::Pool::IsInChunkChain(const unsigned char const* ptr) const
+bool MM::Pool::IsInChunkChain(const unsigned char* const ptr) const
 {
     return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
 }
@@ -501,7 +501,7 @@ void MM::Chunk::SetNextChunkRecursive(Chunk* nextChunk)
         next->SetNextChunkRecursive(nextChunk);
 }
 
-MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(const unsigned char const* ptr)
+MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(const unsigned char* const ptr)
 {
     if (ptr < m_Tail && ptr >= m_Head)
     {
