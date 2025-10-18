@@ -93,7 +93,10 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     };
 
     for (size_t i = 0; i < 100; i++)
+    MM::Benchmark mark{2};
     {
+        auto start = std::chrono::steady_clock::now();
+
         bool doFree = (actionDist(gen) == 1);
         int count = countDist(gen);
         int type = typeDist(gen);
@@ -103,7 +106,10 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
             std::uniform_int_distribution<size_t> freeIndexDist(0, allocated.size() - 1);
             size_t idx = freeIndexDist(gen);
             AllocRecord rec = allocated[idx];
+
+            mark.StartDealloc();
             do_deallocate(rec);
+            mark.EndDealloc();
 
             if (idx + 1 != allocated.size())
                 std::swap(allocated[idx], allocated.back());
@@ -112,17 +118,25 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         else
         {
             idCounter++;
+
+            mark.StartAlloc();
             void* ptr = do_allocate(type, count, idCounter);
             ASSERT_NE(ptr, nullptr);
+            mark.EndAlloc();
             allocated.push_back(AllocRecord{type, count, idCounter, ptr});
         }
-        std::cout << std::to_string(i) << "\n";
+
+        auto end = std::chrono::steady_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
+        mark.Tick(duration.count());
+
         MM_PRINT(std::to_string(i) << "\n")
         // manager.Print();
         manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
     MM_PRINT("---------------- PURGE --------------\n");
     for (const auto& rec : allocated) do_deallocate(rec);
+    mark.Print();
     allocated.clear();
 }
 
