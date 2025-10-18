@@ -80,34 +80,52 @@ void MM::Benchmark::Print()
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
+    int written = 0;
     // clang-format off
-    tmp += sprintf_s(tmp, bufferSize, "%s", "\n\n\n");
-    tmp += sprintf_s(tmp, bufferSize,
-                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
-                             "//                                                                                                                                                //\n"
-                             "//                                                         MEMORY BENCHMARK REPORT                                                                //\n"
-                             "//                                                                                                                                                //\n"
-                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+    written += sprintf_s(tmp + written, bufferSize - written, "%s", "\n\n\n");
+    written += sprintf_s(tmp + written, bufferSize - written,
+        "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
+        "//                                                                                                                                                //\n"
+        "//                                                         MEMORY BENCHMARK REPORT                                                                //\n"
+        "//                                                                                                                                                //\n"
+        "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 
-    tmp += sprintf_s(tmp, bufferSize, "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", "Number of Allocation", "Average allocation time per second", "Longest allocation time",
-                        "Overall Allocation time", "Overall Time");
+    written += sprintf_s(tmp + written, bufferSize - written, 
+        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", 
+        "Number of Allocation", 
+        "Average allocation time per second", 
+        "Longest allocation time",
+        "Overall Allocation time", "Overall Time");
 
-    tmp += sprintf_s(tmp, bufferSize, "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", static_cast<int>(m_NumAllocations), FormatToSeconds(m_AverageAllocTime).c_str(),
-                        FormatToSeconds(m_LongestAllocTime).c_str(), FormatToSeconds(m_OverallAllocTime).c_str(), FormatToSeconds(m_OverallTime).c_str());
+    written += sprintf_s(tmp + written, bufferSize - written, 
+        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", 
+        static_cast<int>(m_NumAllocations), 
+        FormatToSeconds(m_AverageAllocTime).c_str(),
+        FormatToSeconds(m_LongestAllocTime).c_str(), 
+        FormatToSeconds(m_OverallAllocTime).c_str(), 
+        FormatToSeconds(m_OverallTime).c_str());
 
-    tmp += sprintf_s(tmp, bufferSize, "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", "Number of Deallocation", "Average deallocation time per second", "Longest deallocation time",
-                        "Overall Deallocation time","");
+    written += sprintf_s(tmp + written, bufferSize - written, 
+        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", 
+        "Number of Deallocation", 
+        "Average deallocation time per second", 
+        "Longest deallocation time",
+        "Overall Deallocation time","");
 
-    tmp += sprintf_s(tmp, bufferSize, "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", static_cast<int>(m_NumDeallocations), FormatToSeconds(m_AverageDeallocTime).c_str(),
-                        FormatToSeconds(m_LongestDeallocTime).c_str(), FormatToSeconds(m_OverallDeallocTime).c_str(), "");
+    written += sprintf_s(tmp + written, bufferSize - written, 
+        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", 
+        static_cast<int>(m_NumDeallocations), 
+        FormatToSeconds(m_AverageDeallocTime).c_str(),
+        FormatToSeconds(m_LongestDeallocTime).c_str(), 
+        FormatToSeconds(m_OverallDeallocTime).c_str(), "");
 
-    tmp += sprintf_s(tmp, bufferSize, 
-                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
-                             "//                                                                                                                                                //\n"
-                             "//                                                      END OF MEMORY BENCHMARK REPORT                                                            //\n"
-                             "//                                                                                                                                                //\n"
-                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
-        tmp += sprintf_s(tmp, bufferSize, "%s", "\n\n\n");
+    written += sprintf_s(tmp + written, bufferSize - written, 
+        "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
+        "//                                                                                                                                                //\n"
+        "//                                                      END OF MEMORY BENCHMARK REPORT                                                            //\n"
+        "//                                                                                                                                                //\n"
+        "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+    written += sprintf_s(tmp + written, bufferSize - written, "%s", "\n\n\n");
     // clang-format on
     std::cout << buffer;
 

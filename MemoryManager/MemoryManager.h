@@ -8,7 +8,7 @@
 #include "../Engine/Fleur/Concepts.hpp"
 #include "BitSet64.h"
 
-#pragma region MemoryManager Debug pfolining definitions
+#pragma region MemoryManager Debug profiling definitions
 //======================================================================
 #if 1 /*MEMORYMANAGER_PROFILING*/
 #define MM_ASSERT(expression) \
