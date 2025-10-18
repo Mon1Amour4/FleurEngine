@@ -188,7 +188,8 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << "bytes\n");
 
-    m_LocalArena = new (static_cast<void*>(m_Head)) Arena(m_Head + sizeof(Arena), arenaSize - sizeof(Arena), pageSize, minSlotSize);
+    unsigned char* arenaHeadPtr = m_Head + sizeof(Arena);
+    m_LocalArena = new (m_Head) Arena(arenaHeadPtr, arenaSize, pageSize, minSlotSize);
 
     MM_ASSERT(m_LocalArena);
 
