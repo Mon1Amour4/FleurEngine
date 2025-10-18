@@ -126,8 +126,6 @@ void MM::Benchmark::Tick(float dtTime)
     {
         if (m_FramesPerSecond > 0)
             m_AverageAllocTime = m_FrameAllocTime / m_FramesPerSecond;
-        else
-            m_AverageAllocTime = std::chrono::microseconds(0);
 
         m_FrameAllocTime = std::chrono::microseconds(0);
         m_FramesPerSecond = 0;

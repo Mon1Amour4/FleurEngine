@@ -127,8 +127,8 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
         }
 
         auto end = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(end - start);
-        mark.Tick(duration.count());
+        float seconds = std::chrono::duration<float>(end - start).count();
+        mark.Tick(seconds);
 
         MM_PRINT(std::to_string(i) << "\n")
         // manager.Print();
