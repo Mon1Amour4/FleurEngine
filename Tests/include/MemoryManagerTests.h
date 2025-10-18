@@ -30,7 +30,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     std::vector<AllocRecord> allocated2;
     // free - false
     // alloc - true
-    std::vector<std::pair<int, bool>> alloc_free;
+    std::vector<std::pair<uint32_t, bool>> alloc_free;
     static uint32_t idCounter = 0;
     // helper: allocate N objects of the chosen synthetic type, return pointer as void*
     auto do_allocate = [&](int type, int count, uint32_t id) -> void*
@@ -196,10 +196,11 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
             do_deallocate(rec);
             mark.EndDealloc();
 
+            alloc_free.push_back({rec.id, false});
+
             if (idx + 1 != allocated.size())
                 std::swap(allocated[idx], allocated.back());
             allocated.pop_back();
-            alloc_free.push_back({idx, false});
         }
         else
         {
@@ -212,7 +213,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
             // ASSERT_NE(ptr, nullptr);
             allocated.push_back(AllocRecord{type, count, idCounter, ptr});
             allocated2.push_back(AllocRecord{type, count, idCounter, ptr});
-            alloc_free.push_back({-1, true});
+            alloc_free.push_back({idCounter, true});
         }
 
         auto end = std::chrono::steady_clock::now();
@@ -228,39 +229,46 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     allocated.clear();
 
     MM::Benchmark std_mark(2);
-    for (auto& rec : allocated2)
+    for (auto pair : alloc_free)
     {
-        bool free = alloc_free.begin()->second;
-
-        if (free)
+        if (pair.second)
         {
+            // Alloc
+
+            auto it = std::find_if(allocated2.begin(), allocated2.end(), [&](const AllocRecord& r) { return r.id == pair.first; });
+            if (it == allocated2.end())
+                continue;
+
+            auto start = std::chrono::steady_clock::now();
+            std_mark.StartAlloc();
+            void* ptr = do_allocate_std(it->type, it->count, it->id);
+            std_mark.EndAlloc();
+
+
+            auto end = std::chrono::steady_clock::now();
+            float seconds = std::chrono::duration<float>(end - start).count();
+            std_mark.Tick(seconds);
+
+            it->ptr = ptr;
+        }
+        else
+        {
+            // Dealloc
+            auto it = std::find_if(allocated2.begin(), allocated2.end(), [&](const AllocRecord& r) { return r.id == pair.first; });
+            if (it == allocated2.end())
+                continue;
+
             auto start = std::chrono::steady_clock::now();
 
             std_mark.StartDealloc();
-            do_deallocate_std(rec);
+            do_deallocate_std(*it);
             std_mark.EndDealloc();
 
             auto end = std::chrono::steady_clock::now();
             float seconds = std::chrono::duration<float>(end - start).count();
             mark.Tick(seconds);
         }
-        else
-        {
-            auto start = std::chrono::steady_clock::now();
-
-            std_mark.StartAlloc();
-            void* ptr = do_allocate_std(rec.type, rec.count, rec.id);
-            std_mark.EndAlloc();
-
-            rec.ptr = ptr;
-
-            auto end = std::chrono::steady_clock::now();
-            float seconds = std::chrono::duration<float>(end - start).count();
-            mark.Tick(seconds);
-        }
-        alloc_free.erase(alloc_free.begin());
     }
-
     std_mark.Print();
 }
 
