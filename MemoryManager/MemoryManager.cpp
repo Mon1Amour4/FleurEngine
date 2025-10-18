@@ -186,7 +186,7 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
 
     MM_ASSERT(m_Head);
 
-    MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << "bytes\n");
+    MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
     unsigned char* arenaHeadPtr = m_Head + sizeof(Arena);
     m_LocalArena = new (m_Head) Arena(arenaHeadPtr, arenaSize, pageSize, minSlotSize);
