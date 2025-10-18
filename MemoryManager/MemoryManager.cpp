@@ -288,13 +288,13 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
 {
-    unsigned char* requestedPtr = m_Current + (m_PageSize + sizeof(Chunk));
-    if (requestedPtr < m_Tail)
+    uint32_t requestedSize = m_PageSize + sizeof(Chunk);
+    if (m_UsedBytes + requestedSize <= m_CapacityBytes)
     {
         // Arena has enought space for new chunk, give it
         unsigned char* prevPtr = m_Current;
-        m_Current = requestedPtr;
-
+        m_Current += requestedSize;
+        m_UsedBytes += requestedSize;
         MM_DEBUG_EXPRESSION({
             Chunk* newChunk = new (prevPtr) Chunk(prevPtr + sizeof(Chunk), slotSize, slotsCount);
             unsigned char* newChunkChar = reinterpret_cast<unsigned char*>(newChunk);
