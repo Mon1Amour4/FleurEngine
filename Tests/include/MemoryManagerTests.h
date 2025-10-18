@@ -31,33 +31,32 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     // helper: allocate N objects of the chosen synthetic type, return pointer as void*
     auto do_allocate = [&](int type, int count, uint32_t id) -> void*
     {
-        std::cout << "\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << ", id{" << std::to_string(id) << "}\n";
-
+        MM_PRINT("\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << ", id{" << std::to_string(id) << "}\n")
         switch (type)
         {
         case 0:
         {
-            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic1) * count << "\n";
+            MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic1) * count << "\n")
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic1>(count));
         }
         case 1:
         {
-            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic2) * count << "\n";
+            MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic2) * count << "\n")
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic2>(count));
         }
         case 2:
         {
-            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic3) * count << "\n";
+            MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic3) * count << "\n")
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic3>(count));
         }
         case 3:
         {
-            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic4) * count << "\n";
+            MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic4) * count << "\n")
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic4>(count));
         }
         case 4:
         {
-            std::cout << "Allocation size: " << sizeof(Synthetic::Synthetic5) * count << "\n";
+            MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic5) * count << "\n")
             return static_cast<void*>(manager.allocate<Synthetic::Synthetic5>(count));
         }
 
@@ -68,8 +67,7 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     // helper: deallocate using the exact type and count
     auto do_deallocate = [&](const AllocRecord& rec)
     {
-        std::cout << "\nDeallocation{type: " << std::to_string(rec.type) << ", count: " << std::to_string(rec.count) << ", id{" << std::to_string(rec.id)
-                  << "}\n ";
+        MM_PRINT("\nDeallocation{type: " << std::to_string(rec.type) << ", count: " << std::to_string(rec.count) << ", id{" << std::to_string(rec.id) << "}\n ")
 
         switch (rec.type)
         {
@@ -119,10 +117,11 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
             allocated.push_back(AllocRecord{type, count, idCounter, ptr});
         }
         std::cout << std::to_string(i) << "\n";
+        MM_PRINT(std::to_string(i) << "\n")
         // manager.Print();
         manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
-    std::cout << "---------------- PURGE --------------\n";
+    MM_PRINT("---------------- PURGE --------------\n");
     for (const auto& rec : allocated) do_deallocate(rec);
     allocated.clear();
 }
