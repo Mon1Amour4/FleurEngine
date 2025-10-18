@@ -2,46 +2,148 @@
 
 //======================================================================
 // Benchmark
-size_t MM::Benchmark::m_NumAllocations = 0;
-size_t MM::Benchmark::m_NumDeallocations = 0;
-std::chrono::microseconds MM::Benchmark::m_LongestAllocTime{0};
-std::chrono::microseconds MM::Benchmark::m_AverageAllocTime{0};
-std::chrono::microseconds MM::Benchmark::m_SumAllocTime{0};
-std::chrono::microseconds MM::Benchmark::m_FrameAllocTime{0};
-size_t MM::Benchmark::frames = 0;
 
-void MM::Benchmark::Start()
+MM::Benchmark::Benchmark(float AvgPeriodSecs)
+    : m_AveragePeriod(AvgPeriodSecs)
+    , m_FramesAverage(0)
+    , m_AverageTimer(0)
+    , m_FramesPerSecondTimer(0)
+    , m_NumAllocations(0)
+    , m_NumDeallocations(0)
+    , m_LongestAllocTime(0)
+    , m_LongestDeallocTime(0)
+    , m_AverageAllocTime(0)
+    , m_AverageDeallocTime(0)
+    , m_OverallAllocTime(0)
+    , m_OverallDeallocTime(0)
+    , m_OverallTime(0)
+    , m_FrameAllocTime(0)
+    , m_FrameDeallocTime(0)
+    , m_FramesPerSecond(0)
+    , m_StartAllocTimer(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero()))
+    , m_StartDeallocTimer(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero()))
+    , m_AveragePeriodTime(0)
 {
-    ++m_NumAllocations;
-    start = std::chrono::steady_clock::now();
+    assert(m_AveragePeriod > 0);
+}
+MM::Benchmark::~Benchmark()
+{
+    EndAlloc();
+    EndDealloc();
 }
 
-void MM::Benchmark::End()
+void MM::Benchmark::StartAlloc()
+{
+    ++m_NumAllocations;
+    m_StartAllocTimer = std::chrono::steady_clock::now();
+}
+void MM::Benchmark::StartDealloc()
+{
+    ++m_NumDeallocations;
+    m_StartDeallocTimer = std::chrono::steady_clock::now();
+}
+
+void MM::Benchmark::EndAlloc()
 {
     auto end = std::chrono::steady_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - m_StartAllocTimer);
+    if (m_StartAllocTimer.time_since_epoch().count() == 0)
+        return;
 
-    m_SumAllocTime += duration;
+    m_OverallAllocTime += duration;
     if (duration > m_LongestAllocTime)
         m_LongestAllocTime = duration;
     m_FrameAllocTime += duration;
+    m_OverallTime += duration;
+
+    m_StartAllocTimer = std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero());
+}
+void MM::Benchmark::EndDealloc()
+{
+    auto end = std::chrono::steady_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - m_StartDeallocTimer);
+    if (m_StartDeallocTimer.time_since_epoch().count() == 0)
+        return;
+
+    m_OverallDeallocTime += duration;
+    if (duration > m_LongestDeallocTime)
+        m_LongestDeallocTime = duration;
+    m_FrameDeallocTime += duration;
+
+    m_OverallTime += duration;
+    m_StartDeallocTimer = std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero());
 }
 
 void MM::Benchmark::Print()
 {
-    std::cout << "Number of Allocation: " << m_NumAllocations << std::endl
-              << "Number of deallocations: " << m_NumDeallocations << std::endl
-              << "All allocations time: " << FormatToSecMsMcs(m_SumAllocTime) << std::endl
-              << "longest allocation time: " << FormatToSecMsMcs(m_LongestAllocTime) << std::endl
-              << "Average allocation time: " << FormatToSecMsMcs(m_AverageAllocTime) << std::endl
-              << std::endl;
+    uint64_t bufferSize = 4096;
+    char* buffer = new char[bufferSize];
+    buffer[bufferSize - 1] = '\0';
+    char* tmp = buffer;
+    // clang-format off
+    tmp += sprintf_s(tmp, bufferSize, "%s", "\n\n\n");
+    tmp += sprintf_s(tmp, bufferSize,
+                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
+                             "//                                                                                                                                                //\n"
+                             "//                                                         MEMORY BENCHMARK REPORT                                                                //\n"
+                             "//                                                                                                                                                //\n"
+                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+
+    tmp += sprintf_s(tmp, bufferSize, "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", "Number of Allocation", "Average allocation time per second", "Longest allocation time",
+                        "Overall Allocation time", "Overall Time");
+
+    tmp += sprintf_s(tmp, bufferSize, "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", static_cast<int>(m_NumAllocations), FormatToSeconds(m_AverageAllocTime).c_str(),
+                        FormatToSeconds(m_LongestAllocTime).c_str(), FormatToSeconds(m_OverallAllocTime).c_str(), FormatToSeconds(m_OverallTime).c_str());
+
+    tmp += sprintf_s(tmp, bufferSize, "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", "Number of Deallocation", "Average deallocation time per second", "Longest deallocation time",
+                        "Overall Deallocation time","");
+
+    tmp += sprintf_s(tmp, bufferSize, "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", static_cast<int>(m_NumDeallocations), FormatToSeconds(m_AverageDeallocTime).c_str(),
+                        FormatToSeconds(m_LongestDeallocTime).c_str(), FormatToSeconds(m_OverallDeallocTime).c_str(), "");
+
+    tmp += sprintf_s(tmp, bufferSize, 
+                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
+                             "//                                                                                                                                                //\n"
+                             "//                                                      END OF MEMORY BENCHMARK REPORT                                                            //\n"
+                             "//                                                                                                                                                //\n"
+                             "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+        tmp += sprintf_s(tmp, bufferSize, "%s", "\n\n\n");
+    // clang-format on
+    std::cout << buffer;
+
+    delete[] buffer;
 }
 
-void MM::Benchmark::EndOfFrame()
+void MM::Benchmark::Tick(float dtTime)
 {
-    m_AverageAllocTime = m_FrameAllocTime / frames;
-    frames = 0;
-    m_FrameAllocTime = std::chrono::microseconds(0);
+    m_FramesPerSecondTimer += dtTime;
+    m_AverageTimer += dtTime;
+
+    ++m_FramesPerSecond;
+    ++m_FramesAverage;
+
+    if (m_FramesPerSecondTimer >= 1.0f)
+    {
+        if (m_FramesPerSecond > 0)
+            m_AverageAllocTime = m_FrameAllocTime / m_FramesPerSecond;
+        else
+            m_AverageAllocTime = std::chrono::microseconds(0);
+
+        m_FrameAllocTime = std::chrono::microseconds(0);
+        m_FramesPerSecond = 0;
+        m_FramesPerSecondTimer = 0.0f;
+    }
+
+    if (m_AverageTimer >= m_AveragePeriod)
+    {
+        if (m_FramesAverage > 0)
+            m_AveragePeriodTime = m_AverageTimer / m_FramesAverage;
+        else
+            m_AveragePeriodTime = 0.0f;
+
+        m_AverageTimer = 0.0f;
+        m_FramesAverage = 0;
+    }
 }
 
 std::string MM::Benchmark::FormatToSecMsMcs(std::chrono::microseconds timer)
@@ -56,6 +158,14 @@ std::string MM::Benchmark::FormatToSecMsMcs(std::chrono::microseconds timer)
     str += "ms ";
     str += std::to_string(micros.count());
     str += "mcs";
+    return str;
+}
+std::string MM::Benchmark::FormatToSeconds(std::chrono::microseconds timer)
+{
+    double seconds = std::chrono::duration<double>(timer).count();
+
+    std::string str = std::to_string(seconds);
+    str += "s";
     return str;
 }
 

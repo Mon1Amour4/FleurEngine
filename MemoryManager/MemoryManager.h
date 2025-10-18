@@ -71,34 +71,56 @@ constexpr uint32_t get_pow2_ceil(uint32_t number)
 
 #pragma region Benchmark
 //======================================================================
-struct Benchmark
+class Benchmark
 {
-    static size_t m_NumAllocations;
-    static size_t m_NumDeallocations;
-    static std::chrono::microseconds m_LongestAllocTime;
-    static std::chrono::microseconds m_AverageAllocTime;
-    static std::chrono::microseconds m_SumAllocTime;
-    static std::chrono::microseconds m_FrameAllocTime;
-    static size_t frames;
-    std::chrono::time_point<std::chrono::steady_clock> start;
-
 public:
-    Benchmark() = default;
-    ~Benchmark() = default;
+    Benchmark(float AvgPeriodSecs);
+    ~Benchmark();
 
-    void Start();
-    void End();
-    static void Print();
-    inline void Deallocate()
-    {
-        ++m_NumDeallocations;
-    }
-    static void Frame()
-    {
-        ++frames;
-    }
-    static void EndOfFrame();
-    static std::string FormatToSecMsMcs(std::chrono::microseconds timer);
+    void StartAlloc();
+    void StartDealloc();
+    void EndAlloc();
+    void EndDealloc();
+    void Print();
+    void Tick(float dtTime);
+    std::string FormatToSecMsMcs(std::chrono::microseconds timer);
+    std::string FormatToSeconds(std::chrono::microseconds timer);
+
+private:
+    // Overall Allocations\Deallocations
+    size_t m_NumAllocations;
+    size_t m_NumDeallocations;
+
+    // Overall Allocations\Deallocations time
+    std::chrono::microseconds m_OverallAllocTime;
+    std::chrono::microseconds m_OverallDeallocTime;
+
+    // Longest Allocations\Deallocation time
+    std::chrono::microseconds m_LongestAllocTime;
+    std::chrono::microseconds m_LongestDeallocTime;
+
+    // Average Allocations\Deallocations time Per Second
+    std::chrono::microseconds m_AverageAllocTime;
+    std::chrono::microseconds m_AverageDeallocTime;
+
+    // Allocation\Deallocation time within one second
+    std::chrono::microseconds m_FrameAllocTime;
+    std::chrono::microseconds m_FrameDeallocTime;
+
+    // Overall time
+    std::chrono::microseconds m_OverallTime;
+
+    std::chrono::time_point<std::chrono::steady_clock> m_StartAllocTimer;
+    std::chrono::time_point<std::chrono::steady_clock> m_StartDeallocTimer;
+
+    size_t m_FramesPerSecond;
+    float m_FramesPerSecondTimer;
+
+    float m_AverageTimer;
+
+    float m_AveragePeriodTime;
+    size_t m_FramesAverage;
+    float m_AveragePeriod;
 };
 #pragma endregion
 
