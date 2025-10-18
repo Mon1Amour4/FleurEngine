@@ -202,7 +202,7 @@ private:
 //======================================================================
 struct Arena
 {
-    Arena(unsigned char* ptr, size_t capacity, size_t pageSize, uint32_t minSlotSize);
+    Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_t minSlotSize);
     ~Arena()
     {
         for (auto& pair : map)
@@ -298,10 +298,14 @@ public:
                 if (requestedMemory)
                 {
                     // placement new
-                    T* ptr = nullptr;
-                    ptr = new (requestedMemory) T;
-                    std::cout << "Return ptr{" << static_cast<void*>(ptr) << "}\n";
-                    return ptr;
+                    MM_DEBUG_EXPRESSION({
+                        T* ptr = nullptr;
+                        ptr = new (requestedMemory) T;
+                        MM_PRINT("Return ptr{" << static_cast<void*>(ptr) << "}\n")
+                        return ptr;
+                    })
+
+                    return new (requestedMemory) T;
                 }
                 else
                 {

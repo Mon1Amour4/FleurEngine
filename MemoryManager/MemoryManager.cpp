@@ -186,7 +186,7 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
 
     MM_ASSERT(m_Head);
 
-    std::cout << "Memory Manager has allocated " << std::to_string(capacity) << "bytes\n";
+    MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << "bytes\n");
 
     m_LocalArena = new (static_cast<void*>(m_Head)) Arena(m_Head + sizeof(Arena), arenaSize - sizeof(Arena), pageSize, minSlotSize);
 
@@ -205,11 +205,11 @@ void MM::MemoryManager::Print()
 }
 void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName, uint32_t iteration)
 {
-    uint32_t fileSize = 16000;
-    char* buffer = new char[fileSize];
-    buffer[fileSize - 1] = '\0';
+    uint32_t bufferSize = 16000;
+    char* buffer = new char[bufferSize];
+    buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
-    tmp += std::sprintf(buffer, "Iteration: %d\n", iteration);
+    tmp += sprintf_s(buffer, bufferSize, "Iteration: %d\n", iteration);
 
     m_LocalArena->ArenaSnapshot(tmp);
 
@@ -243,7 +243,7 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
 
 //======================================================================
 // Arena
-MM::Arena::Arena(unsigned char* ptr, size_t capacity, size_t pageSize, uint32_t minSlotSize)
+MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_t minSlotSize)
     : m_PageSize(pageSize)
     , m_MinSlotSize(minSlotSize)
     , m_CapacityBytes(capacity)
@@ -264,12 +264,12 @@ MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
 {
     // Test if we have enought capacity
     uint32_t requestedSize = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-    size_t overallSize = m_UsedBytes + requestedSize;
-    if (overallSize <= m_CapacityBytes)
+    if (m_UsedBytes + requestedSize <= m_CapacityBytes)
     {
-        map[slotSize] = new (m_Current) Pool(m_Current + sizeof(Pool), slotSize, m_PageSize / slotSize);
+        map[slotSize] = new (m_Current) Pool(m_Current + sizeof(Pool), slotSize, static_cast<uint8_t>(m_PageSize / slotSize));
         m_Current += requestedSize;
         m_UsedBytes += requestedSize;
+        MM_ASSERT(m_Current < m_Tail);
         return static_cast<Pool*>(map[slotSize]);
     }
     else
@@ -343,7 +343,7 @@ void MM::Arena::ArenaSnapshot(char* buffer)
 {
     buffer += std::sprintf(buffer, "//---------------------------- ARENA-PRINTING ----------------------------\\\n");
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
-    buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", m_UsedBytes, m_CapacityBytes, percentage);
+    buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", static_cast<int>(m_UsedBytes), static_cast<int>(m_CapacityBytes), static_cast<float>(percentage));
     for (auto& pair : map)
     {
         reinterpret_cast<Pool*>(pair.second)->PoolSpapshot(buffer);
