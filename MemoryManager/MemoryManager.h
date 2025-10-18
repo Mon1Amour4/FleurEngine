@@ -332,6 +332,9 @@ public:
     template <class T>
     void deallocate(void* ptr, uint32_t num)
     {
+        if (!ptr)
+            return;
+
         uint32_t blockSizeBytes = sizeof(T) * num;
         assert(blockSizeBytes <= std::numeric_limits<uint32_t>::max());
 
