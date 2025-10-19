@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 
 #define TEST_SUITE_NAME MemoryManagerTest
-#define ManagerConfig 8 * 1024 * 1024, 512 * 1024, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
+#define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
 
 TEST(TEST_SUITE_NAME, AllocateNotNull)
 {
