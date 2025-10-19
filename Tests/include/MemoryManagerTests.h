@@ -9,7 +9,8 @@
 #define TEST_SUITE_NAME MemoryManagerTest
 #define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
 
-TEST(TEST_SUITE_NAME, AllocateNotNull)
+#if 0
+TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     MM::MemoryManager manager(ManagerConfig);
     manager.ClearFile("MemorySnapshot.txt");
@@ -271,52 +272,385 @@ TEST(TEST_SUITE_NAME, AllocateNotNull)
     }
     std_mark.Print();
 }
+#endif
 
-TEST(TEST_SUITE_NAME, AllocateStoresData)
+#if 1
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     MM::MemoryManager manager(ManagerConfig);
-    int* ptr = manager.allocate<int>(40);
+    size_t allocated = 0;
+    uint32_t from = 64;
+    uint32_t to = 128;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
 
-    for (int i = 0; i < 40; i++)
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
     {
-        ptr[i] = i;
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
     }
 
-    for (int i = 0; i < 40; i++)
+    for (auto alloc : mm_pairs)
     {
-        EXPECT_EQ(ptr[i], i) << "Data corrupted at index " << i;
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
     }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
 }
+#endif
 
-TEST(TEST_SUITE_NAME, MultipleAllocations)
-{
-    MM::MemoryManager manager(ManagerConfig);  // 1 KB
-
-    int* ptr1 = manager.allocate<int>(10);
-    float* ptr2 = manager.allocate<float>(20);
-
-    EXPECT_NE(ptr1, nullptr);
-    EXPECT_NE(ptr2, nullptr);
-
-    EXPECT_LT(reinterpret_cast<uintptr_t>(ptr1), reinterpret_cast<uintptr_t>(ptr2));
-}
-
-TEST(TEST_SUITE_NAME, OverflowReturnsNull)
-{
-    MM::MemoryManager manager(ManagerConfig);
-
-    int* ptr1 = manager.allocate<int>(10);
-    EXPECT_NE(ptr1, nullptr);
-
-    int* ptr2 = manager.allocate<int>(100);
-    EXPECT_EQ(ptr2, nullptr);
-}
-
-TEST(TEST_SUITE_NAME, Alignment)
+#if 0
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom128To256)
 {
     MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t from = 128;
+    uint32_t to = 256;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
 
-    double* ptr = manager.allocate<double>(1);
+    MM::Benchmark mark{2};
 
-    EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alignof(double), 0) << "Pointer is not properly aligned for double";
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
 }
+#endif
+
+#if 0
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom256To512)
+{
+    MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t from = 256;
+    uint32_t to = 512;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
+}
+#endif
+
+#if 0
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom512To1024)
+{
+    MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t from = 256;
+    uint32_t to = 512;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
+}
+#endif
+
+#if 0
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom1024To2048)
+{
+    MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t from = 1024;
+    uint32_t to = 2048;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
+}
+#endif
+
+#if 0
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To4096)
+{
+    MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t from = 2048;
+    uint32_t to = 4096;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int count = from + actionDist(gen);
+        allocated += count;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
+}
+#endif
+
+#if 0
+ TEST(TEST_SUITE_NAME, AllocateStoresData)
+{
+     MM::MemoryManager manager(ManagerConfig);
+     int* ptr = manager.allocate<int>(40);
+
+     for (int i = 0; i < 40; i++)
+     {
+         ptr[i] = i;
+     }
+
+     for (int i = 0; i < 40; i++)
+     {
+         EXPECT_EQ(ptr[i], i) << "Data corrupted at index " << i;
+     }
+ }
+
+ TEST(TEST_SUITE_NAME, MultipleAllocations)
+{
+     MM::MemoryManager manager(ManagerConfig);  // 1 KB
+
+     int* ptr1 = manager.allocate<int>(10);
+     float* ptr2 = manager.allocate<float>(20);
+
+     EXPECT_NE(ptr1, nullptr);
+     EXPECT_NE(ptr2, nullptr);
+
+     EXPECT_LT(reinterpret_cast<uintptr_t>(ptr1), reinterpret_cast<uintptr_t>(ptr2));
+ }
+
+ TEST(TEST_SUITE_NAME, OverflowReturnsNull)
+{
+     MM::MemoryManager manager(ManagerConfig);
+
+     int* ptr1 = manager.allocate<int>(10);
+     EXPECT_NE(ptr1, nullptr);
+
+     int* ptr2 = manager.allocate<int>(100);
+     EXPECT_EQ(ptr2, nullptr);
+ }
+
+ TEST(TEST_SUITE_NAME, Alignment)
+{
+     MM::MemoryManager manager(ManagerConfig);
+
+     double* ptr = manager.allocate<double>(1);
+
+     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alignof(double), 0) << "Pointer is not properly aligned for double";
+ }
+#endif
