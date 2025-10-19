@@ -10,7 +10,7 @@
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
-#if 1 /*MEMORYMANAGER_PROFILING*/
+#if _DEBUG && 1 /*MEMORYMANAGER_PROFILING*/
 #define MM_ASSERT(expression) \
     do                        \
     {                         \
