@@ -195,8 +195,8 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     , m_Head(nullptr)
     , m_UsedBytes(0)
 {
-    MM_ASSERT(capacity > 0 && pageSize > 0 && minSlotSize > 0);
-    MM_ASSERT(arenaSize <= capacity);
+    MM_ASSERT(m_Capacity > 0 && m_PageSize > 0 && m_MinSlotSize > 0);
+    MM_ASSERT(m_ArenaSize <= m_Capacity);
 
     m_Head = reinterpret_cast<unsigned char*>(malloc(capacity));
 
