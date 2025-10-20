@@ -279,25 +279,26 @@ TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     MM::MemoryManager manager(ManagerConfig);
     size_t allocated = 0;
-    uint32_t from = 64;
-    uint32_t to = 128;
+    uint32_t from = 33;
+    uint32_t to = 100;
     uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
 
     MM::Benchmark mark{2};
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
+    std::uniform_int_distribution<> actionDist(from, to);
     std::vector<std::pair<int, int*>> mm_pairs;
     std::vector<std::pair<int, int*>> std_pairs;
     std::cout << "Memory Manager benchmark\n";
     for (size_t i = 0; allocated < allocationsCupBytes; i++)
     {
-        int count = from + actionDist(gen);
-        allocated += count;
+        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
+        int count = size / sizeof(int);
+        allocated += size;
 
         mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
+        mm_pairs.push_back({count, manager.allocate<int>(count)});
         mark.EndAlloc();
     }
 
