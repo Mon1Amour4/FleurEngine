@@ -12,22 +12,61 @@ namespace Fleur::Core
 #pragma region Bit operations
 //======================================================================
 // Bit operations
-uint64_t bit_set(uint64_t number, uint8_t n);
+inline uint64_t bit_set(uint64_t number, uint8_t n)
+{
+    return number | (static_cast<uint64_t>(1) << n);
+}
 
-uint64_t bit_clear(uint64_t number, uint8_t n);
+inline uint64_t bit_clear(uint64_t number, uint8_t n)
+{
+    return number & ~(static_cast<uint64_t>(1) << n);
+}
 
-uint64_t bit_toggle(uint64_t number, uint8_t n);
+inline uint64_t bit_toggle(uint64_t number, uint8_t n)
+{
+    return number ^ (static_cast<uint64_t>(1) << n);
+}
 
 // True     = 1 = Occupied
 // False    = 0 = Free
-bool bit_check(uint64_t number, uint8_t n);
+inline bool bit_check(uint64_t number, uint8_t n)
+{
+    return (number & (static_cast<uint64_t>(1) << n)) != 0;
+}
 
-bool bit_scan_forward(uint32_t number, uint32_t* idx);
-bool bit_scan_forward64(uint64_t number, uint32_t* idx);
+inline bool bit_scan_forward(uint32_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanForward(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+inline bool bit_scan_forward64(uint64_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanForward64(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
 
-bool bit_scan_reverse(uint32_t number, uint32_t* idx);
-bool bit_scan_reverse64(uint64_t number, uint32_t* idx);
-
+inline bool bit_scan_reverse(uint32_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanReverse(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
+inline bool bit_scan_reverse64(uint64_t number, uint32_t* idx)
+{
+#if _MSC_VER
+    return _BitScanReverse64(reinterpret_cast<unsigned long*>(idx), number);
+#else
+    assert(false);
+#endif
+}
 
 #pragma endregion
 
