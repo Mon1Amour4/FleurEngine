@@ -271,36 +271,38 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
 
     m_Current = m_Head;
     m_Tail = m_Head + (m_CapacityBytes);
+
+    uint32_t offset = sizeof(Pool) + sizeof(Chunk);
+    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
+    {
+        uint32_t size = m_MinSlotSize << i;
+        unsigned char* poolPtr = m_Head + (m_PageSize + offset) * i;
+        new (poolPtr) Pool(poolPtr + offset, size, m_PageSize / size);
+
+        m_UsedBytes += sizeof(m_PageSize) + offset;
+        m_Current += sizeof(m_PageSize) + offset;
+    }
+}
+MM::Arena::~Arena()
+{
+    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
+    {
+        reinterpret_cast<Pool*>(m_Head + offset * i)->~Pool();
+    }
 }
 MM::Arena MM::Arena::operator=(const Arena& other)
 {
-    return Arena(nullptr, other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
+    return Arena(other.m_Head, other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
 };
 
-MM::Pool* MM::Arena::CreatePool(uint32_t slotSize)
-{
-    // Test if we have enought capacity
-    uint32_t requestedSize = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-    if (m_UsedBytes + requestedSize <= m_CapacityBytes)
-    {
-        map[slotSize] = new (m_Current) Pool(m_Current + sizeof(Pool), slotSize, static_cast<uint8_t>(m_PageSize / slotSize));
-        m_Current += requestedSize;
-        m_UsedBytes += requestedSize;
-        MM_ASSERT(m_Current < m_Tail);
-        return static_cast<Pool*>(map[slotSize]);
-    }
-    else
-    {
-        // Not enought space in current arena
-        return nullptr;
-    }
-}
 MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 {
-    if (auto val = map.find(slotSize); val != map.end())
-        return static_cast<Pool*>(val->second);
-
-    return nullptr;
+    uint32_t ratio = slotSize / m_MinSlotSize;
+    uint32_t idx = 0;
+    Fleur::Core::bit_scan_forward(ratio, &idx);
+    uint32_t offset = sizeof(Pool) + sizeof(Chunk) + m_PageSize;
+    return reinterpret_cast<Pool*>(m_Head + (offset * idx));
 }
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
@@ -336,9 +338,11 @@ void MM::Arena::Print()
 
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
-    for (auto& pair : map)
+    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
-        reinterpret_cast<Pool*>(pair.second)->Print();
+        uint32_t size = m_MinSlotSize << i;
+        reinterpret_cast<Pool*>(m_Head + offset * i)->Print();
     }
 
     std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
@@ -349,10 +353,14 @@ void MM::Arena::ArenaSnapshotToStream(std::ofstream& stream)
     stream << "\n//---------------------------- ARENA-PRINTING ----------------------------\\ \n";
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     stream << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
-    for (auto& pair : map)
+
+    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
-        reinterpret_cast<Pool*>(pair.second)->PoolSpapshotToStream(stream);
+        uint32_t size = m_MinSlotSize << i;
+        reinterpret_cast<Pool*>(m_Head + offset * i)->PoolSpapshotToStream(stream);
     }
+
     stream << "\n//--------------------------------- END ----------------------------\\ \n";
 }
 
@@ -361,10 +369,14 @@ void MM::Arena::ArenaSnapshot(char* buffer)
     buffer += std::sprintf(buffer, "//---------------------------- ARENA-PRINTING ----------------------------\\\n");
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", static_cast<int>(m_UsedBytes), static_cast<int>(m_CapacityBytes), static_cast<float>(percentage));
-    for (auto& pair : map)
+
+    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
-        reinterpret_cast<Pool*>(pair.second)->PoolSpapshot(buffer);
+        uint32_t size = m_MinSlotSize << i;
+        reinterpret_cast<Pool*>(m_Head + offset * i)->PoolSpapshot(buffer);
     }
+
     buffer += std::sprintf(buffer, "//--------------------------------- END ----------------------------\\ \n");
 }
 

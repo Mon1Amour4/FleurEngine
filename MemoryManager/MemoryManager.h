@@ -203,15 +203,8 @@ private:
 struct Arena
 {
     Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_t minSlotSize);
-    ~Arena()
-    {
-        for (auto& pair : map)
-        {
-            reinterpret_cast<Pool*>(pair.second)->~Pool();
-        }
-    }
+    ~Arena();
 
-    [[nodiscard]] Pool* CreatePool(uint32_t slotSize);
     [[nodiscard]] Pool* GetPool(uint32_t slotSize);
 
     [[nodiscard]] Chunk* TryToGetNewChunk(Pool* pool, uint32_t slotSize, uint8_t slotsCount);
@@ -222,7 +215,6 @@ struct Arena
 
     void ArenaSnapshotToStream(std::ofstream& stream);
     void ArenaSnapshot(char* buffer);
-
 
 private:
     const uint32_t m_PageSize;
@@ -236,8 +228,6 @@ private:
 
     unsigned char* m_Current;
     size_t m_UsedBytes;
-
-    std::unordered_map<uint32_t, void*> map;
 };
 #pragma endregion
 
@@ -273,8 +263,6 @@ public:
             unsigned char* requestedMemory = nullptr;
 
             pool = m_LocalArena->GetPool(slotSize);
-            if (!pool)
-                pool = m_LocalArena->CreatePool(slotSize);
 
             if (pool)
             {
@@ -316,7 +304,7 @@ public:
             }
             else
             {
-                // TODO couldn't create new Pool
+                // TODO couldn't wrong size data
                 // Not enought space in arena? Create new arena?
                 MM_DEBUG_BREAK(true);
                 assert(false);
