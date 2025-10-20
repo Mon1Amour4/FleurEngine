@@ -386,7 +386,7 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     : m_NumChunks(0)
     , m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)
-    , m_HeadChunk(nullptr)
+    , m_FreeChunk(nullptr)
 {
     MM_ASSERT(m_SlotSize > 0);
     MM_ASSERT(m_SlotsCount > 0 && m_SlotsCount <= 64);
@@ -394,50 +394,58 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     MM_PRINT("--[CREATED]\n");
     MM_PRINT("  Pool{" << std::to_string(m_SlotSize) << ", " << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n ")
 
-    m_HeadChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
+    m_FreeChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
 
-    MM_ASSERT(m_HeadChunk);
+    MM_ASSERT(m_FreeChunk);
 
     ++m_NumChunks;
 }
 
 MM::Pool::~Pool()
 {
-    m_HeadChunk->~Chunk();
+    m_FreeChunk->~Chunk();
 }
 
-unsigned char* MM::Pool::AcquireSlotFromPool()
+bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 {
-    return m_HeadChunk->TryAcquireSlotInChunkChain();
+    if (!m_FreeChunk)
+        return false;
+
+    if (!m_FreeChunk->AcquireSlot(outPtr))
+    {
+        m_FreeChunk = nullptr;
+        return false;
+    }
+    return true;
 }
 
 void MM::Pool::Extend(MM::Chunk* chunk)
 {
-    m_HeadChunk->SetNextChunkRecursive(chunk);
+    m_FreeChunk = chunk;
     m_NumChunks++;
 }
 
 void MM::Pool::Print()
 {
     std::cout << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
-    m_HeadChunk->Print(0);
+    m_FreeChunk->Print(0);
 }
 
 void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 {
     stream << "\nPrinting Pool{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} : Chunks: " << std::to_string(m_NumChunks);
-    m_HeadChunk->ChunkSnapshotToStream(0, stream);
+    m_FreeChunk->ChunkSnapshotToStream(0, stream);
 }
 
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
     buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
-    m_HeadChunk->ChunkSnapshot(0, buffer);
+    m_FreeChunk->ChunkSnapshot(0, buffer);
 }
 
 bool MM::Pool::FreeSlot(unsigned char* ptr)
 {
-    auto chunk = m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
+    auto chunk = m_FreeChunk->IsPtrToBlockIsInChunkRecursive(ptr);
     if (chunk)
     {
         chunk->FreeChunkSlot(ptr);
@@ -450,11 +458,6 @@ bool MM::Pool::FreeSlot(unsigned char* ptr)
     }
 }
 
-bool MM::Pool::IsInChunkChain(const unsigned char* const ptr) const
-{
-    return m_HeadChunk->IsPtrToBlockIsInChunkRecursive(ptr);
-}
-
 //======================================================================
 // Chunk
 MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
@@ -464,7 +467,6 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     , m_UsedBytes(0)
     , m_Head(nullptr)
     , m_Tail(nullptr)
-    , next(nullptr)
     , bitmap(m_SlotsCount)
 {
     MM_PRINT("--[CREATED]\n")
@@ -477,57 +479,37 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
 
 MM::Chunk::~Chunk()
 {
-    if (next)
-        next->~Chunk();
 }
 
-unsigned char* MM::Chunk::TryAcquireSlotInChunkChain()
+bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
 {
-    if (!bitmap.IsFull())
-    {
-        uint32_t oldCapacity = m_UsedBytes;
-        m_UsedBytes += m_SlotSize;
+    uint32_t oldCapacity = m_UsedBytes;
+    m_UsedBytes += m_SlotSize;
 
-        MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes)
+    MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes)
 
-        uint32_t freeSlotNew = 0;
-        bitmap.ScanFirstFreeForward(&freeSlotNew);
+    uint32_t freeSlotNew = 0;
+    bitmap.ScanFirstFreeForward(&freeSlotNew);
 
-        uint64_t oldBitmap = bitmap.Get();
+    uint64_t oldBitmap = bitmap.Get();
 
-        MM_PRINT("--[AcquireSlot]\n")
-        MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
-                             << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
-        MM_PRINT("   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap)
+    MM_PRINT("--[AcquireSlot]\n")
+    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
+                         << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
+    MM_PRINT("   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap)
 
-        bitmap.SetBit(freeSlotNew);
+    bitmap.SetBit(freeSlotNew);
 
-        MM_PRINT(", bitmap after: " << bitmap << std::endl)
+    MM_PRINT(", bitmap after: " << bitmap << std::endl)
 
-        MM_DEBUG_BREAK(oldBitmap == bitmap.Get())
+    MM_DEBUG_BREAK(oldBitmap == bitmap.Get())
 
-        unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
+    unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
 
-        MM_ASSERT(nextPtr < m_Tail);
-        return nextPtr;
-    }
+    MM_ASSERT(nextPtr < m_Tail);
+    outPtr = nextPtr;
 
-    if (next)
-    {
-        return next->TryAcquireSlotInChunkChain();
-    }
-
-    return nullptr;
-}
-
-void MM::Chunk::SetNextChunkRecursive(Chunk* nextChunk)
-{
-    MM_ASSERT(nextChunk);
-
-    if (!next)
-        next = nextChunk;
-    else
-        next->SetNextChunkRecursive(nextChunk);
+    return !bitmap.IsFull();
 }
 
 MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(const unsigned char* const ptr)
@@ -538,11 +520,11 @@ MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(const unsigned char* const 
         return this;
     }
 
-    if (next)
+    /*if (next)
     {
         MM_PRINT("Next IsPtrToBlockIsInChunkRecursive, this{" << this << "}, ptr{" << static_cast<const void*>(ptr) << "}\n")
         return next->IsPtrToBlockIsInChunkRecursive(ptr);
-    }
+    }*/
     else
         return nullptr;
 }
@@ -642,9 +624,6 @@ void MM::Chunk::Print(uint32_t chunkNum)
         std::cout << "\n\n";
     }
     // PrintBucket();
-
-    if (next)
-        next->Print(++chunkNum);
 }
 void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 {
@@ -663,9 +642,6 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
     }
     stream << strUpper << '\n';
     stream << strDown << '\n';
-
-    if (next)
-        next->ChunkSnapshotToStream(++chunkNum, stream);
 }
 void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
 {
@@ -686,11 +662,6 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
     buffer += std::sprintf(buffer, "%s", "\n");
     buffer += std::sprintf(buffer, "%s", strDown.c_str());
     buffer += std::sprintf(buffer, "%s", "\n");
-
-    if (next)
-    {
-        next->ChunkSnapshot(++chunkNum, buffer);
-    }
 }
 
 //======================================================================

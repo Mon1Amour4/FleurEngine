@@ -10,7 +10,7 @@
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
-#if _DEBUG && 1 /*MEMORYMANAGER_PROFILING*/
+#if _DEBUG && 0 /*MEMORYMANAGER_PROFILING*/
 #define MM_ASSERT(expression) \
     do                        \
     {                         \
@@ -132,9 +132,9 @@ public:
     Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
     ~Chunk();
 
-    void SetNextChunkRecursive(Chunk* nextChunk);
-
-    unsigned char* TryAcquireSlotInChunkChain();
+    // True - there is at least one free chunk after acquisition
+    // False - Chunk is full
+    bool AcquireSlot(unsigned char*& outPtr);
 
     void FreeChunkSlot(unsigned char* ptr);
 
@@ -155,7 +155,6 @@ private:
 
     unsigned char* m_Head;
     unsigned char* m_Tail;
-    Chunk* next;
     Fleur::Core::BitSet64 bitmap;
 
     struct PrintSlot
@@ -178,7 +177,8 @@ struct Pool
     Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
     ~Pool();
 
-    unsigned char* AcquireSlotFromPool();
+    // False - no space
+    bool AcquireSlotFromPool(unsigned char*& outPtr);
 
     void Extend(Chunk* chunk);
 
@@ -188,10 +188,8 @@ struct Pool
 
     bool FreeSlot(unsigned char* ptr);
 
-    bool IsInChunkChain(const unsigned char* const ptr) const;
-
 private:
-    Chunk* m_HeadChunk;
+    Chunk* m_FreeChunk;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
     const uint8_t m_SlotsCount;
@@ -266,23 +264,17 @@ public:
 
             if (pool)
             {
-                requestedMemory = pool->AcquireSlotFromPool();
-                if (!requestedMemory)
+                bool res = pool->AcquireSlotFromPool(requestedMemory);
+                if (!res)
                 {
-                    // Not enought space in chunk
-                    // Trying to get another chunk for that pool from Arena
                     auto newChunk = m_LocalArena->TryToGetNewChunk(pool, slotSize, slotsPerPage);
                     if (newChunk)
                     {
                         pool->Extend(newChunk);
-                        requestedMemory = newChunk->TryAcquireSlotInChunkChain();
-                    }
-                    else
-                    {
-                        // TODO Not enought space in arena for new chunk, allocate new arena?
-                        requestedMemory = nullptr;
+                        newChunk->AcquireSlot(requestedMemory);
                     }
                 }
+
                 if (requestedMemory)
                 {
                     // placement new
@@ -297,7 +289,7 @@ public:
                 }
                 else
                 {
-                    // No space in pool, couldn't create new chunk
+                    // No space in Arena for new chunk
                     MM_DEBUG_BREAK(true);
                     return nullptr;
                 }
