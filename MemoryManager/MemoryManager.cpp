@@ -279,9 +279,10 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
         unsigned char* poolPtr = m_Head + (m_PageSize + offset) * i;
         new (poolPtr) Pool(poolPtr + offset, size, m_PageSize / size);
 
-        m_UsedBytes += sizeof(m_PageSize) + offset;
-        m_Current += sizeof(m_PageSize) + offset;
+        m_UsedBytes += m_PageSize + offset;
+        m_Current += m_PageSize + offset;
     }
+    m_StaticOffset = m_UsedBytes;
 }
 MM::Arena::~Arena()
 {
@@ -303,6 +304,16 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
     Fleur::Core::bit_scan_forward(ratio, &idx);
     uint32_t offset = sizeof(Pool) + sizeof(Chunk) + m_PageSize;
     return reinterpret_cast<Pool*>(m_Head + (offset * idx));
+}
+
+MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
+{
+    // TODO
+
+    unsigned char* endOfStatic = m_Head + m_StaticOffset;
+    uint32_t diff = ptrToSlot - endOfStatic;
+    uint32_t steps = diff / (sizeof(Chunk) + m_PageSize);
+    return reinterpret_cast<Chunk*>(endOfStatic + (steps * sizeof(Chunk) + m_PageSize));
 }
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
@@ -443,19 +454,11 @@ void MM::Pool::PoolSpapshot(char*& buffer)
     m_FreeChunk->ChunkSnapshot(0, buffer);
 }
 
-bool MM::Pool::FreeSlot(unsigned char* ptr)
+bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 {
-    auto chunk = m_FreeChunk->IsPtrToBlockIsInChunkRecursive(ptr);
-    if (chunk)
-    {
-        chunk->FreeChunkSlot(ptr);
-        return true;
-    }
-    else
-    {
-        MM_DEBUG_BREAK(true);
-        return false;
-    }
+    chunk->FreeChunkSlot(ptrToSlot);
+    m_FreeChunk = chunk;
+    return true;
 }
 
 //======================================================================
@@ -512,35 +515,23 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     return !bitmap.IsFull();
 }
 
-MM::Chunk* MM::Chunk::IsPtrToBlockIsInChunkRecursive(const unsigned char* const ptr)
-{
-    if (ptr < m_Tail && ptr >= m_Head)
-    {
-        MM_PRINT("IsPtrToBlockIsInChunkRecursive, this{" << this << "}, ptr{" << static_cast<const void*>(ptr) << "}\n")
-        return this;
-    }
-
-    /*if (next)
-    {
-        MM_PRINT("Next IsPtrToBlockIsInChunkRecursive, this{" << this << "}, ptr{" << static_cast<const void*>(ptr) << "}\n")
-        return next->IsPtrToBlockIsInChunkRecursive(ptr);
-    }*/
-    else
-        return nullptr;
-}
-
-void MM::Chunk::FreeChunkSlot(unsigned char* ptr)
+void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
 {
     MM_DEBUG_BREAK(m_UsedBytes == 0)
 
-    uint32_t clearBit = (ptr - m_Head) / m_SlotSize;
+    uint8_t slot = 0;
+    if (ptrToSLot != m_Head)
+    {
+        uint8_t slot = (ptrToSLot - m_Head) / m_SlotSize;
+    }
+
     uint32_t old_m_UsedBytes = m_UsedBytes;
     uint64_t old_bitmap = bitmap.Get();
 
     MM_PRINT("--[Slot Free]\n")
     MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(clearBit) << ", old bitmap:" << bitmap)
 
-    bitmap.ClearBit(clearBit);
+    bitmap.ClearBit(slot);
 
     m_UsedBytes -= m_SlotSize;
 

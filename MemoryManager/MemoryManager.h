@@ -136,15 +136,13 @@ public:
     // False - Chunk is full
     bool AcquireSlot(unsigned char*& outPtr);
 
-    void FreeChunkSlot(unsigned char* ptr);
+    void FreeChunkSlot(unsigned char* ptrToSLot);
 
     void PrintBucket();
 
     void Print(uint32_t chunkNum);
     void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
     void ChunkSnapshot(uint32_t chunkNum, char*& buffer);
-
-    Chunk* IsPtrToBlockIsInChunkRecursive(const unsigned char* const);
 
 private:
     const uint32_t m_SlotSize;
@@ -186,7 +184,7 @@ struct Pool
     void PoolSpapshotToStream(std::ofstream& stream);
     void PoolSpapshot(char*& buffer);
 
-    bool FreeSlot(unsigned char* ptr);
+    bool FreeSlot(Chunk* chunk, unsigned char* ptrToSlot);
 
 private:
     Chunk* m_FreeChunk;
@@ -204,6 +202,7 @@ struct Arena
     ~Arena();
 
     [[nodiscard]] Pool* GetPool(uint32_t slotSize);
+    [[nodiscard]] Chunk* FindChunk(unsigned char* ptrToSlot);
 
     [[nodiscard]] Chunk* TryToGetNewChunk(Pool* pool, uint32_t slotSize, uint8_t slotsCount);
 
@@ -218,7 +217,7 @@ private:
     const uint32_t m_PageSize;
     const uint32_t m_MinSlotSize;
     const size_t m_CapacityBytes;
-
+    uint32_t m_StaticOffset;
     unsigned char* m_Head;
 
     // one-past-the-end
@@ -320,14 +319,28 @@ public:
 
         uint32_t alignedBlockSize = get_pow2_ceil(blockSizeBytes);
 
+        MM_DEBUG_BREAK(alignedBlockSize > 4096);
+
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
         const bool isObjectLarge = blockSizeBytes >= SIZE_OF_LARGE_TYPE;
         if (!isObjectLarge)
         {
             auto pool = m_LocalArena->GetPool(alignedBlockSize);
+            bool res = false;
             if (pool)
             {
-                bool res = pool->FreeSlot(bytePtr);
+                if (bytePtr < reinterpret_cast<unsigned char*>(pool + (sizeof(Chunk) + m_PageSize)))
+                {
+                    // Inner Chunk
+                    Chunk* innerChunk = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(pool) + sizeof(Pool) + sizeof(Chunk));
+                    res = pool->FreeSlot(innerChunk, bytePtr);
+                }
+                else
+                {
+                    // Outer Chunk
+                    res = pool->FreeSlot(m_LocalArena->FindChunk(bytePtr), bytePtr);
+                }
+
                 if (!res)
                     __debugbreak();
                 else
