@@ -2,7 +2,6 @@
 
 //======================================================================
 // Benchmark
-
 MM::Benchmark::Benchmark(float AvgPeriodSecs)
     : m_AveragePeriod(AvgPeriodSecs)
     , m_FramesAverage(0)
@@ -286,11 +285,13 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
 }
 MM::Arena::~Arena()
 {
-    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
-    {
-        reinterpret_cast<Pool*>(m_Head + offset * i)->~Pool();
-    }
+    // TODO
+    //uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    //for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
+    //{
+    //    Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
+    //    pool->~Pool();
+    //}
 }
 MM::Arena MM::Arena::operator=(const Arena& other)
 {
@@ -522,7 +523,7 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
     uint8_t slot = 0;
     if (ptrToSLot != m_Head)
     {
-        uint8_t slot = (ptrToSLot - m_Head) / m_SlotSize;
+        slot = (ptrToSLot - m_Head) / m_SlotSize;
     }
 
     uint32_t old_m_UsedBytes = m_UsedBytes;
