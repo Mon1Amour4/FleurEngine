@@ -9,7 +9,59 @@
 #define TEST_SUITE_NAME MemoryManagerTest
 #define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
 
-#if 0
+void RangedTest(uint32_t from, uint32_t to)
+{
+    MM::MemoryManager manager(ManagerConfig);
+    size_t allocated = 0;
+    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+
+    MM::Benchmark mark{2};
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> actionDist(from, to);
+    std::vector<std::pair<int, int*>> mm_pairs;
+    std::vector<std::pair<int, int*>> std_pairs;
+    std::cout << "Memory Manager benchmark\n";
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
+        int count = size / sizeof(int);
+        allocated += size;
+
+        mark.StartAlloc();
+        mm_pairs.push_back({count, manager.allocate<int>(count)});
+        mark.EndAlloc();
+    }
+
+    for (auto alloc : mm_pairs)
+    {
+        mark.StartDealloc();
+        manager.deallocate<int>(alloc.second, alloc.first);
+        mark.EndDealloc();
+    }
+    mark.Print();
+
+    std::allocator<int> alloc;
+    std::cout << "STD allocator benchmark\n";
+    MM::Benchmark std_mark{2};
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartAlloc();
+        uint32_t count = mm_pairs[i].first;
+        std_pairs.push_back({count, alloc.allocate(count)});
+        std_mark.EndAlloc();
+    }
+    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    {
+        std_mark.StartDealloc();
+        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        std_mark.EndDealloc();
+    }
+    std_mark.Print();
+}
+
+#if 0 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     MM::MemoryManager manager(ManagerConfig);
@@ -223,7 +275,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
         MM_PRINT(std::to_string(i) << "\n")
         // manager.Print();
-        // manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
+        //  manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
     MM_PRINT("---------------- PURGE --------------\n");
     mark.Print();
@@ -274,334 +326,46 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 1
+#if 1 FixedRangeAllocationsFrom64To128
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 33;
-    uint32_t to = 100;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(from, to);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
-        int count = size / sizeof(int);
-        allocated += size;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count)});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+    RangedTest(33, 128);
 }
 #endif
 
-#if 0
+
+#if 0 FixedRangeAllocationsFrom128To256
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom128To256)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 128;
-    uint32_t to = 256;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int count = from + actionDist(gen);
-        allocated += count;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+   RangedTest(65, 256);
 }
 #endif
 
-#if 0
+#if 0 FixedRangeAllocationsFrom256To512
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom256To512)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 256;
-    uint32_t to = 512;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int count = from + actionDist(gen);
-        allocated += count;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+    RangedTest(129, 512);
 }
 #endif
 
-#if 0
+#if 0 FixedRangeAllocationsFrom512To1024
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom512To1024)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 256;
-    uint32_t to = 512;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int count = from + actionDist(gen);
-        allocated += count;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+   RangedTest(260, 1024);
 }
 #endif
 
-#if 0
+#if 0 FixedRangeAllocationsFrom1024To2048
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom1024To2048)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 1024;
-    uint32_t to = 2048;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int count = from + actionDist(gen);
-        allocated += count;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+    RangedTest(513, 2048);
 }
 #endif
 
-#if 0
+#if 0 FixedRangeAllocationsFrom2048To4096
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To4096)
 {
-    MM::MemoryManager manager(ManagerConfig);
-    size_t allocated = 0;
-    uint32_t from = 2048;
-    uint32_t to = 4096;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
-
-    MM::Benchmark mark{2};
-
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, to - from);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
-    std::cout << "Memory Manager benchmark\n";
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int count = from + actionDist(gen);
-        allocated += count;
-
-        mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count / sizeof(int))});
-        mark.EndAlloc();
-    }
-
-    for (auto alloc : mm_pairs)
-    {
-        mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
-        mark.EndDealloc();
-    }
-    mark.Print();
-
-    std::allocator<int> alloc;
-    std::cout << "STD allocator benchmark\n";
-    MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
-        std_mark.EndAlloc();
-    }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
-    {
-        std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
-        std_mark.EndDealloc();
-    }
-    std_mark.Print();
+    RangedTest(1025, 4096);
 }
 #endif
 
