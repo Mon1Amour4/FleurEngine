@@ -319,7 +319,7 @@ public:
 
         uint32_t alignedBlockSize = get_pow2_ceil(blockSizeBytes);
 
-        MM_DEBUG_BREAK(alignedBlockSize > 4096);
+        MM_DEBUG_BREAK(alignedBlockSize > m_PageSize);
 
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
         const bool isObjectLarge = blockSizeBytes >= SIZE_OF_LARGE_TYPE;
