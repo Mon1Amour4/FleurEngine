@@ -329,7 +329,7 @@ public:
             bool res = false;
             if (pool)
             {
-                if (bytePtr < reinterpret_cast<unsigned char*>(pool + (sizeof(Chunk) + m_PageSize)))
+                if (bytePtr < reinterpret_cast<unsigned char*>(pool) + sizeof(Pool) + sizeof(Chunk) + m_PageSize)
                 {
                     // Inner Chunk
                     Chunk* innerChunk = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(pool) + sizeof(Pool) + sizeof(Chunk));

@@ -286,8 +286,8 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
 MM::Arena::~Arena()
 {
     // TODO
-    //uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-    //for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
+    // uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    // for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     //{
     //    Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
     //    pool->~Pool();
@@ -314,7 +314,7 @@ MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
     unsigned char* endOfStatic = m_Head + m_StaticOffset;
     uint32_t diff = ptrToSlot - endOfStatic;
     uint32_t steps = diff / (sizeof(Chunk) + m_PageSize);
-    return reinterpret_cast<Chunk*>(endOfStatic + (steps * sizeof(Chunk) + m_PageSize));
+    return reinterpret_cast<Chunk*>(endOfStatic + (steps * (sizeof(Chunk) + m_PageSize)));
 }
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
@@ -330,7 +330,6 @@ MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_
             Chunk* newChunk = new (prevPtr) Chunk(prevPtr + sizeof(Chunk), slotSize, slotsCount);
             unsigned char* newChunkChar = reinterpret_cast<unsigned char*>(newChunk);
 
-            MM_DEBUG_BREAK(pool->IsInChunkChain(newChunkChar));
             MM_DEBUG_BREAK(m_Current >= m_Tail);
             return newChunk;
         })
@@ -426,6 +425,9 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
     if (!m_FreeChunk->AcquireSlot(outPtr))
     {
         m_FreeChunk = nullptr;
+
+        MM_PRINT("Pool{" << this << "} m_FreeChunk{" << m_FreeChunk << "}\n");
+
         return false;
     }
     return true;
@@ -433,6 +435,8 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 
 void MM::Pool::Extend(MM::Chunk* chunk)
 {
+    MM_PRINT("Pool{" << this << "} extend by chunk{" << &*chunk << "}\n");
+
     m_FreeChunk = chunk;
     m_NumChunks++;
 }
@@ -474,7 +478,7 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
     , bitmap(m_SlotsCount)
 {
     MM_PRINT("--[CREATED]\n")
-    MM_PRINT("  Chunk{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
+    MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
 
     m_Head = ptr;
     m_Tail = m_Head + m_CapacityBytes;
@@ -513,7 +517,12 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     MM_ASSERT(nextPtr < m_Tail);
     outPtr = nextPtr;
 
-    return !bitmap.IsFull();
+    if (bitmap.IsFull())
+    {
+        MM_PRINT("Chunk{" << this << "} is full\n");
+        return false;
+    }
+    return true;
 }
 
 void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
@@ -530,7 +539,7 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
     uint64_t old_bitmap = bitmap.Get();
 
     MM_PRINT("--[Slot Free]\n")
-    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(clearBit) << ", old bitmap:" << bitmap)
+    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(slot) << ", old bitmap:" << bitmap)
 
     bitmap.ClearBit(slot);
 
