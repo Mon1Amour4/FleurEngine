@@ -54,7 +54,7 @@ static constexpr size_t MIN_SLOT_SIZE = 64;
 
 consteval size_t get_powered_size(size_t power)
 {
-    return size_t{1} << power;
+    return 1ull << power;
 }
 
 constexpr uint32_t get_pow2_ceil(uint32_t number)
