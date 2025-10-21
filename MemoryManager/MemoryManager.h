@@ -69,6 +69,19 @@ constexpr uint32_t get_pow2_ceil(uint32_t number)
     return n + 1;
 }
 
+inline uint8_t GetPowerOfTwoOf(uint32_t number)
+{
+    if (number == 0)
+        return 0;
+
+    uint8_t power = 0;
+    while (1u << power <= number)
+    {
+        power++;
+    }
+    return power;
+}
+
 #pragma region Benchmark
 //======================================================================
 class Benchmark
