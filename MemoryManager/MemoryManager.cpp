@@ -271,27 +271,26 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     m_Current = m_Head;
     m_Tail = m_Head + (m_CapacityBytes);
 
-    uint32_t offset = sizeof(Pool) + sizeof(Chunk);
-    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
+    uint32_t offset = sizeof(Pool);
+    uint8_t poolsCount = GetPowerOfTwoOf(m_MinSlotSize);
+    m_StaticOffset = poolsCount * sizeof(Pool);
+    for (size_t i = 0; i < poolsCount; i++)
     {
-        uint32_t size = m_MinSlotSize << i;
-        unsigned char* poolPtr = m_Head + (m_PageSize + offset) * i;
-        new (poolPtr) Pool(poolPtr + offset, size, m_PageSize / size);
+        uint32_t poolSize = m_MinSlotSize << i;
+        unsigned char* poolPtr = m_Head + offset * i;
+        Pool* pool = new (poolPtr) Pool(poolPtr + sizeof(Pool), poolSize, m_PageSize / poolSize);
 
-        m_UsedBytes += m_PageSize + offset;
-        m_Current += m_PageSize + offset;
+        unsigned char* chunkPtr = poolPtr + m_StaticOffset;
+        Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
+
+        pool->Extend(chunk);
     }
-    m_StaticOffset = m_UsedBytes;
+    m_UsedBytes += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount;
+    m_Current += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount;
 }
 MM::Arena::~Arena()
 {
     // TODO
-    // uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-    // for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
-    //{
-    //    Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
-    //    pool->~Pool();
-    //}
 }
 MM::Arena MM::Arena::operator=(const Arena& other)
 {
@@ -303,8 +302,7 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
     uint32_t ratio = slotSize / m_MinSlotSize;
     uint32_t idx = 0;
     Fleur::Core::bit_scan_forward(ratio, &idx);
-    uint32_t offset = sizeof(Pool) + sizeof(Chunk) + m_PageSize;
-    return reinterpret_cast<Pool*>(m_Head + (offset * idx));
+    return reinterpret_cast<Pool*>(m_Head + (sizeof(Pool) * idx));
 }
 
 MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
@@ -404,12 +402,6 @@ MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
 
     MM_PRINT("--[CREATED]\n");
     MM_PRINT("  Pool{" << std::to_string(m_SlotSize) << ", " << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n ")
-
-    m_FreeChunk = new (ptr) Chunk(ptr + sizeof(Chunk), m_SlotSize, m_SlotsCount);
-
-    MM_ASSERT(m_FreeChunk);
-
-    ++m_NumChunks;
 }
 
 MM::Pool::~Pool()

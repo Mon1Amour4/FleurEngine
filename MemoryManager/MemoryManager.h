@@ -342,17 +342,7 @@ public:
             bool res = false;
             if (pool)
             {
-                if (bytePtr < reinterpret_cast<unsigned char*>(pool) + sizeof(Pool) + sizeof(Chunk) + m_PageSize)
-                {
-                    // Inner Chunk
-                    Chunk* innerChunk = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(pool) + sizeof(Pool) + sizeof(Chunk));
-                    res = pool->FreeSlot(innerChunk, bytePtr);
-                }
-                else
-                {
-                    // Outer Chunk
-                    res = pool->FreeSlot(m_LocalArena->FindChunk(bytePtr), bytePtr);
-                }
+                res = pool->FreeSlot(m_LocalArena->FindChunk(bytePtr), bytePtr);
 
                 if (!res)
                     __debugbreak();
