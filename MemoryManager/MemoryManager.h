@@ -270,7 +270,7 @@ public:
                     if (newChunk)
                     {
                         pool->Extend(newChunk);
-                        newChunk->AcquireSlot(requestedMemory);
+                        pool->AcquireSlotFromPool(requestedMemory);
                     }
                 }
 
