@@ -271,22 +271,26 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     m_Current = m_Head;
     m_Tail = m_Head + (m_CapacityBytes);
 
-    uint32_t offset = sizeof(Pool);
-    uint8_t poolsCount = GetPowerOfTwoOf(m_MinSlotSize);
+
+    uint8_t poolsCount = GetPowerOfTwoOf(pageSize / minSlotSize);
     m_StaticOffset = poolsCount * sizeof(Pool);
+
+    uint32_t offset = sizeof(Pool);
+    unsigned char* chunksBase = m_Head + m_StaticOffset;
+    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
     for (size_t i = 0; i < poolsCount; i++)
     {
         uint32_t poolSize = m_MinSlotSize << i;
         unsigned char* poolPtr = m_Head + offset * i;
-        Pool* pool = new (poolPtr) Pool(poolPtr + sizeof(Pool), poolSize, m_PageSize / poolSize);
+        Pool* pool = new (poolPtr) Pool(poolSize, m_PageSize / poolSize);
 
-        unsigned char* chunkPtr = poolPtr + m_StaticOffset;
+        unsigned char* chunkPtr = chunksBase + i * chunkStride;
         Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
 
         pool->Extend(chunk);
     }
-    m_UsedBytes += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount;
-    m_Current += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount;
+    m_UsedBytes += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    m_Current += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
 }
 MM::Arena::~Arena()
 {
@@ -307,12 +311,15 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 
 MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
 {
-    // TODO
+    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
 
     unsigned char* endOfStatic = m_Head + m_StaticOffset;
     uint32_t diff = ptrToSlot - endOfStatic;
-    uint32_t steps = diff / (sizeof(Chunk) + m_PageSize);
-    return reinterpret_cast<Chunk*>(endOfStatic + (steps * (sizeof(Chunk) + m_PageSize)));
+    uint32_t steps = diff / chunkStride;
+    Chunk* chunk = reinterpret_cast<Chunk*>(endOfStatic + (steps * chunkStride));
+
+    MM_DEBUG_BREAK(!chunk->IsValid());
+    return chunk;
 }
 
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
@@ -391,7 +398,7 @@ void MM::Arena::ArenaSnapshot(char* buffer)
 
 //======================================================================
 // Pool
-MM::Pool::Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
+MM::Pool::Pool(uint32_t slotSize, uint8_t slotCount)
     : m_NumChunks(0)
     , m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)
@@ -522,15 +529,13 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
     MM_DEBUG_BREAK(m_UsedBytes == 0)
 
     uint8_t slot = 0;
-    if (ptrToSLot != m_Head)
-    {
-        slot = (ptrToSLot - m_Head) / m_SlotSize;
-    }
+    slot = (ptrToSLot - m_Head) / m_SlotSize;
 
     uint32_t old_m_UsedBytes = m_UsedBytes;
     uint64_t old_bitmap = bitmap.Get();
 
     MM_PRINT("--[Slot Free]\n")
+    MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
     MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(slot) << ", old bitmap:" << bitmap)
 
     bitmap.ClearBit(slot);
