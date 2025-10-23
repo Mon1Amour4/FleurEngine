@@ -157,6 +157,11 @@ public:
     void ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream);
     void ChunkSnapshot(uint32_t chunkNum, char*& buffer);
 
+    inline bool IsValid() const
+    {
+        return m_UsedBytes < 5000;
+    }
+
 private:
     const uint32_t m_SlotSize;
     const uint32_t m_CapacityBytes;
@@ -198,6 +203,11 @@ struct Pool
     void PoolSpapshot(char*& buffer);
 
     bool FreeSlot(Chunk* chunk, unsigned char* ptrToSlot);
+
+    inline uint32_t Chunks() const
+    {
+        return m_NumChunks;
+    }
 
 private:
     Chunk* m_FreeChunk;
