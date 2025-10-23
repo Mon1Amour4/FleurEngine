@@ -221,17 +221,16 @@ void MM::MemoryManager::Print()
 }
 void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName, uint32_t iteration)
 {
-    uint32_t bufferSize = 16000;
+    uint32_t bufferSize = 1024 * 1024;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
-    tmp += sprintf_s(buffer, bufferSize, "Iteration: %d\n", iteration);
+    tmp += sprintf_s(tmp, bufferSize, "Iteration: %d\n", iteration);
 
     m_LocalArena->ArenaSnapshot(tmp);
 
     std::ofstream myFile;
     myFile.open(fileName.data(), std::ios::app);
-
     if (myFile.good())
     {
         myFile << buffer;
