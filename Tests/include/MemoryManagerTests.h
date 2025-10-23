@@ -5,6 +5,7 @@
 #include "MemoryManager.h"
 #include "SyntheticTypes.hpp"
 #include "gtest/gtest.h"
+#include "tracy/Tracy.hpp"
 
 #define TEST_SUITE_NAME MemoryManagerTest
 #define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
@@ -30,15 +31,23 @@ void RangedTest(uint32_t from, uint32_t to)
         allocated += size;
 
         mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count)});
+
+        ZoneScopedN("MM Allocate");
+        int* ptr = manager.allocate<int>(count);
+        mm_pairs.push_back({count, ptr});
         mark.EndAlloc();
+        manager.SaveSnapshotToFile("a.txt", 1);
+        FrameMark;
     }
 
     for (auto alloc : mm_pairs)
     {
         mark.StartDealloc();
+
+        ZoneScopedN("MM Deallocate");
         manager.deallocate<int>(alloc.second, alloc.first);
         mark.EndDealloc();
+        FrameMark;
     }
     mark.Print();
 

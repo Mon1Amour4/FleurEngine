@@ -49,3 +49,10 @@ TARGET_INCLUDE_DIRECTORIES(FleurTests PUBLIC
   ../Engine/Fleur/MemoryManager)
 
 TARGET_COMPILE_FEATURES(FleurTests PUBLIC cxx_std_20)
+
+# Tracy
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/tracy-master)
+
+TARGET_LINK_LIBRARIES(FleurTests PRIVATE TracyClient)
+
+TARGET_COMPILE_DEFINITIONS(FleurTests PRIVATE TRACY_ENABLE)
