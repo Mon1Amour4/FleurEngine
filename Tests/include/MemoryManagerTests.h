@@ -12,6 +12,7 @@
 void RangedTest(uint32_t from, uint32_t to)
 {
     MM::MemoryManager manager(ManagerConfig);
+    manager.ClearFile("MemorySnapshot.txt");
     size_t allocated = 0;
     uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
 
@@ -32,6 +33,7 @@ void RangedTest(uint32_t from, uint32_t to)
         mark.StartAlloc();
         mm_pairs.push_back({count, manager.allocate<int>(count)});
         mark.EndAlloc();
+        manager.SaveSnapshotToFile("MemorySnapshot.txt", 0);
     }
 
     for (auto alloc : mm_pairs)
@@ -332,7 +334,6 @@ TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
     RangedTest(33, 128);
 }
 #endif
-
 
 #if 0 FixedRangeAllocationsFrom128To256
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom128To256)

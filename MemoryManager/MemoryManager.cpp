@@ -386,12 +386,22 @@ void MM::Arena::ArenaSnapshot(char* buffer)
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
     buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", static_cast<int>(m_UsedBytes), static_cast<int>(m_CapacityBytes), static_cast<float>(percentage));
 
-    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
+    uint32_t chunks = 0;
+    uint32_t offset = sizeof(Pool);
     for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
         uint32_t size = m_MinSlotSize << i;
-        reinterpret_cast<Pool*>(m_Head + offset * i)->PoolSpapshot(buffer);
+        Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
+        pool->PoolSpapshot(buffer);
+        chunks += pool->Chunks();
     }
+    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
+    for (size_t i = 0; i < chunks; i++)
+    {
+        Chunk* chunk = reinterpret_cast<Chunk*>((m_Head + m_StaticOffset) + (chunkStride * i));
+        chunk->ChunkSnapshot(i, buffer);
+    }
+
 
     buffer += std::sprintf(buffer, "//--------------------------------- END ----------------------------\\ \n");
 }
@@ -455,7 +465,6 @@ void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
     buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
-    m_FreeChunk->ChunkSnapshot(0, buffer);
 }
 
 bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
