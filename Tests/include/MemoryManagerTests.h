@@ -45,14 +45,14 @@ void RangedTest(uint32_t from, uint32_t to)
     std::allocator<int> alloc;
     std::cout << "STD allocator benchmark\n";
     MM::Benchmark std_mark{2};
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    for (size_t i = 0; i < mm_pairs.size(); i++)
     {
         std_mark.StartAlloc();
         uint32_t count = mm_pairs[i].first;
         std_pairs.push_back({count, alloc.allocate(count)});
         std_mark.EndAlloc();
     }
-    for (size_t i = 0; i < mm_pairs.size() - 1; i++)
+    for (size_t i = 0; i < mm_pairs.size(); i++)
     {
         std_mark.StartDealloc();
         alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
