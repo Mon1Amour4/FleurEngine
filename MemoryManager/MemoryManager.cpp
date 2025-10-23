@@ -289,8 +289,8 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
 
         pool->Extend(chunk);
     }
-    m_UsedBytes += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
-    m_Current += (sizeof(Pool) + sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
 }
 MM::Arena::~Arena()
 {
