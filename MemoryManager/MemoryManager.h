@@ -190,7 +190,7 @@ private:
 //======================================================================
 struct Pool
 {
-    Pool(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
+    Pool(uint32_t slotSize, uint8_t slotCount);
     ~Pool();
 
     // False - no space
