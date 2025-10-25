@@ -83,6 +83,16 @@ inline uint8_t GetPowerOfTwoOf(uint32_t number)
     return power;
 }
 
+inline size_t AlignTo(size_t size, size_t alignment)
+{
+    return (size + alignment - 1) & ~(alignment - 1);
+}
+
+inline uint32_t CountSlots(uint32_t size, uint32_t slotSize = 8)
+{
+    return (size + slotSize - 1) / slotSize;
+}
+
 #pragma region Benchmark
 //======================================================================
 class Benchmark
