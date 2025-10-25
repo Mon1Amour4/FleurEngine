@@ -490,7 +490,6 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     , m_SlotsCount(slotCount)
     , m_CapacityBytes(m_SlotSize * m_SlotsCount)
     , m_UsedBytes(0)
-    , m_Tail(nullptr)
     , m_Free(nullptr)
 {
     MM_DEBUG_BREAK(m_SlotSize * m_SlotsCount > 4096);
@@ -498,8 +497,8 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
 
     m_Free = ptr;
-    m_Tail = m_Free + m_CapacityBytes;
-    MM_PRINT(", Head{" << static_cast<void*>(m_Free) << "}, Tail{" << static_cast<void*>(m_Tail) << "}\n")
+    MM_PRINT(", Head{" << static_cast<void*>(m_Free) << "}, Tail{"
+                       << static_cast<void*>(reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + m_CapacityBytes) << "}\n")
 
     // TODO A place for optimization
     for (size_t i = 0; i < m_SlotsCount; i++)
@@ -555,7 +554,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
 
     unsigned char* nextPtr = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + (freeSlotNew * m_SlotSize);
 
-    MM_ASSERT(nextPtr < m_Tail);
+    MM_ASSERT(nextPtr < reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + m_CapacityBytes);
     outPtr = nextPtr;
     return true;
 }
