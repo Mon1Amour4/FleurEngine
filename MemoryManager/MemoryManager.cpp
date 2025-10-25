@@ -321,7 +321,7 @@ MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
     return chunk;
 }
 
-MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint8_t slotsCount)
+MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint32_t slotsCount)
 {
     uint32_t requestedSize = m_PageSize + sizeof(Chunk);
     if (m_UsedBytes + requestedSize <= m_CapacityBytes)
@@ -407,7 +407,7 @@ void MM::Arena::ArenaSnapshot(char* buffer)
 
 //======================================================================
 // Pool
-MM::Pool::Pool(uint32_t slotSize, uint8_t slotCount)
+MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
     : m_NumChunks(0)
     , m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)

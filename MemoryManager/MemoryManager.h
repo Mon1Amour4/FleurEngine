@@ -153,7 +153,7 @@ private:
 struct Chunk
 {
 public:
-    Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount);
+    Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount);
     ~Chunk();
 
     // True - there is at least one free chunk after acquisition
@@ -201,7 +201,7 @@ private:
 //======================================================================
 struct Pool
 {
-    Pool(uint32_t slotSize, uint8_t slotCount);
+    Pool(uint32_t slotSize, uint32_t slotCount);
     ~Pool();
 
     // False - no space
@@ -224,7 +224,7 @@ private:
     Chunk* m_FreeChunk;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
-    const uint8_t m_SlotsCount;
+    const uint32_t m_SlotsCount;
 };
 #pragma endregion
 
@@ -238,7 +238,7 @@ struct Arena
     [[nodiscard]] Pool* GetPool(uint32_t slotSize);
     [[nodiscard]] Chunk* FindChunk(unsigned char* ptrToSlot);
 
-    [[nodiscard]] Chunk* TryToGetNewChunk(Pool* pool, uint32_t slotSize, uint8_t slotsCount);
+    [[nodiscard]] Chunk* TryToGetNewChunk(Pool* pool, uint32_t slotSize, uint32_t slotsCount);
 
     Arena operator=(const Arena& other);
 
