@@ -64,177 +64,111 @@ void RangedTest(uint32_t from, uint32_t to)
 #if 0 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
-    MM::MemoryManager manager(ManagerConfig);
+    using namespace MM;
+    MemoryManager manager(ManagerConfig);
     manager.ClearFile("MemorySnapshot.txt");
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::uniform_int_distribution<> actionDist(0, 1);  // 0 = alloc, 1 = free
+
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<> actionDist(0, 1);
     std::uniform_int_distribution<> countDist(1, 10);
     std::uniform_int_distribution<> typeDist(0, 4);
 
     struct AllocRecord
     {
-        int type;
-        int count;
+        uint8_t type;
+        uint8_t count;
         uint32_t id;
         void* ptr;
+        bool alloc;
     };
+
     std::vector<AllocRecord> allocated;
-    std::vector<AllocRecord> allocated2;
-    // free - false
-    // alloc - true
-    std::vector<std::pair<uint32_t, bool>> alloc_free;
-    static uint32_t idCounter = 0;
-    // helper: allocate N objects of the chosen synthetic type, return pointer as void*
-    auto do_allocate = [&](int type, int count, uint32_t id) -> void*
+    std::vector<AllocRecord> allocated_std;
+    std::vector<AllocRecord> alloc_free;
+
+    allocated.reserve(1000000);
+    allocated_std.reserve(1000000);
+    alloc_free.reserve(1000000);
+
+    uint32_t idCounter = 0;
+
+    auto allocFuncs = std::to_array({
+        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic1>(c); },
+        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic2>(c); },
+        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic3>(c); },
+        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic4>(c); },
+        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic5>(c); },
+    });
+
+    auto deallocFuncs = std::to_array({
+        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic1>((Synthetic::Synthetic1*)p, c); },
+        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic2>((Synthetic::Synthetic2*)p, c); },
+        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic3>((Synthetic::Synthetic3*)p, c); },
+        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic4>((Synthetic::Synthetic4*)p, c); },
+        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic5>((Synthetic::Synthetic5*)p, c); },
+    });
+
+    auto allocStdFuncs = std::to_array({
+        +[](int c) -> void*
+        {
+            std::allocator<Synthetic::Synthetic1> a;
+            return a.allocate(c);
+        },
+        +[](int c) -> void*
+        {
+            std::allocator<Synthetic::Synthetic2> a;
+            return a.allocate(c);
+        },
+        +[](int c) -> void*
+        {
+            std::allocator<Synthetic::Synthetic3> a;
+            return a.allocate(c);
+        },
+        +[](int c) -> void*
+        {
+            std::allocator<Synthetic::Synthetic4> a;
+            return a.allocate(c);
+        },
+        +[](int c) -> void*
+        {
+            std::allocator<Synthetic::Synthetic5> a;
+            return a.allocate(c);
+        },
+    });
+
+    auto deallocStdFuncs = std::to_array({
+        +[](void* p, int c)
+        {
+            std::allocator<Synthetic::Synthetic1> a;
+            a.deallocate((Synthetic::Synthetic1*)p, c);
+        },
+        +[](void* p, int c)
+        {
+            std::allocator<Synthetic::Synthetic2> a;
+            a.deallocate((Synthetic::Synthetic2*)p, c);
+        },
+        +[](void* p, int c)
+        {
+            std::allocator<Synthetic::Synthetic3> a;
+            a.deallocate((Synthetic::Synthetic3*)p, c);
+        },
+        +[](void* p, int c)
+        {
+            std::allocator<Synthetic::Synthetic4> a;
+            a.deallocate((Synthetic::Synthetic4*)p, c);
+        },
+        +[](void* p, int c)
+        {
+            std::allocator<Synthetic::Synthetic5> a;
+            a.deallocate((Synthetic::Synthetic5*)p, c);
+        },
+    });
+
+    Benchmark mark{2};
+
+    constexpr size_t iterations = 10'000'000;
+    for (size_t i = 0; i < iterations; ++i)
     {
-        // MM_PRINT("\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << ", id{" << std::to_string(id) << "}\n")
-        switch (type)
-        {
-        case 0:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic1) * count << "\n")
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic1>(count));
-        }
-        case 1:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic2) * count << "\n")
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic2>(count));
-        }
-        case 2:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic3) * count << "\n")
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic3>(count));
-        }
-        case 3:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic4) * count << "\n")
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic4>(count));
-        }
-        case 4:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic5) * count << "\n")
-            return static_cast<void*>(manager.allocate<Synthetic::Synthetic5>(count));
-        }
-
-            return nullptr;
-        }
-    };
-    auto do_allocate_std = [&](int type, int count, uint32_t id) -> void*
-    {
-        // MM_PRINT("\nAllocation{type: " << std::to_string(type) << ", count: " << std::to_string(count) << ", id{" << std::to_string(id) << "}\n")
-        switch (type)
-        {
-        case 0:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic1) * count << "\n")
-            std::allocator<Synthetic::Synthetic1> alloc;
-            return static_cast<void*>(alloc.allocate(count));
-        }
-        case 1:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic2) * count << "\n")
-            std::allocator<Synthetic::Synthetic2> alloc;
-            return static_cast<void*>(alloc.allocate(count));
-        }
-        case 2:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic3) * count << "\n")
-            std::allocator<Synthetic::Synthetic3> alloc;
-            return static_cast<void*>(alloc.allocate(count));
-        }
-        case 3:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic4) * count << "\n")
-            std::allocator<Synthetic::Synthetic4> alloc;
-            return static_cast<void*>(alloc.allocate(count));
-        }
-        case 4:
-        {
-            // MM_PRINT("Allocation size: " << sizeof(Synthetic::Synthetic5) * count << "\n")
-            std::allocator<Synthetic::Synthetic5> alloc;
-            return static_cast<void*>(alloc.allocate(count));
-        }
-
-            return nullptr;
-        }
-    };
-
-    // helper: deallocate using the exact type and count
-    auto do_deallocate = [&](const AllocRecord& rec)
-    {
-        // MM_PRINT("\nDeallocation{type: " << std::to_string(rec.type) << ", count: " << std::to_string(rec.count) << ", id{" << std::to_string(rec.id) << "}\n
-        // ")
-
-        switch (rec.type)
-        {
-        case 0:
-            manager.deallocate<Synthetic::Synthetic1>(static_cast<Synthetic::Synthetic1*>(rec.ptr), rec.count);
-            break;
-        case 1:
-            manager.deallocate<Synthetic::Synthetic2>(static_cast<Synthetic::Synthetic2*>(rec.ptr), rec.count);
-            break;
-        case 2:
-            manager.deallocate<Synthetic::Synthetic3>(static_cast<Synthetic::Synthetic3*>(rec.ptr), rec.count);
-            break;
-        case 3:
-            manager.deallocate<Synthetic::Synthetic4>(static_cast<Synthetic::Synthetic4*>(rec.ptr), rec.count);
-            break;
-        case 4:
-            manager.deallocate<Synthetic::Synthetic5>(static_cast<Synthetic::Synthetic5*>(rec.ptr), rec.count);
-            break;
-
-        default: /* unreachable */
-            break;
-        }
-    };
-    auto do_deallocate_std = [&](const AllocRecord& rec)
-    {
-        // MM_PRINT("\nDeallocation{type: " << std::to_string(rec.type) << ", count: " << std::to_string(rec.count) << ", id{" << std::to_string(rec.id) << "}\n
-        // ")
-
-        switch (rec.type)
-        {
-        case 0:
-        {
-            std::allocator<Synthetic::Synthetic1> alloc;
-            alloc.deallocate(reinterpret_cast<Synthetic::Synthetic1*>(rec.ptr), rec.count);
-            break;
-        }
-        case 1:
-        {
-            std::allocator<Synthetic::Synthetic2> alloc;
-            alloc.deallocate(reinterpret_cast<Synthetic::Synthetic2*>(rec.ptr), rec.count);
-            break;
-        }
-        case 2:
-        {
-            std::allocator<Synthetic::Synthetic3> alloc;
-            alloc.deallocate(reinterpret_cast<Synthetic::Synthetic3*>(rec.ptr), rec.count);
-            break;
-        }
-        case 3:
-        {
-            std::allocator<Synthetic::Synthetic4> alloc;
-            alloc.deallocate(reinterpret_cast<Synthetic::Synthetic4*>(rec.ptr), rec.count);
-            break;
-        }
-        case 4:
-        {
-            std::allocator<Synthetic::Synthetic5> alloc;
-            alloc.deallocate(reinterpret_cast<Synthetic::Synthetic5*>(rec.ptr), rec.count);
-            break;
-        }
-
-        default: /* unreachable */
-            break;
-        }
-    };
-    MM::Benchmark mark{2};
-    for (size_t i = 0; i < 1000; i++)
-    {
-        auto start = std::chrono::steady_clock::now();
-
         bool doFree = (actionDist(gen) == 1);
         int count = countDist(gen);
         int type = typeDist(gen);
@@ -243,85 +177,62 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
         {
             std::uniform_int_distribution<size_t> freeIndexDist(0, allocated.size() - 1);
             size_t idx = freeIndexDist(gen);
-            AllocRecord rec = allocated[idx];
+            auto& rec = allocated[idx];
 
             mark.StartDealloc();
-            do_deallocate(rec);
+            deallocFuncs[rec.type](manager, rec.ptr, rec.count);
             mark.EndDealloc();
 
-            alloc_free.push_back({rec.id, false});
+            alloc_free.push_back({(uint8_t)rec.type, (uint8_t)rec.count, rec.id, rec.ptr, false});
 
-            if (idx + 1 != allocated.size())
-                std::swap(allocated[idx], allocated.back());
+
+            allocated[idx] = allocated.back();
             allocated.pop_back();
         }
         else
         {
-            idCounter++;
-
-            mark.StartAlloc();
-            void* ptr = do_allocate(type, count, idCounter);
-            mark.EndAlloc();
-
-            // ASSERT_NE(ptr, nullptr);
-            allocated.push_back(AllocRecord{type, count, idCounter, ptr});
-            allocated2.push_back(AllocRecord{type, count, idCounter, ptr});
-            alloc_free.push_back({idCounter, true});
-        }
-
-        auto end = std::chrono::steady_clock::now();
-        float seconds = std::chrono::duration<float>(end - start).count();
-        mark.Tick(seconds);
-
-        MM_PRINT(std::to_string(i) << "\n")
-        // manager.Print();
-        //  manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
-    }
-    MM_PRINT("---------------- PURGE --------------\n");
-    mark.Print();
-    allocated.clear();
-
-    MM::Benchmark std_mark(2);
-    for (auto pair : alloc_free)
-    {
-        if (pair.second)
-        {
-            // Alloc
-
-            auto it = std::find_if(allocated2.begin(), allocated2.end(), [&](const AllocRecord& r) { return r.id == pair.first; });
-            if (it == allocated2.end())
+            size_t size = Synthetic::SizeOf(type) * count;
+            if (size > 2048)
                 continue;
 
-            auto start = std::chrono::steady_clock::now();
+            ++idCounter;
+
+            mark.StartAlloc();
+            void* ptr = allocFuncs[type](manager, count);
+            mark.EndAlloc();
+
+            allocated.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
+            allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
+            alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
+        }
+    }
+
+    mark.Print();
+
+    Benchmark std_mark{2};
+    std::unordered_map<uint64_t, void*> helper;
+    for (auto rec : alloc_free)
+    {
+        if (rec.alloc)
+        {
             std_mark.StartAlloc();
-            void* ptr = do_allocate_std(it->type, it->count, it->id);
+            helper[rec.id] = allocStdFuncs[rec.type](rec.count);
             std_mark.EndAlloc();
-
-
-            auto end = std::chrono::steady_clock::now();
-            float seconds = std::chrono::duration<float>(end - start).count();
-            std_mark.Tick(seconds);
-
-            it->ptr = ptr;
         }
         else
         {
-            // Dealloc
-            auto it = std::find_if(allocated2.begin(), allocated2.end(), [&](const AllocRecord& r) { return r.id == pair.first; });
-            if (it == allocated2.end())
-                continue;
+            auto it = helper.find(rec.id);
+            if (it != helper.end())
+            {
+                std_mark.StartDealloc();
+                deallocStdFuncs[rec.type](it->second, rec.count);
+                std_mark.EndDealloc();
 
-            auto start = std::chrono::steady_clock::now();
-
-            std_mark.StartDealloc();
-            do_deallocate_std(*it);
-            std_mark.EndDealloc();
-
-            auto end = std::chrono::steady_clock::now();
-            float seconds = std::chrono::duration<float>(end - start).count();
-            mark.Tick(seconds);
+                helper.erase(it);
+            }
         }
     }
+
     std_mark.Print();
 }
 #endif
@@ -336,7 +247,7 @@ TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 #if 0 FixedRangeAllocationsFrom128To256
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom128To256)
 {
-   RangedTest(65, 256);
+    RangedTest(65, 256);
 }
 #endif
 
@@ -350,7 +261,7 @@ TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom256To512)
 #if 0 FixedRangeAllocationsFrom512To1024
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom512To1024)
 {
-   RangedTest(260, 1024);
+    RangedTest(260, 1024);
 }
 #endif
 
