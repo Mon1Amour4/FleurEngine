@@ -46,6 +46,7 @@
 
 #pragma endregion
 
+#define II_NULL_INDEX 0xffffffff
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -257,6 +258,8 @@ private:
  * @brief Memory Manager designed for Fleur Game Engine.
  * @details Manages memory arenas, poools, controls allocation\deallocation.
  * Core component.
+ * II: Internal Index: points to the next free slot
+ * Range: [0; UINT32_MAX], where UINT32_MAX means "no next free slot"
  */
 class MemoryManager
 {
