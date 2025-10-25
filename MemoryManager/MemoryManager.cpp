@@ -490,7 +490,6 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     , m_SlotsCount(slotCount)
     , m_CapacityBytes(m_SlotSize * m_SlotsCount)
     , m_UsedBytes(0)
-    , m_Head(nullptr)
     , m_Tail(nullptr)
     , m_Free(nullptr)
 {
@@ -498,15 +497,14 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     MM_PRINT("--[CREATED]\n")
     MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
 
-    m_Head = ptr;
-    m_Free = m_Head;
-    m_Tail = m_Head + m_CapacityBytes;
-    MM_PRINT(", Head{" << static_cast<void*>(m_Head) << "}, Tail{" << static_cast<void*>(m_Tail) << "}\n")
+    m_Free = ptr;
+    m_Tail = m_Free + m_CapacityBytes;
+    MM_PRINT(", Head{" << static_cast<void*>(m_Free) << "}, Tail{" << static_cast<void*>(m_Tail) << "}\n")
 
     // TODO A place for optimization
     for (size_t i = 0; i < m_SlotsCount; i++)
     {
-        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(m_Head + (m_SlotSize * i));
+        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(m_Free + (m_SlotSize * i));
         if (i == m_SlotsCount - 1)
             *slotPtr = II_NULL_INDEX;
         else
@@ -555,8 +553,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
                          << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
 
-
-    unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
+    unsigned char* nextPtr = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + (freeSlotNew * m_SlotSize);
 
     MM_ASSERT(nextPtr < m_Tail);
     outPtr = nextPtr;

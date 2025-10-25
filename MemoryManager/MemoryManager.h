@@ -180,7 +180,6 @@ private:
 
     uint32_t m_UsedBytes;
 
-    unsigned char* m_Head;
     unsigned char* m_Tail;
     unsigned char* m_Free;
 
