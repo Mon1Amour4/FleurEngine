@@ -550,31 +550,16 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     }
 
     uint32_t freeSlotNew = 0;
-    // TODO: FIX bitmap.ScanFirstFreeForward(&freeSlotNew);
-
-    // TODO: FIX uint64_t oldBitmap = bitmap.Get();
 
     MM_PRINT("--[AcquireSlot]\n")
     MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
                          << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
-    // TODO: FIX MM_PRINT("   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap)
 
-    // bitmap.SetBit(freeSlotNew);
-
-    // TODO: FIX MM_PRINT(", bitmap after: " << bitmap << std::endl)
-
-    // TODO: FIX MM_DEBUG_BREAK(oldBitmap == bitmap.Get())
 
     unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
 
     MM_ASSERT(nextPtr < m_Tail);
     outPtr = nextPtr;
-
-    // TODO: FIX if (bitmap.IsFull())
-    //{
-    //  MM_PRINT("Chunk{" << this << "} is full\n");
-    // return false;
-    //}
     return true;
 }
 
@@ -601,30 +586,12 @@ void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
         *newSlot = currentIdx;
     }
 
-
     uint32_t old_m_UsedBytes = m_UsedBytes;
-    // TODO: FIX uint64_t old_bitmap = bitmap.Get();
 
     MM_PRINT("--[Slot Free]\n")
     MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
-    // TODO: FIX MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(slot) << ", old bitmap:" <<
-    // bitmap)
-
-    // TODO: FIX bitmap.ClearBit(slot);
 
     m_UsedBytes -= m_SlotSize;
-
-    // TODO: FIX MM_PRINT(", bitmap after: " << bitmap << " old used: " << std::to_string(old_m_UsedBytes) << std::endl)
-
-    // TODO: FIX
-    /*MM_DEBUG_EXPRESSION({
-        if (bitmap.UsedBits() != m_UsedBytes / m_SlotSize)
-        {
-            std::cout << "Used bits aren't same as used: " << std::to_string(m_UsedBytes) << " slot size: " << std::to_string(m_SlotSize)
-                      << ", bitmap bits:" << std::to_string(bitmap.UsedBits()) << ",chunk address : " << this << "\n ";
-            __debugbreak();
-        }
-    })*/
 
     MM_DEBUG_BREAK(m_UsedBytes < 0)
 }
