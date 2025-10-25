@@ -271,7 +271,8 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     m_Tail = m_Head + (m_CapacityBytes);
 
 
-    uint8_t poolsCount = GetPowerOfTwoOf(pageSize / minSlotSize);
+    // uint8_t poolsCount = GetPowerOfTwoOf(pageSize / minSlotSize);
+    uint32_t poolsCount = CountSlots(4096, 16) - 1;
     m_StaticOffset = poolsCount * sizeof(Pool);
 
     uint32_t offset = sizeof(Pool);
@@ -279,17 +280,19 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
     for (size_t i = 0; i < poolsCount; i++)
     {
-        uint32_t poolSize = m_MinSlotSize << i;
+        uint32_t poolSize = m_MinSlotSize + (8 * i);
         unsigned char* poolPtr = m_Head + offset * i;
         Pool* pool = new (poolPtr) Pool(poolSize, m_PageSize / poolSize);
 
-        unsigned char* chunkPtr = chunksBase + i * chunkStride;
-        Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
+        // unsigned char* chunkPtr = chunksBase + i * chunkStride;
+        // Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
 
-        pool->Extend(chunk);
+        // pool->Extend(chunk);
     }
-    m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
-    m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    // m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    // m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    m_UsedBytes += m_StaticOffset;
+    m_Current += m_UsedBytes;
 }
 MM::Arena::~Arena()
 {
@@ -302,10 +305,8 @@ MM::Arena MM::Arena::operator=(const Arena& other)
 
 MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 {
-    uint32_t ratio = slotSize / m_MinSlotSize;
-    uint32_t idx = 0;
-    Fleur::Core::bit_scan_forward(ratio, &idx);
-    return reinterpret_cast<Pool*>(m_Head + (sizeof(Pool) * idx));
+    uint32_t multiplier = slotSize / 8 - 2;
+    return reinterpret_cast<Pool*>(m_Head + (sizeof(Pool) * multiplier));
 }
 
 MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
@@ -414,7 +415,7 @@ MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
     , m_FreeChunk(nullptr)
 {
     MM_ASSERT(m_SlotSize > 0);
-    MM_ASSERT(m_SlotsCount > 0 && m_SlotsCount <= 64);
+    MM_ASSERT(m_SlotsCount > 0);
 
     MM_PRINT("--[CREATED]\n");
     MM_PRINT("  Pool{" << std::to_string(m_SlotSize) << ", " << std::to_string(static_cast<uint32_t>(m_SlotsCount)) << "} has been created\n ")
@@ -432,11 +433,20 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 
     if (!m_FreeChunk->AcquireSlot(outPtr))
     {
-        m_FreeChunk = nullptr;
+        if (outPtr)
+        {
+            // We got last free slot
+            m_FreeChunk = nullptr;
 
-        MM_PRINT("Pool{" << this << "} m_FreeChunk{" << m_FreeChunk << "}\n");
+            MM_PRINT("Pool{" << this << "} m_FreeChunk{" << m_FreeChunk << "}\n");
 
-        return false;
+            return true;
+        }
+        else
+        {
+            m_FreeChunk = nullptr;
+            return false;
+        }
     }
     return true;
 }
@@ -475,21 +485,33 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 
 //======================================================================
 // Chunk
-MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint8_t slotCount)
+MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     : m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)
-    , m_CapacityBytes(PAGE_SIZE)
+    , m_CapacityBytes(m_SlotSize * m_SlotsCount)
     , m_UsedBytes(0)
     , m_Head(nullptr)
     , m_Tail(nullptr)
-    , bitmap(m_SlotsCount)
+    , m_Free(nullptr)
 {
+    MM_DEBUG_BREAK(m_SlotSize * m_SlotsCount > 4096);
     MM_PRINT("--[CREATED]\n")
     MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
 
     m_Head = ptr;
+    m_Free = m_Head;
     m_Tail = m_Head + m_CapacityBytes;
     MM_PRINT(", Head{" << static_cast<void*>(m_Head) << "}, Tail{" << static_cast<void*>(m_Tail) << "}\n")
+
+    // TODO A place for optimization
+    for (size_t i = 0; i < m_SlotsCount; i++)
+    {
+        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(m_Head + (m_SlotSize * i));
+        if (i == m_SlotsCount - 1)
+            *slotPtr = II_NULL_INDEX;
+        else
+            *slotPtr = i + 1;
+    }
 }
 
 MM::Chunk::~Chunk()
@@ -501,65 +523,108 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     uint32_t oldCapacity = m_UsedBytes;
     m_UsedBytes += m_SlotSize;
 
-    MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes)
+    MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes);
+
+    if (!m_Free)
+    {
+        // No Space in Chunk at all
+        return false;
+    }
+    else
+    {
+        outPtr = m_Free;
+
+        uint32_t nextIdx = *reinterpret_cast<uint32_t*>(m_Free);
+        if (nextIdx == II_NULL_INDEX)
+        {
+            // Slot was last free slot in thus chunk
+            m_Free = nullptr;
+            return false;
+        }
+        else
+        {
+            unsigned char* head = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk);
+            m_Free = head + (nextIdx * m_SlotSize);
+            return true;
+        }
+    }
 
     uint32_t freeSlotNew = 0;
-    bitmap.ScanFirstFreeForward(&freeSlotNew);
+    // TODO: FIX bitmap.ScanFirstFreeForward(&freeSlotNew);
 
-    uint64_t oldBitmap = bitmap.Get();
+    // TODO: FIX uint64_t oldBitmap = bitmap.Get();
 
     MM_PRINT("--[AcquireSlot]\n")
     MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
                          << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
-    MM_PRINT("   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap)
+    // TODO: FIX MM_PRINT("   Slot: " << std::to_string(freeSlotNew) << ", Bitmap before: " << bitmap)
 
-    bitmap.SetBit(freeSlotNew);
+    // bitmap.SetBit(freeSlotNew);
 
-    MM_PRINT(", bitmap after: " << bitmap << std::endl)
+    // TODO: FIX MM_PRINT(", bitmap after: " << bitmap << std::endl)
 
-    MM_DEBUG_BREAK(oldBitmap == bitmap.Get())
+    // TODO: FIX MM_DEBUG_BREAK(oldBitmap == bitmap.Get())
 
     unsigned char* nextPtr = m_Head + (freeSlotNew * m_SlotSize);
 
     MM_ASSERT(nextPtr < m_Tail);
     outPtr = nextPtr;
 
-    if (bitmap.IsFull())
-    {
-        MM_PRINT("Chunk{" << this << "} is full\n");
-        return false;
-    }
+    // TODO: FIX if (bitmap.IsFull())
+    //{
+    //  MM_PRINT("Chunk{" << this << "} is full\n");
+    // return false;
+    //}
     return true;
 }
 
 void MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
 {
-    MM_DEBUG_BREAK(m_UsedBytes == 0)
+    MM_DEBUG_BREAK(m_UsedBytes == 0);
 
-    uint8_t slot = 0;
-    slot = (ptrToSLot - m_Head) / m_SlotSize;
+    unsigned char* head = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk);
+    uint32_t slotIdx = (ptrToSLot - head) / m_SlotSize;
+
+    MM_DEBUG_BREAK(head + (slotIdx * m_SlotSize) != ptrToSLot);
+
+    if (!m_Free)
+    {
+        m_Free = ptrToSLot;
+        uint32_t* slot = reinterpret_cast<uint32_t*>(m_Free);
+        *slot = II_NULL_INDEX;
+    }
+    else
+    {
+        uint32_t currentIdx = (m_Free - head) / m_SlotSize;
+        m_Free = ptrToSLot;
+        uint32_t* newSlot = reinterpret_cast<uint32_t*>(m_Free);
+        *newSlot = currentIdx;
+    }
+
 
     uint32_t old_m_UsedBytes = m_UsedBytes;
-    uint64_t old_bitmap = bitmap.Get();
+    // TODO: FIX uint64_t old_bitmap = bitmap.Get();
 
     MM_PRINT("--[Slot Free]\n")
     MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
-    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(slot) << ", old bitmap:" << bitmap)
+    // TODO: FIX MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "}, bit : " << std::to_string(slot) << ", old bitmap:" <<
+    // bitmap)
 
-    bitmap.ClearBit(slot);
+    // TODO: FIX bitmap.ClearBit(slot);
 
     m_UsedBytes -= m_SlotSize;
 
-    MM_PRINT(", bitmap after: " << bitmap << " old used: " << std::to_string(old_m_UsedBytes) << std::endl)
+    // TODO: FIX MM_PRINT(", bitmap after: " << bitmap << " old used: " << std::to_string(old_m_UsedBytes) << std::endl)
 
-    MM_DEBUG_EXPRESSION({
+    // TODO: FIX
+    /*MM_DEBUG_EXPRESSION({
         if (bitmap.UsedBits() != m_UsedBytes / m_SlotSize)
         {
             std::cout << "Used bits aren't same as used: " << std::to_string(m_UsedBytes) << " slot size: " << std::to_string(m_SlotSize)
                       << ", bitmap bits:" << std::to_string(bitmap.UsedBits()) << ",chunk address : " << this << "\n ";
             __debugbreak();
         }
-    })
+    })*/
 
     MM_DEBUG_BREAK(m_UsedBytes < 0)
 }
@@ -619,12 +684,13 @@ void MM::Chunk::Print(uint32_t chunkNum)
 
         for (uint32_t i = start; i < end; ++i)
         {
-            const bool isOccupied = bitmap.IsBitOccupied(i);
+            // TODO: FIX const bool isOccupied = bitmap.IsBitOccupied(i);
 
-            if (isOccupied)
-                std::cout << FG_White << BG_Red << "  X " << Reset << " ";
-            else
-                std::cout << FG_Black << BG_Green << "  O " << Reset << " ";
+            // TODO: FIX
+            /* if (isOccupied)
+                 std::cout << FG_White << BG_Red << "  X " << Reset << " ";
+             else
+                 std::cout << FG_Black << BG_Green << "  O " << Reset << " ";*/
         }
 
         std::cout << "\n\n";
@@ -642,9 +708,9 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 
     for (size_t i = 0; i < m_SlotsCount; i++)
     {
-        PrintSlot slot(i, !bitmap.IsBitOccupied(i));
+        // TODO: FIX PrintSlot slot(i, !bitmap.IsBitOccupied(i));
         // slot.ToStream(strUpper, strDown);
-        slot.ToStreanMinimalistic(strUpper);
+        // TODO: FIX slot.ToStreanMinimalistic(strUpper);
     }
     stream << strUpper << '\n';
     stream << strDown << '\n';
@@ -660,8 +726,8 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
 
     for (size_t i = 0; i < m_SlotsCount; i++)
     {
-        PrintSlot slot(i, !bitmap.IsBitOccupied(i));
-        slot.ToStream(strUpper, strDown);
+        // TODO: FIX PrintSlot slot(i, !bitmap.IsBitOccupied(i));
+        // TODO: FIX slot.ToStream(strUpper, strDown);
         // slot.ToStreanMinimalistic(strUpper);
     }
     buffer += std::sprintf(buffer, "%s", strUpper.c_str());

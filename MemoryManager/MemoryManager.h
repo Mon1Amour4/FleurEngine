@@ -182,7 +182,7 @@ private:
 
     unsigned char* m_Head;
     unsigned char* m_Tail;
-    Fleur::Core::BitSet64 bitmap;
+    unsigned char* m_Free;
 
     struct PrintSlot
     {
@@ -281,15 +281,11 @@ public:
         requires Fleur::Concepts::IsDefaultConstructible<T>
     [[nodiscard]] T* allocate(uint32_t count)
     {
-        uint32_t sizeOfType = sizeof(T);
-        assert(count > 0 && sizeOfType * count <= std::numeric_limits<uint32_t>::max());
+        assert(count > 0 && sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
-        uint32_t requestedBytes = sizeOfType * count;
-        uint32_t slotSize = CalculateSlotSize(requestedBytes);
+        uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
 
-        uint8_t slotsPerPage = m_PageSize / slotSize;
-
-        bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE;
+        bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE / 2;
         if (!isObjectLarge)
         {
             Pool* pool = nullptr;
@@ -302,6 +298,7 @@ public:
                 bool res = pool->AcquireSlotFromPool(requestedMemory);
                 if (!res)
                 {
+                    uint32_t slotsPerPage = m_PageSize / slotSize;
                     auto newChunk = m_LocalArena->TryToGetNewChunk(pool, slotSize, slotsPerPage);
                     if (newChunk)
                     {
@@ -350,17 +347,14 @@ public:
         if (!ptr)
             return;
 
-        uint32_t blockSizeBytes = sizeof(T) * num;
-        assert(blockSizeBytes <= std::numeric_limits<uint32_t>::max());
+        assert(sizeof(T) * num <= std::numeric_limits<uint32_t>::max());
 
-        uint32_t alignedBlockSize = get_pow2_ceil(blockSizeBytes);
-
+        uint32_t alignedBlockSize = AlignTo(sizeof(T) * num, 8);
         MM_DEBUG_BREAK(alignedBlockSize > m_PageSize);
 
-        unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
-        const bool isObjectLarge = blockSizeBytes >= SIZE_OF_LARGE_TYPE;
-        if (!isObjectLarge)
+        if (!alignedBlockSize >= SIZE_OF_LARGE_TYPE)
         {
+            unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
             auto pool = m_LocalArena->GetPool(alignedBlockSize);
             bool res = false;
             if (pool)
