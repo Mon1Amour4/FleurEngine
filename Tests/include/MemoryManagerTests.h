@@ -205,6 +205,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
             alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
         }
+        manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
 
     mark.Print();
