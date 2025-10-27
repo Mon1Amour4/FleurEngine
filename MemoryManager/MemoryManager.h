@@ -175,7 +175,6 @@ public:
 
 private:
     const uint32_t m_SlotSize;
-    const uint32_t m_SlotsCount;
     const uint32_t m_CapacityBytes;
 
     uint32_t m_UsedBytes;

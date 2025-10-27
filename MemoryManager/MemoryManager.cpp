@@ -486,24 +486,23 @@ void MM::Pool::PoolSpapshot(char*& buffer)
 // Chunk
 MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     : m_SlotSize(slotSize)
-    , m_SlotsCount(slotCount)
-    , m_CapacityBytes(m_SlotSize * m_SlotsCount)
+    , m_CapacityBytes(m_SlotSize * slotCount)
     , m_UsedBytes(0)
     , m_Free(nullptr)
 {
-    MM_DEBUG_BREAK(m_SlotSize * m_SlotsCount > 4096);
+    MM_DEBUG_BREAK(m_SlotSize * slotCount > 4096);
     MM_PRINT("--[CREATED]\n")
-    MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} has been created")
+    MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << slotCount << "} has been created")
 
     m_Free = ptr;
     MM_PRINT(", Head{" << static_cast<void*>(m_Free) << "}, Tail{"
                        << static_cast<void*>(reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + m_CapacityBytes) << "}\n")
 
     // TODO A place for optimization
-    for (size_t i = 0; i < m_SlotsCount; i++)
+    for (size_t i = 0; i < slotCount; i++)
     {
         uint32_t* slotPtr = reinterpret_cast<uint32_t*>(m_Free + (m_SlotSize * i));
-        if (i == m_SlotsCount - 1)
+        if (i == slotCount - 1)
             *slotPtr = II_NULL_INDEX;
         else
             *slotPtr = i + 1;
@@ -548,7 +547,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     uint32_t freeSlotNew = 0;
 
     MM_PRINT("--[AcquireSlot]\n")
-    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_SlotsCount << "} old capacity : " << std::to_string(oldCapacity)
+    MM_PRINT("   Chunk{" << this << "} {" << m_SlotSize << " / " << m_CapacityBytes / m_SlotSize << "} old capacity : " << std::to_string(oldCapacity)
                          << ", new capacity: " << std::to_string(m_UsedBytes) << std::endl)
 
     unsigned char* nextPtr = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + (freeSlotNew * m_SlotSize);
@@ -628,8 +627,8 @@ void MM::Chunk::Print(uint32_t chunkNum)
     static constexpr char occupiedCell = 'x';
     static constexpr uint32_t cellsPerRow = 40;
 
-    std::cout << "\nChunk_" << chunkNum << "{" << this << "}" << "{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes
-              << "\n";
+    std::cout << "\nChunk_" << chunkNum << "{" << this << "}" << "{" << m_SlotSize << ", " << m_CapacityBytes / m_SlotSize << "}: " << m_UsedBytes << "/"
+              << m_CapacityBytes << "\n";
 
     const uint32_t numCells = m_CapacityBytes / m_SlotSize;
     const uint32_t maxIndex = numCells ? numCells - 1 : 0;
@@ -666,9 +665,10 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
     strUpper.reserve(160);
     strDown.reserve(160);
 
-    stream << "\nChunk_" << chunkNum << "{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "}: " << m_UsedBytes << "/" << m_CapacityBytes << "\n";
+    stream << "\nChunk_" << chunkNum << "{" << this << "}{" << m_SlotSize << ", " << m_CapacityBytes / m_SlotSize << "}: " << m_UsedBytes << "/"
+           << m_CapacityBytes << "\n";
 
-    for (size_t i = 0; i < m_SlotsCount; i++)
+    for (size_t i = 0; i < m_CapacityBytes / m_SlotSize; i++)
     {
         // TODO: FIX PrintSlot slot(i, !bitmap.IsBitOccupied(i));
         // slot.ToStream(strUpper, strDown);
@@ -686,7 +686,8 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
         sign = '-';
     else
         sign = 'x';
-    buffer += std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c\n", chunkNum, this, m_SlotSize, m_SlotsCount, m_UsedBytes, m_CapacityBytes, sign);
+    buffer +=
+        std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize, m_UsedBytes, m_CapacityBytes, sign);
 }
 
 
