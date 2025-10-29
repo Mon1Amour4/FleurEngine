@@ -160,7 +160,9 @@ public:
     // False - Chunk is full
     bool AcquireSlot(unsigned char*& outPtr);
 
-    void FreeChunkSlot(unsigned char* ptrToSLot);
+    // True - Pool must add this chunk to free list
+    // False - This chunk is already in a free list
+    bool FreeChunkSlot(unsigned char* ptrToSLot);
 
     void PrintBucket();
 
@@ -173,6 +175,12 @@ public:
         return m_UsedBytes < 5000;
     }
 
+    void SetNext(Chunk* ptr);
+    inline Chunk* GetNext() const
+    {
+        return m_Next;
+    }
+
 private:
     const uint32_t m_SlotSize;
     const uint32_t m_CapacityBytes;
@@ -180,6 +188,7 @@ private:
     uint32_t m_UsedBytes;
 
     unsigned char* m_Free;
+    Chunk* m_Next;
 
     struct PrintSlot
     {
