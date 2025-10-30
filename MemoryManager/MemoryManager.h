@@ -17,13 +17,13 @@
         assert(expression);   \
     } while (0);
 
-#define MM_DEBUG_BREAK(expression) \
-    do                             \
-    {                              \
-        if (expression == true)    \
-        {                          \
-            __debugbreak();        \
-        }                          \
+#define MM_DEBUG_BREAK((expression)) \
+    do                               \
+    {                                \
+        if (expression == true)      \
+        {                            \
+            __debugbreak();          \
+        }                            \
     } while (0);
 
 #define MM_DEBUG_EXPRESSION(code) \
