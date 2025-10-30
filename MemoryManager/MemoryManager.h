@@ -358,7 +358,7 @@ public:
         uint32_t alignedBlockSize = AlignTo(sizeof(T) * num, 8);
         MM_DEBUG_BREAK(alignedBlockSize > m_PageSize);
 
-        if (!alignedBlockSize >= SIZE_OF_LARGE_TYPE)
+        if (!(alignedBlockSize >= SIZE_OF_LARGE_TYPE))
         {
             unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
             auto pool = m_LocalArena->GetPool(alignedBlockSize);
