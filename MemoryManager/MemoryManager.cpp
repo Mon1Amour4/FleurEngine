@@ -434,6 +434,7 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 
     if (!m_FreeChunk->AcquireSlot(outPtr))
     {
+        // We've acquired the last free slot, now we need to get next free chunk and set it as Head
         Chunk* next = m_FreeChunk->GetNext();
         m_FreeChunk->SetNext(nullptr);
         m_FreeChunk = next;
@@ -478,7 +479,8 @@ void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 }
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
-    buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
+    // buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
+    buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_FreeChunk);
 }
 
 
@@ -680,8 +682,12 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
         sign = '-';
     else
         sign = 'x';
-    buffer +=
-        std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize, m_UsedBytes, m_CapacityBytes, sign);
+
+    Chunk* nextNextPtr = nullptr;
+    if (m_Next)
+        nextNextPtr = m_Next->GetNext();
+    buffer += std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c|%-18p|%-18p|\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize, m_UsedBytes,
+                           m_CapacityBytes, sign, m_Next, nextNextPtr);
 }
 
 void MM::Chunk::SetNext(Chunk* ptr)

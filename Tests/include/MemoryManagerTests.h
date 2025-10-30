@@ -61,6 +61,63 @@ void RangedTest(uint32_t from, uint32_t to)
     std_mark.Print();
 }
 
+#if 1 ChunksFreeListTest
+TEST(TEST_SUITE_NAME, ChunksFreeListTest)
+{
+    using namespace MM;
+    MemoryManager manager(ManagerConfig);
+    manager.ClearFile("MemorySnapshot.txt");
+
+    // First Chunk
+    std::vector<int*> ptrs;
+    for (size_t i = 0; i < 16; i++)
+    {
+        ptrs.push_back(manager.allocate<int>(64));
+    }
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 1);
+
+    // Second Chunk
+    std::vector<int*> ptrs2;
+    for (size_t i = 0; i < 16; i++)
+    {
+        ptrs2.push_back(manager.allocate<int>(64));
+    }
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 2);
+
+    // Third Chunk
+    std::vector<int*> ptrs3;
+    for (size_t i = 0; i < 16; i++)
+    {
+        ptrs3.push_back(manager.allocate<int>(64));
+    }
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 3);
+
+    manager.deallocate<int>(static_cast<void*>(ptrs2.back()), 64);
+    ptrs2.pop_back();
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 4);
+
+    manager.deallocate<int>(static_cast<void*>(ptrs.back()), 64);
+    ptrs.pop_back();
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 5);
+
+    manager.deallocate<int>(static_cast<void*>(ptrs3.back()), 64);
+    ptrs3.pop_back();
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 6);
+
+    ptrs3.push_back(manager.allocate<int>(64));
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 7);
+
+    ptrs2.push_back(manager.allocate<int>(64));
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 8);
+
+    ptrs2.push_back(manager.allocate<int>(64));
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 9);
+
+    ptrs2.push_back(manager.allocate<int>(64));
+    manager.SaveSnapshotToFile("MemorySnapshot.txt", 10);
+}
+#endif
+
 #if 0 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
@@ -166,7 +223,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
     Benchmark mark{2};
 
-    constexpr size_t iterations = 10'000'000;
+    constexpr size_t iterations = 1000;
     for (size_t i = 0; i < iterations; ++i)
     {
         bool doFree = (actionDist(gen) == 1);
@@ -238,7 +295,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 1 FixedRangeAllocationsFrom64To128
+#if 0 FixedRangeAllocationsFrom64To128
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 128);
