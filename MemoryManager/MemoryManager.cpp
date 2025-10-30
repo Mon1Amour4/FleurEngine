@@ -490,21 +490,21 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     : m_SlotSize(slotSize)
     , m_CapacityBytes(m_SlotSize * slotCount)
     , m_UsedBytes(0)
-    , m_Free(nullptr)
+    , m_FreeSlot(0)
     , m_Next(nullptr)
 {
+    LOCAL_HEAD(this, Chunk);
+
     MM_DEBUG_BREAK(m_SlotSize * slotCount > 4096);
     MM_PRINT("--[CREATED]\n")
     MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << slotCount << "} has been created")
 
-    m_Free = ptr;
-    MM_PRINT(", Head{" << static_cast<void*>(m_Free) << "}, Tail{"
-                       << static_cast<void*>(reinterpret_cast<unsigned char*>(this) + sizeof(Chunk) + m_CapacityBytes) << "}\n")
+    MM_PRINT(", Head{" << static_cast<void*>(localHead) << "}, Tail{" << static_cast<void*>(localHead + m_CapacityBytes) << "}\n")
 
     // TODO A place for optimization
     for (size_t i = 0; i < slotCount; i++)
     {
-        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(m_Free + (m_SlotSize * i));
+        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(localHead + (m_SlotSize * i));
         if (i == slotCount - 1)
             *slotPtr = II_NULL_INDEX;
         else
@@ -523,7 +523,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
 
     MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes);
 
-    if (!m_Free)
+    if (m_FreeSlot == II_NULL_INDEX)
     {
         // No Space in Chunk at all, we cant have this case because Pool stores ptr to chunk that has at least one free slot
         MM_DEBUG_BREAK(true);
@@ -531,19 +531,19 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     }
     else
     {
-        outPtr = m_Free;
+        LOCAL_HEAD(this, Chunk);
+        outPtr = localHead + (m_FreeSlot * m_SlotSize);
 
-        uint32_t nextIdx = *reinterpret_cast<uint32_t*>(m_Free);
+        uint32_t nextIdx = *reinterpret_cast<uint32_t*>(outPtr);
         if (nextIdx == II_NULL_INDEX)
         {
             // Slot was last free slot in this chunk
-            m_Free = nullptr;
+            m_FreeSlot = II_NULL_INDEX;
             return false;
         }
         else
         {
-            unsigned char* head = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk);
-            m_Free = head + (nextIdx * m_SlotSize);
+            m_FreeSlot = nextIdx;
             return true;
         }
     }
@@ -551,37 +551,31 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
 
 bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
 {
+    LOCAL_HEAD(this, Chunk);
+
     MM_DEBUG_BREAK(m_UsedBytes == 0);
+    MM_DEBUG_BREAK(ptrToSLot - localHead == 4096);
 
     bool wasFull = m_UsedBytes == m_CapacityBytes;
-
-    unsigned char* head = reinterpret_cast<unsigned char*>(this) + sizeof(Chunk);
-    uint32_t slotIdx = (ptrToSLot - head) / m_SlotSize;
-
-    MM_DEBUG_BREAK(head + (slotIdx * m_SlotSize) != ptrToSLot);
-
+    m_UsedBytes -= m_SlotSize;
+    uint32_t deallocatedIdx = (ptrToSLot - localHead) / m_SlotSize;
     if (wasFull)
     {
-        m_Free = ptrToSLot;
-        uint32_t* slot = reinterpret_cast<uint32_t*>(m_Free);
+        m_FreeSlot = deallocatedIdx;
+        uint32_t* slot = reinterpret_cast<uint32_t*>(localHead + (m_FreeSlot * m_SlotSize));
         *slot = II_NULL_INDEX;
     }
     else
     {
-        uint32_t currentIdx = (m_Free - head) / m_SlotSize;
-        m_Free = ptrToSLot;
-        uint32_t* newSlot = reinterpret_cast<uint32_t*>(m_Free);
+        uint32_t currentIdx = *reinterpret_cast<uint32_t*>(localHead + (m_FreeSlot * m_SlotSize));
+        m_FreeSlot = deallocatedIdx;
+        uint32_t* newSlot = reinterpret_cast<uint32_t*>(localHead + m_FreeSlot * m_SlotSize);
         *newSlot = currentIdx;
     }
 
-    uint32_t old_m_UsedBytes = m_UsedBytes;
-
     MM_PRINT("--[Slot Free]\n")
     MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
-
-    m_UsedBytes -= m_SlotSize;
-
-    MM_DEBUG_BREAK(m_UsedBytes < 0)
+    MM_DEBUG_BREAK(m_UsedBytes > 10000)
 
     return wasFull;
 }

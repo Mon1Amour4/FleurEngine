@@ -47,6 +47,7 @@
 #pragma endregion
 
 #define II_NULL_INDEX 0xffffffff
+#define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -187,7 +188,7 @@ private:
 
     uint32_t m_UsedBytes;
 
-    unsigned char* m_Free;
+    uint32_t m_FreeSlot;
     Chunk* m_Next;
 
     struct PrintSlot
