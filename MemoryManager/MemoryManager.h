@@ -228,7 +228,7 @@ struct Pool
     }
 
 private:
-    Chunk* m_FreeChunk;
+    uint32_t m_FreeChunkOffset;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
     const uint32_t m_SlotsCount;
