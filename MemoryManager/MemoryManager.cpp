@@ -414,7 +414,7 @@ MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
     : m_NumChunks(0)
     , m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)
-    , m_FreeChunkOffset(0)
+    , m_FreeChunkOffsetB(0)
 {
     MM_ASSERT(m_SlotSize > 0);
     MM_ASSERT(m_SlotsCount > 0);
@@ -424,15 +424,15 @@ MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
 }
 MM::Pool::~Pool()
 {
-    reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffset)->~Chunk();
+    reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB)->~Chunk();
 }
 
 bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 {
-    if (!m_FreeChunkOffset)
+    if (!m_FreeChunkOffsetB)
         return false;
 
-    Chunk* freeChunk = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffset);
+    Chunk* freeChunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_FreeChunkOffsetB);
     if (freeChunk->AcquireSlot(outPtr))
         return true;
     else
@@ -441,27 +441,24 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
         Chunk* nextFreeChunk = freeChunk->GetNext();
         freeChunk->SetNext(nullptr);
         if (nextFreeChunk)
-        {
-            m_FreeChunkOffset = reinterpret_cast<unsigned char*>(nextFreeChunk) - reinterpret_cast<unsigned char*>(this);
-        }
+            m_FreeChunkOffsetB = TOCHARPTR(nextFreeChunk) - TOCHARPTR(this);
         else
-            m_FreeChunkOffset = 0;
+            m_FreeChunkOffsetB = 0;
 
         return outPtr != nullptr;
     }
-    return true;
 }
 bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 {
     if (chunk->FreeChunkSlot(ptrToSlot))
     {
         // We need to add this chunk to a free list
-        if (!m_FreeChunkOffset)
-            m_FreeChunkOffset = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+        if (!m_FreeChunkOffsetB)
+            m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
         else
         {
-            Chunk* current = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffset);
-            m_FreeChunkOffset = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+            Chunk* current = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB);
+            m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
             chunk->SetNext(current);
         }
     }
@@ -472,7 +469,7 @@ void MM::Pool::Extend(MM::Chunk* chunk)
 {
     MM_PRINT("Pool{" << this << "} extend by chunk{" << &*chunk << "}\n");
 
-    m_FreeChunkOffset = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+    m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
     m_NumChunks++;
 }
 
@@ -480,20 +477,19 @@ void MM::Pool::Print()
 {
     std::cout << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
 
-    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffset));
+    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB));
     chunk->Print(0);
 }
 void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 {
     stream << "\nPrinting Pool{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} : Chunks: " << std::to_string(m_NumChunks);
-    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffset));
+    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB));
     chunk->ChunkSnapshotToStream(0, stream);
 }
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
-    // buffer += std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d\n", this, m_SlotSize, m_SlotsCount, m_NumChunks);
     buffer +=
-        std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_FreeChunkOffset);
+        std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_FreeChunkOffsetB);
 }
 
 
@@ -504,7 +500,7 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     , m_CapacityBytes(m_SlotSize * slotCount)
     , m_UsedBytes(0)
     , m_FreeSlot(0)
-    , m_Next(nullptr)
+    , m_NextChunkOffsetInChunkStride(0)
 {
     LOCAL_HEAD(this, Chunk);
 
@@ -690,11 +686,14 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
     else
         sign = 'x';
 
-    Chunk* nextNextPtr = nullptr;
-    if (m_Next)
-        nextNextPtr = m_Next->GetNext();
+    Chunk* nextChunk = GetNext();
+    Chunk* nextNextChunk = nullptr;
+    if (nextChunk)
+    {
+        nextNextChunk = nextChunk->GetNext();
+    }
     buffer += std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c|%-18p|%-18p|\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize, m_UsedBytes,
-                           m_CapacityBytes, sign, m_Next, nextNextPtr);
+                           m_CapacityBytes, sign, nextChunk, nextNextChunk);
 }
 
 void MM::Chunk::SetNext(Chunk* ptr)
@@ -702,7 +701,13 @@ void MM::Chunk::SetNext(Chunk* ptr)
     if (ptr == this)
         return;
 
-    m_Next = ptr;
+    if (!ptr)
+    {
+        m_NextChunkOffsetInChunkStride = 0;
+        return;
+    }
+
+    m_NextChunkOffsetInChunkStride = static_cast<int>((TOCHARPTR(ptr) - TOCHARPTR(this)) / (sizeof(Chunk) + 4096));
 }
 
 

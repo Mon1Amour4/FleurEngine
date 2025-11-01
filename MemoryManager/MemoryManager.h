@@ -48,6 +48,8 @@
 
 #define II_NULL_INDEX 0xffffffff
 #define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
+#define TOCHARPTR(ptr) reinterpret_cast<unsigned char*>(ptr)
+#define CHUNK_STRIDE (sizeof(Chunk) + 4096)
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -177,9 +179,13 @@ public:
     }
 
     void SetNext(Chunk* ptr);
-    inline Chunk* GetNext() const
+    // Return value means (Return value * sizeof(Chunk) + 4096) bytes
+    inline Chunk* GetNext()
     {
-        return m_Next;
+        if (m_NextChunkOffsetInChunkStride == 0)
+            return nullptr;
+
+        return reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_NextChunkOffsetInChunkStride * CHUNK_STRIDE);
     }
 
 private:
@@ -189,7 +195,9 @@ private:
     uint32_t m_UsedBytes;
 
     uint32_t m_FreeSlot;
-    Chunk* m_Next;
+
+    // Offset: n * (sizeof(Chunk) + PageSize) bytes
+    int m_NextChunkOffsetInChunkStride;
 
     struct PrintSlot
     {
@@ -228,7 +236,7 @@ struct Pool
     }
 
 private:
-    uint32_t m_FreeChunkOffset;
+    uint32_t m_FreeChunkOffsetB;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
     const uint32_t m_SlotsCount;
