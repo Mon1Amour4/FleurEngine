@@ -179,13 +179,14 @@ public:
     }
 
     void SetNext(Chunk* ptr);
-    // Return value means (Return value * sizeof(Chunk) + 4096) bytes
     inline Chunk* GetNext()
     {
         if (m_NextChunkOffsetInChunkStride == 0)
             return nullptr;
 
-        return reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_NextChunkOffsetInChunkStride * CHUNK_STRIDE);
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        MM_DEBUG_BREAK(!chunk->IsValid());
+        return chunk;
     }
 
 private:

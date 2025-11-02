@@ -706,8 +706,8 @@ void MM::Chunk::SetNext(Chunk* ptr)
         m_NextChunkOffsetInChunkStride = 0;
         return;
     }
-
-    m_NextChunkOffsetInChunkStride = static_cast<int>((TOCHARPTR(ptr) - TOCHARPTR(this)) / (sizeof(Chunk) + 4096));
+    int ptrDiff = TOCHARPTR(ptr) - TOCHARPTR(this);
+    m_NextChunkOffsetInChunkStride = ptrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
 
