@@ -47,6 +47,7 @@
 #pragma endregion
 
 #define II_NULL_INDEX 0xffffffff
+#define INVALID_OFFSET 0xFFFFFFFF
 #define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
 #define TOCHARPTR(ptr) reinterpret_cast<unsigned char*>(ptr)
 #define CHUNK_STRIDE (sizeof(Chunk) + 4096)
@@ -167,7 +168,7 @@ public:
 
     // True - Pool must add this chunk to free list
     // False - This chunk is already in a free list
-    bool FreeChunkSlot(unsigned char* ptrToSLot);
+    bool FreeChunkSlot(unsigned char* ptrToSLot, bool* isEmpty);
 
     void PrintBucket();
 
@@ -191,7 +192,15 @@ public:
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
-    void InsertNode(Chunk* next, Chunk* prev);
+    inline Chunk* GetPrev()
+    {
+        if (m_PrevChunkOffsetInChunkStride == 0)
+            return nullptr;
+
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_PrevChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        MM_DEBUG_BREAK(!chunk->IsValid());
+        return chunk;
+    }
 
 private:
     const uint32_t m_SlotSize;
@@ -242,7 +251,7 @@ struct Pool
     }
 
 private:
-    uint32_t m_FreeChunkOffsetB;
+    uint32_t m_HeadOffsetBytes;
     uint32_t m_NumChunks;
     const uint32_t m_SlotSize;
     const uint32_t m_SlotsCount;

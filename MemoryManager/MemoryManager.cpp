@@ -414,7 +414,7 @@ MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
     : m_NumChunks(0)
     , m_SlotSize(slotSize)
     , m_SlotsCount(slotCount)
-    , m_FreeChunkOffsetB(0)
+    , m_HeadOffsetBytes(INVALID_OFFSET)
 {
     MM_ASSERT(m_SlotSize > 0);
     MM_ASSERT(m_SlotsCount > 0);
@@ -424,44 +424,84 @@ MM::Pool::Pool(uint32_t slotSize, uint32_t slotCount)
 }
 MM::Pool::~Pool()
 {
-    reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB)->~Chunk();
+    reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_HeadOffsetBytes)->~Chunk();
 }
 
 bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 {
-    if (!m_FreeChunkOffsetB)
+    if (m_HeadOffsetBytes == INVALID_OFFSET)
         return false;
 
-    Chunk* freeChunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_FreeChunkOffsetB);
-    if (freeChunk->AcquireSlot(outPtr))
+    Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+    if (currentHead->AcquireSlot(outPtr))
         return true;
     else
     {
         // We've acquired the last free slot, now we need to get next free chunk and set it as Head
-        Chunk* nextFreeChunk = freeChunk->GetNext();
-        freeChunk->SetNext(nullptr);
-        if (nextFreeChunk)
-            m_FreeChunkOffsetB = TOCHARPTR(nextFreeChunk) - TOCHARPTR(this);
+        Chunk* nextHead = currentHead->GetNext();
+        currentHead->SetNext(nullptr);
+        currentHead->SetPrev(nullptr);
+        if (nextHead)
+        {
+            nextHead->SetPrev(nullptr);
+            m_HeadOffsetBytes = TOCHARPTR(nextHead) - TOCHARPTR(this);
+        }
         else
-            m_FreeChunkOffsetB = 0;
+            m_HeadOffsetBytes = INVALID_OFFSET;
 
         return outPtr != nullptr;
     }
 }
 bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 {
-    if (chunk->FreeChunkSlot(ptrToSlot))
+    bool isChunkFree = false;
+    if (chunk->FreeChunkSlot(ptrToSlot, &isChunkFree))
     {
         // We need to add this chunk to a free list
-        if (!m_FreeChunkOffsetB)
-            m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+
+        if (m_HeadOffsetBytes == INVALID_OFFSET)
+            m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
         else
         {
-            Chunk* current = reinterpret_cast<Chunk*>(reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB);
-            m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
-            chunk->SetNext(current);
+            Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+            m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+
+            //  Before:         [current]⇄[other]⇄[other]
+            //  After:  [freed]⇄[current]⇄[other]⇄[other]
+            currentHead->SetPrev(chunk);
+            chunk->SetNext(currentHead);
         }
     }
+    else
+    {
+        // Chunk had at least one free slot
+        // This Chunk is in linked list
+        if (isChunkFree)
+        {
+            if (m_NumChunks > 1)
+            {
+                // Do not free the last free Chunk
+                // Need to fix linked list
+                Chunk* next = chunk->GetNext();
+                Chunk* prev = chunk->GetPrev();
+                if (prev)
+                    prev->SetNext(next);
+                if (next)
+                    next->SetPrev(prev);
+
+                chunk->SetNext(nullptr);
+                chunk->SetPrev(nullptr);
+
+                --m_NumChunks;
+
+                Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+                if (chunk == currentHead)
+                    m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
+            }
+        }
+    }
+    // TODO: return true if chunk is free and we need to
+    // fix Arena Current ptr to ptr to that freed Chunk
     return true;
 }
 
@@ -469,7 +509,7 @@ void MM::Pool::Extend(MM::Chunk* chunk)
 {
     MM_PRINT("Pool{" << this << "} extend by chunk{" << &*chunk << "}\n");
 
-    m_FreeChunkOffsetB = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+    m_HeadOffsetBytes = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
     m_NumChunks++;
 }
 
@@ -477,19 +517,19 @@ void MM::Pool::Print()
 {
     std::cout << "\nPrinting Pool{" << m_SlotSize << "," << m_SlotsCount << "}: Chunks: " << std::to_string(m_NumChunks);
 
-    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB));
+    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_HeadOffsetBytes));
     chunk->Print(0);
 }
 void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 {
     stream << "\nPrinting Pool{" << this << "}{" << m_SlotSize << ", " << m_SlotsCount << "} : Chunks: " << std::to_string(m_NumChunks);
-    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_FreeChunkOffsetB));
+    Chunk* chunk = reinterpret_cast<Chunk*>((reinterpret_cast<unsigned char*>(this) + m_HeadOffsetBytes));
     chunk->ChunkSnapshotToStream(0, stream);
 }
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
     buffer +=
-        std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_FreeChunkOffsetB);
+        std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_HeadOffsetBytes);
 }
 
 
@@ -559,7 +599,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
     }
 }
 
-bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
+bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot, bool* isEmpty)
 {
     LOCAL_HEAD(this, Chunk);
 
@@ -587,6 +627,7 @@ bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot)
     MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
     MM_DEBUG_BREAK(m_UsedBytes > 10000)
 
+    *isEmpty = m_UsedBytes == 0;
     return wasFull;
 }
 
@@ -697,44 +738,32 @@ void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
                            m_CapacityBytes, sign, nextChunk, nextNextChunk);
 }
 
-void MM::Chunk::SetNext(Chunk* ptr)
+void MM::Chunk::SetNext(Chunk* next)
 {
-    if (ptr == this)
+    if (next == this)
         return;
 
-    if (!ptr)
+    if (!next)
     {
         m_NextChunkOffsetInChunkStride = 0;
         return;
     }
-    int nextPtrDiff = TOCHARPTR(ptr) - TOCHARPTR(this);
+    int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
     m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
 void MM::Chunk::SetPrev(Chunk* prev)
 {
-}
+    if (prev == this)
+        return;
 
-void MM::Chunk::InsertNode(Chunk* next, Chunk* prev)
-{
-    // CASE: next == nullptr
-    // CASE: prev == nullptr
-
-    if (next && !prev)
+    if (!prev)
     {
-        int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
-        m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
         m_PrevChunkOffsetInChunkStride = 0;
-        next->SetPrev(this);
+        return;
     }
-    else if (!prev && !prev)
-    {
-        // This Chunk is full
-        Chunk* next = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
-        next->SetPrev(nullptr);
-        m_NextChunkOffsetInChunkStride = 0;
-        m_PrevChunkOffsetInChunkStride = 0;
-    }
+    int prevPtrDiff = TOCHARPTR(prev) - TOCHARPTR(this);
+    m_PrevChunkOffsetInChunkStride = prevPtrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
 //======================================================================
