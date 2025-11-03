@@ -501,6 +501,7 @@ MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
     , m_UsedBytes(0)
     , m_FreeSlot(0)
     , m_NextChunkOffsetInChunkStride(0)
+    , m_PrevChunkOffsetInChunkStride(0)
 {
     LOCAL_HEAD(this, Chunk);
 
@@ -706,10 +707,35 @@ void MM::Chunk::SetNext(Chunk* ptr)
         m_NextChunkOffsetInChunkStride = 0;
         return;
     }
-    int ptrDiff = TOCHARPTR(ptr) - TOCHARPTR(this);
-    m_NextChunkOffsetInChunkStride = ptrDiff / static_cast<int>(CHUNK_STRIDE);
+    int nextPtrDiff = TOCHARPTR(ptr) - TOCHARPTR(this);
+    m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
+void MM::Chunk::SetPrev(Chunk* prev)
+{
+}
+
+void MM::Chunk::InsertNode(Chunk* next, Chunk* prev)
+{
+    // CASE: next == nullptr
+    // CASE: prev == nullptr
+
+    if (next && !prev)
+    {
+        int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
+        m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
+        m_PrevChunkOffsetInChunkStride = 0;
+        next->SetPrev(this);
+    }
+    else if (!prev && !prev)
+    {
+        // This Chunk is full
+        Chunk* next = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        next->SetPrev(nullptr);
+        m_NextChunkOffsetInChunkStride = 0;
+        m_PrevChunkOffsetInChunkStride = 0;
+    }
+}
 
 //======================================================================
 // Chunk::PrintSlot

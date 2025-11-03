@@ -56,6 +56,7 @@ static constexpr size_t PAGE_SIZE = 4 * 1024;
 static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 4;
 static constexpr size_t MIN_SLOT_SIZE = 16;
 
+#pragma region Bits
 consteval size_t get_powered_size(size_t power)
 {
     return 1ull << power;
@@ -95,6 +96,7 @@ inline uint32_t CountSlots(uint32_t size, uint32_t slotSize = 8)
 {
     return (size + slotSize - 1) / slotSize;
 }
+#pragma endregion
 
 #pragma region Benchmark
 //======================================================================
@@ -179,6 +181,7 @@ public:
     }
 
     void SetNext(Chunk* ptr);
+    void SetPrev(Chunk* prev);
     inline Chunk* GetNext()
     {
         if (m_NextChunkOffsetInChunkStride == 0)
@@ -188,6 +191,7 @@ public:
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
+    void InsertNode(Chunk* next, Chunk* prev);
 
 private:
     const uint32_t m_SlotSize;
@@ -199,6 +203,7 @@ private:
 
     // Offset: n * (sizeof(Chunk) + PageSize) bytes
     int m_NextChunkOffsetInChunkStride;
+    int m_PrevChunkOffsetInChunkStride;
 
     struct PrintSlot
     {
