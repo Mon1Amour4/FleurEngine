@@ -48,9 +48,8 @@
 
 #define II_NULL_INDEX 0xffffffff
 #define INVALID_OFFSET 0xFFFFFFFF
-#define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
+#define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr)
 #define TOCHARPTR(ptr) reinterpret_cast<unsigned char*>(ptr)
-#define CHUNK_STRIDE (sizeof(Chunk) + 4096)
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -156,11 +155,21 @@ private:
 
 #pragma region Chunk
 //======================================================================
+// Plain-Old-Data structure type
 struct Chunk
 {
-public:
-    Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount);
-    ~Chunk();
+    uint32_t m_SlotSize;
+    uint32_t m_CapacityBytes;
+
+    uint32_t m_UsedBytes;
+
+    uint32_t m_FreeSlot;
+
+    // Offset: n * (sizeof(Chunk) + PageSize) bytes
+    int m_NextChunkOffsetInChunkStride;
+    int m_PrevChunkOffsetInChunkStride;
+    // Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount);
+    //~Chunk();
 
     // True - there is at least one free chunk after acquisition
     // False - Chunk is full
@@ -185,10 +194,10 @@ public:
     void SetPrev(Chunk* prev);
     inline Chunk* GetNext()
     {
-        if (m_NextChunkOffsetInChunkStride == 0)
+        if (m_NextChunkOffsetInChunkStride == INVALID_OFFSET)
             return nullptr;
 
-        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * 4096));
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
@@ -197,22 +206,11 @@ public:
         if (m_PrevChunkOffsetInChunkStride == 0)
             return nullptr;
 
-        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_PrevChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_PrevChunkOffsetInChunkStride * 4096));
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
 
-private:
-    const uint32_t m_SlotSize;
-    const uint32_t m_CapacityBytes;
-
-    uint32_t m_UsedBytes;
-
-    uint32_t m_FreeSlot;
-
-    // Offset: n * (sizeof(Chunk) + PageSize) bytes
-    int m_NextChunkOffsetInChunkStride;
-    int m_PrevChunkOffsetInChunkStride;
 
     struct PrintSlot
     {
