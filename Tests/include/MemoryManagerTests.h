@@ -61,7 +61,7 @@ void RangedTest(uint32_t from, uint32_t to)
     std_mark.Print();
 }
 
-#if 0 ChunksFreeListTest
+#if 1 ChunksFreeListTest
 TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 {
     using namespace MM;
@@ -70,7 +70,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 
     // First Chunk
     std::vector<int*> ptrs;
-    for (size_t i = 0; i < 15; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         ptrs.push_back(manager.allocate<int>(64));
     }
@@ -78,7 +78,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 
     // Second Chunk
     std::vector<int*> ptrs2;
-    for (size_t i = 0; i < 15; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         ptrs2.push_back(manager.allocate<int>(64));
     }
@@ -86,7 +86,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 
     // Third Chunk
     std::vector<int*> ptrs3;
-    for (size_t i = 0; i < 15; i++)
+    for (size_t i = 0; i < 16; i++)
     {
         ptrs3.push_back(manager.allocate<int>(64));
     }
@@ -118,7 +118,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
-#if 1 Random Allocations
+#if 0 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;

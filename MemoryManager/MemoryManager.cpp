@@ -285,7 +285,14 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
         uint32_t poolSize = m_MinSlotSize + (8 * i);
         unsigned char* poolPtr = m_Head + offset * i;
         Pool* pool = new (poolPtr) Pool(poolSize, m_PageSize / poolSize);
+
+        // unsigned char* chunkPtr = chunksBase + i * chunkStride;
+        // Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
+
+        // pool->Extend(chunk);
     }
+    // m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    // m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
     m_UsedBytes += m_StaticOffset;
     m_Current += m_UsedBytes;
 }
@@ -306,7 +313,7 @@ MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 
 MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
 {
-    uint32_t chunkStride = m_PageSize;
+    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
 
     unsigned char* endOfStatic = m_Head + m_StaticOffset;
     uint32_t diff = ptrToSlot - endOfStatic;
@@ -318,32 +325,22 @@ MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
 }
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint32_t slotsCount)
 {
-    uint32_t requestedSize = 4096;
+    uint32_t requestedSize = m_PageSize + sizeof(Chunk);
     if (m_UsedBytes + requestedSize <= m_CapacityBytes)
     {
         // Arena has enought space for new chunk, give it
-        unsigned char* currentHead = m_Current;
+        unsigned char* prevPtr = m_Current;
         m_Current += requestedSize;
         m_UsedBytes += requestedSize;
+        MM_DEBUG_EXPRESSION({
+            Chunk* newChunk = new (prevPtr) Chunk(prevPtr + sizeof(Chunk), slotSize, slotsCount);
+            unsigned char* newChunkChar = reinterpret_cast<unsigned char*>(newChunk);
 
-        uint32_t usedSlots = std::ceil(sizeof(Chunk) / (float)slotSize);
-        Chunk* chunk = reinterpret_cast<Chunk*>(currentHead);
-        chunk->m_SlotSize = slotSize;
-        chunk->m_CapacityBytes = slotSize * slotsCount;
-        chunk->m_UsedBytes = usedSlots * slotSize;
-        chunk->m_FreeSlot = usedSlots;
-        chunk->m_NextChunkOffsetInChunkStride = INVALID_OFFSET;
-        chunk->m_PrevChunkOffsetInChunkStride = INVALID_OFFSET;
+            MM_DEBUG_BREAK(m_Current >= m_Tail);
+            return newChunk;
+        })
 
-        for (size_t i = usedSlots; i < slotsCount; i++)
-        {
-            uint32_t* slotPtr = reinterpret_cast<uint32_t*>(currentHead + (slotSize * i));
-            if (i == slotsCount - 1)
-                *slotPtr = II_NULL_INDEX;
-            else
-                *slotPtr = i + 1;
-        }
-        return chunk;
+        return new (prevPtr) Chunk(prevPtr + sizeof(Chunk), slotSize, slotsCount);
     }
     else
     {
@@ -399,9 +396,10 @@ void MM::Arena::ArenaSnapshot(char* buffer)
         // pool->PoolSpapshot(buffer);
         chunks += pool->Chunks();
     }
+    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
     for (size_t i = 0; i < chunks; i++)
     {
-        Chunk* chunk = reinterpret_cast<Chunk*>((m_Head + m_StaticOffset) + (m_PageSize * i));
+        Chunk* chunk = reinterpret_cast<Chunk*>((m_Head + m_StaticOffset) + (chunkStride * i));
         chunk->ChunkSnapshot(i, buffer);
     }
 
@@ -537,6 +535,37 @@ void MM::Pool::PoolSpapshot(char*& buffer)
 
 //======================================================================
 // Chunk
+MM::Chunk::Chunk(unsigned char* ptr, uint32_t slotSize, uint32_t slotCount)
+    : m_SlotSize(slotSize)
+    , m_CapacityBytes(m_SlotSize * slotCount)
+    , m_UsedBytes(0)
+    , m_FreeSlot(0)
+    , m_NextChunkOffsetInChunkStride(0)
+    , m_PrevChunkOffsetInChunkStride(0)
+{
+    LOCAL_HEAD(this, Chunk);
+
+    MM_DEBUG_BREAK(m_SlotSize * slotCount > 4096);
+    MM_PRINT("--[CREATED]\n")
+    MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << slotCount << "} has been created")
+
+    MM_PRINT(", Head{" << static_cast<void*>(localHead) << "}, Tail{" << static_cast<void*>(localHead + m_CapacityBytes) << "}\n")
+
+    // TODO A place for optimization
+    for (size_t i = 0; i < slotCount; i++)
+    {
+        uint32_t* slotPtr = reinterpret_cast<uint32_t*>(localHead + (m_SlotSize * i));
+        if (i == slotCount - 1)
+            *slotPtr = II_NULL_INDEX;
+        else
+            *slotPtr = i + 1;
+    }
+}
+
+MM::Chunk::~Chunk()
+{
+}
+
 bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
 {
     uint32_t oldCapacity = m_UsedBytes;
@@ -716,11 +745,11 @@ void MM::Chunk::SetNext(Chunk* next)
 
     if (!next)
     {
-        m_NextChunkOffsetInChunkStride = INVALID_OFFSET;
+        m_NextChunkOffsetInChunkStride = 0;
         return;
     }
     int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
-    m_NextChunkOffsetInChunkStride = nextPtrDiff / 4096;
+    m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
 void MM::Chunk::SetPrev(Chunk* prev)
@@ -734,7 +763,7 @@ void MM::Chunk::SetPrev(Chunk* prev)
         return;
     }
     int prevPtrDiff = TOCHARPTR(prev) - TOCHARPTR(this);
-    m_PrevChunkOffsetInChunkStride = prevPtrDiff / 4096;
+    m_PrevChunkOffsetInChunkStride = prevPtrDiff / static_cast<int>(CHUNK_STRIDE);
 }
 
 //======================================================================
