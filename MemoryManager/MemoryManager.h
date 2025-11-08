@@ -243,6 +243,7 @@ struct Pool
     void PoolSpapshotToStream(std::ofstream& stream);
     void PoolSpapshot(char*& buffer);
 
+    // True - Chunk is empty
     bool FreeSlot(Chunk* chunk, unsigned char* ptrToSlot);
 
     inline uint32_t Chunks() const
@@ -287,7 +288,7 @@ struct Arena
     unsigned char* m_Tail;
 
     unsigned char* m_Current;
-    unsigned char* m_SmallObjectsCurrent;
+    void* m_SmallObjectsCurrent;
     size_t m_UsedBytes;
 };
 #pragma endregion
@@ -386,18 +387,29 @@ public:
         {
             unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
             auto pool = m_LocalArena->GetPool(alignedBlockSize);
-            bool res = false;
             if (pool)
             {
-                res = pool->FreeSlot(m_LocalArena->FindChunk(bytePtr), bytePtr);
+                Chunk* chunk = m_LocalArena->FindChunk(bytePtr);
+                bool isChunkEmpty = pool->FreeSlot(chunk, bytePtr);
 
-                if (!res)
-                    __debugbreak();
+                if (isChunkEmpty)
+                {
+                    if (!m_LocalArena->m_SmallObjectsCurrent)
+                    {
+                        m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                    }
+                    else
+                    {
+                        void* currentNext = m_LocalArena->m_SmallObjectsCurrent;
+                        m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                        *reinterpret_cast<void*>(chunk) = currentNext;
+                    }
+                }
                 else
                 {
-                    // placement new deallocation
-                    reinterpret_cast<T*>(bytePtr)->~T();
                 }
+                // placement new deallocation
+                reinterpret_cast<T*>(bytePtr)->~T();
             }
         }
     }
