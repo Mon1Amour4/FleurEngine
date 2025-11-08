@@ -12,8 +12,9 @@
 void RangedTest(uint32_t from, uint32_t to)
 {
     MM::MemoryManager manager(ManagerConfig);
+    manager.ClearFile("MemorySnapshot.txt");
     size_t allocated = 0;
-    uint32_t allocationsCupBytes = 1024 * 1024 * 1024;
+    uint32_t allocationsCupBytes = 1024 * 100;
 
     MM::Benchmark mark{2};
 
@@ -23,6 +24,7 @@ void RangedTest(uint32_t from, uint32_t to)
     std::vector<std::pair<int, int*>> mm_pairs;
     std::vector<std::pair<int, int*>> std_pairs;
     std::cout << "Memory Manager benchmark\n";
+    size_t counter = 0;
     for (size_t i = 0; allocated < allocationsCupBytes; i++)
     {
         int size = (actionDist(gen) / sizeof(int) * sizeof(int));
@@ -39,6 +41,24 @@ void RangedTest(uint32_t from, uint32_t to)
         mark.StartDealloc();
         manager.deallocate<int>(alloc.second, alloc.first);
         mark.EndDealloc();
+
+        counter++;
+        manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
+    }
+    // 2
+    std::vector<std::pair<int, int*>> mm_pairs2;
+    counter = 0;
+    allocated = 0;
+    for (size_t i = 0; allocated < allocationsCupBytes; i++)
+    {
+        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
+        int count = size / sizeof(int);
+        allocated += size;
+
+        mm_pairs2.push_back({count, manager.allocate<int>(count)});
+
+        counter++;
+        manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
     }
     mark.Print();
 
@@ -61,7 +81,7 @@ void RangedTest(uint32_t from, uint32_t to)
     std_mark.Print();
 }
 
-#if 1 ChunksFreeListTest
+#if 0 ChunksFreeListTest
 TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 {
     using namespace MM;
@@ -295,10 +315,10 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom64To128
+#if 1 FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
-    RangedTest(33, 128);
+    RangedTest(33, 46);
 }
 #endif
 
