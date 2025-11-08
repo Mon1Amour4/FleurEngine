@@ -417,6 +417,7 @@ public:
                         if (!m_LocalArena->m_SmallObjectsCurrent)
                         {
                             m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                            *reinterpret_cast<void**>(m_LocalArena->m_SmallObjectsCurrent) = nullptr;
                         }
                         else
                         {
