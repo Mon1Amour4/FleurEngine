@@ -51,18 +51,11 @@
 #define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
 #define TOCHARPTR(ptr) reinterpret_cast<unsigned char*>(ptr)
 #define CHUNK_STRIDE (sizeof(Chunk) + 4096)
-#define ARENA_FREE_CHUNK_HEADER 0xDEADBEEFDEADBEEF
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
 static constexpr size_t SIZE_OF_LARGE_TYPE = 1024 * 4;
 static constexpr size_t MIN_SLOT_SIZE = 16;
-
-struct ArenaFreeChunkHeader
-{
-    uint64_t header;
-    intptr_t chunk;
-};
 
 #pragma region Bits
 consteval size_t get_powered_size(size_t power)
@@ -250,8 +243,6 @@ struct Pool
     void PoolSpapshotToStream(std::ofstream& stream);
     void PoolSpapshot(char*& buffer);
 
-    // True - Chunk was freed, need to add to Arena SmallObjects free list
-    // False - nothing
     bool FreeSlot(Chunk* chunk, unsigned char* ptrToSlot);
 
     inline uint32_t Chunks() const
@@ -286,16 +277,16 @@ struct Arena
     void ArenaSnapshotToStream(std::ofstream& stream);
     void ArenaSnapshot(char* buffer);
 
+private:
     const uint32_t m_PageSize;
     const uint32_t m_MinSlotSize;
     const size_t m_CapacityBytes;
     uint32_t m_StaticOffset;
-    unsigned char* m_Current;
+    unsigned char* m_Head;
 
     // one-past-the-end
     unsigned char* m_Tail;
 
-    unsigned char* m_SmallObjectsHead;
     unsigned char* m_Current;
     size_t m_UsedBytes;
 };
@@ -398,27 +389,15 @@ public:
             bool res = false;
             if (pool)
             {
-                Chunk* chunkToFree = m_LocalArena->FindChunk(bytePtr);
-                if (pool->FreeSlot(chunkToFree, bytePtr))
+                res = pool->FreeSlot(m_LocalArena->FindChunk(bytePtr), bytePtr);
+
+                if (!res)
+                    __debugbreak();
+                else
                 {
-                    m_LocalArena->m_UsedBytes -= 4096 + sizeof(Chunk);
-                    if (m_LocalArena->m_Current == m_LocalArena->m_SmallObjectsHead)
-                    {
-                        m_SmallObjectsHead = reinterpret_cast<unsigned char*>(chunkToFree);
-                        ArenaFreeChunkHeader* freeChunkStruct = reinterpret_cast<ArenaFreeChunkHeader*>(m_SmallObjectsHead);
-                        freeChunkStruct->header = ARENA_FREE_CHUNK_HEADER;
-                        freeChunkStruct->chunk = nullptr;
-                    }
-                    else
-                    {
-                        ArenaFreeChunkHeader* newHead = reinterpret_cast<ArenaFreeChunkHeader*>(chunkToFree);
-                        newHead->header = ARENA_FREE_CHUNK_HEADER;
-                        newHead->chunk = reinterpret_cast<intptr_t>(m_SmallObjectsHead);
-                        m_SmallObjectsHead = reinterpret_cast<unsigned char*>(newHead);
-                    }
+                    // placement new deallocation
+                    reinterpret_cast<T*>(bytePtr)->~T();
                 }
-                // placement new deallocation
-                reinterpret_cast<T*>(bytePtr)->~T();
             }
         }
     }
@@ -430,7 +409,7 @@ public:
     void ClearFile(std::string_view fileName);
 
 private:
-    unsigned char* m_Current;
+    unsigned char* m_Head;
     Arena* m_LocalArena;
 
     const size_t m_Capacity;

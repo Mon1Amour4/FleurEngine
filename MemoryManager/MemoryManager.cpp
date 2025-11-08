@@ -192,20 +192,20 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     , m_MinSlotSize(minSlotSize)
     , m_ArenaSize(arenaSize)
     , m_Capacity(capacity)
-    , m_Current(nullptr)
+    , m_Head(nullptr)
     , m_UsedBytes(0)
 {
     MM_ASSERT(m_Capacity > 0 && m_PageSize > 0 && m_MinSlotSize > 0);
     MM_ASSERT(m_ArenaSize <= m_Capacity);
 
-    m_Current = reinterpret_cast<unsigned char*>(malloc(capacity));
+    m_Head = reinterpret_cast<unsigned char*>(malloc(capacity));
 
-    MM_ASSERT(m_Current);
+    MM_ASSERT(m_Head);
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
-    unsigned char* arenaHeadPtr = m_Current + sizeof(Arena);
-    m_LocalArena = new (m_Current) Arena(arenaHeadPtr, arenaSize, pageSize, minSlotSize);
+    unsigned char* arenaHeadPtr = m_Head + sizeof(Arena);
+    m_LocalArena = new (m_Head) Arena(arenaHeadPtr, arenaSize, pageSize, minSlotSize);
 
     MM_ASSERT(m_LocalArena);
 
@@ -265,13 +265,12 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     , m_MinSlotSize(minSlotSize)
     , m_CapacityBytes(capacity)
     , m_UsedBytes(0)
-    , m_Current(ptr)
-    , m_SmallObjectsHead(nullptr)
+    , m_Head(ptr)
 {
-    MM_ASSERT(m_Current);
+    MM_ASSERT(m_Head);
 
-    m_SmallObjectsHead = m_Current = m_Current;
-    m_Tail = m_Current + (m_CapacityBytes);
+    m_Current = m_Head;
+    m_Tail = m_Head + (m_CapacityBytes);
 
 
     // uint8_t poolsCount = GetPowerOfTwoOf(pageSize / minSlotSize);
@@ -279,17 +278,23 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     m_StaticOffset = poolsCount * sizeof(Pool);
 
     uint32_t offset = sizeof(Pool);
-    unsigned char* chunksBase = m_Current + m_StaticOffset;
+    unsigned char* chunksBase = m_Head + m_StaticOffset;
     uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
     for (size_t i = 0; i < poolsCount; i++)
     {
         uint32_t poolSize = m_MinSlotSize + (8 * i);
-        unsigned char* poolPtr = m_Current + offset * i;
+        unsigned char* poolPtr = m_Head + offset * i;
         Pool* pool = new (poolPtr) Pool(poolSize, m_PageSize / poolSize);
+
+        // unsigned char* chunkPtr = chunksBase + i * chunkStride;
+        // Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
+
+        // pool->Extend(chunk);
     }
+    // m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+    // m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
     m_UsedBytes += m_StaticOffset;
     m_Current += m_UsedBytes;
-    m_SmallObjectsHead = m_Current;
 }
 MM::Arena::~Arena()
 {
@@ -297,20 +302,20 @@ MM::Arena::~Arena()
 }
 MM::Arena MM::Arena::operator=(const Arena& other)
 {
-    return Arena(other.m_Current, other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
+    return Arena(other.m_Head, other.m_CapacityBytes, other.m_PageSize, other.m_MinSlotSize);
 };
 
 MM::Pool* MM::Arena::GetPool(uint32_t slotSize)
 {
     uint32_t multiplier = slotSize / 8 - 2;
-    return reinterpret_cast<Pool*>(m_Current + (sizeof(Pool) * multiplier));
+    return reinterpret_cast<Pool*>(m_Head + (sizeof(Pool) * multiplier));
 }
 
 MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
 {
     uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
 
-    unsigned char* endOfStatic = m_Current + m_StaticOffset;
+    unsigned char* endOfStatic = m_Head + m_StaticOffset;
     uint32_t diff = ptrToSlot - endOfStatic;
     uint32_t steps = diff / chunkStride;
     Chunk* chunk = reinterpret_cast<Chunk*>(endOfStatic + (steps * chunkStride));
@@ -320,20 +325,11 @@ MM::Chunk* MM::Arena::FindChunk(unsigned char* ptrToSlot)
 }
 MM::Chunk* MM::Arena::TryToGetNewChunk(MM::Pool* pool, uint32_t slotSize, uint32_t slotsCount)
 {
-    if (m_SmallObjectsHead != m_Current)
-    {
-        // Arena has freed chunk for it
-        unsigned char* nextPtr = nullptr;
-
-        Chunk* freeChunk = new (m_SmallObjectsHead) Chunk(m_SmallObjectsHead + sizeof(Chunk), slotSize, slotsCount);
-    }
     uint32_t requestedSize = m_PageSize + sizeof(Chunk);
     if (m_UsedBytes + requestedSize <= m_CapacityBytes)
     {
         // Arena has enought space for new chunk, give it
         unsigned char* prevPtr = m_Current;
-        if (m_SmallObjectsHead == m_Current)
-            m_SmallObjectsHead += requestedSize;
         m_Current += requestedSize;
         m_UsedBytes += requestedSize;
         MM_DEBUG_EXPRESSION({
@@ -363,7 +359,7 @@ void MM::Arena::Print()
     for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
         uint32_t size = m_MinSlotSize << i;
-        reinterpret_cast<Pool*>(m_Current + offset * i)->Print();
+        reinterpret_cast<Pool*>(m_Head + offset * i)->Print();
     }
 
     std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
@@ -378,7 +374,7 @@ void MM::Arena::ArenaSnapshotToStream(std::ofstream& stream)
     for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
     {
         uint32_t size = m_MinSlotSize << i;
-        reinterpret_cast<Pool*>(m_Current + offset * i)->PoolSpapshotToStream(stream);
+        reinterpret_cast<Pool*>(m_Head + offset * i)->PoolSpapshotToStream(stream);
     }
 
     stream << "\n//--------------------------------- END ----------------------------\\ \n";
@@ -396,14 +392,14 @@ void MM::Arena::ArenaSnapshot(char* buffer)
     for (size_t i = 0; i < poolsCount; i++)
     {
         uint32_t poolSize = m_MinSlotSize + (8 * i);
-        Pool* pool = reinterpret_cast<Pool*>(m_Current + offset * i);
+        Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
         // pool->PoolSpapshot(buffer);
         chunks += pool->Chunks();
     }
     uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
     for (size_t i = 0; i < chunks; i++)
     {
-        Chunk* chunk = reinterpret_cast<Chunk*>((m_Current + m_StaticOffset) + (chunkStride * i));
+        Chunk* chunk = reinterpret_cast<Chunk*>((m_Head + m_StaticOffset) + (chunkStride * i));
         chunk->ChunkSnapshot(i, buffer);
     }
 
@@ -456,9 +452,6 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
         return outPtr != nullptr;
     }
 }
-
-// True - Chunk was freed, need to add to Arena SmallObjects free list
-// False - nothing
 bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 {
     bool isChunkFree = false;
@@ -504,14 +497,12 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
                 Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
                 if (chunk == currentHead)
                     m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
-
-                return true;
             }
         }
     }
     // TODO: return true if chunk is free and we need to
     // fix Arena Current ptr to ptr to that freed Chunk
-    return false;
+    return true;
 }
 
 void MM::Pool::Extend(MM::Chunk* chunk)
