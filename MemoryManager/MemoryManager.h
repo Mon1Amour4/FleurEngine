@@ -326,6 +326,16 @@ public:
 
             if (pool)
             {
+                // Check first if Arena already has Chunk in free list:
+                if (m_LocalArena->m_SmallObjectsCurrent)
+                {
+                    void* next = *reinterpret_cast<void*>(m_LocalArena->m_SmallObjectsCurrent);
+                    Chunk* chunk =
+                        new (m_LocalArena->m_SmallObjectsCurrent) Chunk(m_LocalArena->m_SmallObjectsCurrent + sizeof(Chunk), slotSize, m_PageSize / slotSize);
+                    pool->Extend(chunk);
+
+                    m_LocalArena->m_SmallObjectsCurrent = next;
+                }
                 bool res = pool->AcquireSlotFromPool(requestedMemory);
                 if (!res)
                 {
