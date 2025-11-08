@@ -504,7 +504,17 @@ void MM::Pool::Extend(MM::Chunk* chunk)
 {
     MM_PRINT("Pool{" << this << "} extend by chunk{" << &*chunk << "}\n");
 
-    m_HeadOffsetBytes = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+    if (m_HeadOffsetBytes == INVALID_OFFSET)
+    {
+        m_HeadOffsetBytes = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+    }
+    else
+    {
+        Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+        m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+        currentHead->SetPrev(chunk);
+        chunk->SetNext(currentHead);
+    }
     m_NumChunks++;
 }
 
