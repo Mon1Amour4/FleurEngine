@@ -404,20 +404,29 @@ public:
 
                 if (isChunkEmpty)
                 {
-                    if (!m_LocalArena->m_SmallObjectsCurrent)
+                    // Check if this chunk is latest allocated chunk
+                    if (TOCHARPTR(chunk) == (m_LocalArena->m_Current - (sizeof(Chunk) + m_PageSize)))
                     {
-                        m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                        // This is latest allocated chunk, we don't want to store it
+                        uint32_t usedBytes = sizeof(Chunk) + m_PageSize;
+                        m_LocalArena->m_Current -= usedBytes;
+                        m_LocalArena->m_UsedBytes -= usedBytes;
                     }
                     else
                     {
-                        void* currentNext = m_LocalArena->m_SmallObjectsCurrent;
-                        m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
-                        *reinterpret_cast<void**>(chunk) = currentNext;
+                        if (!m_LocalArena->m_SmallObjectsCurrent)
+                        {
+                            m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                        }
+                        else
+                        {
+                            void* currentNext = m_LocalArena->m_SmallObjectsCurrent;
+                            m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
+                            *reinterpret_cast<void**>(chunk) = currentNext;
+                        }
                     }
                 }
-                else
-                {
-                }
+
                 // placement new deallocation
                 reinterpret_cast<T*>(bytePtr)->~T();
             }
