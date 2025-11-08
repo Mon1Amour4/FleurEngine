@@ -222,7 +222,7 @@ void MM::MemoryManager::Print()
 }
 void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName, uint32_t iteration)
 {
-    uint32_t bufferSize = 1024 * 1024;
+    uint64_t bufferSize = 1024l * 1024l * 10;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
@@ -376,27 +376,31 @@ void MM::Arena::ArenaSnapshot(char* buffer)
 {
     buffer += std::sprintf(buffer, "//---------------------------- ARENA-PRINTING ----------------------------\\\n");
     float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
-    buffer += std::sprintf(buffer, "Arena: %d/%d - %f%\n", static_cast<int>(m_UsedBytes), static_cast<int>(m_CapacityBytes), static_cast<float>(percentage));
+    buffer += std::sprintf(buffer, "Arena: %zu/%zu - %f%%\n", m_UsedBytes, m_CapacityBytes, static_cast<float>(percentage));
 
     uint32_t poolsCount = CountSlots(m_PageSize, 16) - 1;
-    uint32_t chunks = 0;
     uint32_t offset = sizeof(Pool);
+
+    // Arena Free list:
+    buffer += std::sprintf(buffer, " Free Chunks:\n");
+    void* chunk = m_SmallObjectsCurrent;
+    uint32_t counter = 0;
+    do
+    {
+        buffer += std::sprintf(buffer, " Free Chunk_%d {0x%p}\n", counter, chunk);
+        if (chunk)
+        {
+            chunk = *reinterpret_cast<void**>(chunk);
+            ++counter;
+        }
+    } while (chunk);
 
     for (size_t i = 0; i < poolsCount; i++)
     {
         uint32_t poolSize = m_MinSlotSize + (8 * i);
         Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
-        // pool->PoolSpapshot(buffer);
-        chunks += pool->Chunks();
+        pool->PoolSpapshot(buffer);
     }
-    uint32_t chunkStride = sizeof(Chunk) + m_PageSize;
-    for (size_t i = 0; i < chunks; i++)
-    {
-        Chunk* chunk = reinterpret_cast<Chunk*>((m_Head + m_StaticOffset) + (chunkStride * i));
-        chunk->ChunkSnapshot(i, buffer);
-    }
-
-
     buffer += std::sprintf(buffer, "//--------------------------------- END ----------------------------\\ \n");
 }
 
@@ -533,8 +537,12 @@ void MM::Pool::PoolSpapshotToStream(std::ofstream& stream)
 }
 void MM::Pool::PoolSpapshot(char*& buffer)
 {
-    buffer +=
-        std::sprintf(buffer, "Printing Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, m_HeadOffsetBytes);
+    if (m_HeadOffsetBytes != INVALID_OFFSET)
+    {
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+        buffer += std::sprintf(buffer, "\nPrinting Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, chunk);
+        chunk->ChunkSnapshot(0, buffer);
+    }
 }
 
 
@@ -725,22 +733,17 @@ void MM::Chunk::ChunkSnapshotToStream(uint32_t chunkNum, std::ofstream& stream)
 }
 void MM::Chunk::ChunkSnapshot(uint32_t chunkNum, char*& buffer)
 {
-    char sign = 0;
+    std::string sign;
     if (m_UsedBytes == 0)
-        sign = '0';
+        sign = "Empty";
     else if (m_UsedBytes > 0 && m_UsedBytes < m_CapacityBytes)
-        sign = '-';
+        sign = "Partial";
     else
-        sign = 'x';
+        sign = "Full";
 
     Chunk* nextChunk = GetNext();
-    Chunk* nextNextChunk = nullptr;
-    if (nextChunk)
-    {
-        nextNextChunk = nextChunk->GetNext();
-    }
-    buffer += std::sprintf(buffer, "|%-3d|%-18p|%4d/%-4d|%4d/%-d|%c|%-18p|%-18p|\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize, m_UsedBytes,
-                           m_CapacityBytes, sign, nextChunk, nextNextChunk);
+    buffer += std::sprintf(buffer, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{0x%-16p} |\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize,
+                           m_UsedBytes, m_CapacityBytes, sign.c_str(), nextChunk);
 }
 
 void MM::Chunk::SetNext(Chunk* next)

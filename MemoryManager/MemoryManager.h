@@ -246,11 +246,6 @@ struct Pool
     // True - Chunk is empty
     bool FreeSlot(Chunk* chunk, unsigned char* ptrToSlot);
 
-    inline uint32_t Chunks() const
-    {
-        return m_NumChunks;
-    }
-
 private:
     uint32_t m_HeadOffsetBytes;
     uint32_t m_NumChunks;
@@ -329,7 +324,7 @@ public:
                 // Check first if Arena already has Chunk in free list:
                 if (m_LocalArena->m_SmallObjectsCurrent)
                 {
-                    void* next = reinterpret_cast<void**>(m_LocalArena->m_SmallObjectsCurrent);
+                    void* next = *reinterpret_cast<void**>(m_LocalArena->m_SmallObjectsCurrent);
                     unsigned char* buffer = TOCHARPTR(m_LocalArena->m_SmallObjectsCurrent);
                     Chunk* chunk = new (buffer) Chunk(buffer + sizeof(Chunk), slotSize, m_PageSize / slotSize);
                     pool->Extend(chunk);
@@ -421,9 +416,9 @@ public:
                         }
                         else
                         {
-                            void* currentNext = m_LocalArena->m_SmallObjectsCurrent;
+                            void* current = m_LocalArena->m_SmallObjectsCurrent;
                             m_LocalArena->m_SmallObjectsCurrent = reinterpret_cast<void*>(chunk);
-                            *reinterpret_cast<void**>(chunk) = currentNext;
+                            *reinterpret_cast<void**>(chunk) = current;
                         }
                     }
                 }
