@@ -447,8 +447,8 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
 }
 bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 {
-    bool isChunkFree = false;
-    if (chunk->FreeChunkSlot(ptrToSlot, &isChunkFree))
+    bool isChunkEmpty = false;
+    if (chunk->FreeChunkSlot(ptrToSlot, &isChunkEmpty))
     {
         // We need to add this chunk to a free list
 
@@ -464,12 +464,14 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
             currentHead->SetPrev(chunk);
             chunk->SetNext(currentHead);
         }
+        return false;
     }
     else
     {
         // Chunk had at least one free slot
         // This Chunk is in linked list
-        if (isChunkFree)
+
+        if (isChunkEmpty)
         {
             if (m_NumChunks > 1)
             {
@@ -490,12 +492,12 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
                 Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
                 if (chunk == currentHead)
                     m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
+
+                return true;
             }
         }
+        return false;
     }
-    // TODO: return true if chunk is free and we need to
-    // fix Arena Current ptr to ptr to that freed Chunk
-    return true;
 }
 
 void MM::Pool::Extend(MM::Chunk* chunk)
