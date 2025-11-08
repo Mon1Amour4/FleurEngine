@@ -277,7 +277,6 @@ struct Arena
     void ArenaSnapshotToStream(std::ofstream& stream);
     void ArenaSnapshot(char* buffer);
 
-private:
     const uint32_t m_PageSize;
     const uint32_t m_MinSlotSize;
     const size_t m_CapacityBytes;
