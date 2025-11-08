@@ -288,6 +288,7 @@ private:
     unsigned char* m_Tail;
 
     unsigned char* m_Current;
+    unsigned char* m_SmallObjectsCurrent;
     size_t m_UsedBytes;
 };
 #pragma endregion

@@ -266,14 +266,13 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
     , m_CapacityBytes(capacity)
     , m_UsedBytes(0)
     , m_Head(ptr)
+    , m_SmallObjectsCurrent(nullptr)
 {
     MM_ASSERT(m_Head);
 
     m_Current = m_Head;
     m_Tail = m_Head + (m_CapacityBytes);
 
-
-    // uint8_t poolsCount = GetPowerOfTwoOf(pageSize / minSlotSize);
     uint32_t poolsCount = CountSlots(m_PageSize, 16) - 1;
     m_StaticOffset = poolsCount * sizeof(Pool);
 
@@ -285,14 +284,8 @@ MM::Arena::Arena(unsigned char* ptr, size_t capacity, uint32_t pageSize, uint32_
         uint32_t poolSize = m_MinSlotSize + (8 * i);
         unsigned char* poolPtr = m_Head + offset * i;
         Pool* pool = new (poolPtr) Pool(poolSize, m_PageSize / poolSize);
-
-        // unsigned char* chunkPtr = chunksBase + i * chunkStride;
-        // Chunk* chunk = new (chunkPtr) Chunk(chunkPtr + sizeof(Chunk), poolSize, m_PageSize / poolSize);
-
-        // pool->Extend(chunk);
     }
-    // m_UsedBytes += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
-    // m_Current += (sizeof(Chunk) + m_PageSize) * poolsCount + m_StaticOffset;
+
     m_UsedBytes += m_StaticOffset;
     m_Current += m_UsedBytes;
 }
