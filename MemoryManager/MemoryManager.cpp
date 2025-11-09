@@ -430,6 +430,7 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
         return false;
 
     Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+    MM_DEBUG_BREAK(!currentHead->IsValid());
     if (currentHead->AcquireSlot(outPtr))
         return true;
     else
@@ -441,7 +442,12 @@ bool MM::Pool::AcquireSlotFromPool(unsigned char*& outPtr)
         if (nextHead)
         {
             nextHead->SetPrev(nullptr);
+            MM_DEBUG_EXPRESSION({
+                size_t localVar = TOCHARPTR(nextHead) - TOCHARPTR(this);
+                MM_DEBUG_BREAK(localVar > 4'294'967'295);
+            })
             m_HeadOffsetBytes = TOCHARPTR(nextHead) - TOCHARPTR(this);
+            MM_DEBUG_BREAK(m_HeadOffsetBytes > 4000000000);
         }
         else
             m_HeadOffsetBytes = INVALID_OFFSET;
@@ -457,11 +463,18 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
         // We need to add this chunk to a free list
 
         if (m_HeadOffsetBytes == INVALID_OFFSET)
+        {
+            MM_DEBUG_EXPRESSION({
+                size_t localVar = TOCHARPTR(chunk) - TOCHARPTR(this);
+                MM_DEBUG_BREAK(localVar > 4'294'967'295);
+            })
             m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+        }
         else
         {
             Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
             m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+            MM_DEBUG_BREAK(m_HeadOffsetBytes > 4000000000)
 
             //  Before:         [current]⇄[other]⇄[other]
             //  After:  [freed]⇄[current]⇄[other]⇄[other]
@@ -479,7 +492,7 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
         {
             if (m_NumChunks > 1)
             {
-                // Do not free the last free Chunk
+                // Remove this empty chunk from the free list (but keep at least one)
                 // Need to fix linked list
                 Chunk* next = chunk->GetNext();
                 Chunk* prev = chunk->GetPrev();
@@ -493,9 +506,24 @@ bool MM::Pool::FreeSlot(Chunk* chunk, unsigned char* ptrToSlot)
 
                 --m_NumChunks;
 
-                Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
-                if (chunk == currentHead)
-                    m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
+                if (m_HeadOffsetBytes != INVALID_OFFSET)
+                {
+                    Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
+                    if (chunk == currentHead)
+                    {
+                        if (next)
+                        {
+                            MM_DEBUG_EXPRESSION({
+                                size_t localVar = TOCHARPTR(next) - TOCHARPTR(this);
+                                MM_DEBUG_BREAK(localVar > 4'294'967'295);
+                            })
+                            m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
+                        }
+                        else
+                            m_HeadOffsetBytes = INVALID_OFFSET;
+                    }
+                }
+
 
                 return true;
             }
@@ -510,6 +538,10 @@ void MM::Pool::Extend(MM::Chunk* chunk)
 
     if (m_HeadOffsetBytes == INVALID_OFFSET)
     {
+        MM_DEBUG_EXPRESSION({
+            size_t localVar = TOCHARPTR(chunk) - TOCHARPTR(this);
+            MM_DEBUG_BREAK(localVar > 4'294'967'295);
+        })
         m_HeadOffsetBytes = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
     }
     else
@@ -540,7 +572,8 @@ void MM::Pool::PoolSpapshot(char*& buffer)
     if (m_HeadOffsetBytes != INVALID_OFFSET)
     {
         Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
-        buffer += std::sprintf(buffer, "\nPrinting Pool{%p}{%d, %d}, Chunks: %d, free chunk: %-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, chunk);
+        MM_DEBUG_BREAK(!chunk->IsValid())
+        buffer += std::sprintf(buffer, "\nPrinting Pool{%p}{%d, %d}, Chunks: %d, free chunk: 0x%-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, chunk);
         chunk->ChunkSnapshot(0, buffer);
     }
 }
@@ -602,6 +635,7 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
         {
             // Slot was last free slot in this chunk
             m_FreeSlot = II_NULL_INDEX;
+            MM_DEBUG_BREAK(m_FreeSlot == II_NULL_INDEX && m_UsedBytes < m_CapacityBytes)
             return false;
         }
         else
@@ -624,6 +658,8 @@ bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot, bool* isEmpty)
     uint32_t deallocatedIdx = (ptrToSLot - localHead) / m_SlotSize;
     if (wasFull)
     {
+        MM_DEBUG_BREAK(deallocatedIdx == II_NULL_INDEX)
+
         m_FreeSlot = deallocatedIdx;
         uint32_t* slot = reinterpret_cast<uint32_t*>(localHead + (m_FreeSlot * m_SlotSize));
         *slot = II_NULL_INDEX;
