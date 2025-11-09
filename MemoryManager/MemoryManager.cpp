@@ -666,8 +666,11 @@ bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot, bool* isEmpty)
     }
     else
     {
-        uint32_t currentIdx = *reinterpret_cast<uint32_t*>(localHead + (m_FreeSlot * m_SlotSize));
+        MM_DEBUG_BREAK(m_FreeSlot == II_NULL_INDEX)
+
+        uint32_t currentIdx = m_FreeSlot;
         m_FreeSlot = deallocatedIdx;
+        MM_DEBUG_BREAK(deallocatedIdx == II_NULL_INDEX)
         uint32_t* newSlot = reinterpret_cast<uint32_t*>(localHead + m_FreeSlot * m_SlotSize);
         *newSlot = currentIdx;
     }
