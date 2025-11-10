@@ -257,6 +257,28 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
     return slotSize;
 }
 
+#if 1  // MEMORYMANAGER_PROFILING
+void MM::MemoryManager::PrintMemorDebugInfo() const
+{
+    std::vector<std::pair<uint32_t, MemoryInfo>> items(infos.begin(), infos.end());
+    std::sort(items.begin(), items.end());
+
+    size_t size = 1024 * 1024;
+    char* buffer = new char[size];
+    buffer[size - 1] = '\0';
+
+    char* tmp = buffer;
+
+    tmp += sprintf(tmp, "%-4s|%-11s|%-13s|%-18s|\n", "Size", "AllocAmount", "DeallocAmount", "OverallMemoryBytes");
+    for (const auto& info : items)
+    {
+        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18d|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount, info.second.overallMemoryBytes);
+    }
+    std::cout << std::endl << buffer << std::endl;
+
+    delete[] buffer;
+}
+#endif
 
 //======================================================================
 // Arena

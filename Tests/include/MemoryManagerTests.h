@@ -79,6 +79,10 @@ void RangedTest(uint32_t from, uint32_t to)
         std_mark.EndDealloc();
     }
     std_mark.Print();
+
+#if 1
+    manager.PrintMemorDebugInfo();
+#endif
 }
 
 #if 0 ChunksFreeListTest
@@ -138,7 +142,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
-#if 0 Random Allocations
+#if 1 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
@@ -312,10 +316,12 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     }
 
     std_mark.Print();
+
+    manager.PrintMemorDebugInfo();
 }
 #endif
 
-#if 1 FixedRangeAllocationsFrom64To86
+#if 0 FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 46);

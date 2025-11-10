@@ -10,20 +10,23 @@
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
-#if _DEBUG && 0 /*MEMORYMANAGER_PROFILING*/
+#if _DEBUG && 1 /*MEMORYMANAGER_PROFILING*/
+
+#include <algorithm>
+
 #define MM_ASSERT(expression) \
     do                        \
     {                         \
         assert(expression);   \
     } while (0);
 
-#define MM_DEBUG_BREAK((expression)) \
-    do                               \
-    {                                \
-        if (expression == true)      \
-        {                            \
-            __debugbreak();          \
-        }                            \
+#define MM_DEBUG_BREAK(expression) \
+    do                             \
+    {                              \
+        if (expression == true)    \
+        {                          \
+            __debugbreak();        \
+        }                          \
     } while (0);
 
 #define MM_DEBUG_EXPRESSION(code) \
@@ -32,11 +35,50 @@
         code;                     \
     } while (0);
 
-#define MM_PRINT(str)     \
-    do                    \
-    {                     \
-        std::cout << str; \
-    } while (0);
+#define MM_PRINT(str)  //\
+    //do                    \
+    //{                     \
+    //    std::cout << str; \
+    //} while (0);
+
+struct MemoryInfo
+{
+    MemoryInfo(uint32_t slotSize)
+        : size(slotSize)
+        , allocAmount(0)
+        , deallocAmount(0)
+        , overallMemoryBytes(0) {};
+    uint32_t size;
+    size_t allocAmount;
+    size_t deallocAmount;
+    size_t overallMemoryBytes;
+
+    inline bool operator<(const MemoryInfo& other) const
+    {
+        return this->allocAmount < other.allocAmount;
+    }
+    inline bool operator>(const MemoryInfo& other) const
+    {
+        return other.operator<(*this);
+    }
+    inline bool operator<=(const MemoryInfo& other)
+    {
+        return !(this->operator>(other));
+    }
+    inline bool operator>=(const MemoryInfo other)
+    {
+        return !(this->operator<(other));
+    }
+    inline bool operator==(const MemoryInfo& other)
+    {
+        return this->allocAmount == other.allocAmount;
+    }
+    inline bool operator!=(const MemoryInfo& other)
+    {
+        return !(this->operator==(other));
+    }
+};
+
 #else
 #define MM_ASSERT(expression) ((void)0);
 #define MM_DEBUG_BREAK(expression) ((void)0);
@@ -343,6 +385,20 @@ public:
                     }
                 }
 
+#if 1
+                if (auto info = infos.find(slotSize); info != infos.end())
+                {
+                    info->second.allocAmount++;
+                    info->second.overallMemoryBytes += slotSize;
+                    info->second.size = slotSize;
+                }
+                else
+                {
+                    infos.insert({slotSize, MemoryInfo(slotSize)});
+                }
+
+#endif
+
                 if (requestedMemory)
                 {
                     // placement new
@@ -422,7 +478,11 @@ public:
                         }
                     }
                 }
-
+#if 1
+                auto info = infos.find(alignedBlockSize);
+                info->second.deallocAmount++;
+                info->second.size = alignedBlockSize;
+#endif
                 // placement new deallocation
                 reinterpret_cast<T*>(bytePtr)->~T();
             }
@@ -432,6 +492,11 @@ public:
     void Print();
 
     void SaveSnapshotToFile(std::string_view fileName, uint32_t iteration);
+
+#if 1  // MEMORYMANAGER_PROFILING
+    std::unordered_map<uint32_t, MemoryInfo> infos;
+    void PrintMemorDebugInfo() const;
+#endif
 
     void ClearFile(std::string_view fileName);
 
