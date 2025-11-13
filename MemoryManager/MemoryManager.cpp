@@ -180,6 +180,11 @@ std::string MM::Benchmark::FormatToSeconds(std::chrono::microseconds timer)
     double seconds = std::chrono::duration<double>(timer).count();
 
     std::string str = std::to_string(seconds);
+    std::string another;
+
+    auto pos = str.find('.');
+    str.insert(pos + 4, 1, '\'');
+
     str += "s";
     return str;
 }
