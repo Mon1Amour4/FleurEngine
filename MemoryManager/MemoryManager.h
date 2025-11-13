@@ -10,36 +10,9 @@
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
-#if _DEBUG && 1 /*MEMORYMANAGER_PROFILING*/
-
+#define MEMORYMANAGER_PROFILING
+#if defined MEMORYMANAGER_PROFILING
 #include <algorithm>
-
-#define MM_ASSERT(expression) \
-    do                        \
-    {                         \
-        assert(expression);   \
-    } while (0);
-
-#define MM_DEBUG_BREAK(expression) \
-    do                             \
-    {                              \
-        if (expression == true)    \
-        {                          \
-            __debugbreak();        \
-        }                          \
-    } while (0);
-
-#define MM_DEBUG_EXPRESSION(code) \
-    do                            \
-    {                             \
-        code;                     \
-    } while (0);
-
-#define MM_PRINT(str)  //\
-    //do                    \
-    //{                     \
-    //    std::cout << str; \
-    //} while (0);
 
 struct MemoryInfo
 {
@@ -78,6 +51,38 @@ struct MemoryInfo
         return !(this->operator==(other));
     }
 };
+#endif
+
+#if defined _DEBUG && defined MEMORYMANAGER_PROFILING
+
+
+#define MM_ASSERT(expression) \
+    do                        \
+    {                         \
+        assert(expression);   \
+    } while (0);
+
+#define MM_DEBUG_BREAK(expression) \
+    do                             \
+    {                              \
+        if (expression == true)    \
+        {                          \
+            __debugbreak();        \
+        }                          \
+    } while (0);
+
+#define MM_DEBUG_EXPRESSION(code) \
+    do                            \
+    {                             \
+        code;                     \
+    } while (0);
+
+#define MM_PRINT(str)  //\
+    //do                    \
+    //{                     \
+    //    std::cout << str; \
+    //} while (0);
+
 
 #else
 #define MM_ASSERT(expression) ((void)0);
@@ -385,7 +390,7 @@ public:
                     }
                 }
 
-#if 1
+#if defined MEMORYMANAGER_PROFILING
                 if (auto info = infos.find(slotSize); info != infos.end())
                 {
                     info->second.allocAmount++;
@@ -478,7 +483,7 @@ public:
                         }
                     }
                 }
-#if 1
+#if defined MEMORYMANAGER_PROFILING
                 auto info = infos.find(alignedBlockSize);
                 info->second.deallocAmount++;
                 info->second.size = alignedBlockSize;
@@ -493,7 +498,7 @@ public:
 
     void SaveSnapshotToFile(std::string_view fileName, uint32_t iteration);
 
-#if 1  // MEMORYMANAGER_PROFILING
+#if defined MEMORYMANAGER_PROFILING
     std::unordered_map<uint32_t, MemoryInfo> infos;
     void PrintMemorDebugInfo() const;
 #endif

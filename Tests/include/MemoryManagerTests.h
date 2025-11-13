@@ -14,7 +14,7 @@ void RangedTest(uint32_t from, uint32_t to)
     MM::MemoryManager manager(ManagerConfig);
     manager.ClearFile("MemorySnapshot.txt");
     size_t allocated = 0;
-    uint32_t allocationsCupBytes = 1024 * 100;
+    size_t allocationsCupBytes = 1024ul * 1024ul * 1024ul * 5;
 
     MM::Benchmark mark{2};
 
@@ -43,22 +43,7 @@ void RangedTest(uint32_t from, uint32_t to)
         mark.EndDealloc();
 
         counter++;
-        manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
-    }
-    // 2
-    std::vector<std::pair<int, int*>> mm_pairs2;
-    counter = 0;
-    allocated = 0;
-    for (size_t i = 0; allocated < allocationsCupBytes; i++)
-    {
-        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
-        int count = size / sizeof(int);
-        allocated += size;
-
-        mm_pairs2.push_back({count, manager.allocate<int>(count)});
-
-        counter++;
-        manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
+        // manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
     }
     mark.Print();
 
@@ -80,7 +65,7 @@ void RangedTest(uint32_t from, uint32_t to)
     }
     std_mark.Print();
 
-#if 1
+#if defined MEMORYMANAGER_PROFILING
     manager.PrintMemorDebugInfo();
 #endif
 }
@@ -150,7 +135,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     manager.ClearFile("MemorySnapshot.txt");
 
     std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<> actionDist(0, 1);
+    std::uniform_int_distribution<> actionDist(0, 2);
     std::uniform_int_distribution<> countDist(1, 10);
     std::uniform_int_distribution<> typeDist(0, 4);
 
@@ -247,7 +232,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
     Benchmark mark{2};
 
-    constexpr size_t iterations = 1000;
+    constexpr size_t iterations = 10'000'000;
     for (size_t i = 0; i < iterations; ++i)
     {
         bool doFree = (actionDist(gen) == 1);
@@ -286,7 +271,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
             alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
         }
-        manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
+        // manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
 
     mark.Print();

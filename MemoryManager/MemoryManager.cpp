@@ -262,7 +262,7 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
     return slotSize;
 }
 
-#if 1  // MEMORYMANAGER_PROFILING
+#if defined MEMORYMANAGER_PROFILING
 void MM::MemoryManager::PrintMemorDebugInfo() const
 {
     std::vector<std::pair<uint32_t, MemoryInfo>> items(infos.begin(), infos.end());
