@@ -192,9 +192,9 @@ std::string MM::Benchmark::FormatToSeconds(std::chrono::microseconds timer)
 
 //======================================================================
 // Memory Manager
-MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize)
-    : m_PageSize(pageSize)
-    , m_MinSlotSize(minSlotSize)
+MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize)
+    : m_PageSize(PAGE_SIZE)
+    , m_MinSlotSize(16)
     , m_ArenaSize(arenaSize)
     , m_Capacity(capacity)
     , m_Head(nullptr)
@@ -210,7 +210,7 @@ MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t p
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
     unsigned char* arenaHeadPtr = m_Head + sizeof(Arena);
-    m_LocalArena = new (m_Head) Arena(arenaHeadPtr, arenaSize, pageSize, minSlotSize);
+    m_LocalArena = new (m_Head) Arena(arenaHeadPtr, arenaSize, m_PageSize, m_MinSlotSize);
 
     MM_ASSERT(m_LocalArena);
 
@@ -225,33 +225,20 @@ void MM::MemoryManager::Print()
 {
     m_LocalArena->Print();
 }
-void MM::MemoryManager::SaveSnapshotToFile(std::string_view fileName, uint32_t iteration)
+std::string MM::MemoryManager::GetSnapshot() const
 {
+    std::string str;
+
     uint64_t bufferSize = 1024l * 1024l * 10;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
-    tmp += sprintf_s(tmp, bufferSize, "Iteration: %d\n", iteration);
 
     m_LocalArena->ArenaSnapshot(tmp);
 
-    std::ofstream myFile;
-    myFile.open(fileName.data(), std::ios::app);
-    if (myFile.good())
-    {
-        myFile << buffer;
-    }
-    myFile.close();
-
-
+    str = buffer;
     delete[] buffer;
-}
-void MM::MemoryManager::ClearFile(std::string_view fileName)
-{
-    std::ofstream myFile;
-
-    myFile.open(fileName.data());
-    myFile.close();
+    return str;
 }
 
 uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
@@ -261,30 +248,6 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
         slotSize = m_MinSlotSize;
     return slotSize;
 }
-
-#if defined MEMORYMANAGER_PROFILING
-void MM::MemoryManager::PrintMemorDebugInfo() const
-{
-    std::vector<std::pair<uint32_t, MemoryInfo>> items(infos.begin(), infos.end());
-    std::sort(items.begin(), items.end());
-
-    size_t size = 1024 * 1024;
-    char* buffer = new char[size];
-    buffer[size - 1] = '\0';
-
-    char* tmp = buffer;
-
-    tmp += sprintf(tmp, "%-4s|%-11s|%-13s|%-18s|\n", "Size", "AllocAmount", "DeallocAmount", "OverallMemoryBytes");
-    for (const auto& info : items)
-    {
-        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18s|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount,
-                       MemoryInfo::FormatBytes(info.second.overallMemoryBytes).c_str());
-    }
-    std::cout << std::endl << buffer << std::endl;
-
-    delete[] buffer;
-}
-#endif
 
 //======================================================================
 // Arena
@@ -876,4 +839,73 @@ void MM::Chunk::PrintSlot::ToStreanMinimalistic(std::string& string)
         string += '0';
     else
         string += 'X';
+}
+
+//======================================================================
+// MemoryInfo
+void MemoryInfo::AddAlloc(size_t slotSize)
+{
+    if (auto info = infos.find(slotSize); info != infos.end())
+    {
+        info->second.allocAmount++;
+        info->second.overallMemoryBytes += slotSize;
+        info->second.size = slotSize;
+    }
+    else
+    {
+        infos.insert({slotSize, record(slotSize)});
+    }
+}
+void MemoryInfo::AddDealloc(size_t slotSize)
+{
+    auto info = infos.find(slotSize);
+    info->second.deallocAmount++;
+    info->second.size = slotSize;
+}
+
+inline std::string MemoryInfo::FormatBytes(size_t bytes)
+{
+    {
+        size_t GB = bytes / 1024 / 1024 / 1024;
+        bytes -= GB * 1024 * 1024 * 1024;
+
+        size_t MB = bytes / 1024 / 1024;
+        bytes -= MB * 1024 * 1024;
+
+        size_t KB = bytes / 1024;
+        bytes -= KB * 1024;
+
+        std::string str;
+        if (GB > 0)
+            str += std::to_string(GB) + "'GB ";
+        if (MB > 0)
+            str += std::to_string(MB) + "'MB ";
+        if (KB > 0)
+            str += std::to_string(KB) + "'KB ";
+
+        str += std::to_string(bytes) + "'B ";
+
+        return str;
+    }
+}
+void MemoryInfo::Print() const
+{
+    std::vector<std::pair<uint32_t, record>> items(infos.begin(), infos.end());
+    std::sort(items.begin(), items.end());
+
+    size_t size = 1024 * 1024;
+    char* buffer = new char[size];
+    buffer[size - 1] = '\0';
+
+    char* tmp = buffer;
+
+    tmp += sprintf(tmp, "%-4s|%-11s|%-13s|%-18s|\n", "Size", "AllocAmount", "DeallocAmount", "OverallMemoryBytes");
+    for (const auto& info : items)
+    {
+        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18s|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount,
+                       MemoryInfo::FormatBytes(info.second.overallMemoryBytes).c_str());
+    }
+    std::cout << std::endl << buffer << std::endl;
+
+    delete[] buffer;
 }

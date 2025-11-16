@@ -1,84 +1,68 @@
 #pragma once
 
 #include <fstream>
-#include <iostream>
 #include <limits>
-#include <new>
 
 #include "../Engine/Fleur/Concepts.hpp"
-#include "BitSet64.h"
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
 #define MEMORYMANAGER_PROFILING
-#if defined MEMORYMANAGER_PROFILING
+#ifdef _DEBUG&& defined MEMORYMANAGER_PROFILING
 #include <algorithm>
 
 struct MemoryInfo
 {
-    MemoryInfo(uint32_t slotSize)
-        : size(slotSize)
-        , allocAmount(0)
-        , deallocAmount(0)
-        , overallMemoryBytes(0) {};
-    uint32_t size;
-    size_t allocAmount;
-    size_t deallocAmount;
-    size_t overallMemoryBytes;
-
-    static inline std::string FormatBytes(size_t bytes)
+    struct record
     {
-        size_t GB = bytes / 1024 / 1024 / 1024;
-        bytes -= GB * 1024 * 1024 * 1024;
+        record(uint32_t slotSize)
+            : size(slotSize)
+            , allocAmount(0)
+            , deallocAmount(0)
+            , overallMemoryBytes(0) {};
 
-        size_t MB = bytes / 1024 / 1024;
-        bytes -= MB * 1024 * 1024;
+        uint32_t size;
+        size_t allocAmount;
+        size_t deallocAmount;
+        size_t overallMemoryBytes;
 
-        size_t KB = bytes / 1024;
-        bytes -= KB * 1024;
+        inline bool operator<(const record& other) const
+        {
+            return this->overallMemoryBytes < other.overallMemoryBytes;
+        }
+        inline bool operator>(const record& other) const
+        {
+            return this->overallMemoryBytes > other.overallMemoryBytes;
+        }
+        inline bool operator<=(const record& other)
+        {
+            return !(this->operator>(other));
+        }
+        inline bool operator>=(const record other)
+        {
+            return !(this->operator<(other));
+        }
+        inline bool operator==(const record& other)
+        {
+            return this->allocAmount == other.allocAmount;
+        }
+        inline bool operator!=(const record& other)
+        {
+            return !(this->operator==(other));
+        }
+    };
 
-        std::string str;
-        if (GB > 0)
-            str += std::to_string(GB) + "'GB ";
-        if (MB > 0)
-            str += std::to_string(MB) + "'MB ";
-        if (KB > 0)
-            str += std::to_string(KB) + "'KB ";
+    MemoryInfo() = default;
 
-        str += std::to_string(bytes) + "'B ";
 
-        return str;
-    }
+    std::unordered_map<uint32_t, record> infos;
 
-    inline bool operator<(const MemoryInfo& other) const
-    {
-        return this->overallMemoryBytes < other.overallMemoryBytes;
-    }
-    inline bool operator>(const MemoryInfo& other) const
-    {
-        return other.operator<(*this);
-    }
-    inline bool operator<=(const MemoryInfo& other)
-    {
-        return !(this->operator>(other));
-    }
-    inline bool operator>=(const MemoryInfo other)
-    {
-        return !(this->operator<(other));
-    }
-    inline bool operator==(const MemoryInfo& other)
-    {
-        return this->allocAmount == other.allocAmount;
-    }
-    inline bool operator!=(const MemoryInfo& other)
-    {
-        return !(this->operator==(other));
-    }
+    void AddAlloc(size_t slotSize);
+    void AddDealloc(size_t slotSize);
+    static inline std::string FormatBytes(size_t bytes);
+
+    void Print() const;
 };
-#endif
-
-#if defined _DEBUG && defined MEMORYMANAGER_PROFILING
-
 
 #define MM_ASSERT(expression) \
     do                        \
@@ -101,7 +85,7 @@ struct MemoryInfo
         code;                     \
     } while (0);
 
-#define MM_PRINT(str)  //\
+#define MM_PRINT(str) \
     //do                    \
     //{                     \
     //    std::cout << str; \
@@ -371,7 +355,7 @@ struct Arena
 class MemoryManager
 {
 public:
-    MemoryManager(size_t capacity, uint32_t arenaSize, uint32_t pageSize, uint8_t minSlotSize);
+    MemoryManager(size_t capacity, uint32_t arenaSize);
     ~MemoryManager();
 
     template <class T, size_t Align = 0>
@@ -413,20 +397,6 @@ public:
                         pool->AcquireSlotFromPool(requestedMemory);
                     }
                 }
-
-#if defined MEMORYMANAGER_PROFILING
-                if (auto info = infos.find(slotSize); info != infos.end())
-                {
-                    info->second.allocAmount++;
-                    info->second.overallMemoryBytes += slotSize;
-                    info->second.size = slotSize;
-                }
-                else
-                {
-                    infos.insert({slotSize, MemoryInfo(slotSize)});
-                }
-
-#endif
 
                 if (requestedMemory)
                 {
@@ -507,11 +477,6 @@ public:
                         }
                     }
                 }
-#if defined MEMORYMANAGER_PROFILING
-                auto info = infos.find(alignedBlockSize);
-                info->second.deallocAmount++;
-                info->second.size = alignedBlockSize;
-#endif
                 // placement new deallocation
                 reinterpret_cast<T*>(bytePtr)->~T();
             }
@@ -519,15 +484,7 @@ public:
     }
 
     void Print();
-
-    void SaveSnapshotToFile(std::string_view fileName, uint32_t iteration);
-
-#if defined MEMORYMANAGER_PROFILING
-    std::unordered_map<uint32_t, MemoryInfo> infos;
-    void PrintMemorDebugInfo() const;
-#endif
-
-    void ClearFile(std::string_view fileName);
+    std::string GetSnapshot() const;
 
 private:
     unsigned char* m_Head;
