@@ -471,6 +471,27 @@ public:
     }
 
     /**
+     * @brief Allocates raw memory for a single object or an array of objects of type T without calling constructors.
+     * @tparam T Object type.
+     * @tparam Align Optional alignment override (default = auto-align).
+     * @param count Number of objects to allocate.
+     * @return Pointer to uninitialized memory suitable for placement new, or nullptr on failure.
+     *
+     * @details
+     * This method is useful for:
+     * - manually constructing objects later with placement new,
+     * - allocating POD arrays or buffers,
+     * - optimizing batch allocations.
+     *
+     * The caller is responsible for invoking constructors and destructors.
+     */
+    template <class T, size_t Align = 0>
+    [[nodiscard]] T* allocate_raw(uint32_t count)
+    {
+        // TODO
+    }
+
+    /**
      * @brief Destroys and frees a single object or array previously allocated.
      *
      * @tparam T       Object type.
@@ -553,6 +574,28 @@ public:
                 }
             }
         }
+    }
+
+    /**
+     * @brief Frees memory previously allocated for a single object or an array of objects of type T and calls destructors.
+     * @tparam T Object type.
+     * @param ptr Pointer to memory allocated by allocate or allocate_raw.
+     * @param count Number of objects to free.
+     *
+     * @details
+     * Deallocation process:
+     * 1. Calls destructors for all objects in the array.
+     * 2. Returns slots to the corresponding pool.
+     * 3. If the chunk becomes empty:
+     *    - If it was the most recent chunk, the arena rewinds its pointer.
+     *    - Otherwise, the chunk is added to the recycle list.
+     *
+     * Large objects (>= SIZE_OF_LARGE_TYPE) are not yet supported.
+     */
+    template <class T>
+    void free(void* ptr, uint32_t count)
+    {
+        // TODO
     }
 
     /**
