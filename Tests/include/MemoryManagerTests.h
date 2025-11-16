@@ -161,7 +161,8 @@ TEST(TEST_SUITE_NAME, ArrayAllocations)
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
-    MemoryManager manager(ManagerConfig);
+
+    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
 
     // Clear file:
     std::ofstream myFile;
@@ -280,7 +281,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             auto& rec = allocated[idx];
 
             mark.StartDealloc();
-            deallocFuncs[rec.type](manager, rec.ptr, rec.count);
+            deallocFuncs[rec.type](*manager, rec.ptr, rec.count);
             mark.EndDealloc();
 
             alloc_free.push_back({(uint8_t)rec.type, (uint8_t)rec.count, rec.id, rec.ptr, false});
@@ -298,7 +299,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             ++idCounter;
 
             mark.StartAlloc();
-            void* ptr = allocFuncs[type](manager, count);
+            void* ptr = allocFuncs[type](*manager, count);
             mark.EndAlloc();
 
             allocated.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
