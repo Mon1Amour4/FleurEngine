@@ -355,9 +355,36 @@ struct Arena
 class MemoryManager
 {
 public:
+    /**
+     * @brief Creates a new MemoryManager with a fixed memory capacity.
+     *
+     * @param capacity    Total memory in bytes to reserve for the arena.
+     * @param arenaSize   Size of a single arena in bytes.
+     *
+     * @note The entire memory region is pre-allocated and never grows.
+     */
     MemoryManager(size_t capacity, uint32_t arenaSize);
     ~MemoryManager();
 
+    /**
+     * @brief Allocates and constructs a single object or an array of objects.
+     *
+     * @tparam T           Object type (must be default-constructible).
+     * @tparam Align       Optional alignment override (0 = auto-align).
+     * @param count        Number of objects to allocate (1 = single object).
+     *
+     * @return Pointer to constructed object(s), or nullptr on failure.
+     *
+     * @details
+     * Allocation process:
+     *  1. Calculate aligned slot size.
+     *  2. Find the pool responsible for this slot size.
+     *  3. If the pool contains a chunk in the recycle list, reuse it.
+     *  4. If no free slots are available, allocate a new chunk.
+     *  5. Acquire a slot and use placement new to construct T.
+     *
+     * Large allocations (`slotSize >= SIZE_OF_LARGE_TYPE`) are not yet supported.
+     */
     template <class T, size_t Align = 0>
         requires Fleur::Concepts::IsDefaultConstructible<T>
     [[nodiscard]] T* allocate(uint32_t count)
@@ -438,6 +465,24 @@ public:
         }
     }
 
+    /**
+     * @brief Destroys and frees a single object or array previously allocated.
+     *
+     * @tparam T       Object type.
+     * @param ptr      Pointer to object or array.
+     * @param count    Number of objects that were allocated.
+     *
+     * @details
+     * Deallocation process:
+     *  1. Call destructors via explicit destructor invocation.
+     *  2. Locate the pool and owning chunk.
+     *  3. Return the slot back to the pool.
+     *  4. If the chunk becomes empty:
+     *      - If it was the most recent one, arena rewinds its pointer.
+     *      - Otherwise, chunk goes into the recycle list.
+     *
+     * Large objects (`slotSize >= SIZE_OF_LARGE_TYPE`) are not yet supported.
+     */
     template <class T>
     void deallocate(void* ptr, uint32_t count)
     {
@@ -500,7 +545,16 @@ public:
         }
     }
 
+    /**
+     * @brief Prints debug info about memory usage, pools and chunks.
+     */
     void Print();
+
+    /**
+     * @brief Returns a text snapshot of internal memory state.
+     *
+     * @return String containing human-readable debug information.
+     */
     std::string GetSnapshot() const;
 
 private:
