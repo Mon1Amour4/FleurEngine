@@ -355,16 +355,9 @@ struct Arena
 class MemoryManager
 {
 public:
-    /**
-     * @brief Creates a new MemoryManager with a fixed memory capacity.
-     *
-     * @param capacity    Total memory in bytes to reserve for the arena.
-     * @param arenaSize   Size of a single arena in bytes.
-     *
-     * @note The entire memory region is pre-allocated and never grows.
-     */
-    MemoryManager(size_t capacity, uint32_t arenaSize);
     ~MemoryManager();
+
+    static MemoryManager* ManagerFabric(size_t capacity, uint32_t arenaSize);
 
     /**
      * @brief Allocates and constructs a single object or an array of objects.
@@ -611,6 +604,15 @@ public:
     std::string GetSnapshot() const;
 
 private:
+    /**
+     * @brief Creates a new MemoryManager with a fixed memory capacity.
+     *
+     * @param capacity    Total memory in bytes to reserve for the arena.
+     * @param arenaSize   Size of a single arena in bytes.
+     *
+     * @note The entire memory region is pre-allocated and never grows.
+     */
+    MemoryManager(unsigned char* ptr, size_t capacity, uint32_t arenaSize);
     unsigned char* m_Head;
     Arena* m_LocalArena;
 

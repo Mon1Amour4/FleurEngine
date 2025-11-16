@@ -192,20 +192,16 @@ std::string MM::Benchmark::FormatToSeconds(std::chrono::microseconds timer)
 
 //======================================================================
 // Memory Manager
-MM::MemoryManager::MemoryManager(size_t capacity, uint32_t arenaSize)
+MM::MemoryManager::MemoryManager(unsigned char* ptr, size_t capacity, uint32_t arenaSize)
     : m_PageSize(PAGE_SIZE)
     , m_MinSlotSize(16)
     , m_ArenaSize(arenaSize)
     , m_Capacity(capacity)
-    , m_Head(nullptr)
+    , m_Head(ptr)
     , m_UsedBytes(0)
 {
-    MM_ASSERT(m_Capacity > 0 && m_PageSize > 0 && m_MinSlotSize > 0);
+    MM_ASSERT(m_Capacity > 0 && m_PageSize > 0);
     MM_ASSERT(m_ArenaSize <= m_Capacity);
-
-    m_Head = reinterpret_cast<unsigned char*>(malloc(capacity));
-
-    MM_ASSERT(m_Head);
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
@@ -220,6 +216,20 @@ MM::MemoryManager::~MemoryManager()
 {
     m_LocalArena->~Arena();
 }
+
+MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity, uint32_t arenaSize)
+{
+    MM_ASSERT(capacity > 0);
+    MM_ASSERT(arenaSize > 0);
+
+    uint32_t offset = sizeof(MM::MemoryManager);
+    void* rawPtr = malloc(capacity + offset);
+    MM_ASSERT(rawPtr);
+
+    unsigned char* charPtr = reinterpret_cast<unsigned char*>(rawPtr);
+    return new (rawPtr) MM::MemoryManager(charPtr + offset, capacity, arenaSize);
+}
+
 
 void MM::MemoryManager::Print()
 {

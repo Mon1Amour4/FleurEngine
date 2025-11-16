@@ -11,7 +11,7 @@
 
 void RangedTest(uint32_t from, uint32_t to)
 {
-    MM::MemoryManager manager(ManagerConfig);
+    auto manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
     MemoryInfo* memoryInfo = new MemoryInfo();
 
     // Clear file:
@@ -39,7 +39,7 @@ void RangedTest(uint32_t from, uint32_t to)
         allocated += size;
 
         mark.StartAlloc();
-        mm_pairs.push_back({count, manager.allocate<int>(count)});
+        mm_pairs.push_back({count, manager->allocate<int>(count)});
         mark.EndAlloc();
         memoryInfo->AddAlloc(MM::AlignTo(sizeof(int) * count, 8));
     }
@@ -47,7 +47,7 @@ void RangedTest(uint32_t from, uint32_t to)
     for (auto alloc : mm_pairs)
     {
         mark.StartDealloc();
-        manager.deallocate<int>(alloc.second, alloc.first);
+        manager->deallocate<int>(alloc.second, alloc.first);
         mark.EndDealloc();
         memoryInfo->AddDealloc(MM::AlignTo(sizeof(int) * alloc.first, 8));
 
@@ -80,6 +80,8 @@ void RangedTest(uint32_t from, uint32_t to)
     std_mark.Print();
 
     memoryInfo->Print();
+
+    manager->~MemoryManager();
 }
 
 #if 0 ChunksFreeListTest
