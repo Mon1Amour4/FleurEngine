@@ -277,7 +277,8 @@ void MM::MemoryManager::PrintMemorDebugInfo() const
     tmp += sprintf(tmp, "%-4s|%-11s|%-13s|%-18s|\n", "Size", "AllocAmount", "DeallocAmount", "OverallMemoryBytes");
     for (const auto& info : items)
     {
-        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18d|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount, info.second.overallMemoryBytes);
+        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18s|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount,
+                       MemoryInfo::FormatBytes(info.second.overallMemoryBytes).c_str());
     }
     std::cout << std::endl << buffer << std::endl;
 

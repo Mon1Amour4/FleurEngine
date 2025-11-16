@@ -26,9 +26,33 @@ struct MemoryInfo
     size_t deallocAmount;
     size_t overallMemoryBytes;
 
+    static inline std::string FormatBytes(size_t bytes)
+    {
+        size_t GB = bytes / 1024 / 1024 / 1024;
+        bytes -= GB * 1024 * 1024 * 1024;
+
+        size_t MB = bytes / 1024 / 1024;
+        bytes -= MB * 1024 * 1024;
+
+        size_t KB = bytes / 1024;
+        bytes -= KB * 1024;
+
+        std::string str;
+        if (GB > 0)
+            str += std::to_string(GB) + "'GB ";
+        if (MB > 0)
+            str += std::to_string(MB) + "'MB ";
+        if (KB > 0)
+            str += std::to_string(KB) + "'KB ";
+
+        str += std::to_string(bytes) + "'B ";
+
+        return str;
+    }
+
     inline bool operator<(const MemoryInfo& other) const
     {
-        return this->allocAmount < other.allocAmount;
+        return this->overallMemoryBytes < other.overallMemoryBytes;
     }
     inline bool operator>(const MemoryInfo& other) const
     {
