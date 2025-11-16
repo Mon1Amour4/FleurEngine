@@ -621,6 +621,9 @@ bool MM::Chunk::AcquireSlot(unsigned char*& outPtr)
         LOCAL_HEAD(this, Chunk);
         outPtr = localHead + (m_FreeSlot * m_SlotSize);
 
+        MM_PRINT("--[Slot Aquired] 0x" << static_cast<void*>(outPtr) << ", Chunk{0x" << static_cast<void*>(this) << "}, " << m_SlotSize << "/"
+                                       << m_CapacityBytes / m_SlotSize << "} {" << std::endl;);
+
         uint32_t nextIdx = *reinterpret_cast<uint32_t*>(outPtr);
         if (nextIdx == II_NULL_INDEX)
         {
@@ -666,8 +669,7 @@ bool MM::Chunk::FreeChunkSlot(unsigned char* ptrToSLot, bool* isEmpty)
         *newSlot = currentIdx;
     }
 
-    MM_PRINT("--[Slot Free]\n")
-    MM_PRINT("--Ptr to slot: " << static_cast<void*>(ptrToSLot) << "\n")
+    MM_PRINT("--[Slot Free] " << "0x" << static_cast<void*>(ptrToSLot) << std::endl;)
     MM_DEBUG_BREAK(m_UsedBytes > 10000)
 
     *isEmpty = m_UsedBytes == 0;
