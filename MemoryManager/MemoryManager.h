@@ -370,7 +370,7 @@ public:
         if (!isObjectLarge)
         {
             Pool* pool = nullptr;
-            unsigned char* requestedMemory = nullptr;
+            unsigned char* requestedMemoryPtr = nullptr;
 
             pool = m_LocalArena->GetPool(slotSize);
 
@@ -386,7 +386,7 @@ public:
 
                     m_LocalArena->m_SmallObjectsCurrent = next;
                 }
-                bool res = pool->AcquireSlotFromPool(requestedMemory);
+                bool res = pool->AcquireSlotFromPool(requestedMemoryPtr);
                 if (!res)
                 {
                     uint32_t slotsPerPage = m_PageSize / slotSize;
@@ -394,11 +394,11 @@ public:
                     if (newChunk)
                     {
                         pool->Extend(newChunk);
-                        pool->AcquireSlotFromPool(requestedMemory);
+                        pool->AcquireSlotFromPool(requestedMemoryPtr);
                     }
                 }
 
-                if (requestedMemory)
+                if (requestedMemoryPtr)
                 {
                     // placement new
                     MM_DEBUG_EXPRESSION({
@@ -433,14 +433,14 @@ public:
     }
 
     template <class T>
-    void deallocate(void* ptr, uint32_t num)
+    void deallocate(void* ptr, uint32_t count)
     {
         if (!ptr)
             return;
 
-        assert(sizeof(T) * num <= std::numeric_limits<uint32_t>::max());
+        assert(sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
-        uint32_t alignedBlockSize = AlignTo(sizeof(T) * num, 8);
+        uint32_t alignedBlockSize = AlignTo(sizeof(T) * count, 8);
         MM_DEBUG_BREAK(alignedBlockSize > m_PageSize);
 
         if (!(alignedBlockSize >= SIZE_OF_LARGE_TYPE))
