@@ -14,7 +14,6 @@ struct Synthetic1  // 2^4  - 1  =   15 B
 	}
 	~Synthetic1() 
 	{
-		data[0] = 64;
 		std::cout << "Synthetic1 destructor" << std::endl;
 	}
 
