@@ -427,6 +427,11 @@ public:
 
                 if (requestedMemoryPtr)
                 {
+                    if constexpr (std::is_trivially_constructible_v<T>)
+                    {
+                        return reinterpret_cast<T*>(requestedMemoryPtr);
+                    }
+
                     // placement new
                     if (count > 1)
                     {
@@ -527,6 +532,11 @@ public:
                             *reinterpret_cast<void**>(chunk) = current;
                         }
                     }
+                }
+
+                if constexpr (std::is_trivially_destructible_v<T>)
+                {
+                    return;
                 }
                 // placement new deallocation
                 if (count > 1)
