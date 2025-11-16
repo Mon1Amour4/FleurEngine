@@ -7,12 +7,18 @@
 #include "gtest/gtest.h"
 
 #define TEST_SUITE_NAME MemoryManagerTest
-#define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL, MM::PAGE_SIZE, MM::MIN_SLOT_SIZE
+#define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL
 
 void RangedTest(uint32_t from, uint32_t to)
 {
     MM::MemoryManager manager(ManagerConfig);
-    manager.ClearFile("MemorySnapshot.txt");
+    MemoryInfo* memoryInfo = new MemoryInfo();
+
+    // Clear file:
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt");
+    myFile.close();
+
     size_t allocated = 0;
     size_t allocationsCupBytes = 1024ul * 1024ul * 1024ul * 5;
 
@@ -23,6 +29,7 @@ void RangedTest(uint32_t from, uint32_t to)
     std::uniform_int_distribution<> actionDist(from, to);
     std::vector<std::pair<int, int*>> mm_pairs;
     std::vector<std::pair<int, int*>> std_pairs;
+
     std::cout << "Memory Manager benchmark\n";
     size_t counter = 0;
     for (size_t i = 0; allocated < allocationsCupBytes; i++)
@@ -34,6 +41,7 @@ void RangedTest(uint32_t from, uint32_t to)
         mark.StartAlloc();
         mm_pairs.push_back({count, manager.allocate<int>(count)});
         mark.EndAlloc();
+        memoryInfo->AddAlloc(MM::AlignTo(sizeof(int) * count, 8));
     }
 
     for (auto alloc : mm_pairs)
@@ -41,13 +49,19 @@ void RangedTest(uint32_t from, uint32_t to)
         mark.StartDealloc();
         manager.deallocate<int>(alloc.second, alloc.first);
         mark.EndDealloc();
+        memoryInfo->AddDealloc(MM::AlignTo(sizeof(int) * alloc.first, 8));
 
         counter++;
-        // manager.SaveSnapshotToFile("MemorySnapshot.txt", counter);
+
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager.GetSnapshot();
+        myFile.close();
     }
     mark.Print();
 
     std::allocator<int> alloc;
+
     std::cout << "STD allocator benchmark\n";
     MM::Benchmark std_mark{2};
     for (size_t i = 0; i < mm_pairs.size(); i++)
@@ -65,9 +79,7 @@ void RangedTest(uint32_t from, uint32_t to)
     }
     std_mark.Print();
 
-#if defined MEMORYMANAGER_PROFILING
-    manager.PrintMemorDebugInfo();
-#endif
+    memoryInfo->Print();
 }
 
 #if 0 ChunksFreeListTest
@@ -127,12 +139,32 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
+#if 1 Array Allocations
+TEST(TEST_SUITE_NAME, ArrayAllocations)
+{
+    using namespace MM;
+    MemoryManager manager(ManagerConfig);
+
+    // Clear file:
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt");
+    myFile.close();
+
+    auto ptr = manager.allocate<Synthetic::Synthetic1>(10);
+    manager.deallocate<Synthetic::Synthetic1>(ptr, 10);
+}
+#endif
+
 #if 1 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
     MemoryManager manager(ManagerConfig);
-    manager.ClearFile("MemorySnapshot.txt");
+
+    // Clear file:
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt");
+    myFile.close();
 
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> actionDist(0, 2);
@@ -271,7 +303,6 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
             alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
         }
-        // manager.SaveSnapshotToFile("MemorySnapshot.txt", i);
     }
 
     mark.Print();
@@ -301,12 +332,14 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     }
 
     std_mark.Print();
-
-    manager.PrintMemorDebugInfo();
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt", std::ios_base::app);
+    myFile << manager.GetSnapshot();
+    myFile.close();
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom64To86
+#if 1 FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 46);

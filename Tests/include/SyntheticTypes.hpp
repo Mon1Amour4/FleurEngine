@@ -4,7 +4,22 @@ namespace Synthetic
 {
 // clang-format off
 
-struct Synthetic1  { uint8_t data[15];    };  // 2^4  - 1  =   15 B
+struct Synthetic1  // 2^4  - 1  =   15 B
+{ 
+	// Non-trivial Ctor&Dctor
+	Synthetic1() 
+	{
+		data[0] = 128;
+		std::cout << "Synthetic1 constructor" << std::endl;
+	}
+	~Synthetic1() 
+	{
+		data[0] = 64;
+		std::cout << "Synthetic1 destructor" << std::endl;
+	}
+
+	uint8_t data[15];    
+};  
 struct Synthetic2  
 {
 	//Synthetic2(bool){};

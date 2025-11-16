@@ -401,14 +401,20 @@ public:
                 if (requestedMemoryPtr)
                 {
                     // placement new
-                    MM_DEBUG_EXPRESSION({
-                        T* ptr = nullptr;
-                        ptr = new (requestedMemory) T;
-                        MM_PRINT("Return ptr{" << static_cast<void*>(ptr) << "}\n")
-                        return ptr;
-                    })
+                    if (count > 1)
+                    {
+                        // Array
+                        T* arrayPtr = reinterpret_cast<T*>(requestedMemoryPtr);
 
-                    return new (requestedMemory) T;
+                        for (size_t i = 0; i < count; i++)
+                        {
+                            new (arrayPtr + i) T;
+                        }
+
+                        return arrayPtr;
+                    }
+                    else
+                        return new (requestedMemoryPtr) T;
                 }
                 else
                 {
@@ -478,7 +484,18 @@ public:
                     }
                 }
                 // placement new deallocation
-                reinterpret_cast<T*>(bytePtr)->~T();
+                if (count > 1)
+                {
+                    T* arrayPtr = reinterpret_cast<T*>(bytePtr);
+                    for (size_t i = 0; i < count; i++)
+                    {
+                        (arrayPtr + i)->~T();
+                    }
+                }
+                else
+                {
+                    reinterpret_cast<T*>(bytePtr)->~T();
+                }
             }
         }
     }
