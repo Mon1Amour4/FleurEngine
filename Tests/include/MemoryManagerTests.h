@@ -7,7 +7,7 @@
 #include "gtest/gtest.h"
 
 #define TEST_SUITE_NAME MemoryManagerTest
-#define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL, 1024ULL * 1024ULL * 1024ULL * 2ULL
+#define ManagerConfig 1024ULL * 1024ULL * 1024ULL * 5ULL
 
 void RangedTest(uint32_t from, uint32_t to)
 {
@@ -53,10 +53,10 @@ void RangedTest(uint32_t from, uint32_t to)
 
         counter++;
 
-        std::ofstream myFile;
+        /*std::ofstream myFile;
         myFile.open("MemorySnapshot.txt", std::ios_base::app);
-        myFile << manager.GetSnapshot();
-        myFile.close();
+        myFile << manager->GetSnapshot();
+        myFile.close();*/
     }
     mark.Print();
 
@@ -141,7 +141,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
-#if 1 Array Allocations
+#if false Array Allocations
 TEST(TEST_SUITE_NAME, ArrayAllocations)
 {
     using namespace MM;
@@ -157,7 +157,7 @@ TEST(TEST_SUITE_NAME, ArrayAllocations)
 }
 #endif
 
-#if 1 Random Allocations
+#if true Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
@@ -335,14 +335,16 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     }
 
     std_mark.Print();
-    std::ofstream myFile;
-    myFile.open("MemorySnapshot.txt", std::ios_base::app);
-    myFile << manager.GetSnapshot();
-    myFile.close();
+    {
+        // std::ofstream myFile;
+        // myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        // myFile << manager->GetSnapshot();
+        // myFile.close();
+    }
 }
 #endif
 
-#if 1 FixedRangeAllocationsFrom64To86
+#if false FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 46);

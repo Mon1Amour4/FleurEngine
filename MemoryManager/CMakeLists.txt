@@ -3,7 +3,10 @@
 # === Source Files ===
 SET(PROJECT_HEADERS
     MemoryManager.h
-    mmpch.h)
+    mmpch.h
+    SLUBAllocator.hpp
+    DebugDefenitions.hpp
+    PageAllocator.hpp)
 
 SET(PROJECT_SOURCES
     MemoryManager.cpp)
