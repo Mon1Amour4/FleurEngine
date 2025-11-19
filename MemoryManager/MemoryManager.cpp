@@ -205,17 +205,17 @@ MM::MemoryManager::MemoryManager(unsigned char* ptr, size_t capacity)
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
+    uint32_t slubAllocOffset = sizeof(SLUBAllocator);
+
     // PageAllocator:
-    uint32_t pageAllocAllocationSpace = sizeof(PageAllocator) + sizeof(SLUBAllocator);
-    m_UsedBytes += pageAllocAllocationSpace;
-    unsigned char* pageAllocHead = m_Head + pageAllocAllocationSpace;
-    pageAlloc = new (m_Head) PageAllocator(pageAllocHead, m_Capacity - pageAllocAllocationSpace, m_PageSize);
+    uint32_t pageAllocHead = sizeof(SLUBAllocator) + sizeof(PageAllocator);
+    unsigned char* pageAllocatorHeadPtr = m_Head + pageAllocHead;
+    pageAlloc = new (m_Head + slubAllocOffset) PageAllocator(pageAllocatorHeadPtr, m_Capacity - pageAllocHead, m_PageSize);
 
     MM_ASSERT(pageAlloc);
 
     // SLUBAllocator:
-    unsigned char* currentPtr = m_Head + sizeof(PageAllocator);
-    slubAlloc = new (currentPtr) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
+    slubAlloc = new (m_Head) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
     MM_ASSERT(slubAlloc);
 }

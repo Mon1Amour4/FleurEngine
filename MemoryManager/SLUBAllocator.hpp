@@ -18,7 +18,7 @@ public:
     {
         LOCAL_HEAD(this, Chunk);
 
-        MM_DEBUG_BREAK(m_SlotSize * slotCount > 4096);
+        MM_DEBUG_BREAK(m_CapacityBytes > 4096);
         MM_PRINT("--[CREATED]\n")
         MM_PRINT("  Chunk{" << this << "}{" << m_SlotSize << ", " << slotCount << "} has been created")
 
@@ -517,18 +517,19 @@ struct SLUBAllocator
         , m_MinSlotSize(minSlotSize)
         , m_ChunkCache(nullptr)
         , m_PageAlloc(pageAlloc)
+        , m_BasePool(nullptr)
     {
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);
 
         uint32_t pages = 0;
-        unsigned char* staticPages = pageAlloc->allocate_pages_size(poolsCount * offset, &pages);
+        m_BasePool = pageAlloc->allocate_pages_size(poolsCount * offset, &pages);
         m_StaticOffset = m_PageSize * pages;
 
         for (size_t i = 0; i < poolsCount; i++)
         {
             uint32_t poolSize = m_MinSlotSize + (8 * i);
-            unsigned char* poolPtr = staticPages + offset * i;
+            unsigned char* poolPtr = m_BasePool + offset * i;
             Pool* pool = new (poolPtr) Pool(poolSize, CHUNK_PAYLOAD_SIZE(m_PageSize) / poolSize);
         }
     }
@@ -541,6 +542,7 @@ struct SLUBAllocator
     const uint32_t m_MinSlotSize;
     uint32_t m_StaticOffset;
     void* m_ChunkCache;
+    unsigned char* m_BasePool;
 
     PageAllocator* m_PageAlloc;
 
@@ -686,18 +688,14 @@ struct SLUBAllocator
 
     [[nodiscard]] Pool* GetPool(uint32_t slotSize)
     {
-        LOCAL_HEAD(this, SLUBAllocator);
         uint32_t multiplier = slotSize / 8 - 2;
-        return reinterpret_cast<Pool*>(localHead + (sizeof(Pool) * multiplier));
+        return reinterpret_cast<Pool*>(m_BasePool + (sizeof(Pool) * multiplier));
     }
     [[nodiscard]] Chunk* FindChunk(unsigned char* ptrToSlot)
     {
-        // TODO: fix
-        LOCAL_HEAD(this, SLUBAllocator);
-        unsigned char* endOfStatic = localHead + m_StaticOffset;
-        uint32_t diff = ptrToSlot - endOfStatic;
+        uint32_t diff = ptrToSlot - m_BasePool;
         uint32_t steps = diff / m_PageSize;
-        Chunk* chunk = reinterpret_cast<Chunk*>(endOfStatic + (steps * m_PageSize));
+        Chunk* chunk = reinterpret_cast<Chunk*>(m_BasePool + (steps * m_PageSize));
 
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
