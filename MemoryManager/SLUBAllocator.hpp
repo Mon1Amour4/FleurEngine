@@ -229,7 +229,7 @@ public:
             return;
         }
         int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
-        m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(CHUNK_STRIDE);
+        m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(4096);
     }
     void SetPrev(Chunk* prev)
     {
@@ -242,14 +242,14 @@ public:
             return;
         }
         int prevPtrDiff = TOCHARPTR(prev) - TOCHARPTR(this);
-        m_PrevChunkOffsetInChunkStride = prevPtrDiff / static_cast<int>(CHUNK_STRIDE);
+        m_PrevChunkOffsetInChunkStride = prevPtrDiff / static_cast<int>(4096);
     }
     inline Chunk* GetNext()
     {
         if (m_NextChunkOffsetInChunkStride == 0)
             return nullptr;
 
-        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_NextChunkOffsetInChunkStride * static_cast<int>(4096)));
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
@@ -258,7 +258,7 @@ public:
         if (m_PrevChunkOffsetInChunkStride == 0)
             return nullptr;
 
-        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_PrevChunkOffsetInChunkStride * static_cast<int>(CHUNK_STRIDE)));
+        Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + (m_PrevChunkOffsetInChunkStride * static_cast<int>(4096)));
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
     }
@@ -512,12 +512,11 @@ private:
 #pragma region SLUBAllocator
 struct SLUBAllocator
 {
-    SLUBAllocator(unsigned char* ptr, PageAllocator* pageAlloc, uint32_t pageSize, uint32_t minSlotSize)
+    SLUBAllocator(PageAllocator* pageAlloc, uint32_t pageSize, uint32_t minSlotSize)
         : m_PageSize(pageSize)
         , m_MinSlotSize(minSlotSize)
         , m_ChunkCache(nullptr)
         , m_PageAlloc(pageAlloc)
-        , m_Head(ptr)
     {
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);
@@ -529,11 +528,9 @@ struct SLUBAllocator
         for (size_t i = 0; i < poolsCount; i++)
         {
             uint32_t poolSize = m_MinSlotSize + (8 * i);
-            unsigned char* poolPtr = m_Head + offset * i;
+            unsigned char* poolPtr = staticPages + offset * i;
             Pool* pool = new (poolPtr) Pool(poolSize, CHUNK_PAYLOAD_SIZE(m_PageSize) / poolSize);
         }
-
-        MM_PRINT("Static offset: 0x" << static_cast<void*>(m_Head + m_StaticOffset) << std::endl;);
     }
     ~SLUBAllocator()
     {
@@ -544,7 +541,6 @@ struct SLUBAllocator
     const uint32_t m_MinSlotSize;
     uint32_t m_StaticOffset;
     void* m_ChunkCache;
-    unsigned char* m_Head;
 
     PageAllocator* m_PageAlloc;
 
@@ -641,7 +637,8 @@ struct SLUBAllocator
         if (isChunkEmpty)
         {
             // Check if this chunk is latest allocated chunk
-            if (TOCHARPTR(chunk) == (m_Head - (sizeof(Chunk) + m_PageSize)))
+            LOCAL_HEAD(this, SLUBAllocator);
+            if (TOCHARPTR(chunk) == (localHead - (sizeof(Chunk) + m_PageSize)))
             {
                 // This is latest allocated chunk, we don't want to store it
                 m_PageAlloc->free_latest_allocated_page();
@@ -689,13 +686,15 @@ struct SLUBAllocator
 
     [[nodiscard]] Pool* GetPool(uint32_t slotSize)
     {
+        LOCAL_HEAD(this, SLUBAllocator);
         uint32_t multiplier = slotSize / 8 - 2;
-        return reinterpret_cast<Pool*>(m_Head + (sizeof(Pool) * multiplier));
+        return reinterpret_cast<Pool*>(localHead + (sizeof(Pool) * multiplier));
     }
     [[nodiscard]] Chunk* FindChunk(unsigned char* ptrToSlot)
     {
         // TODO: fix
-        unsigned char* endOfStatic = m_Head + m_StaticOffset;
+        LOCAL_HEAD(this, SLUBAllocator);
+        unsigned char* endOfStatic = localHead + m_StaticOffset;
         uint32_t diff = ptrToSlot - endOfStatic;
         uint32_t steps = diff / m_PageSize;
         Chunk* chunk = reinterpret_cast<Chunk*>(endOfStatic + (steps * m_PageSize));

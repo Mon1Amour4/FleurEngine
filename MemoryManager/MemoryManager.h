@@ -172,11 +172,11 @@ public:
 
         bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE / 2;
 
-        if (slotSize <= 2048)
+        if (slotSize <= 2032)
         {
             return slubAlloc->allocate<T, Align>(slotSize, count);
         }
-        else if (slotSize > 2048 && slotSize < 64'000)
+        else if (slotSize > 2032 && slotSize < 64'000)
         {
             // TODO: Two-Level Segregated Fit memory allocator
             MM_DEBUG_BREAK(true);

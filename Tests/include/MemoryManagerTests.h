@@ -293,7 +293,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
         else
         {
             size_t size = Synthetic::SizeOf(type) * count;
-            if (size > 2048)
+            if (size > 2032)
                 continue;
 
             ++idCounter;

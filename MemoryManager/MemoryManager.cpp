@@ -214,10 +214,8 @@ MM::MemoryManager::MemoryManager(unsigned char* ptr, size_t capacity)
     MM_ASSERT(pageAlloc);
 
     // SLUBAllocator:
-    uint32_t slubAllocAllocationSpace = sizeof(SLUBAllocator);
     unsigned char* currentPtr = m_Head + sizeof(PageAllocator);
-    unsigned char* slubAllocHead = currentPtr + slubAllocAllocationSpace;
-    slubAlloc = new (currentPtr) SLUBAllocator(slubAllocHead, pageAlloc, m_PageSize, m_MinSlotSize);
+    slubAlloc = new (currentPtr) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
     MM_ASSERT(slubAlloc);
 }
