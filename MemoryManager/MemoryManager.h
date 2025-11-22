@@ -308,7 +308,7 @@ private:
     PageAllocator* pageAlloc;
     SLUBAllocator* slubAlloc;
 
-    MemoryManager(unsigned char* ptr, size_t capacity);
+    MemoryManager(unsigned char* ptr, size_t offset, size_t capacity);
     uint32_t CalculateSlotSize(uint32_t original);
 };
 #pragma endregion

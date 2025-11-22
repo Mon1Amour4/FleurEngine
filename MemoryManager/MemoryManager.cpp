@@ -1,5 +1,8 @@
 #include "MemoryManager.h"
 
+#define WIN32_LEAN_AND_MEAN
+#include <Windows.h>
+
 //======================================================================
 // Benchmark
 MM::Benchmark::Benchmark(float AvgPeriodSecs)
@@ -192,11 +195,11 @@ std::string MM::Benchmark::FormatToSeconds(std::chrono::microseconds timer)
 
 //======================================================================
 // Memory Manager
-MM::MemoryManager::MemoryManager(unsigned char* ptr, size_t capacity)
+MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size_t capacity)
     : m_PageSize(PAGE_SIZE)
     , m_MinSlotSize(16)
     , m_Capacity(capacity)
-    , m_Head(ptr)
+    , m_Head(memoryStart)
     , m_UsedBytes(0)
     , slubAlloc(nullptr)
     , pageAlloc(nullptr)
@@ -205,19 +208,19 @@ MM::MemoryManager::MemoryManager(unsigned char* ptr, size_t capacity)
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
-    uint32_t slubAllocOffset = sizeof(SLUBAllocator);
-
     // PageAllocator:
-    uint32_t pageAllocHead = sizeof(SLUBAllocator) + sizeof(PageAllocator);
-    unsigned char* pageAllocatorHeadPtr = m_Head + pageAllocHead;
-    pageAlloc = new (m_Head + slubAllocOffset) PageAllocator(pageAllocatorHeadPtr, m_Capacity - pageAllocHead, m_PageSize);
+    uint32_t pageAllocOffset = offset + sizeof(SLUBAllocator);
+    uint32_t pageAllocContent = pageAllocOffset + sizeof(PageAllocator);
+    pageAlloc = new (m_Head + pageAllocOffset) PageAllocator(memoryStart + 4096, m_Capacity, m_PageSize);
 
     MM_ASSERT(pageAlloc);
 
     // SLUBAllocator:
-    slubAlloc = new (m_Head) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
+    slubAlloc = new (m_Head + offset) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
     MM_ASSERT(slubAlloc);
+    MM_DEBUG_BREAK(TOCHARPTR(slubAlloc) - memoryStart != sizeof(MM::MemoryManager));
+    MM_DEBUG_BREAK(TOCHARPTR(pageAlloc) - memoryStart != (sizeof(MM::MemoryManager) + sizeof(SLUBAllocator)));
 }
 MM::MemoryManager::~MemoryManager()
 {
@@ -228,12 +231,13 @@ MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity)
 {
     MM_ASSERT(capacity > 0);
 
-    uint32_t offset = sizeof(MM::MemoryManager);
-    void* rawPtr = malloc(capacity + offset);
+    size_t alignedCapacity = capacity / 4096 * 4096;
+
+    void* rawPtr = VirtualAlloc(NULL, alignedCapacity, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     MM_ASSERT(rawPtr);
 
     unsigned char* charPtr = reinterpret_cast<unsigned char*>(rawPtr);
-    return new (rawPtr) MM::MemoryManager(charPtr + offset, capacity);
+    return new (rawPtr) MM::MemoryManager(charPtr, sizeof(MM::MemoryManager), capacity);
 }
 
 
