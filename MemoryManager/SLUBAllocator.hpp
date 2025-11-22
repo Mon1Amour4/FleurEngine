@@ -689,15 +689,8 @@ struct SLUBAllocator
     }
     [[nodiscard]] Chunk* FindChunk(unsigned char* ptrToSlot)
     {
-        unsigned char* contentHead = m_BasePool + m_StaticOffset;
-        MM_DEBUG_BREAK(ptrToSlot < contentHead);
-
-        size_t diff = ptrToSlot - contentHead;
-        size_t pageIndex = diff / m_PageSize;
-
-
-        unsigned char* page = contentHead + pageIndex * m_PageSize;
-        Chunk* chunk = reinterpret_cast<Chunk*>(page);
+        uintptr_t addr = reinterpret_cast<uintptr_t>(ptrToSlot);
+        Chunk* chunk = reinterpret_cast<Chunk*>(addr / 4096 * 4096);
 
         MM_DEBUG_BREAK(!chunk->IsValid());
         return chunk;
