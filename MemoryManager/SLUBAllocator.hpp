@@ -519,7 +519,6 @@ struct SLUBAllocator
     SLUBAllocator(PageAllocator* pageAlloc, uint32_t pageSize, uint32_t minSlotSize)
         : m_PageSize(pageSize)
         , m_MinSlotSize(minSlotSize)
-        //, m_ChunkCache(nullptr)
         , m_PageAlloc(pageAlloc)
         , m_BasePool(nullptr)
     {
@@ -545,7 +544,6 @@ struct SLUBAllocator
     const uint32_t m_PageSize;
     const uint32_t m_MinSlotSize;
     uint32_t m_StaticOffset;
-    // Chunk* m_ChunkCache;
     unsigned char* m_BasePool;
 
     PageAllocator* m_PageAlloc;
@@ -559,20 +557,6 @@ struct SLUBAllocator
         if (!pool)
             return nullptr;
 
-        // Check first if there is Cached Chunk in free list:
-        /* if (m_ChunkCache)
-         {
-             Chunk* next = *reinterpret_cast<Chunk**>(m_ChunkCache);
-             unsigned char* cachedChunk = TOCHARPTR(m_ChunkCache);
-
-             Chunk* chunk = new (cachedChunk) Chunk(slotSize, m_PageSize / slotSize);
-
-             MM_DEBUG_BREAK(!chunk->IsValid());
-
-             pool->Extend(chunk);
-
-             m_ChunkCache = next;
-         }*/
         bool res = pool->AcquireSlotFromPool(allocPtr);
         if (!res)
         {
@@ -647,32 +631,7 @@ struct SLUBAllocator
         bool isChunkEmpty = pool->FreeSlot(chunk, bytePtr);
 
         if (isChunkEmpty)
-        {
-            // Check if this chunk is latest allocated chunk
-            LOCAL_HEAD(this, SLUBAllocator);
-            if (TOCHARPTR(chunk) == (localHead - (sizeof(Chunk) + m_PageSize)))
-            {
-                // This is latest allocated chunk, we don't want to store it
-                m_PageAlloc->free_latest_allocated_page();
-            }
-            // else
-            //{
-            //     /*if (!m_ChunkCache)
-            //     {
-            //         m_ChunkCache = reinterpret_cast<Chunk*>(chunk);
-            //         MM_DEBUG_BREAK(!m_ChunkCache->IsValid());
-            //         *reinterpret_cast<Chunk**>(m_ChunkCache) = nullptr;
-            //     }*/
-            //     else
-            //     {
-
-            //        // Chunk* current = m_ChunkCache;
-            //        // MM_DEBUG_BREAK(!current->IsValid())
-            //        // m_ChunkCache = reinterpret_cast<Chunk*>(chunk);
-            //        //*reinterpret_cast<Chunk**>(chunk) = current;
-            //    }
-            //}
-        }
+            m_PageAlloc->free(TOCHARPTR(chunk));
 
         if constexpr (std::is_trivially_destructible_v<T>)
         {
