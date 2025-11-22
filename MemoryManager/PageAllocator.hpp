@@ -14,8 +14,11 @@ struct PageAllocator
         if (m_UsedBytes + m_PageSize > m_Capacity)
             return nullptr;
 
-        unsigned char* pagePtr = m_Current;
+        unsigned char* pagePtr = check_cache();
+        if (pagePtr)
+            return pagePtr;
 
+        pagePtr = m_Current;
         m_UsedBytes += m_PageSize;
         m_Current += m_PageSize;
 
@@ -40,6 +43,9 @@ struct PageAllocator
         uint32_t reminder = bytes % m_PageSize;
         if (reminder > 0)
             pages++;
+
+        if (pages == 1)
+            return allocate_page();
 
         size_t pagesSizeBytes = m_PageSize * pages;
         if (m_UsedBytes + pagesSizeBytes > m_Capacity)
@@ -66,20 +72,17 @@ struct PageAllocator
             m_UsedBytes -= m_PageSize;
         }
         else
-        { /*if (!m_ChunkCache)
-         //     {
-         //         m_ChunkCache = reinterpret_cast<Chunk*>(chunk);
-         //         MM_DEBUG_BREAK(!m_ChunkCache->IsValid());
-         //         *reinterpret_cast<Chunk**>(m_ChunkCache) = nullptr;
-         //     }*/
-            //     else
-            //     {
+        {
+            if (m_CachedPage)
+            {
+                unsigned char* current = m_CachedPage;
+                m_CachedPage = reinterpret_cast<unsigned char*>(ptrToPage);
+                *reinterpret_cast<unsigned char**>(ptrToPage) = current;
+                return;
+            }
 
-            //        // Chunk* current = m_ChunkCache;
-            //        // MM_DEBUG_BREAK(!current->IsValid())
-            //        // m_ChunkCache = reinterpret_cast<Chunk*>(chunk);
-            //        //*reinterpret_cast<Chunk**>(chunk) = current;
-            //    }
+            m_CachedPage = reinterpret_cast<unsigned char*>(ptrToPage);
+            *reinterpret_cast<unsigned char**>(m_CachedPage) = nullptr;
         }
     }
 
@@ -90,21 +93,19 @@ struct PageAllocator
     uint32_t m_PageSize;
 
 private:
-    unsigned char* check_cache()
+    inline unsigned char* check_cache()
     {
-        // Check first if there is Cached Chunk in free list:
-        /* if (m_ChunkCache)
-         {
-             Chunk* next = *reinterpret_cast<Chunk**>(m_ChunkCache);
-             unsigned char* cachedChunk = TOCHARPTR(m_ChunkCache);
+        // Check first if there is Cached page in free list:
+        if (m_CachedPage)
+        {
+            unsigned char* next = *reinterpret_cast<unsigned char**>(m_CachedPage);
+            unsigned char* cachedChunk = m_CachedPage;
 
-             Chunk* chunk = new (cachedChunk) Chunk(slotSize, m_PageSize / slotSize);
+            m_CachedPage = next;
 
-             MM_DEBUG_BREAK(!chunk->IsValid());
+            return cachedChunk;
+        }
 
-             pool->Extend(chunk);
-
-             m_ChunkCache = next;
-         }*/
+        return nullptr;
     }
 };
