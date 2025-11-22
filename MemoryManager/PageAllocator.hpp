@@ -77,7 +77,7 @@ struct PageAllocator
             {
                 unsigned char* current = m_CachedPage;
                 m_CachedPage = reinterpret_cast<unsigned char*>(ptrToPage);
-                *reinterpret_cast<unsigned char**>(ptrToPage) = current;
+                *reinterpret_cast<unsigned char**>(m_CachedPage) = current;
                 return;
             }
 
@@ -88,9 +88,27 @@ struct PageAllocator
 
     unsigned char* m_Current;
     unsigned char* m_CachedPage;
-    size_t m_Capacity;
-    size_t m_UsedBytes;
+    uint32_t m_Capacity;
+    uint32_t m_UsedBytes;
     uint32_t m_PageSize;
+
+    void GetSnapshot(char*& buffer) const
+    {
+        if (!m_CachedPage)
+            return;
+
+        buffer += std::sprintf(buffer, "\n//---------------------------- PAGE ALLOCATOR PRINTING ----------------------------\\\n");
+
+        buffer += std::sprintf(buffer, "{%d/%d}\n", m_UsedBytes, m_Capacity);
+        buffer += std::sprintf(buffer, "Cached page:{0x%p}, ", static_cast<void*>(m_CachedPage));
+        unsigned char* next = *reinterpret_cast<unsigned char**>(m_CachedPage);
+        while (next)
+        {
+            buffer += std::sprintf(buffer, "{0x%p}", static_cast<void*>(next));
+            next = *reinterpret_cast<unsigned char**>(next);
+        }
+        buffer += std::sprintf(buffer, "\n//--------------------------- END -OF- PAGE ALLOCATOR ------------------------------\\\n");
+    }
 
 private:
     inline unsigned char* check_cache()

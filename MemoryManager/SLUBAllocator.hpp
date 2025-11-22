@@ -217,9 +217,21 @@ public:
         else
             sign = "Full";
 
+        std::string next;
         Chunk* nextChunk = GetNext();
-        buffer += std::sprintf(buffer, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{0x%-16p} |\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize,
-                               m_UsedBytes, m_CapacityBytes, sign.c_str(), nextChunk);
+        if (!nextChunk)
+            next = "None";
+        else
+        {
+            next += "ox";
+            std::ostringstream oss;
+            oss << nextChunk;
+            next = oss.str();
+        }
+        buffer += std::sprintf(buffer, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{%-16s} |\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize,
+                               m_UsedBytes, m_CapacityBytes, sign.c_str(), next.c_str());
+        if (nextChunk)
+            nextChunk->ChunkSnapshot(++chunkNum, buffer);
     }
 
     void SetNext(Chunk* next)
@@ -421,8 +433,8 @@ struct Pool
         {
             Chunk* chunk = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
             MM_DEBUG_BREAK(!chunk->IsValid())
-            buffer +=
-                std::sprintf(buffer, "\nPrinting Pool{%p}{%d, %d}, Chunks: %d, free chunk: 0x%-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, chunk);
+            /*buffer +=
+                std::sprintf(buffer, "\nPrinting Pool{%p}{%d, %d}, Chunks: %d, free chunk: 0x%-18p\n", this, m_SlotSize, m_SlotsCount, m_NumChunks, chunk);*/
             chunk->ChunkSnapshot(0, buffer);
         }
     }
@@ -672,8 +684,25 @@ struct SLUBAllocator
         return chunk;
     }
 
+    void GetSnapshot(char*& buffer) const
+    {
+        buffer += std::sprintf(buffer, "//---------------------------- SLUB-PRINTING ----------------------------\\\n");
+
+        uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
+        uint32_t offset = sizeof(Pool);
+
+        for (size_t i = 0; i < poolsCount; i++)
+        {
+            uint32_t poolSize = m_MinSlotSize + (8 * i);
+            Pool* pool = reinterpret_cast<Pool*>(m_BasePool + offset * i);
+            pool->PoolSpapshot(buffer);
+        }
+
+        buffer += std::sprintf(buffer, "\n//----------------------------- END of SLUB ----------------------------\\ \n\n");
+    }
+
 private:
-    inline uint32_t CountSlots(uint32_t size, uint32_t slotSize = 8)
+    inline uint32_t CountSlots(uint32_t size, uint32_t slotSize = 8) const
     {
         uint32_t counter = 0;
         for (size_t i = size; i >= slotSize; i -= slotSize)

@@ -306,6 +306,10 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
             alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
         }
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager->GetSnapshot();
+        myFile.close();
     }
 
     mark.Print();
@@ -335,12 +339,6 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     }
 
     std_mark.Print();
-    {
-        // std::ofstream myFile;
-        // myFile.open("MemorySnapshot.txt", std::ios_base::app);
-        // myFile << manager->GetSnapshot();
-        // myFile.close();
-    }
 }
 #endif
 

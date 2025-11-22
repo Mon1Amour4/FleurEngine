@@ -247,20 +247,19 @@ void MM::MemoryManager::Print()
 }
 std::string MM::MemoryManager::GetSnapshot() const
 {
-    // TODO: Fix
-    /*std::string str;
+    std::string str;
 
     uint64_t bufferSize = 1024l * 1024l * 10;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
 
-    ArenaSnapshot(tmp);
+    pageAlloc->GetSnapshot(tmp);
+    slubAlloc->GetSnapshot(tmp);
 
     str = buffer;
     delete[] buffer;
-    return str;*/
-    return std::string();
+    return str;
 }
 
 uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
@@ -270,71 +269,6 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
         slotSize = m_MinSlotSize;
     return slotSize;
 }
-
-//======================================================================
-// Arena
-// void MM::Arena::Print()
-//{
-//    std::cout << "//---------------------------- ARENA-PRINTING ----------------------------\\\n";
-//
-//    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
-//    std::cout << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
-//    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-//    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
-//    {
-//        uint32_t size = m_MinSlotSize << i;
-//        reinterpret_cast<Pool*>(m_Head + offset * i)->Print();
-//    }
-//
-//    std::cout << "\n//--------------------------------- END ----------------------------\\ \n";
-//}
-// void MM::Arena::ArenaSnapshotToStream(std::ofstream& stream)
-//{
-//    stream << "\n//---------------------------- ARENA-PRINTING ----------------------------\\ \n";
-//    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
-//    stream << "Arena: " << m_UsedBytes << "/" << m_CapacityBytes << " - " << percentage << "%";
-//
-//    uint32_t offset = m_PageSize + sizeof(Pool) + sizeof(Chunk);
-//    for (size_t i = 0; m_MinSlotSize << i <= m_PageSize; i++)
-//    {
-//        uint32_t size = m_MinSlotSize << i;
-//        reinterpret_cast<Pool*>(m_Head + offset * i)->PoolSpapshotToStream(stream);
-//    }
-//
-//    stream << "\n//--------------------------------- END ----------------------------\\ \n";
-//}
-// void MM::Arena::ArenaSnapshot(char* buffer)
-//{
-//    buffer += std::sprintf(buffer, "//---------------------------- ARENA-PRINTING ----------------------------\\\n");
-//    float percentage = (m_UsedBytes / (float)m_CapacityBytes) * 100;
-//    buffer += std::sprintf(buffer, "Arena: %zu/%zu - %f%%\n", m_UsedBytes, m_CapacityBytes, static_cast<float>(percentage));
-//
-//    uint32_t poolsCount = CountSlots(m_PageSize, 16) - 1;
-//    uint32_t offset = sizeof(Pool);
-//
-//    // Arena Free list:
-//    buffer += std::sprintf(buffer, " Free Chunks:\n");
-//    void* chunk = m_ChunkCache;
-//    uint32_t counter = 0;
-//    do
-//    {
-//        buffer += std::sprintf(buffer, " Free Chunk_%d {0x%p}\n", counter, chunk);
-//        if (chunk)
-//        {
-//            chunk = *reinterpret_cast<void**>(chunk);
-//            ++counter;
-//        }
-//    } while (chunk);
-//
-//    for (size_t i = 0; i < poolsCount; i++)
-//    {
-//        uint32_t poolSize = m_MinSlotSize + (8 * i);
-//        Pool* pool = reinterpret_cast<Pool*>(m_Head + offset * i);
-//        pool->PoolSpapshot(buffer);
-//    }
-//    buffer += std::sprintf(buffer, "//--------------------------------- END ----------------------------\\ \n");
-//}
-
 
 //======================================================================
 // MemoryInfo
