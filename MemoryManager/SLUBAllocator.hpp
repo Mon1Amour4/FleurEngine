@@ -686,7 +686,7 @@ struct SLUBAllocator
 
     void GetSnapshot(char*& buffer) const
     {
-        buffer += std::sprintf(buffer, "//---------------------------- SLUB-PRINTING ----------------------------\\\n");
+        buffer += std::sprintf(buffer, "//-------------------------- SLUB ALLOCATOR ----------------------------\\\n");
 
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);
@@ -698,7 +698,7 @@ struct SLUBAllocator
             pool->PoolSpapshot(buffer);
         }
 
-        buffer += std::sprintf(buffer, "\n//----------------------------- END of SLUB ----------------------------\\ \n\n");
+        buffer += std::sprintf(buffer, "\n//---------------------- END OF SLUB ALLOCATOR ----------------------------\\ \n\n");
     }
 
 private:

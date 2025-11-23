@@ -97,7 +97,7 @@ struct PageAllocator
         if (!m_CachedPage)
             return;
 
-        buffer += std::sprintf(buffer, "\n//---------------------------- PAGE ALLOCATOR PRINTING ----------------------------\\\n");
+        buffer += std::sprintf(buffer, "\n//---------------------------- PAGE ALLOCATOR ----------------------------\\\n");
 
         buffer += std::sprintf(buffer, "{%d/%d}\n", m_UsedBytes, m_Capacity);
         buffer += std::sprintf(buffer, "Cached page:{0x%p}, ", static_cast<void*>(m_CachedPage));
@@ -107,7 +107,7 @@ struct PageAllocator
             buffer += std::sprintf(buffer, "{0x%p}", static_cast<void*>(next));
             next = *reinterpret_cast<unsigned char**>(next);
         }
-        buffer += std::sprintf(buffer, "\n//--------------------------- END -OF- PAGE ALLOCATOR ------------------------------\\\n");
+        buffer += std::sprintf(buffer, "\n//------------------------ END OF PAGE ALLOCATOR ------------------------------\\\n\n");
     }
 
 private:
