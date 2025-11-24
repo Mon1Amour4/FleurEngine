@@ -164,7 +164,7 @@ public:
      */
     template <class T, size_t Align = 0>
         requires Fleur::Concepts::IsDefaultConstructible<T>
-    [[nodiscard]] T* allocate(uint32_t count)
+    [[nodiscard]] T* allocate(uint32_t count = 1)
     {
         assert(count > 0 && sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
@@ -172,9 +172,10 @@ public:
 
         bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE / 2;
 
+        T* ptr = nullptr;
         if (slotSize <= 2032)
         {
-            return slubAlloc->allocate<T, Align>(slotSize, count);
+            ptr = slubAlloc->allocate<T, Align>(slotSize, count);
         }
         else if (slotSize > 2032 && slotSize < 64'000)
         {
@@ -186,6 +187,9 @@ public:
             // TODO: VirtualAlloc
             MM_DEBUG_BREAK(true);
         }
+        if (ptr)
+            m_UsedBytes += slotSize;
+        return ptr;
     }
 
     /**
