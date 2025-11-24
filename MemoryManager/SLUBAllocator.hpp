@@ -591,42 +591,7 @@ struct SLUBAllocator
                 return nullptr;
             }
         }
-
-        if (allocPtr)
-        {
-            if constexpr (std::is_trivially_constructible_v<T>)
-            {
-                return reinterpret_cast<T*>(allocPtr);
-            }
-
-            // placement new
-            if (count > 1)
-            {
-                // Array
-                T* arrayPtr = reinterpret_cast<T*>(allocPtr);
-
-                for (size_t i = 0; i < count; i++)
-                {
-                    new (arrayPtr + i) T;
-                }
-
-                return arrayPtr;
-            }
-            else
-                return new (allocPtr) T;
-        }
-        else
-        {
-            // No space in Arena for new chunk
-            MM_DEBUG_BREAK(true);
-            return nullptr;
-        }
-    }
-
-    template <class T, size_t Align = 0>
-    [[nodiscard]] T* allocate_raw(uint32_t count)
-    {
-        // TODO
+        return reinterpret_cast<T*>(allocPtr);
     }
 
     template <class T>
@@ -644,30 +609,6 @@ struct SLUBAllocator
 
         if (isChunkEmpty)
             m_PageAlloc->free(TOCHARPTR(chunk));
-
-        if constexpr (std::is_trivially_destructible_v<T>)
-        {
-            return;
-        }
-        // placement new deallocation
-        if (count > 1)
-        {
-            T* arrayPtr = reinterpret_cast<T*>(bytePtr);
-            for (size_t i = 0; i < count; i++)
-            {
-                (arrayPtr + i)->~T();
-            }
-        }
-        else
-        {
-            reinterpret_cast<T*>(bytePtr)->~T();
-        }
-    }
-
-    template <class T>
-    void free(void* ptr, uint32_t count)
-    {
-        // TODO
     }
 
     [[nodiscard]] Pool* GetPool(uint32_t slotSize)
