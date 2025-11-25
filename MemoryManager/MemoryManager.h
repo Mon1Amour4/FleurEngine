@@ -7,6 +7,8 @@
 #include "DebugDefenitions.hpp"
 #include "PageAllocator.hpp"
 #include "SLUBAllocator.hpp"
+#include "TLSFAllocator.hpp"
+
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -268,6 +270,7 @@ private:
 
     PageAllocator* pageAlloc;
     SLUBAllocator* slubAlloc;
+    TLSFAllocator* tlsfAlloc;
 
     MemoryManager(unsigned char* ptr, size_t offset, size_t capacity);
     uint32_t CalculateSlotSize(uint32_t original);

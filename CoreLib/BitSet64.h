@@ -74,7 +74,7 @@ inline bool bit_scan_reverse64(uint64_t number, uint32_t* idx)
 //======================================================================
 /*
  * @brief General purpose bits container, stores up to 64 flags. 0 - free, 1 - occupied
- * @details Bits operations sucs as set\check\clear\toggle.
+ * @details Bits operations such as set\check\clear\toggle.
  */
 class BitSet64
 {

@@ -6,7 +6,8 @@ SET(PROJECT_HEADERS
     mmpch.h
     SLUBAllocator.hpp
     DebugDefenitions.hpp
-    PageAllocator.hpp)
+    PageAllocator.hpp
+    TLSFAllocator.hpp)
 
 SET(PROJECT_SOURCES
     MemoryManager.cpp)

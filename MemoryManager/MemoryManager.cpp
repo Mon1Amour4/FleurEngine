@@ -203,13 +203,14 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     , m_UsedBytes(0)
     , slubAlloc(nullptr)
     , pageAlloc(nullptr)
+    , tlsfAlloc(nullptr)
 {
     MM_ASSERT(m_Capacity > 0 && m_PageSize > 0);
 
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
     // PageAllocator:
-    uint32_t pageAllocOffset = offset + sizeof(SLUBAllocator);
+    uint32_t pageAllocOffset = offset + sizeof(SLUBAllocator) + sizeof(TLSFAllocator);
     uint32_t pageAllocContent = pageAllocOffset + sizeof(PageAllocator);
     pageAlloc = new (m_Head + pageAllocOffset) PageAllocator(memoryStart + 4096, m_Capacity, m_PageSize);
 
@@ -218,9 +219,13 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     // SLUBAllocator:
     slubAlloc = new (m_Head + offset) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
+    // TLSFAllocator:
+    tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(5, 4096);
+
     MM_ASSERT(slubAlloc);
     MM_DEBUG_BREAK(TOCHARPTR(slubAlloc) - memoryStart != sizeof(MM::MemoryManager));
-    MM_DEBUG_BREAK(TOCHARPTR(pageAlloc) - memoryStart != (sizeof(MM::MemoryManager) + sizeof(SLUBAllocator)));
+    MM_DEBUG_BREAK(TOCHARPTR(tlsfAlloc) - memoryStart != sizeof(MM::MemoryManager) + sizeof(SLUBAllocator));
+    MM_DEBUG_BREAK(TOCHARPTR(pageAlloc) - memoryStart != (sizeof(MM::MemoryManager) + sizeof(SLUBAllocator) + sizeof(TLSFAllocator)));
 }
 MM::MemoryManager::~MemoryManager()
 {
