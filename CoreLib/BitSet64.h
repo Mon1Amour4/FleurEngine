@@ -27,8 +27,8 @@ inline uint64_t bit_toggle(uint64_t number, uint8_t n)
     return number ^ (static_cast<uint64_t>(1) << n);
 }
 
-// True     = 1 = Occupied
-// False    = 0 = Free
+// True     = 1 = Set
+// False    = 0 = zero
 inline bool bit_check(uint64_t number, uint8_t n)
 {
     return (number & (static_cast<uint64_t>(1) << n)) != 0;
