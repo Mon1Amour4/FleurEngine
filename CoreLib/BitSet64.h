@@ -79,6 +79,7 @@ inline bool bit_scan_reverse64(uint64_t number, uint32_t* idx)
 class BitSet64
 {
 public:
+    BitSet64();
     BitSet64(uint8_t bits);
 
     bool IsBitOccupied(uint8_t idx) const;

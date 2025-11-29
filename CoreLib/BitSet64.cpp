@@ -21,6 +21,11 @@ std::ostream& Fleur::Core::operator<<(std::ostream& os, const Fleur::Core::BitSe
 }
 
 //======================================================================
+Fleur::Core::BitSet64::BitSet64()
+    : m_Bitmap(0)
+    , m_Bits(0)
+{
+}
 Fleur::Core::BitSet64::BitSet64(uint8_t bits)
     : m_Bitmap(0)
     , m_Bits(bits)
