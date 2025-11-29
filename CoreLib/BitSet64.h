@@ -36,6 +36,9 @@ inline bool bit_check(uint64_t number, uint8_t n)
 
 inline bool bit_scan_forward(uint32_t number, uint32_t* idx)
 {
+    uint32_t fallback = 0;
+    if (!idx)
+        idx = &fallback;
 #if _MSC_VER
     return _BitScanForward(reinterpret_cast<unsigned long*>(idx), number);
 #else
