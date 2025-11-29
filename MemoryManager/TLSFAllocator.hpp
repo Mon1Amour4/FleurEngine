@@ -71,14 +71,25 @@ struct TLSFAllocator
     uint32_t m_SLI;  // Power of two in range[1,32]
     const uint32_t m_MBS;
 
-    Fleur::Core::BitSet64 m_FirstLevelBitmap;
+    Fleur::Core::BitSet64 m_FL_Bitmap;
+    Fleur::Core::BitSet64 m_SL_Bitmap[32];
 
-    TLSFAllocator(uint32_t sli, uint32_t mbs)
-        : m_FLI(32)
+    free_block_header* m_FreeListHead[32][32]{nullptr};
+
+    PageAllocator* m_PageAlloc;
+
+    TLSFAllocator(PageAllocator* alloc, uint32_t sli, uint32_t mbs)
+        : m_FLI(21)
         , m_SLI(sli)
         , m_MBS(mbs)
-        , m_FirstLevelBitmap(32)
+        , m_FL_Bitmap(32)
+        , m_PageAlloc(alloc)
     {
+        // Second level bitmap initialization
+        for (uint32_t i = 0; i < m_FLI; i++)
+        {
+            m_SL_Bitmap[i] = Fleur::Core::BitSet64(m_SLI);
+        }
         size_t listsNumber = pow(2, m_SLI) * (m_FLI - log2(m_MBS));
     }
 
