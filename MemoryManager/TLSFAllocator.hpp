@@ -102,9 +102,18 @@ private:
         // j - index of second array,   range:         0 <= j < 2^SLI
         uint32_t maxSubdivision = pow(2, m_SLI);
         uint32_t currentSubdivision = pow(2, i);
-        if (j == maxSubdivision)
+
+        uint32_t currentSize = 0;
+        if (j != maxSubdivision)
+        {
+            currentSize = currentSubdivision + pow(2, i - m_SLI) * j;
+        }
+        else
         {
             // Last size if a range of sized of current list
+            currentSize = pow(2, i + 1) - 1;
         }
+        return currentSize;
+    }
     }
 };
