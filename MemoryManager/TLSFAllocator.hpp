@@ -7,7 +7,66 @@
 
 struct TLSFAllocator
 {
-    // unsigned char* m_Head;
+    struct size_and_flags
+    {
+        char field[8];
+
+        // 1 - free
+        // 0 - used
+        inline bool is_free()
+        {
+            return field[0] == 1;
+        }
+        inline void set_free()
+        {
+            field[0] = 1;
+        }
+        inline void set_used()
+        {
+            field[0] = 0;
+        }
+
+        // 1 - last
+        // 0 - not last
+        inline bool is_last_physical_block()
+        {
+            return field[1] == 1;
+        }
+        inline void set_last_pysiacal_block()
+        {
+            field[1] = 1;
+        }
+        inline void set_non_last_pysiacal_block()
+        {
+            field[1] = 0;
+        }
+
+        inline void set_size(size_t size)
+        {
+            *reinterpret_cast<uint32_t*>(field[2]) = size;
+        }
+        inline uint32_t get_size()
+        {
+            return *reinterpret_cast<uint32_t*>(field[2]);
+        }
+    };
+
+    struct free_block_header
+    {
+        uint64_t size;
+
+        free_block_header* prev_phys_block;
+
+        free_block_header* next_free;
+        free_block_header* prev_free;
+    };
+
+    struct used_block_header
+    {
+        uint64_t size;
+        free_block_header* prev_phys_block;
+    };
+
     uint32_t m_FLI;
     uint32_t m_SLI;  // Power of two in range[1,32]
     const uint32_t m_MBS;
