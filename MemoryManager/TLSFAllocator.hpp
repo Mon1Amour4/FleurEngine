@@ -133,5 +133,82 @@ private:
     {
         *sl = (size >> (fl - m_SLI)) - pow(2, m_SLI);
     }
+
+    /**
+     * @brief Scans the SLI bitmap for the given FLI starting from *sl.
+     *
+     * Uses *sl as the starting SLI index and updates it to the position of the
+     * next set bit if found.
+     *
+     * @param fl  First-level index (FLI).
+     * @param sl  Pointer to SLI index (in/out). Must not be nullptr.
+     *
+     * @return true if a set bit was found, false otherwise.
+     */
+    inline bool sl_bitmap_lookup_from(uint32_t fl, uint32_t* sl)
+    {
+        auto* slBitmap = &m_SL_Bitmap[fl];
+        return slBitmap->scan_forward_from(*sl, sl);
+    }
+
+    inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
+    {
+        size += sizeof(free_block_header);
+        auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
+        MM_DEBUG_BREAK(ptr == nullptr);
+
+        auto flags = reinterpret_cast<size_and_flags*>(ptr);
+        flags->set_free();
+
+        if (sli != pow(2, m_SLI))
+            flags->set_non_last_pysiacal_block();
+        else
+            flags->is_last_physical_block();
+
+        flags->set_size(size);
+
+        auto header = reinterpret_cast<free_block_header*>(ptr);
+
+        if (sli > 0)
+            header->prev_phys_block = m_FreeListHead[fli][sli - 1];
+        else
+            header->prev_phys_block = nullptr;
+
+        header->next_free = nextFree;
+        header->prev_free = prevFree;
+
+        m_FL_Bitmap.SetBit(fli);
+        m_SL_Bitmap[fli].SetBit(sli);
+
+        return header;
+    }
+
+    inline void use_block(uint32_t fli, uint32_t sli)
+    {
+        MM_DEBUG_BREAK(m_FreeListHead[fli][sli] == nullptr)
+
+        free_block_header* header = reinterpret_cast<free_block_header*>(m_FreeListHead[fli][sli]);
+        m_FreeListHead[fli][sli] = header->next_free;
+        header->next_free->prev_free = nullptr;
+
+        header->next_free = nullptr;
+        header->prev_free = nullptr;
+
+        if (!m_FreeListHead[fli][sli])
+            m_SL_Bitmap[fli].ClearBit(sli);
+
+        if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
+            m_FL_Bitmap.ClearBit(fli);
+
+        size_and_flags* flags = reinterpret_cast<size_and_flags*>(header);
+        flags->set_used();
+    }
+
+    inline unsigned char* request_and_use_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
+    {
+        m_FreeListHead[fli][sli] = request_block(size, fli, sli, nullptr, nullptr);
+        use_block(fli, sli);
+        unsigned char* ptrToHeader = reinterpret_cast<unsigned char*>(m_FreeListHead[fli][sli]);
+        return (ptrToHeader + (sizeof(used_block_header)));
     }
 };
