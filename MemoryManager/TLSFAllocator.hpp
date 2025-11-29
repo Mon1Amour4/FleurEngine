@@ -3,6 +3,8 @@
 #include "BitSet64.h"
 #include "PageAllocator.hpp"
 
+#define PS sizeof(char*)
+
 struct TLSFAllocator
 {
     // unsigned char* m_Head;
