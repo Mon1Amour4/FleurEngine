@@ -93,6 +93,36 @@ struct TLSFAllocator
         size_t listsNumber = pow(2, m_SLI) * (m_FLI - log2(m_MBS));
     }
 
+    template <typename T, uint32_t ALign = 0>
+    [[nodiscard]] T* alocate(uint32_t count = 1)
+    {
+        size_t size = sizeof(T) * count;
+        uint32_t power = 0;
+        Fleur::Core::bit_scan_reverse(size, &power);
+        size_t alignedSize = pow(2, power);
+
+        uint32_t firstIndex, secondIndex = 0;
+        free_block_header* blockHead = nullptr;
+        if (FLI(&firstIndex))
+        {
+            SLI(alignedSize, &secondIndex, firstIndex);
+            free_block_header* blockHead = m_FreeListHead[firstIndex][secondIndex];
+            if (!blockHead)
+            {
+                if (sl_bitmap_lookup_from(firstIndex, &secondIndex))
+                {
+                    blockHead = m_FreeListHead[firstIndex][secondIndex];
+                    if (blockHead)
+                        use_block(firstIndex, secondIndex);
+                }
+            }
+        }
+
+        if (!blockHead)
+            blockHead = request_and_use_block();
+
+        return reinterpret_cast<T*>(blockHead);
+    }
 private:
     uint32_t CalculateNextSize(uint32_t i, uint32_t j) const
     {
