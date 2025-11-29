@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BitSet64.h"
+#include "PageAllocator.hpp"
 
 struct TLSFAllocator
 {

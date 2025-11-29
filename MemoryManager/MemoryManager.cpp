@@ -220,7 +220,7 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     slubAlloc = new (m_Head + offset) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
     // TLSFAllocator:
-    tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(5, 4096);
+    tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(pageAlloc, 5, 4096);
 
     MM_ASSERT(slubAlloc);
     MM_DEBUG_BREAK(TOCHARPTR(slubAlloc) - memoryStart != sizeof(MM::MemoryManager));
