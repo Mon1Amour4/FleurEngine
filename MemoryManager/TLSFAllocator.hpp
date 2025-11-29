@@ -115,5 +115,23 @@ private:
         }
         return currentSize;
     }
+    uint32_t CalculateStaticDataHeader() const
+    {
+        return sizeof(free_block_header) + (PS * pow(2, m_SLI) * (m_FLI - log2(m_MBS)));
+    }
+
+    void mapping(size_t size, uint32_t* fl, uint32_t* sl)
+    {
+        *sl = (size >> (*fl - m_SLI)) - pow(2, m_SLI);
+    }
+
+    inline bool FLI(size_t size, uint32_t* fl)
+    {
+        return Fleur::Core::bit_scan_reverse(size, fl);
+    }
+    inline void SLI(size_t size, uint32_t* sl, uint32_t fl)
+    {
+        *sl = (size >> (fl - m_SLI)) - pow(2, m_SLI);
+    }
     }
 };
