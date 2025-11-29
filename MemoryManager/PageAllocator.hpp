@@ -56,7 +56,8 @@ struct PageAllocator
         m_UsedBytes += pagesSizeBytes;
         m_Current += pagesSizeBytes;
 
-        *pagesCount = pages;
+        if (pagesCount)
+            *pagesCount = pages;
         return pagePtr;
     }
 
