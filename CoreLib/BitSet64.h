@@ -54,6 +54,21 @@ inline bool bit_scan_forward64(uint64_t number, uint32_t* idx)
 #endif
 }
 
+/**
+ * @brief Find the most significant set bit (MSB) in a 32-bit integer.
+ *
+ * Scans the bits of the input value starting from the most significant bit (bit 31)
+ * down to the least significant bit (bit 0). If a set bit (1) is found, the index
+ * of that bit is written to @p idx.
+ *
+ * @param number [in]  The 32-bit value to scan.
+ * @param idx    [out] Pointer to an unsigned integer that receives the bit index
+ *                     of the highest set bit. The value is undefined if no bits
+ *                     are set in @p number.
+ *
+ * @return true  If at least one bit is set in @p number.
+ * @return false If @p number contains no set bits.
+ */
 inline bool bit_scan_reverse(uint32_t number, uint32_t* idx)
 {
 #if _MSC_VER
@@ -110,6 +125,35 @@ public:
     bool ScanFirstFreeForward(uint32_t* val) const;
 
     uint8_t MaskCount() const;
+
+    /**
+     * @brief Scan the bitmap for the next set bit starting from a given position.
+     *
+     * Searches the internal bitmap for the first set bit (LSB -> MSB), beginning at
+     * bit index @p from. All bits below @p from are ignored. The scan is performed
+     * on either a 32-bit or 64-bit portion depending on the configured bitmap size.
+     *
+     * @param from [in]  Bit index to start scanning from (0-based). Bits before this
+     *                   index are skipped.
+     * @param idx  [out] Receives the index of the first set bit found at or after
+     *                   @p from. The output value is undefined if no bit is set.
+     *
+     * @return true  If a set bit was found at or after @p from.
+     * @return false If no bits are set in the scanned region.
+     */
+    inline bool scan_forward_from(uint32_t from, uint32_t* idx)
+    {
+        uint64_t shiftedBitmap = m_Bitmap;
+        if (from > 0)
+            shiftedBitmap = shiftedBitmap >> (from - 1);
+
+        if (m_Bits < 32)
+        {
+            return bit_scan_forward(static_cast<uint32_t>(shiftedBitmap), idx);
+        }
+
+        return bit_scan_forward64(shiftedBitmap, idx);
+    }
 
 private:
     uint64_t m_Bitmap;
