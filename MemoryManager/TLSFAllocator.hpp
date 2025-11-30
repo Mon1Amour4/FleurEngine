@@ -219,10 +219,13 @@ private:
 
         free_block_header* header = reinterpret_cast<free_block_header*>(m_FreeListHead[fli][sli]);
         m_FreeListHead[fli][sli] = header->next_free;
-        header->next_free->prev_free = nullptr;
+        if (header->next_free)
+        {
+            header->next_free->prev_free = nullptr;
+            header->next_free = nullptr;
+            header->prev_free = nullptr;
+        }
 
-        header->next_free = nullptr;
-        header->prev_free = nullptr;
 
         if (!m_FreeListHead[fli][sli])
             m_SL_Bitmap[fli].ClearBit(sli);
