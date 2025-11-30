@@ -89,8 +89,8 @@ struct PageAllocator
 
     unsigned char* m_Current;
     unsigned char* m_CachedPage;
-    uint32_t m_Capacity;
-    uint32_t m_UsedBytes;
+    size_t m_Capacity;
+    size_t m_UsedBytes;
     uint32_t m_PageSize;
 
     void GetSnapshot(char*& buffer) const
