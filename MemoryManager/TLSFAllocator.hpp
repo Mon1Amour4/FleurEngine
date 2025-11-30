@@ -92,15 +92,12 @@ struct TLSFAllocator
     [[nodiscard]] T* allocate(uint32_t count = 1)
     {
         size_t size = sizeof(T) * count + sizeof(free_block_header);
-        uint32_t power = 0;
-        Fleur::Core::bit_scan_reverse(size, &power);
-        size_t alignedSize = pow(2, power);
 
         uint32_t firstIndex, secondIndex = 0;
         free_block_header* blockHead = nullptr;
-        if (FLI(alignedSize, &firstIndex))
+        if (FLI(size, &firstIndex))
         {
-            SLI(alignedSize, firstIndex, &secondIndex);
+            SLI(size, firstIndex, &secondIndex);
             free_block_header* blockHead = m_FreeListHead[firstIndex][secondIndex];
             if (!blockHead)
             {
@@ -114,7 +111,7 @@ struct TLSFAllocator
         }
 
         if (!blockHead)
-            blockHead = request_and_use_block(alignedSize, firstIndex, secondIndex, nullptr, nullptr);
+            blockHead = request_and_use_block(size, firstIndex, secondIndex, nullptr, nullptr);
 
         unsigned char* returnPtr = TOCHARPTR(blockHead) + sizeof(free_block_header);
         return reinterpret_cast<T*>(returnPtr);
@@ -175,7 +172,7 @@ private:
     }
     inline void SLI(size_t size, uint32_t fl, uint32_t* sl)
     {
-        *sl = (size >> (fl - m_SLI)) - pow(2, m_SLI);
+        *sl = (size >> (fl - m_SLI)) - (1u << m_SLI);
     }
 
     /**
