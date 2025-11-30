@@ -179,16 +179,16 @@ public:
         {
             ptr = slubAlloc->allocate<T, Align>(slotSize, count);
         }
-        else if (slotSize > 2032 && slotSize < 64'000)
+        else if (slotSize > 2032 && slotSize < 4'194'304)
         {
-            // TODO: Two-Level Segregated Fit memory allocator
-            MM_DEBUG_BREAK(true);
+            ptr = tlsfAlloc->allocate<T>(count);
         }
         else
         {
             // TODO: VirtualAlloc
             MM_DEBUG_BREAK(true);
         }
+        MM_DEBUG_BREAK(ptr == nullptr);
         if (ptr)
             m_UsedBytes += slotSize;
         return ptr;
@@ -221,16 +221,14 @@ public:
         assert(sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
         uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
-        MM_DEBUG_BREAK(slotSize > m_PageSize);
 
         if (slotSize <= 2048)
         {
             slubAlloc->deallocate<T>(ptr, slotSize, count);
         }
-        else if (slotSize > 2048 && slotSize < 64'000)
+        else if (slotSize > 2048 && slotSize < 4'194'304)
         {
-            // TODO: Two-Level Segregated Fit memory allocator
-            MM_DEBUG_BREAK(true);
+            tlsfAlloc->deallocate<T>(ptr, count);
         }
         else
         {
