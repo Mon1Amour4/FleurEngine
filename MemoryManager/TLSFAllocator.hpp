@@ -83,7 +83,7 @@ struct TLSFAllocator
         // Second level bitmap initialization
         for (uint32_t i = 0; i < m_FLI; i++)
         {
-            m_SL_Bitmap[i] = Fleur::Core::BitSet64(m_SLI);
+            m_SL_Bitmap[i] = Fleur::Core::BitSet64(pow(2, m_SLI));
         }
         size_t listsNumber = pow(2, m_SLI) * (m_FLI - log2(m_MBS));
     }
