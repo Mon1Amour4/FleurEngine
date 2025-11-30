@@ -258,7 +258,7 @@ std::string MM::MemoryManager::GetSnapshot() const
 {
     std::string str;
 
-    uint64_t bufferSize = 1024l * 1024l * 10;
+    uint64_t bufferSize = 1024l * 1024l * 50;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
