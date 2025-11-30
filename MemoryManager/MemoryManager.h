@@ -170,16 +170,14 @@ public:
     {
         assert(count > 0 && sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
-        uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
-
-        bool isObjectLarge = slotSize > SIZE_OF_LARGE_TYPE / 2;
-
+        size_t size = sizeof(T) * count;
         T* ptr = nullptr;
-        if (slotSize <= 2032)
+        if (size <= 2032)
         {
-            ptr = slubAlloc->allocate<T, Align>(slotSize, count);
+            size = AlignTo(sizeof(T) * count, 8);
+            ptr = slubAlloc->allocate<T, Align>(size, count);
         }
-        else if (slotSize > 2032 && slotSize < 4'194'304)
+        else if (size > 2032 && size < 4'194'304)
         {
             ptr = tlsfAlloc->allocate<T>(count);
         }
@@ -188,9 +186,10 @@ public:
             // TODO: VirtualAlloc
             MM_DEBUG_BREAK(true);
         }
+
         MM_DEBUG_BREAK(ptr == nullptr);
         if (ptr)
-            m_UsedBytes += slotSize;
+            m_UsedBytes += size;
         return ptr;
     }
 
