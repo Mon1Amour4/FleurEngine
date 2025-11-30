@@ -234,11 +234,12 @@ private:
         flags->set_used();
     }
 
-    inline unsigned char* request_and_use_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
+    inline free_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
     {
-        m_FreeListHead[fli][sli] = request_block(size, fli, sli, nullptr, nullptr);
+        m_FreeListHead[fli][sli] = request_block(size, fli, sli, nextFree, prevFree);
+        free_block_header* requestedBlock = m_FreeListHead[fli][sli];
         use_block(fli, sli);
-        unsigned char* ptrToHeader = reinterpret_cast<unsigned char*>(m_FreeListHead[fli][sli]);
-        return (ptrToHeader + (sizeof(used_block_header)));
+        return requestedBlock;
+    }
     }
 };
