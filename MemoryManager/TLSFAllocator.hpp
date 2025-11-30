@@ -183,7 +183,6 @@ private:
 
     inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
     {
-        size += sizeof(free_block_header);
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
         MM_DEBUG_BREAK(ptr == nullptr);
 
