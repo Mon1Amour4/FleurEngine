@@ -141,18 +141,30 @@ public:
      * @return true  If a set bit was found at or after @p from.
      * @return false If no bits are set in the scanned region.
      */
-    inline bool scan_forward_from(uint32_t from, uint32_t* idx)
+    inline bool scan_forward_from(uint32_t* idx) const
     {
+        if (*idx > (uint8_t)(m_Bits - 1))
+            return false;
+
         uint64_t shiftedBitmap = m_Bitmap;
-        if (from > 0)
-            shiftedBitmap = shiftedBitmap >> (from - 1);
+        uint32_t originalIdx = *idx;
+        bool res = false;
+        if (*idx > 0)
+            shiftedBitmap = shiftedBitmap >> (*idx);
 
-        if (m_Bits < 32)
+        if (m_Bits <= 32)
         {
-            return bit_scan_forward(static_cast<uint32_t>(shiftedBitmap), idx);
+            res = bit_scan_forward(static_cast<uint32_t>(shiftedBitmap), idx);
         }
+        else
+        {
+            res = bit_scan_forward64(shiftedBitmap, idx);
+        }
+        if (res)
+            *idx += originalIdx;
+        return res;
+    }
 
-        return bit_scan_forward64(shiftedBitmap, idx);
     }
 
 private:

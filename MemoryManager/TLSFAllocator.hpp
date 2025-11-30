@@ -192,7 +192,7 @@ private:
     inline bool sl_bitmap_lookup_from(uint32_t fl, uint32_t* sl)
     {
         auto* slBitmap = &m_SL_Bitmap[fl];
-        return slBitmap->scan_forward_from(*sl, sl);
+        return slBitmap->scan_forward_from(sl);
     }
 
     inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
