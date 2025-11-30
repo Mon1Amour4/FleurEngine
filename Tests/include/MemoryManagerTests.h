@@ -20,7 +20,7 @@ void RangedTest(uint32_t from, uint32_t to)
     myFile.close();
 
     size_t allocated = 0;
-    size_t allocationsCupBytes = 1024ul * 1024ul * 1024ul * 3ul;
+    size_t allocationsCupBytes = 1024ul * 1024ul * 500ul;
 
     MM::Benchmark mark{2};
     struct info
@@ -69,10 +69,10 @@ void RangedTest(uint32_t from, uint32_t to)
 
         counter++;
 
-        /*std::ofstream myFile;
+        std::ofstream myFile;
         myFile.open("MemorySnapshot.txt", std::ios_base::app);
         myFile << manager->GetSnapshot();
-        myFile.close();*/
+        myFile.close();
     }
     mark.Print();
 
@@ -358,7 +358,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 1 FixedRangeAllocationsFrom64To86
+#if 1 FixedRangeAllocationsFrom2048To2097152
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To2097152)
 {
     RangedTest(2048, 2097152);
