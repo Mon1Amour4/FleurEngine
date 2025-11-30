@@ -7,10 +7,15 @@
 
 struct TLSFAllocator
 {
-    struct size_and_flags
+    struct free_block_header
     {
-        char bytes[8];
+        char bytes[2];
+        uint32_t _size;
 
+        free_block_header* prev_phys_block;
+
+        free_block_header* next_free;
+        free_block_header* prev_free;
         // 1 - free
         // 0 - used
         inline bool is_free()
@@ -43,24 +48,12 @@ struct TLSFAllocator
 
         inline void set_size(size_t size)
         {
-            std::memcpy(&bytes[2], &size, sizeof(uint32_t));
+            _size = size;
         }
         inline uint32_t get_size()
         {
-            uint32_t value;
-            std::memcpy(&value, &bytes[2], sizeof(uint32_t));
-            return value;
+            return _size;
         }
-    };
-
-    struct free_block_header
-    {
-        uint64_t size;
-
-        free_block_header* prev_phys_block;
-
-        free_block_header* next_free;
-        free_block_header* prev_free;
     };
 
     struct used_block_header
@@ -123,7 +116,8 @@ struct TLSFAllocator
         if (!blockHead)
             blockHead = request_and_use_block(alignedSize, firstIndex, secondIndex, nullptr, nullptr);
 
-        return reinterpret_cast<T*>(blockHead);
+        unsigned char* returnPtr = TOCHARPTR(blockHead) + sizeof(free_block_header);
+        return reinterpret_cast<T*>(returnPtr);
     }
 
     template <typename T>
@@ -132,14 +126,13 @@ struct TLSFAllocator
         MM_DEBUG_BREAK(ptr == nullptr)
 
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
-        size_and_flags* flags = reinterpret_cast<size_and_flags*>(bytePtr - sizeof(free_block_header));
-        free_block_header* header = reinterpret_cast<free_block_header*>(flags);
-        flags->set_free();
+        free_block_header* header = reinterpret_cast<free_block_header*>(bytePtr - sizeof(free_block_header));
+        header->set_free();
 
         uint32_t firstIndex, secondIndex = 0;
-        if (FLI(flags->get_size(), &firstIndex))
+        if (FLI(header->get_size(), &firstIndex))
         {
-            SLI(flags->get_size(), firstIndex, &secondIndex);
+            SLI(header->get_size(), firstIndex, &secondIndex);
             free_block(header, firstIndex, secondIndex);
         }
     }
@@ -207,17 +200,14 @@ private:
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
         MM_DEBUG_BREAK(ptr == nullptr);
 
-        auto flags = reinterpret_cast<size_and_flags*>(ptr);
-        flags->set_free();
-
-        if (sli != pow(2, m_SLI))
-            flags->set_non_last_pysiacal_block();
-        else
-            flags->is_last_physical_block();
-
-        flags->set_size(size);
-
         auto header = reinterpret_cast<free_block_header*>(ptr);
+        header->set_free();
+        if (sli != pow(2, m_SLI))
+            header->set_non_last_pysiacal_block();
+        else
+            header->is_last_physical_block();
+
+        header->set_size(size);
 
         if (sli > 0)
             header->prev_phys_block = m_FreeListHead[fli][sli - 1];
@@ -237,7 +227,7 @@ private:
     {
         MM_DEBUG_BREAK(m_FreeListHead[fli][sli] == nullptr)
 
-        free_block_header* header = reinterpret_cast<free_block_header*>(m_FreeListHead[fli][sli]);
+        free_block_header* header = m_FreeListHead[fli][sli];
         m_FreeListHead[fli][sli] = header->next_free;
         if (header->next_free)
         {
@@ -253,8 +243,7 @@ private:
         if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
             m_FL_Bitmap.ClearBit(fli);
 
-        size_and_flags* flags = reinterpret_cast<size_and_flags*>(header);
-        flags->set_used();
+        header->set_used();
     }
 
     inline free_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
