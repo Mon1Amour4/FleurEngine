@@ -9,45 +9,47 @@ struct TLSFAllocator
 {
     struct size_and_flags
     {
-        char field[8];
+        char bytes[8];
 
         // 1 - free
         // 0 - used
         inline bool is_free()
         {
-            return field[0] == 1;
+            return bytes[0] == 1;
         }
         inline void set_free()
         {
-            field[0] = 1;
+            bytes[0] = 1;
         }
         inline void set_used()
         {
-            field[0] = 0;
+            bytes[0] = 0;
         }
 
         // 1 - last
         // 0 - not last
         inline bool is_last_physical_block()
         {
-            return field[1] == 1;
+            return bytes[1] == 1;
         }
         inline void set_last_pysiacal_block()
         {
-            field[1] = 1;
+            bytes[1] = 1;
         }
         inline void set_non_last_pysiacal_block()
         {
-            field[1] = 0;
+            bytes[1] = 0;
         }
 
         inline void set_size(size_t size)
         {
-            *reinterpret_cast<uint32_t*>(field[2]) = size;
+            std::memcpy(&bytes[2], &size, sizeof(uint32_t));
         }
         inline uint32_t get_size()
         {
-            return *reinterpret_cast<uint32_t*>(field[2]);
+            uint32_t value;
+            std::memcpy(&value, &bytes[2], sizeof(uint32_t));
+            return value;
         }
     };
 
@@ -94,18 +96,18 @@ struct TLSFAllocator
     }
 
     template <typename T, uint32_t ALign = 0>
-    [[nodiscard]] T* alocate(uint32_t count = 1)
+    [[nodiscard]] T* allocate(uint32_t count = 1)
     {
-        size_t size = sizeof(T) * count;
+        size_t size = sizeof(T) * count + sizeof(free_block_header);
         uint32_t power = 0;
         Fleur::Core::bit_scan_reverse(size, &power);
         size_t alignedSize = pow(2, power);
 
         uint32_t firstIndex, secondIndex = 0;
         free_block_header* blockHead = nullptr;
-        if (FLI(&firstIndex))
+        if (FLI(alignedSize, &firstIndex))
         {
-            SLI(alignedSize, &secondIndex, firstIndex);
+            SLI(alignedSize, firstIndex, &secondIndex);
             free_block_header* blockHead = m_FreeListHead[firstIndex][secondIndex];
             if (!blockHead)
             {
@@ -119,7 +121,7 @@ struct TLSFAllocator
         }
 
         if (!blockHead)
-            blockHead = request_and_use_block();
+            blockHead = request_and_use_block(alignedSize, firstIndex, secondIndex, nullptr, nullptr);
 
         return reinterpret_cast<T*>(blockHead);
     }
