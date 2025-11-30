@@ -282,8 +282,7 @@ void MemoryInfo::AddAlloc(size_t slotSize)
     if (auto info = infos.find(slotSize); info != infos.end())
     {
         info->second.allocAmount++;
-        info->second.overallMemoryBytes += slotSize;
-        info->second.size = slotSize;
+        info->second.allocatedOverallMemoryBytes += slotSize;
     }
     else
     {
@@ -292,9 +291,11 @@ void MemoryInfo::AddAlloc(size_t slotSize)
 }
 void MemoryInfo::AddDealloc(size_t slotSize)
 {
-    auto info = infos.find(slotSize);
-    info->second.deallocAmount++;
-    info->second.size = slotSize;
+    if (auto info = infos.find(slotSize); info != infos.end())
+    {
+        info->second.deallocAmount++;
+        info->second.deallocatedOverallMemoryBytes += slotSize;
+    }
 }
 
 inline std::string MemoryInfo::FormatBytes(size_t bytes)
@@ -333,11 +334,12 @@ void MemoryInfo::Print() const
 
     char* tmp = buffer;
 
-    tmp += sprintf(tmp, "%-4s|%-11s|%-13s|%-18s|\n", "Size", "AllocAmount", "DeallocAmount", "OverallMemoryBytes");
+    tmp += sprintf(tmp, "%-9s|%-11s|%-18s|%-15s|%-40s|\n", "Size", "AllocAmount", "Allocated", "DeallocAmount", "Deallocated");
     for (const auto& info : items)
     {
-        tmp += sprintf(tmp, "%-4d|%-11d|%-13d|%-18s|\n", info.second.size, info.second.allocAmount, info.second.deallocAmount,
-                       MemoryInfo::FormatBytes(info.second.overallMemoryBytes).c_str());
+        tmp += sprintf(tmp, "%-9d|%-11d|%-18s|%-15d|%-40s|\n", info.first, info.second.allocAmount,
+                       MemoryInfo::FormatBytes(info.second.allocatedOverallMemoryBytes).c_str(), info.second.deallocAmount,
+                       MemoryInfo::FormatBytes(info.second.deallocatedOverallMemoryBytes).c_str());
     }
     std::cout << std::endl << buffer << std::endl;
 

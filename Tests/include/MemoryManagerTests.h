@@ -20,36 +20,52 @@ void RangedTest(uint32_t from, uint32_t to)
     myFile.close();
 
     size_t allocated = 0;
-    size_t allocationsCupBytes = 1024ul * 1024ul * 1024ul * 5;
+    size_t allocationsCupBytes = 1024ul * 1024ul * 1024ul * 3ul;
 
     MM::Benchmark mark{2};
-
+    struct info
+    {
+        int* ptr;
+        int count;
+        size_t size;
+    };
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> actionDist(from, to);
-    std::vector<std::pair<int, int*>> mm_pairs;
-    std::vector<std::pair<int, int*>> std_pairs;
+    std::vector<info> mm_pairs;
+    std::vector<info> std_pairs;
 
     std::cout << "Memory Manager benchmark\n";
     size_t counter = 0;
     for (size_t i = 0; allocated < allocationsCupBytes; i++)
     {
-        int size = (actionDist(gen) / sizeof(int) * sizeof(int));
+        size_t size = (actionDist(gen) / sizeof(int) * sizeof(int));
         int count = size / sizeof(int);
-        allocated += size;
 
+        if (size > 2032)
+        {
+            uint32_t power = 0;
+            Fleur::Core::bit_scan_reverse(size + sizeof(TLSFAllocator::free_block_header), &power);
+            size = pow(2, power);
+        }
+        else
+        {
+            size = MM::AlignTo(sizeof(int) * count, 8);
+        }
+        allocated += size;
         mark.StartAlloc();
-        mm_pairs.push_back({count, manager->allocate<int>(count)});
+        mm_pairs.push_back({manager->allocate<int>(count), count, size});
         mark.EndAlloc();
-        memoryInfo->AddAlloc(MM::AlignTo(sizeof(int) * count, 8));
+
+        memoryInfo->AddAlloc(size);
     }
 
     for (auto alloc : mm_pairs)
     {
         mark.StartDealloc();
-        manager->deallocate<int>(alloc.second, alloc.first);
+        manager->deallocate<int>(alloc.ptr, alloc.count);
         mark.EndDealloc();
-        memoryInfo->AddDealloc(MM::AlignTo(sizeof(int) * alloc.first, 8));
+        memoryInfo->AddDealloc(alloc.size);
 
         counter++;
 
@@ -67,14 +83,14 @@ void RangedTest(uint32_t from, uint32_t to)
     for (size_t i = 0; i < mm_pairs.size(); i++)
     {
         std_mark.StartAlloc();
-        uint32_t count = mm_pairs[i].first;
-        std_pairs.push_back({count, alloc.allocate(count)});
+        int count = mm_pairs[i].count;
+        std_pairs.push_back({alloc.allocate(count), count, mm_pairs[i].size});
         std_mark.EndAlloc();
     }
     for (size_t i = 0; i < mm_pairs.size(); i++)
     {
         std_mark.StartDealloc();
-        alloc.deallocate(std_pairs[i].second, std_pairs[i].first);
+        alloc.deallocate(std_pairs[i].ptr, std_pairs[i].count);
         std_mark.EndDealloc();
     }
     std_mark.Print();
@@ -141,7 +157,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
-#if false Array Allocations
+#if 0 Array Allocations
 TEST(TEST_SUITE_NAME, ArrayAllocations)
 {
     using namespace MM;
@@ -157,7 +173,7 @@ TEST(TEST_SUITE_NAME, ArrayAllocations)
 }
 #endif
 
-#if true Random Allocations
+#if 0 Random Allocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
@@ -267,7 +283,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
     Benchmark mark{2};
 
-    constexpr size_t iterations = 10'000'000;
+    constexpr size_t iterations = 10000;
     for (size_t i = 0; i < iterations; ++i)
     {
         bool doFree = (actionDist(gen) == 1);
@@ -342,7 +358,14 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if false FixedRangeAllocationsFrom64To86
+#if 1 FixedRangeAllocationsFrom64To86
+TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To2097152)
+{
+    RangedTest(2048, 2097152);
+}
+#endif
+
+#if 0 FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 46);

@@ -11,23 +11,23 @@ struct MemoryInfo
     struct record
     {
         record(uint32_t slotSize)
-            : size(slotSize)
-            , allocAmount(0)
+            : allocAmount(0)
             , deallocAmount(0)
-            , overallMemoryBytes(0) {};
+            , allocatedOverallMemoryBytes(0)
+            , deallocatedOverallMemoryBytes(0) {};
 
-        uint32_t size;
         size_t allocAmount;
         size_t deallocAmount;
-        size_t overallMemoryBytes;
+        size_t allocatedOverallMemoryBytes;
+        size_t deallocatedOverallMemoryBytes;
 
         inline bool operator<(const record& other) const
         {
-            return this->overallMemoryBytes < other.overallMemoryBytes;
+            return this->allocatedOverallMemoryBytes < other.allocatedOverallMemoryBytes;
         }
         inline bool operator>(const record& other) const
         {
-            return this->overallMemoryBytes > other.overallMemoryBytes;
+            return this->allocatedOverallMemoryBytes > other.allocatedOverallMemoryBytes;
         }
         inline bool operator<=(const record& other)
         {
