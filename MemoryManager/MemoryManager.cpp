@@ -210,9 +210,13 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     MM_PRINT("Memory Manager has allocated " << std::to_string(capacity) << " bytes\n");
 
     // PageAllocator:
-    uint32_t pageAllocOffset = offset + sizeof(SLUBAllocator) + sizeof(TLSFAllocator);
-    uint32_t pageAllocContent = pageAllocOffset + sizeof(PageAllocator);
-    pageAlloc = new (m_Head + pageAllocOffset) PageAllocator(memoryStart + 4096, m_Capacity, m_PageSize);
+    size_t pageAllocOffset = offset + sizeof(SLUBAllocator) + sizeof(TLSFAllocator);
+    size_t pageAllocContent = pageAllocOffset + sizeof(PageAllocator);
+    size_t pageAllocContentOffsetAligned = pageAllocContent / 4096;
+    if (pageAllocContent % 4096)
+        pageAllocContentOffsetAligned++;
+    pageAllocContentOffsetAligned = pageAllocContentOffsetAligned * 4096;
+    pageAlloc = new (m_Head + pageAllocOffset) PageAllocator(memoryStart + pageAllocContentOffsetAligned, m_Capacity, m_PageSize);
 
     MM_ASSERT(pageAlloc);
 
