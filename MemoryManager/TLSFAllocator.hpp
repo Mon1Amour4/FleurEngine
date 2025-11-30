@@ -274,4 +274,21 @@ private:
         }
         deallocatedBlock->prev_free = nullptr;
     }
+
+public:
+    void GetSnapshot(char*& buffer) const
+    {
+        buffer += std::sprintf(buffer, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
+
+        buffer += std::sprintf(buffer, "FLI: %-32s\n", m_FL_Bitmap.StringRepresentation().c_str());
+
+        uint32_t idx = 0;
+        while (m_FL_Bitmap.scan_forward_from(&idx))
+        {
+            buffer += std::sprintf(buffer, "SLI[%-2d]: %-32s\n", idx, m_SL_Bitmap[idx].StringRepresentation().c_str());
+            idx++;
+        }
+
+        buffer += std::sprintf(buffer, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
+    }
 };

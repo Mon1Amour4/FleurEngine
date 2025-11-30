@@ -261,6 +261,7 @@ std::string MM::MemoryManager::GetSnapshot() const
 
     pageAlloc->GetSnapshot(tmp);
     slubAlloc->GetSnapshot(tmp);
+    tlsfAlloc->GetSnapshot(tmp);
 
     str = buffer;
     delete[] buffer;
