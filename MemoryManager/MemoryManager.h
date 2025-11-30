@@ -263,7 +263,7 @@ private:
     unsigned char* m_Head;
 
     const size_t m_Capacity;
-    uint32_t m_UsedBytes;
+    size_t m_UsedBytes;
 
     const uint32_t m_PageSize;
     const uint8_t m_MinSlotSize;
