@@ -125,6 +125,25 @@ struct TLSFAllocator
 
         return reinterpret_cast<T*>(blockHead);
     }
+
+    template <typename T>
+    void deallocate(void* ptr, uint32_t count = 1)
+    {
+        MM_DEBUG_BREAK(ptr == nullptr)
+
+        unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
+        size_and_flags* flags = reinterpret_cast<size_and_flags*>(bytePtr - sizeof(free_block_header));
+        free_block_header* header = reinterpret_cast<free_block_header*>(flags);
+        flags->set_free();
+
+        uint32_t firstIndex, secondIndex = 0;
+        if (FLI(flags->get_size(), &firstIndex))
+        {
+            SLI(flags->get_size(), firstIndex, &secondIndex);
+            free_block(header, firstIndex, secondIndex);
+        }
+    }
+
 private:
     uint32_t CalculateNextSize(uint32_t i, uint32_t j) const
     {
@@ -245,5 +264,25 @@ private:
         use_block(fli, sli);
         return requestedBlock;
     }
+
+    inline void free_block(free_block_header* deallocatedBlock, uint32_t fli, uint32_t sli)
+    {
+        m_FL_Bitmap.SetBit(fli);
+        m_SL_Bitmap[fli].SetBit(sli);
+
+        free_block_header* currentHead = m_FreeListHead[fli][sli];
+        if (!currentHead)
+        {
+            m_FreeListHead[fli][sli] = deallocatedBlock;
+            deallocatedBlock->next_free = nullptr;
+        }
+        else
+        {
+            currentHead->prev_free = deallocatedBlock;
+            deallocatedBlock->next_free = currentHead;
+
+            m_FreeListHead[fli][sli] = deallocatedBlock;
+        }
+        deallocatedBlock->prev_free = nullptr;
     }
 };
