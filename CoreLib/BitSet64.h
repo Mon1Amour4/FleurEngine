@@ -165,6 +165,19 @@ public:
         return res;
     }
 
+    inline std::string StringRepresentation() const
+    {
+        std::string str;
+        str.reserve(64);
+
+        uint64_t bitsCount = MaskCount();
+
+        for (size_t i = 0; i < bitsCount; i++)
+        {
+            const bool bitSet = (m_Bitmap & (1ull << i)) != 0;
+            str += bitSet ? '1' : '0';
+        }
+        return str;
     }
 
 private:
