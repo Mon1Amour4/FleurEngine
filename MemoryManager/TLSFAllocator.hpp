@@ -159,7 +159,7 @@ private:
     {
         return Fleur::Core::bit_scan_reverse(size, fl);
     }
-    inline void SLI(size_t size, uint32_t* sl, uint32_t fl)
+    inline void SLI(size_t size, uint32_t fl, uint32_t* sl)
     {
         *sl = (size >> (fl - m_SLI)) - pow(2, m_SLI);
     }
