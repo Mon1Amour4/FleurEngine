@@ -16,6 +16,7 @@ struct TLSFAllocator
 
         free_block_header* next_free;
         free_block_header* prev_free;
+
         // 1 - free
         // 0 - used
         inline bool is_free()
@@ -277,14 +278,51 @@ public:
     {
         buffer += std::sprintf(buffer, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
 
-        buffer += std::sprintf(buffer, "FLI: %-32s\n", m_FL_Bitmap.StringRepresentation().c_str());
+        buffer += std::sprintf(buffer, "FLI:     {%-32s}\n", m_FL_Bitmap.StringRepresentation().c_str());
 
-        uint32_t idx = 0;
-        while (m_FL_Bitmap.scan_forward_from(&idx))
+        uint32_t fl_idx = 0;
+
+
+        while (m_FL_Bitmap.scan_forward_from(&fl_idx))
         {
-            buffer += std::sprintf(buffer, "SLI[%-2d]: %-32s\n", idx, m_SL_Bitmap[idx].StringRepresentation().c_str());
-            idx++;
+            int sl_freeIdx[32]{-1};
+            memset(&sl_freeIdx, -1, 32 * sizeof(int));
+            uint32_t sl_idx = 0;
+
+            while (m_SL_Bitmap[fl_idx].scan_forward_from(&sl_idx))
+            {
+                free_block_header* header = m_FreeListHead[fl_idx][sl_idx];
+
+                free_block_header* nextFreeBlock = header->next_free;
+                uint32_t freeBlocks = 1;
+
+                while (nextFreeBlock)
+                {
+                    freeBlocks++;
+                    nextFreeBlock = nextFreeBlock->next_free;
+                }
+                sl_freeIdx[sl_idx] = freeBlocks;
+                sl_idx++;
+            }
+            std::string str;
+            for (size_t i = 0; i < 32; i++)
+            {
+                if (sl_freeIdx[i] != -1)
+                {
+                    str += std::to_string(sl_freeIdx[i]);
+                }
+                else
+                {
+                    str += std::to_string(0);
+                }
+                str += '|';
+                if (i == 15)
+                    str += '\t';
+            }
+            buffer += std::sprintf(buffer, "SLI[%-2d]: {%s}\n", fl_idx, str.c_str());
+            fl_idx++;
         }
+
 
         buffer += std::sprintf(buffer, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
     }
