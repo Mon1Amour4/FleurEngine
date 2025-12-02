@@ -175,9 +175,9 @@ public:
         std::string str;
         str.reserve(64);
 
-        uint64_t bitsCount = MaskCount();
+        int bitsCount = MaskCount();
 
-        for (size_t i = 0; i < bitsCount; i++)
+        for (int i = bitsCount; i >= 0; i--)
         {
             const bool bitSet = (m_Bitmap & (1ull << i)) != 0;
             str += bitSet ? '1' : '0';
