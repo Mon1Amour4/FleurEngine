@@ -100,6 +100,61 @@ void RangedTest(uint32_t from, uint32_t to)
     manager->~MemoryManager();
 }
 
+#if 1 TLSFRandomTests
+TEST(TEST_SUITE_NAME, TLSFRandomTests)
+{
+    using namespace MM;
+
+    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
+
+    // Clear file:
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt");
+    myFile.close();
+
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<> actionDist(0, 5);
+    std::uniform_int_distribution<> sizeDist(2033, 4'194'303);
+
+    std::vector<std::pair<void*, uint32_t>> pairs;
+
+    size_t allocationCap = 1024ul * 1024ul * 1024ul;
+    for (size_t currentCap = 0; currentCap < allocationCap;)
+    {
+        bool doFree = (actionDist(gen) == 5);
+        int size = sizeDist(gen);
+
+        if (!doFree)
+        {
+            // Allocation
+            uint32_t count = size / sizeof(int);
+            int reminder = size % sizeof(int);
+            if (reminder > 0)
+                count++;
+
+            pairs.emplace_back(std::make_pair((void*)manager->allocate<int>(count), count));
+
+            currentCap += count * sizeof(int);
+        }
+        else
+        {
+            if (!pairs.empty())
+            {
+                auto pair = pairs.back();
+                manager->deallocate<int>(pair.first, pair.second);
+
+                pairs.pop_back();
+            }
+        }
+
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager->GetSnapshot();
+        myFile.close();
+    }
+}
+#endif
+
 #if 0 ChunksFreeListTest
 TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 {
@@ -358,7 +413,7 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 1 FixedRangeAllocationsFrom2048To2097152
+#if 0 FixedRangeAllocationsFrom2048To2097152
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To2097152)
 {
     RangedTest(2048, 2097152);
