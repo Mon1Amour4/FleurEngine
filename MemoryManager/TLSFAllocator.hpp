@@ -74,7 +74,7 @@ struct TLSFAllocator
     PageAllocator* m_PageAlloc;
 
     TLSFAllocator(PageAllocator* alloc, uint32_t sli, uint32_t mbs)
-        : m_FLI(21)
+        : m_FLI(32)
         , m_SLI(sli)
         , m_MBS(mbs)
         , m_FL_Bitmap(32)
