@@ -167,6 +167,8 @@ public:
         }
         if (res)
             *idx += originalIdx;
+        else
+            *idx = originalIdx;
         return res;
     }
 
