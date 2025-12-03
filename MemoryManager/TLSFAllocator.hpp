@@ -275,6 +275,25 @@ private:
         deallocatedBlock->prev_free = nullptr;
     }
 
+    inline free_block_header* search_suitable_block(uint8_t fl, uint8_t sl)
+    {
+        uint32_t tempBitmap = m_SL_Bitmap[fl].Get() & (0xFFFFFFFF << sl);
+        uint32_t nonEmptySl = 0;
+        uint32_t nonEmptyFL = 0;
+        if (tempBitmap != 0)
+        {
+            FLI(tempBitmap, &nonEmptySl);
+            nonEmptyFL = fl;
+        }
+        else
+        {
+            tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (fl + 1));
+            FLI(tempBitmap, &nonEmptyFL);
+            FLI(m_SL_Bitmap[nonEmptyFL].Get(), &nonEmptySl);
+        }
+        return m_FreeListHead[nonEmptyFL][nonEmptySl];
+    }
+
 public:
     void GetSnapshot(char*& buffer) const
     {
