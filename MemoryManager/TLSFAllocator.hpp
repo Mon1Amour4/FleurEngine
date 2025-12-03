@@ -98,7 +98,7 @@ struct TLSFAllocator
         free_block_header* blockHead = nullptr;
         if (FLI(size, &firstIndex))
         {
-            SLI(size, firstIndex, &secondIndex);
+            SLI(size, &firstIndex, &secondIndex);
             free_block_header* blockHead = m_FreeListHead[firstIndex][secondIndex];
             if (!blockHead)
             {
@@ -130,7 +130,7 @@ struct TLSFAllocator
         uint32_t firstIndex, secondIndex = 0;
         if (FLI(header->get_size(), &firstIndex))
         {
-            SLI(header->get_size(), firstIndex, &secondIndex);
+            SLI(header->get_size(), &firstIndex, &secondIndex);
             free_block(header, firstIndex, secondIndex);
         }
     }
@@ -171,9 +171,26 @@ private:
     {
         return Fleur::Core::bit_scan_reverse(size, fl);
     }
-    inline void SLI(size_t size, uint32_t fl, uint32_t* sl)
+    inline void SLI(size_t size, uint32_t* fl, uint32_t* sl)
     {
-        *sl = (size >> (fl - m_SLI)) - (1u << m_SLI);
+        uint8_t sli = (size >> (*fl - m_SLI)) - (1u << m_SLI);
+        uint32_t sliBlockSize = (1u << *fl) + (sli * (1u << *fl - m_SLI));
+
+        if (sliBlockSize >= size)
+        {
+            *sl = sli;
+            return;
+        }
+
+        if (sli < (1u << m_SLI) - 1)
+            *sl = sli + 1;
+        else
+        {
+            MM_DEBUG_BREAK(*fl + 1 >= 32);
+
+            *fl += 1;
+            *sl = 0;
+        }
     }
 
     /**
