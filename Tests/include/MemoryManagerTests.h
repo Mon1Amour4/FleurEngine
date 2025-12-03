@@ -100,7 +100,121 @@ void RangedTest(uint32_t from, uint32_t to)
     manager->~MemoryManager();
 }
 
-#if 1 TLSFRandomTests
+#if 1 TLSFManualTests
+TEST(TEST_SUITE_NAME, TLSFManualTests)
+{
+    using namespace MM;
+
+    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
+
+    // Clear file:
+    std::ofstream myFile;
+    myFile.open("MemorySnapshot.txt");
+    myFile.close();
+
+    auto deallocate = [manager](void* ptr, uint32_t count) -> void
+    {
+        manager->deallocate<int>(ptr, count);
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager->GetSnapshot();
+        myFile.close();
+    };
+    auto allocate = [manager](uint32_t count) -> void*
+    {
+        void* ptr = manager->allocate<int>(count);
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager->GetSnapshot();
+        myFile.close();
+        return ptr;
+    };
+    auto alloc_dealloc = [manager](uint32_t count)
+    {
+        void* ptr = manager->allocate<int>(count);
+        manager->deallocate<int>(ptr, count);
+        std::ofstream myFile;
+        myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        myFile << manager->GetSnapshot();
+        myFile.close();
+    };
+    auto tripple_alloc_dealloc = [manager](uint32_t count, const char* message)
+    {
+        void* ptr_1 = manager->allocate<int>(count);
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << message;
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
+        void* ptr_2 = manager->allocate<int>(count);
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
+        void* ptr_3 = manager->allocate<int>(count);
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
+        manager->deallocate<int>(ptr_1, count);
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
+        manager->deallocate<int>(ptr_2, count);
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
+        manager->deallocate<int>(ptr_3, count);
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+    };
+
+    alloc_dealloc(512);
+
+    // 2^11 + 0*2^6
+    tripple_alloc_dealloc(512, "512\n\0");
+
+    // 2^11 + 1*2^6
+    tripple_alloc_dealloc(528, "528\n\0");
+
+    // 2^11 + 15*2^6
+    tripple_alloc_dealloc(752, "752\n\0");
+
+    // 2^11 + 31*2^6
+    tripple_alloc_dealloc(1008, "1008\n\0");
+
+    // (2^11 + 31*2^6) + 4
+    tripple_alloc_dealloc(1009, "1009\n\0");
+}
+#endif
+
+#if 0 TLSFRandomTests
 TEST(TEST_SUITE_NAME, TLSFRandomTests)
 {
     using namespace MM;
