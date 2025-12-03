@@ -322,7 +322,7 @@ public:
                 sl_idx++;
             }
             std::string str;
-            for (size_t i = 0; i < 32; i++)
+            for (int i = 31; i >= 0; i--)
             {
                 if (sl_freeIdx[i] != -1)
                 {
