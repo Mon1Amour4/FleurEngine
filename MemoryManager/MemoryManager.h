@@ -221,11 +221,11 @@ public:
 
         uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
 
-        if (slotSize <= 2048)
+        if (slotSize <= 2032)
         {
             slubAlloc->deallocate<T>(ptr, slotSize, count);
         }
-        else if (slotSize > 2048 && slotSize < 4'194'304)
+        else if (slotSize > 2032 && slotSize < 4'194'304)
         {
             tlsfAlloc->deallocate<T>(ptr, count);
         }
