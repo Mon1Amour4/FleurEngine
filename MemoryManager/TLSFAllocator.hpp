@@ -173,24 +173,9 @@ private:
     }
     inline void SLI(size_t size, uint32_t* fl, uint32_t* sl)
     {
-        uint8_t sli = (size >> (*fl - m_SLI)) - (1u << m_SLI);
-        uint32_t sliBlockSize = (1u << *fl) + (sli * (1u << *fl - m_SLI));
-
-        if (sliBlockSize >= size)
-        {
-            *sl = sli;
-            return;
-        }
-
-        if (sli < (1u << m_SLI) - 1)
-            *sl = sli + 1;
-        else
-        {
-            MM_DEBUG_BREAK(*fl + 1 >= 32);
-
-            *fl += 1;
-            *sl = 0;
-        }
+        size = size + (1u << (*fl - m_SLI)) - 1;
+        FLI(size, fl);
+        *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
     }
 
     /**
