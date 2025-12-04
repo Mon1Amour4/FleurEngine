@@ -275,23 +275,20 @@ private:
         deallocatedBlock->prev_free = nullptr;
     }
 
-    inline free_block_header* search_suitable_block(uint8_t fl, uint8_t sl)
+    inline free_block_header* search_suitable_block(uint32_t* fl, uint32_t* sl)
     {
-        uint32_t tempBitmap = m_SL_Bitmap[fl].Get() & (0xFFFFFFFF << sl);
-        uint32_t nonEmptySl = 0;
-        uint32_t nonEmptyFL = 0;
+        uint32_t tempBitmap = m_SL_Bitmap[*fl].Get() & (0xFFFFFFFF << *sl);
         if (tempBitmap != 0)
         {
-            FLI(tempBitmap, &nonEmptySl);
-            nonEmptyFL = fl;
+            FLI(tempBitmap, sl);
         }
         else
         {
-            tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (fl + 1));
-            FLI(tempBitmap, &nonEmptyFL);
-            FLI(m_SL_Bitmap[nonEmptyFL].Get(), &nonEmptySl);
+            tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (*fl + 1));
+            FLI(tempBitmap, fl);
+            FLI(m_SL_Bitmap[*fl].Get(), sl);
         }
-        return m_FreeListHead[nonEmptyFL][nonEmptySl];
+        return m_FreeListHead[*fl][*sl];
     }
 
 public:
