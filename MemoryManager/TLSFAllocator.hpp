@@ -99,16 +99,9 @@ struct TLSFAllocator
         if (FLI(size, &firstIndex))
         {
             SLI(size, &firstIndex, &secondIndex);
-            free_block_header* blockHead = m_FreeListHead[firstIndex][secondIndex];
-            if (!blockHead)
-            {
-                if (sl_bitmap_lookup_from(firstIndex, &secondIndex))
-                {
-                    blockHead = m_FreeListHead[firstIndex][secondIndex];
-                    if (blockHead)
-                        use_block(firstIndex, secondIndex);
-                }
-            }
+            blockHead = search_suitable_block(&firstIndex, &secondIndex);
+            if (blockHead)
+                use_block(firstIndex, secondIndex);
         }
 
         if (!blockHead)
