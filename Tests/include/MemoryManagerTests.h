@@ -207,10 +207,15 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
     tripple_alloc_dealloc(752, "752\n\0");
 
     // 2^11 + 31*2^6
-    tripple_alloc_dealloc(1008, "1008\n\0");
+    tripple_alloc_dealloc(1000, "1008\n\0");
 
     // (2^11 + 31*2^6) + 4
     tripple_alloc_dealloc(1009, "1009\n\0");
+
+    // test search_suitable_block
+    tripple_alloc_dealloc(736, "752\n\0");
+    tripple_alloc_dealloc(752, "752\n\0");
+    tripple_alloc_dealloc(728, "728\n\0");
 }
 #endif
 
