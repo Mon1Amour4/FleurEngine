@@ -94,7 +94,7 @@ struct TLSFAllocator
     {
         size_t size = sizeof(T) * count + sizeof(free_block_header);
 
-        uint32_t firstIndex, secondIndex = 0;
+        uint32_t firstIndex = 0, secondIndex = 0;
         free_block_header* blockHead = nullptr;
         if (FLI(size, &firstIndex))
         {
