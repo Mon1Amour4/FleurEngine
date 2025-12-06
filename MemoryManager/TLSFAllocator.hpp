@@ -47,15 +47,6 @@ struct TLSFAllocator
         {
             bytes[1] = 0;
         }
-
-        inline void set_size(size_t size)
-        {
-            _size = size;
-        }
-        inline uint32_t get_size()
-        {
-            return _size;
-        }
     };
 
     struct used_block_header
@@ -123,9 +114,9 @@ struct TLSFAllocator
         header->set_free();
 
         uint32_t firstIndex, secondIndex = 0;
-        if (Fleur::Core::bit_scan_reverse(header->get_size(), &firstIndex))
+        if (Fleur::Core::bit_scan_reverse(header->_size, &firstIndex))
         {
-            SLI(header->get_size(), &firstIndex, &secondIndex);
+            SLI(header->_size, &firstIndex, &secondIndex);
             free_block(header, firstIndex, secondIndex);
         }
     }
