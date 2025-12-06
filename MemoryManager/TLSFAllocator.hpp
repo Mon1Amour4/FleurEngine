@@ -263,25 +263,12 @@ private:
         }
         else
         {
-            uint8_t sliCap = get_max_sli_within_waste_limit(*fl, *sl);
-            if (sliCap == 0)
-                return nullptr;
-
             tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (*fl + 1));
             Fleur::Core::bit_scan_reverse(tempBitmap, fl);
             uint32_t tempSliBitmap = m_SL_Bitmap[*fl].Get();
-            tempSliBitmap &= (0xffffffff >> (32 - sliCap));
             Fleur::Core::bit_scan_reverse(tempSliBitmap, sl);
         }
         return m_FreeListHead[*fl][*sl];
-    }
-
-    uint8_t get_max_sli_within_waste_limit(uint8_t prevFli, uint8_t sli)
-    {
-        uint32_t nextSubbinSize = 1u << (prevFli + 1 - m_SLI);
-        uint32_t blockSize = (1 << prevFli) + (sli * (1 << (prevFli - m_SLI))) + sizeof(free_block_header);
-        uint32_t maxSize = blockSize * (1. + FRAG_LIMIT_PERCENT);
-        return (maxSize - blockSize) / nextSubbinSize;
     }
 
 public:
