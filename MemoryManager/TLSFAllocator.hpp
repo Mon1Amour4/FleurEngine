@@ -220,25 +220,25 @@ private:
     {
         MM_DEBUG_BREAK(m_FreeListHead[fli][sli] == nullptr)
 
-        free_block_header* header = m_FreeListHead[fli][sli];
-        m_FreeListHead[fli][sli] = header->next_free;
-        if (header->next_free)
+        free_block_header* currentBlock = m_FreeListHead[fli][sli];
+        free_block_header* nextBlock = currentBlock->next_free;
+
+        currentBlock->next_free = nullptr;
+        currentBlock->prev_free = nullptr;
+        currentBlock->set_used();
+
+        if (nextBlock)
+            nextBlock->prev_free = nullptr;
+        else
         {
-            header->next_free->prev_free = nullptr;
-            header->next_free = nullptr;
-            header->prev_free = nullptr;
+            m_SL_Bitmap[fli].ClearBit(sli);
+            if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
+                m_FL_Bitmap.ClearBit(fli);
         }
 
+        m_FreeListHead[fli][sli] = nextBlock;
 
-        if (!m_FreeListHead[fli][sli])
-            m_SL_Bitmap[fli].ClearBit(sli);
-
-        if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
-            m_FL_Bitmap.ClearBit(fli);
-
-        header->set_used();
-
-        return reinterpret_cast<used_block_header*>(header);
+        return reinterpret_cast<used_block_header*>(currentBlock);
     }
 
     inline used_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli)
