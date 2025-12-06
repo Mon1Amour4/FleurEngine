@@ -203,7 +203,7 @@ private:
         return slBitmap->scan_forward_from(sl);
     }
 
-    inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli)
+    inline free_block_header* request_block(size_t size)
     {
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
         MM_DEBUG_BREAK(ptr == nullptr);
@@ -243,7 +243,7 @@ private:
 
     inline used_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli)
     {
-        free_block_header* block = request_block(size, fli, sli);
+        free_block_header* block = request_block(size);
         insert(block, fli, sli);
         return use_block(fli, sli);
     }
