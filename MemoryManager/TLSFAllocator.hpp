@@ -97,7 +97,7 @@ struct TLSFAllocator
 
         uint32_t firstIndex = 0, secondIndex = 0;
         free_block_header* blockHead = nullptr;
-        if (FLI(size, &firstIndex))
+        if (Fleur::Core::bit_scan_reverse(size, &firstIndex))
         {
             SLI(size, &firstIndex, &secondIndex);
             blockHead = search_suitable_block(&firstIndex, &secondIndex);
@@ -122,7 +122,7 @@ struct TLSFAllocator
         header->set_free();
 
         uint32_t firstIndex, secondIndex = 0;
-        if (FLI(header->get_size(), &firstIndex))
+        if (Fleur::Core::bit_scan_reverse(header->get_size(), &firstIndex))
         {
             SLI(header->get_size(), &firstIndex, &secondIndex);
             free_block(header, firstIndex, secondIndex);
@@ -161,28 +161,13 @@ private:
         *sl = (size >> (*fl - m_SLI)) - pow(2, m_SLI);
     }
 
-    inline bool FLI(size_t size, uint32_t* fl)
-    {
-        return Fleur::Core::bit_scan_reverse(size, fl);
-    }
     inline void SLI(size_t size, uint32_t* fl, uint32_t* sl)
     {
         size = size + (1u << (*fl - m_SLI)) - 1;
-        FLI(size, fl);
+        Fleur::Core::bit_scan_reverse(size, fl);
         *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
     }
 
-    /**
-     * @brief Scans the SLI bitmap for the given FLI starting from *sl.
-     *
-     * Uses *sl as the starting SLI index and updates it to the position of the
-     * next set bit if found.
-     *
-     * @param fl  First-level index (FLI).
-     * @param sl  Pointer to SLI index (in/out). Must not be nullptr.
-     *
-     * @return true if a set bit was found, false otherwise.
-     */
     inline bool sl_bitmap_lookup_from(uint32_t fl, uint32_t* sl)
     {
         auto* slBitmap = &m_SL_Bitmap[fl];
@@ -274,7 +259,7 @@ private:
         uint32_t tempBitmap = m_SL_Bitmap[*fl].Get() & (0xFFFFFFFF << *sl);
         if (tempBitmap != 0)
         {
-            FLI(tempBitmap, sl);
+            Fleur::Core::bit_scan_reverse(tempBitmap, sl);
         }
         else
         {
@@ -283,10 +268,10 @@ private:
                 return nullptr;
 
             tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (*fl + 1));
-            FLI(tempBitmap, fl);
+            Fleur::Core::bit_scan_reverse(tempBitmap, fl);
             uint32_t tempSliBitmap = m_SL_Bitmap[*fl].Get();
             tempSliBitmap &= (0xffffffff >> (32 - sliCap));
-            FLI(tempSliBitmap, sl);
+            Fleur::Core::bit_scan_reverse(tempSliBitmap, sl);
         }
         return m_FreeListHead[*fl][*sl];
     }
