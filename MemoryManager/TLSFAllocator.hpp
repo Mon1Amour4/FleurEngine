@@ -273,12 +273,13 @@ private:
     {
         uint32_t tempBitmap = m_SL_Bitmap[*fl].Get() & (0xFFFFFFFF << *sl);
         if (tempBitmap != 0)
-        {
             Fleur::Core::bit_scan_reverse(tempBitmap, sl);
-        }
         else
         {
             tempBitmap = m_FL_Bitmap.Get() & (0xFFFFFFFF << (*fl + 1));
+            if (tempBitmap == 0)
+                return nullptr;
+
             Fleur::Core::bit_scan_reverse(tempBitmap, fl);
             uint32_t tempSliBitmap = m_SL_Bitmap[*fl].Get();
             Fleur::Core::bit_scan_reverse(tempSliBitmap, sl);
