@@ -4,12 +4,13 @@
 #include "PageAllocator.hpp"
 
 #define PS sizeof(char*)
-#define FRAG_LIMIT_PERCENT 0.03f
+#define SIZE_TRASHHOLD 2032
 
 struct TLSFAllocator
 {
     struct free_block_header
     {
+        // [0]F [1]T
         char bytes[2];
         uint32_t _size;
 
@@ -39,11 +40,12 @@ struct TLSFAllocator
         {
             return bytes[1] == 1;
         }
-        inline void set_last_pysiacal_block()
+        inline void set_last_pysiacal_block(free_block_header* prev)
         {
             bytes[1] = 1;
+            prev_phys_block = prev;
         }
-        inline void set_non_last_pysiacal_block()
+        inline void set_not_last_pysiacal_block()
         {
             bytes[1] = 0;
         }
@@ -51,10 +53,42 @@ struct TLSFAllocator
 
     struct used_block_header
     {
+        // [0]F  1:free, 0:used
+        // [1]T  1:last, 0:not last
         char bytes[2];
         uint32_t _size;
 
         free_block_header* prev_phys_block;
+
+        // 1 - free
+        // 0 - used
+        inline bool is_free()
+        {
+            return bytes[0] == 1;
+        }
+        inline void set_free()
+        {
+            bytes[0] = 1;
+        }
+        inline void set_used()
+        {
+            bytes[0] = 0;
+        }
+
+        // 1 - last
+        // 0 - not last
+        inline bool is_last_physical_block()
+        {
+            return bytes[1] == 1;
+        }
+        inline void set_last_pysiacal_block()
+        {
+            bytes[1] = 1;
+        }
+        inline void set_not_last_pysiacal_block()
+        {
+            bytes[1] = 0;
+        }
     };
 
     uint32_t m_FLI;
@@ -87,16 +121,16 @@ struct TLSFAllocator
     [[nodiscard]] T* allocate(uint32_t count = 1)
     {
         uint32_t firstIndex = 0, secondIndex = 0;
-        free_block_header* foundBlock = nullptr;
+        used_block_header* foundBlock = nullptr;
         free_block_header* remainingBlock = nullptr;
 
-        size_t size = sizeof(T) * count + sizeof(free_block_header);
+        size_t size = sizeof(T) * count + sizeof(used_block_header);
 
         foundBlock = get_block(size, &firstIndex, &secondIndex);
-        if (foundBlock->_size > size)
+        if (foundBlock->_size - size > SIZE_TRASHHOLD)
         {
             remainingBlock = split(foundBlock, size);
-            mapping(sizeof(remainingBlock), &firstIndex, &secondIndex);
+            mapping(remainingBlock->_size, &firstIndex, &secondIndex);
             insert(remainingBlock, firstIndex, secondIndex);
         }
 
@@ -169,35 +203,20 @@ private:
         return slBitmap->scan_forward_from(sl);
     }
 
-    inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
+    inline free_block_header* request_block(size_t size, uint32_t fli, uint32_t sli)
     {
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
         MM_DEBUG_BREAK(ptr == nullptr);
 
         auto header = reinterpret_cast<free_block_header*>(ptr);
+        header->_size = size;
         header->set_free();
-        if (sli != pow(2, m_SLI))
-            header->set_non_last_pysiacal_block();
-        else
-            header->is_last_physical_block();
-
-        header->set_size(size);
-
-        if (sli > 0)
-            header->prev_phys_block = m_FreeListHead[fli][sli - 1];
-        else
-            header->prev_phys_block = nullptr;
-
-        header->next_free = nextFree;
-        header->prev_free = prevFree;
-
-        m_FL_Bitmap.SetBit(fli);
-        m_SL_Bitmap[fli].SetBit(sli);
+        header->set_last_pysiacal_block(nullptr);
 
         return header;
     }
 
-    inline void use_block(uint32_t fli, uint32_t sli)
+    inline used_block_header* use_block(uint32_t fli, uint32_t sli)
     {
         MM_DEBUG_BREAK(m_FreeListHead[fli][sli] == nullptr)
 
@@ -218,14 +237,15 @@ private:
             m_FL_Bitmap.ClearBit(fli);
 
         header->set_used();
+
+        return reinterpret_cast<used_block_header*>(header);
     }
 
-    inline free_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli, free_block_header* nextFree, free_block_header* prevFree)
+    inline used_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli)
     {
-        m_FreeListHead[fli][sli] = request_block(size, fli, sli, nextFree, prevFree);
-        free_block_header* requestedBlock = m_FreeListHead[fli][sli];
-        use_block(fli, sli);
-        return requestedBlock;
+        free_block_header* block = request_block(size, fli, sli);
+        insert(block, fli, sli);
+        return use_block(fli, sli);
     }
 
     inline void free_block(free_block_header* deallocatedBlock, uint32_t fli, uint32_t sli)
@@ -266,7 +286,7 @@ private:
         return m_FreeListHead[*fl][*sl];
     }
 
-    inline free_block_header* get_block(uint32_t size, uint32_t* fl, uint32_t* sl)
+    inline used_block_header* get_block(uint32_t size, uint32_t* fl, uint32_t* sl)
     {
         free_block_header* foundBlock = nullptr;
 
@@ -275,14 +295,42 @@ private:
             SLI(size, fl, sl);
             foundBlock = search_suitable_block(fl, sl);
             if (foundBlock)
-                use_block(*fl, *sl);
-            return foundBlock;
+                return use_block(*fl, *sl);
         }
 
         if (!foundBlock)
-            foundBlock = request_and_use_block(size, *fl, *sl, nullptr, nullptr);
+            return request_and_use_block(size, *fl, *sl);
+    }
 
-        return foundBlock;
+    inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)
+    {
+        uint32_t remainingSize = usedBlock->_size - usedSize;
+        usedBlock->set_not_last_pysiacal_block();
+
+        unsigned char* remainingBlockBytePtr = reinterpret_cast<unsigned char*>(usedBlock) + sizeof(used_block_header) + usedBlock->_size;
+        free_block_header* remainingBlock = reinterpret_cast<free_block_header*>(remainingBlockBytePtr);
+
+        remainingBlock->_size = remainingSize;
+        remainingBlock->set_free();
+        remainingBlock->set_last_pysiacal_block(reinterpret_cast<free_block_header*>(usedBlock));
+        remainingBlock->next_free = nullptr;
+        remainingBlock->prev_free = nullptr;
+
+        return remainingBlock;
+    }
+
+    inline void insert(free_block_header* block, uint32_t fli, uint32_t sli)
+    {
+        m_FL_Bitmap.SetBit(fli);
+        m_SL_Bitmap[fli].SetBit(sli);
+
+        free_block_header* currentBlock = m_FreeListHead[fli][sli];
+        block->next_free = currentBlock;
+        block->prev_free = nullptr;
+        if (currentBlock)
+            currentBlock->prev_free = block;
+
+        m_FreeListHead[fli][sli] = block;
     }
 
 public:
