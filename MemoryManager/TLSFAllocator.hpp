@@ -60,7 +60,9 @@ struct TLSFAllocator
 
     struct used_block_header
     {
-        uint64_t size;
+        char bytes[2];
+        uint32_t _size;
+
         free_block_header* prev_phys_block;
     };
 
@@ -93,22 +95,21 @@ struct TLSFAllocator
     template <typename T, uint32_t ALign = 0>
     [[nodiscard]] T* allocate(uint32_t count = 1)
     {
+        uint32_t firstIndex = 0, secondIndex = 0;
+        free_block_header* foundBlock = nullptr;
+        free_block_header* remainingBlock = nullptr;
+
         size_t size = sizeof(T) * count + sizeof(free_block_header);
 
-        uint32_t firstIndex = 0, secondIndex = 0;
-        free_block_header* blockHead = nullptr;
-        if (Fleur::Core::bit_scan_reverse(size, &firstIndex))
+        foundBlock = get_block(size, &firstIndex, &secondIndex);
+        if (foundBlock->_size > size)
         {
-            SLI(size, &firstIndex, &secondIndex);
-            blockHead = search_suitable_block(&firstIndex, &secondIndex);
-            if (blockHead)
-                use_block(firstIndex, secondIndex);
+            remainingBlock = split(foundBlock, size);
+            mapping(sizeof(remainingBlock), &firstIndex, &secondIndex);
+            insert(remainingBlock, firstIndex, secondIndex);
         }
 
-        if (!blockHead)
-            blockHead = request_and_use_block(size, firstIndex, secondIndex, nullptr, nullptr);
-
-        unsigned char* returnPtr = TOCHARPTR(blockHead) + sizeof(free_block_header);
+        unsigned char* returnPtr = TOCHARPTR(foundBlock) + sizeof(free_block_header);
         return reinterpret_cast<T*>(returnPtr);
     }
 
@@ -158,7 +159,10 @@ private:
 
     void mapping(size_t size, uint32_t* fl, uint32_t* sl)
     {
-        *sl = (size >> (*fl - m_SLI)) - pow(2, m_SLI);
+        if (Fleur::Core::bit_scan_reverse(size, fl))
+        {
+            SLI(size, fl, sl);
+        }
     }
 
     inline void SLI(size_t size, uint32_t* fl, uint32_t* sl)
@@ -269,6 +273,25 @@ private:
             Fleur::Core::bit_scan_reverse(tempSliBitmap, sl);
         }
         return m_FreeListHead[*fl][*sl];
+    }
+
+    inline free_block_header* get_block(uint32_t size, uint32_t* fl, uint32_t* sl)
+    {
+        free_block_header* foundBlock = nullptr;
+
+        if (Fleur::Core::bit_scan_reverse(size, fl))
+        {
+            SLI(size, fl, sl);
+            foundBlock = search_suitable_block(fl, sl);
+            if (foundBlock)
+                use_block(*fl, *sl);
+            return foundBlock;
+        }
+
+        if (!foundBlock)
+            foundBlock = request_and_use_block(size, *fl, *sl, nullptr, nullptr);
+
+        return foundBlock;
     }
 
 public:
