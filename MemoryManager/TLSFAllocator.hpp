@@ -4,7 +4,7 @@
 #include "PageAllocator.hpp"
 
 #define PS sizeof(char*)
-#define SIZE_TRASHHOLD 2032
+#define SIZE_TRASHHOLD 2032 + sizeof(used_block_header)
 
 struct TLSFAllocator
 {
@@ -134,7 +134,7 @@ struct TLSFAllocator
             insert(remainingBlock, firstIndex, secondIndex);
         }
 
-        unsigned char* returnPtr = TOCHARPTR(foundBlock) + sizeof(free_block_header);
+        unsigned char* returnPtr = TOCHARPTR(foundBlock) + sizeof(used_block_header);
         return reinterpret_cast<T*>(returnPtr);
     }
 
@@ -144,14 +144,22 @@ struct TLSFAllocator
         MM_DEBUG_BREAK(ptr == nullptr)
 
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
-        free_block_header* header = reinterpret_cast<free_block_header*>(bytePtr - sizeof(free_block_header));
-        header->set_free();
+        free_block_header* block = reinterpret_cast<free_block_header*>(bytePtr - sizeof(used_block_header));
+        MM_DEBUG_BREAK(block->_size > 5'000'000)
+        block->set_free();
+
+        // debug
+        uint32_t debug_fli = 0, debug_sli = 0;
+        mapping(block->_size, &debug_fli, &debug_sli);
+        // end of debug
+        free_block_header* mergedBlock = merge_left(block);
+        merge_right(mergedBlock);
 
         uint32_t firstIndex, secondIndex = 0;
-        if (Fleur::Core::bit_scan_reverse(header->_size, &firstIndex))
+        if (Fleur::Core::bit_scan_reverse(mergedBlock->_size, &firstIndex))
         {
-            SLI(header->_size, &firstIndex, &secondIndex);
-            free_block(header, firstIndex, secondIndex);
+            sli_no_rounding(mergedBlock->_size, &firstIndex, &secondIndex);
+            free_block(mergedBlock, firstIndex, secondIndex);
         }
     }
 
@@ -186,13 +194,18 @@ private:
     {
         if (Fleur::Core::bit_scan_reverse(size, fl))
         {
-            SLI(size, fl, sl);
+            sli_no_rounding(size, fl, sl);
         }
     }
 
-    inline void SLI(size_t size, uint32_t* fl, uint32_t* sl)
+    inline void SLI(uint32_t size, uint32_t* fl, uint32_t* sl)
     {
         size = size + (1u << (*fl - m_SLI)) - 1;
+        Fleur::Core::bit_scan_reverse(size, fl);
+        *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
+    }
+    inline void sli_no_rounding(size_t size, uint32_t* fl, uint32_t* sl)
+    {
         Fleur::Core::bit_scan_reverse(size, fl);
         *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
     }
@@ -306,9 +319,11 @@ private:
     inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)
     {
         uint32_t remainingSize = usedBlock->_size - usedSize;
+        usedBlock->_size = usedSize;
         usedBlock->set_not_last_pysiacal_block();
 
-        unsigned char* remainingBlockBytePtr = reinterpret_cast<unsigned char*>(usedBlock) + sizeof(used_block_header) + usedBlock->_size;
+        unsigned char* remainingBlockBytePtr = reinterpret_cast<unsigned char*>(usedBlock) + usedSize;
+        MM_DEBUG_BREAK(remainingBlockBytePtr - TOCHARPTR(usedBlock) != usedSize)
         free_block_header* remainingBlock = reinterpret_cast<free_block_header*>(remainingBlockBytePtr);
 
         remainingBlock->_size = remainingSize;
@@ -332,6 +347,42 @@ private:
             currentBlock->prev_free = block;
 
         m_FreeListHead[fli][sli] = block;
+    }
+
+    inline free_block_header* merge_left(free_block_header* block)
+    {
+        free_block_header* prevBlock = block;
+        if (block->prev_phys_block && block->prev_phys_block->is_free())
+        {
+            prevBlock = block->prev_phys_block;
+            prevBlock->_size += block->_size;
+
+            uint32_t fli = 0, sli = 0;
+            mapping(prevBlock->_size, &fli, &sli);
+            use_block(fli, sli);
+
+            block->_size = 0;
+        }
+        return prevBlock;
+    }
+
+    inline void merge_right(free_block_header* block)
+    {
+        unsigned char* blockBytePtr = reinterpret_cast<unsigned char*>(block);
+        free_block_header* rightBlock = reinterpret_cast<free_block_header*>(blockBytePtr + block->_size);
+        if (rightBlock && rightBlock->is_free())
+        {
+            block->_size += rightBlock->_size;
+            block->set_free();
+            block->next_free = nullptr;
+            block->prev_free = nullptr;
+
+            uint32_t fli = 0, sli = 0;
+            mapping(rightBlock->_size, &fli, &sli);
+            use_block(fli, sli);
+
+            rightBlock->_size = 0;
+        }
     }
 
 public:
