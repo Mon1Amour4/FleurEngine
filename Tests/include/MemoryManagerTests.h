@@ -100,7 +100,7 @@ void RangedTest(uint32_t from, uint32_t to)
     manager->~MemoryManager();
 }
 
-#if 1 TLSFManualTests
+#if 0 TLSFManualTests
 TEST(TEST_SUITE_NAME, TLSFManualTests)
 {
     using namespace MM;
@@ -132,11 +132,21 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
     auto alloc_dealloc = [manager](uint32_t count)
     {
         void* ptr = manager->allocate<int>(count);
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
+
         manager->deallocate<int>(ptr, count);
-        std::ofstream myFile;
-        myFile.open("MemorySnapshot.txt", std::ios_base::app);
-        myFile << manager->GetSnapshot();
-        myFile.close();
+
+        {
+            std::ofstream myFile;
+            myFile.open("MemorySnapshot.txt", std::ios_base::app);
+            myFile << manager->GetSnapshot();
+            myFile.close();
+        }
     };
     auto tripple_alloc_dealloc = [manager](uint32_t count, const char* message)
     {
@@ -195,6 +205,7 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
         }
     };
 
+    // 2^11 + 0*2^6 -> [11][1]
     alloc_dealloc(512);
 
     // 2^11 + 0*2^6
@@ -213,13 +224,29 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
     tripple_alloc_dealloc(1009, "1009\n\0");
 
     // test search_suitable_block
-    tripple_alloc_dealloc(736, "752\n\0");
+    tripple_alloc_dealloc(736, "test search_suitable_block\n\0");
     tripple_alloc_dealloc(752, "752\n\0");
     tripple_alloc_dealloc(728, "728\n\0");
+
+    // test split
+    // 2^21 + 15*2^16 -> [21][16]
+    alloc_dealloc(770048);
+
+    // 2^21 + 0*2^16 -> [21][15], remaining[19][28]
+    auto ptr_1 = allocate(524288);
+
+    // 2^19 + 27*2^14 ->[14][0], remaining [13][31]
+    auto _ptr2 = allocate(241664);
+
+
+    deallocate(_ptr2, 241664);
+
+    // [21][0]
+    deallocate(ptr_1, 524288);
 }
 #endif
 
-#if 0 TLSFRandomTests
+#if 1 TLSFRandomTests
 TEST(TEST_SUITE_NAME, TLSFRandomTests)
 {
     using namespace MM;
@@ -232,7 +259,7 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
     myFile.close();
 
     std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<> actionDist(0, 5);
+    std::uniform_int_distribution<> actionDist(0, 1);
     std::uniform_int_distribution<> sizeDist(2033, 4'194'303);
 
     std::vector<std::pair<void*, uint32_t>> pairs;
@@ -240,7 +267,7 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
     size_t allocationCap = 1024ul * 1024ul * 1024ul;
     for (size_t currentCap = 0; currentCap < allocationCap;)
     {
-        bool doFree = (actionDist(gen) == 5);
+        bool doFree = (actionDist(gen) == 0);
         int size = sizeDist(gen);
 
         if (!doFree)
