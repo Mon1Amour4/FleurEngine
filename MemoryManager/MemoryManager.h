@@ -9,6 +9,8 @@
 #include "SLUBAllocator.hpp"
 #include "TLSFAllocator.hpp"
 
+#define SMALL_SIZE 2032
+#define MEDIUN_SIZE 4'194'304
 namespace MM
 {
 static constexpr size_t PAGE_SIZE = 4 * 1024;
@@ -165,19 +167,19 @@ public:
      *  - Returns nullptr if the allocator fails to produce a valid memory block.
      */
     template <class T, size_t Align = 0>
-        requires Fleur::Concepts::IsDefaultConstructible<T>
     [[nodiscard]] T* allocate(uint32_t count = 1)
     {
         assert(count > 0 && sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
         size_t size = sizeof(T) * count;
         T* ptr = nullptr;
-        if (size <= 2032)
+
+        if (size <= SMALL_SIZE)
         {
             size = AlignTo(sizeof(T) * count, 8);
             ptr = slubAlloc->allocate<T, Align>(size, count);
         }
-        else if (size > 2032 && size < 4'194'304)
+        else if (size > SMALL_SIZE && size < MEDIUN_SIZE)
         {
             ptr = tlsfAlloc->allocate<T>(count);
         }
@@ -221,18 +223,24 @@ public:
 
         uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
 
-        if (slotSize <= 2032)
+        switch (slotSize)
+        {
+        case slotSize <= SMALL_SIZE:
         {
             slubAlloc->deallocate<T>(ptr, slotSize, count);
+            break;
         }
-        else if (slotSize > 2032 && slotSize < 4'194'304)
+        case slotSize > SMALL_SIZE&& slotSize < MEDIUN_SIZE:
         {
             tlsfAlloc->deallocate<T>(ptr, count);
+            break;
         }
-        else
+        case slotSize > MEDIUN_SIZE:
         {
             // TODO: VirtualAlloc
             MM_DEBUG_BREAK(true);
+            break;
+        }
         }
     }
 
