@@ -4,18 +4,13 @@
 #include <limits>
 
 #include "../Engine/Fleur/Concepts.hpp"
-#include "DebugDefenitions.hpp"
+#include "MemoryDefinitions.hpp"
 #include "PageAllocator.hpp"
 #include "SLUBAllocator.hpp"
 #include "TLSFAllocator.hpp"
 
 #define SMALL_SIZE 2032
 #define MEDIUN_SIZE 4'194'304
-#define II_NULL_INDEX 0xffffffff
-#define INVALID_OFFSET 0xFFFFFFFF
-#define LOCAL_HEAD(ptr, type) unsigned char* localHead = reinterpret_cast<unsigned char*>(ptr) + sizeof(type)
-#define TOCHARPTR(ptr) reinterpret_cast<unsigned char*>(ptr)
-#define CHUNK_STRIDE (sizeof(Chunk) + 4096)
 
 namespace MM
 {

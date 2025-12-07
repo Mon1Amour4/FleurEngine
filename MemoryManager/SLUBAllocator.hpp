@@ -1,5 +1,5 @@
 #pragma once
-#include "DebugDefenitions.hpp"
+#include "MemoryDefinitions.hpp"
 #include "PageAllocator.hpp"
 
 #define CHUNK_PAYLOAD_SIZE(pageSize) (pageSize - sizeof(Chunk))

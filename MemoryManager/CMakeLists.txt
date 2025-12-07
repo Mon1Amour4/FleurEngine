@@ -5,7 +5,7 @@ SET(PROJECT_HEADERS
     MemoryManager.h
     mmpch.h
     SLUBAllocator.hpp
-    DebugDefenitions.hpp
+    MemoryDefinitions.hpp
     PageAllocator.hpp
     TLSFAllocator.hpp)
 
