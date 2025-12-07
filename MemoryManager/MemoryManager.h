@@ -257,7 +257,21 @@ public:
         return new (ptr) T(std::forward<Args>(args)...);
     }
 
-    template <typename T[], size>
+    template <typename T, typename... Args, size_t Align = 0>
+    [[nodiscard]] T* construct_array_at(uint32_t count, Args&&... args)
+    {
+        T* ptr = allocate<T>(count);
+        if (count > 1)
+        {
+            for (size_t i = 0; i < count; i++)
+            {
+                new (ptr + i) T(std::forward<Args>(args)...);
+            }
+            return ptr;
+        }
+        return new (ptr) T(std::forward<Args>(args)...);
+    }
+
 
     /**
      * @brief Prints debug info about memory usage, pools and chunks.
