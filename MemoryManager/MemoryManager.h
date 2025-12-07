@@ -244,6 +244,15 @@ public:
         }
     }
 
+    template <typename T, typename... Args, size_t Align = 0>
+    [[nodiscard]] T* construct_at(Args&&... args)
+    {
+        T* ptr = allocate<T>();
+        return new (ptr) T(std::forward<Args>(args)...);
+    }
+
+    template <typename T[], size>
+
     /**
      * @brief Prints debug info about memory usage, pools and chunks.
      */
