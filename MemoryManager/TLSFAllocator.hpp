@@ -148,10 +148,6 @@ struct TLSFAllocator
         MM_DEBUG_BREAK(block->_size > 5'000'000)
         block->set_free();
 
-        // debug
-        uint32_t debug_fli = 0, debug_sli = 0;
-        mapping(block->_size, &debug_fli, &debug_sli);
-        // end of debug
         free_block_header* mergedBlock = merge_left(block);
         merge_right(mergedBlock);
 
@@ -198,11 +194,11 @@ private:
         }
     }
 
-    inline void SLI(uint32_t size, uint32_t* fl, uint32_t* sl)
+    inline void SLI(uint32_t* size, uint32_t* fl, uint32_t* sl)
     {
-        size = size + (1u << (*fl - m_SLI)) - 1;
-        Fleur::Core::bit_scan_reverse(size, fl);
-        *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
+        *size = *size + (1u << (*fl - m_SLI)) - 1;
+        Fleur::Core::bit_scan_reverse(*size, fl);
+        *sl = (*size >> (*fl - m_SLI)) - (1u << m_SLI);
     }
     inline void sli_no_rounding(size_t size, uint32_t* fl, uint32_t* sl)
     {
@@ -306,7 +302,7 @@ private:
 
         if (Fleur::Core::bit_scan_reverse(size, fl))
         {
-            SLI(size, fl, sl);
+            SLI(&size, fl, sl);
             foundBlock = search_suitable_block(fl, sl);
             if (foundBlock)
                 return use_block(*fl, *sl);
@@ -355,11 +351,12 @@ private:
         if (block->prev_phys_block && block->prev_phys_block->is_free())
         {
             prevBlock = block->prev_phys_block;
-            prevBlock->_size += block->_size;
 
             uint32_t fli = 0, sli = 0;
             mapping(prevBlock->_size, &fli, &sli);
             use_block(fli, sli);
+
+            prevBlock->_size += block->_size;
 
             block->_size = 0;
         }
@@ -377,9 +374,9 @@ private:
             block->next_free = nullptr;
             block->prev_free = nullptr;
 
-            uint32_t fli = 0, sli = 0;
-            mapping(rightBlock->_size, &fli, &sli);
-            use_block(fli, sli);
+            uint32_t rightBlockFli = 0, rightBlockSli = 0;
+            mapping(rightBlock->_size, &rightBlockFli, &rightBlockSli);
+            use_block(rightBlockFli, rightBlockSli);
 
             rightBlock->_size = 0;
         }
