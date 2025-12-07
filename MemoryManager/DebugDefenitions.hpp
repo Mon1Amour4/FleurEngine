@@ -2,8 +2,7 @@
 
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
-#define MEMORYMANAGER_PROFILING
-#ifdef _DEBUG&& defined MEMORYMANAGER_PROFILING
+#if defined(_DEBUG) && defined(MEMORYMANAGER_PROFILING)
 #include <algorithm>
 
 struct MemoryInfo
