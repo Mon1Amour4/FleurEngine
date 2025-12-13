@@ -15,9 +15,9 @@ void RangedTest(uint32_t from, uint32_t to)
     MemoryInfo* memoryInfo = new MemoryInfo();
 
     // Clear file:
-    std::ofstream myFile;
+    /*std::ofstream myFile;
     myFile.open("MemorySnapshot.txt");
-    myFile.close();
+    myFile.close();*/
 
     size_t allocated = 0;
     size_t allocationsCupBytes = 1024ul * 1024ul * 500ul;
@@ -69,10 +69,10 @@ void RangedTest(uint32_t from, uint32_t to)
 
         counter++;
 
-        std::ofstream myFile;
+        /*std::ofstream myFile;
         myFile.open("MemorySnapshot.txt", std::ios_base::app);
         myFile << manager->GetSnapshot();
-        myFile.close();
+        myFile.close();*/
     }
     mark.Print();
 
@@ -99,6 +99,93 @@ void RangedTest(uint32_t from, uint32_t to)
 
     manager->~MemoryManager();
 }
+
+#if 0 MemoryManagerRandomAllocationTestBenchmark
+TEST(TEST_SUITE_NAME, MemoryManagerRandomAllocationTestBenchmark)
+{
+    using namespace MM;
+
+    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
+
+    std::mt19937 gen(std::random_device{}());
+    std::uniform_int_distribution<> actionDist(0, 1);
+    std::uniform_int_distribution<> sizeDist(4, 4'194'303);
+
+    std::vector<std::pair<void*, uint32_t>> pairs;
+
+    struct info
+    {
+        bool alloc;
+        std::pair<void*, uint32_t> pair;
+    };
+    std::vector<info> std_pairs;
+
+    size_t allocationCap = 1024ul * 1024ul * 1024ul;
+
+    Benchmark mm_mark{2};
+
+    for (size_t currentCap = 0; currentCap < allocationCap;)
+    {
+        bool doFree = (actionDist(gen) == 0);
+        int size = sizeDist(gen);
+
+        if (!doFree)
+        {
+            // Allocation
+            uint32_t count = size / sizeof(int);
+            int reminder = size % sizeof(int);
+            if (reminder > 0)
+                count++;
+
+            mm_mark.StartAlloc();
+            pairs.emplace_back(std::make_pair((void*)manager->allocate<int>(count), count));
+            mm_mark.EndAlloc();
+
+            currentCap += count * sizeof(int);
+
+            std_pairs.emplace_back(true, pairs.back());
+        }
+        else
+        {
+            if (!pairs.empty())
+            {
+                auto pair = pairs.back();
+
+                mm_mark.StartDealloc();
+                manager->deallocate<int>(pair.first, pair.second);
+                mm_mark.EndDealloc();
+
+                std_pairs.emplace_back(false, pair);
+                pairs.pop_back();
+            }
+        }
+
+        // std::allocator
+        Benchmark std_mark{2};
+        while (!std_pairs.empty())
+        {
+            auto info = std_pairs.back();
+            if (info.alloc)
+            {
+                std::allocator<int> alloc;
+
+                std_mark.StartAlloc();
+                info.pair.first = reinterpret_cast<void*>(alloc.allocate(info.pair.second));
+                std_mark.EndAlloc();
+            }
+            else
+            {
+                std::allocator<int> alloc;
+
+                std_mark.StartDealloc();
+                alloc.deallocate((int*)info.pair.first, info.pair.second);
+                std_mark.EndDealloc();
+            }
+            std_pairs.pop_back();
+        }
+    }
+}
+#endif
 
 #if 0 TLSFManualTests
 TEST(TEST_SUITE_NAME, TLSFManualTests)
@@ -253,7 +340,7 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
 
     MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
 
-    // Clear file:
+    // Clear file :
     std::ofstream myFile;
     myFile.open("MemorySnapshot.txt");
     myFile.close();
@@ -263,8 +350,8 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
     std::uniform_int_distribution<> sizeDist(2033, 4'194'303);
 
     std::vector<std::pair<void*, uint32_t>> pairs;
-
-    size_t allocationCap = 1024ul * 1024ul * 1024ul;
+    Benchmark mark{1};
+    size_t allocationCap = 1024ul * 1024ul * 1024ul * 3ul;
     for (size_t currentCap = 0; currentCap < allocationCap;)
     {
         bool doFree = (actionDist(gen) == 0);
@@ -278,7 +365,9 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
             if (reminder > 0)
                 count++;
 
+            mark.StartAlloc();
             pairs.emplace_back(std::make_pair((void*)manager->allocate<int>(count), count));
+            mark.EndAlloc();
 
             currentCap += count * sizeof(int);
         }
@@ -287,7 +376,9 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
             if (!pairs.empty())
             {
                 auto pair = pairs.back();
+                mark.StartAlloc();
                 manager->deallocate<int>(pair.first, pair.second);
+                mark.EndDealloc();
 
                 pairs.pop_back();
             }
@@ -298,6 +389,7 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
         myFile << manager->GetSnapshot();
         myFile.close();
     }
+    mark.Print();
 }
 #endif
 
@@ -388,13 +480,11 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> actionDist(0, 2);
-    std::uniform_int_distribution<> countDist(1, 10);
-    std::uniform_int_distribution<> typeDist(0, 4);
+    std::uniform_int_distribution<> countSize(1, 2'194'304);
 
     struct AllocRecord
     {
-        uint8_t type;
-        uint8_t count;
+        uint32_t count;
         uint32_t id;
         void* ptr;
         bool alloc;
@@ -410,86 +500,16 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 
     uint32_t idCounter = 0;
 
-    auto allocFuncs = std::to_array({
-        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic1>(c); },
-        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic2>(c); },
-        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic3>(c); },
-        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic4>(c); },
-        +[](MemoryManager& m, int c) -> void* { return m.allocate<Synthetic::Synthetic5>(c); },
-    });
-
-    auto deallocFuncs = std::to_array({
-        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic1>((Synthetic::Synthetic1*)p, c); },
-        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic2>((Synthetic::Synthetic2*)p, c); },
-        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic3>((Synthetic::Synthetic3*)p, c); },
-        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic4>((Synthetic::Synthetic4*)p, c); },
-        +[](MemoryManager& m, void* p, int c) { m.deallocate<Synthetic::Synthetic5>((Synthetic::Synthetic5*)p, c); },
-    });
-
-    auto allocStdFuncs = std::to_array({
-        +[](int c) -> void*
-        {
-            std::allocator<Synthetic::Synthetic1> a;
-            return a.allocate(c);
-        },
-        +[](int c) -> void*
-        {
-            std::allocator<Synthetic::Synthetic2> a;
-            return a.allocate(c);
-        },
-        +[](int c) -> void*
-        {
-            std::allocator<Synthetic::Synthetic3> a;
-            return a.allocate(c);
-        },
-        +[](int c) -> void*
-        {
-            std::allocator<Synthetic::Synthetic4> a;
-            return a.allocate(c);
-        },
-        +[](int c) -> void*
-        {
-            std::allocator<Synthetic::Synthetic5> a;
-            return a.allocate(c);
-        },
-    });
-
-    auto deallocStdFuncs = std::to_array({
-        +[](void* p, int c)
-        {
-            std::allocator<Synthetic::Synthetic1> a;
-            a.deallocate((Synthetic::Synthetic1*)p, c);
-        },
-        +[](void* p, int c)
-        {
-            std::allocator<Synthetic::Synthetic2> a;
-            a.deallocate((Synthetic::Synthetic2*)p, c);
-        },
-        +[](void* p, int c)
-        {
-            std::allocator<Synthetic::Synthetic3> a;
-            a.deallocate((Synthetic::Synthetic3*)p, c);
-        },
-        +[](void* p, int c)
-        {
-            std::allocator<Synthetic::Synthetic4> a;
-            a.deallocate((Synthetic::Synthetic4*)p, c);
-        },
-        +[](void* p, int c)
-        {
-            std::allocator<Synthetic::Synthetic5> a;
-            a.deallocate((Synthetic::Synthetic5*)p, c);
-        },
-    });
-
     Benchmark mark{2};
 
-    constexpr size_t iterations = 10000;
-    for (size_t i = 0; i < iterations; ++i)
+    constexpr size_t allocCap = 1024 * 1024 * 1024;
+    size_t allocatedSize = 0;
+    for (size_t i = 0; allocatedSize < allocCap; i++)
     {
         bool doFree = (actionDist(gen) == 1);
-        int count = countDist(gen);
-        int type = typeDist(gen);
+        uint32_t size = countSize(gen);
+        uint32_t count = size / sizeof(int);
+        allocatedSize += size;
 
         if (doFree && !allocated.empty())
         {
@@ -498,30 +518,25 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             auto& rec = allocated[idx];
 
             mark.StartDealloc();
-            deallocFuncs[rec.type](*manager, rec.ptr, rec.count);
+            manager->deallocate<int>(rec.ptr, rec.count);
             mark.EndDealloc();
 
-            alloc_free.push_back({(uint8_t)rec.type, (uint8_t)rec.count, rec.id, rec.ptr, false});
-
+            alloc_free.push_back({(uint8_t)rec.count, rec.id, rec.ptr, false});
 
             allocated[idx] = allocated.back();
             allocated.pop_back();
         }
         else
         {
-            size_t size = Synthetic::SizeOf(type) * count;
-            if (size > 2032)
-                continue;
-
             ++idCounter;
 
             mark.StartAlloc();
-            void* ptr = allocFuncs[type](*manager, count);
+            void* ptr = manager->allocate<int>(count);
             mark.EndAlloc();
 
-            allocated.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
-            allocated_std.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
-            alloc_free.push_back({(uint8_t)type, (uint8_t)count, idCounter, ptr, true});
+            allocated.push_back({count, idCounter, ptr, true});
+            allocated_std.push_back({count, idCounter, ptr, true});
+            alloc_free.push_back({count, idCounter, ptr, true});
         }
         std::ofstream myFile;
         myFile.open("MemorySnapshot.txt", std::ios_base::app);
@@ -537,8 +552,9 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
     {
         if (rec.alloc)
         {
+            std::allocator<int> alloc;
             std_mark.StartAlloc();
-            helper[rec.id] = allocStdFuncs[rec.type](rec.count);
+            helper[rec.id] = alloc.allocate(rec.count);
             std_mark.EndAlloc();
         }
         else
@@ -547,7 +563,8 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
             if (it != helper.end())
             {
                 std_mark.StartDealloc();
-                deallocStdFuncs[rec.type](it->second, rec.count);
+                std::allocator<int> alloc;
+                alloc.deallocate((int*)rec.ptr, rec.count);
                 std_mark.EndDealloc();
 
                 helper.erase(it);
