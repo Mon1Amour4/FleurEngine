@@ -224,24 +224,17 @@ public:
 
         uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
 
-        switch (slotSize)
-        {
-        case slotSize <= SMALL_SIZE:
+        if (slotSize <= SMALL_SIZE)
         {
             slubAlloc->deallocate<T>(ptr, slotSize, count);
-            break;
         }
-        case slotSize > SMALL_SIZE&& slotSize < MEDIUN_SIZE:
+        else if (slotSize > SMALL_SIZE && slotSize < MEDIUN_SIZE)
         {
             tlsfAlloc->deallocate<T>(ptr, count);
-            break;
         }
-        case slotSize > MEDIUN_SIZE:
-        {
-            // TODO: VirtualAlloc
+        else
+        {  // TODO: VirtualAlloc
             MM_DEBUG_BREAK(true);
-            break;
-        }
         }
     }
 

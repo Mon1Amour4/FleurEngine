@@ -2,7 +2,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
-
+size_t TLSFAllocator::id = 0;
 //======================================================================
 // Benchmark
 MM::Benchmark::Benchmark(float AvgPeriodSecs)
@@ -224,7 +224,7 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     slubAlloc = new (m_Head + offset) SLUBAllocator(pageAlloc, m_PageSize, m_MinSlotSize);
 
     // TLSFAllocator:
-    tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(pageAlloc, 5, 2048);
+    tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(pageAlloc, 5, 2048, memoryStart + capacity);
 
     MM_ASSERT(slubAlloc);
     MM_DEBUG_BREAK(TOCHARPTR(slubAlloc) - memoryStart != sizeof(MM::MemoryManager));
@@ -246,7 +246,7 @@ MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity)
     MM_ASSERT(rawPtr);
 
     unsigned char* charPtr = reinterpret_cast<unsigned char*>(rawPtr);
-    return new (rawPtr) MM::MemoryManager(charPtr, sizeof(MM::MemoryManager), capacity);
+    return new (rawPtr) MM::MemoryManager(charPtr, sizeof(MM::MemoryManager), alignedCapacity);
 }
 
 
@@ -263,7 +263,7 @@ std::string MM::MemoryManager::GetSnapshot() const
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
 
-    pageAlloc->GetSnapshot(tmp);
+    // pageAlloc->GetSnapshot(tmp);
     slubAlloc->GetSnapshot(tmp);
     tlsfAlloc->GetSnapshot(tmp);
 
