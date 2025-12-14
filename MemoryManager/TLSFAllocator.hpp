@@ -130,7 +130,6 @@ struct TLSFAllocator
 
         MM_DEBUG_BREAK(foundBlock->_size < originalSize)
         MM_DEBUG_BREAK(foundBlock->_size == -1234)
-        MM_DEBUG_BREAK(foundBlock->_size < originalSize)
 
         if (foundBlock->_size - size > SIZE_TRASHHOLD)
         {
