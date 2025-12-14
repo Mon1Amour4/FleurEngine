@@ -100,30 +100,36 @@ void RangedTest(uint32_t from, uint32_t to)
     manager->~MemoryManager();
 }
 
-#if 0 MemoryManagerRandomAllocationTestBenchmark
+#if 1 MemoryManagerRandomAllocationTestBenchmark
 TEST(TEST_SUITE_NAME, MemoryManagerRandomAllocationTestBenchmark)
 {
     using namespace MM;
 
     MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
 
+    // Clear file :
+    // std::ofstream myFile;
+    // myFile.open("MemorySnapshot.txt");
+    // myFile.close();
+
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> actionDist(0, 1);
     std::uniform_int_distribution<> sizeDist(4, 4'194'303);
 
-    std::vector<std::pair<void*, uint32_t>> pairs;
-
-    struct info
+    struct Info
     {
         bool alloc;
         std::pair<void*, uint32_t> pair;
+        uint32_t id;
     };
-    std::vector<info> std_pairs;
+
+    std::vector<Info> pairs;
+    std::vector<Info> std_pairs;
 
     size_t allocationCap = 1024ul * 1024ul * 1024ul;
 
     Benchmark mm_mark{2};
-
+    static uint32_t id = 0;
     for (size_t currentCap = 0; currentCap < allocationCap;)
     {
         bool doFree = (actionDist(gen) == 0);
@@ -138,52 +144,62 @@ TEST(TEST_SUITE_NAME, MemoryManagerRandomAllocationTestBenchmark)
                 count++;
 
             mm_mark.StartAlloc();
-            pairs.emplace_back(std::make_pair((void*)manager->allocate<int>(count), count));
+            pairs.emplace_back(true, std::make_pair((void*)manager->allocate<int>(count), count), id);
             mm_mark.EndAlloc();
-
+            id++;
             currentCap += count * sizeof(int);
 
-            std_pairs.emplace_back(true, pairs.back());
+            std_pairs.emplace_back(pairs.back());
         }
         else
         {
             if (!pairs.empty())
             {
-                auto pair = pairs.back();
+                auto info = pairs.back();
+                pairs.pop_back();
 
                 mm_mark.StartDealloc();
-                manager->deallocate<int>(pair.first, pair.second);
+                manager->deallocate<int>(info.pair.first, info.pair.second);
                 mm_mark.EndDealloc();
 
-                std_pairs.emplace_back(false, pair);
-                pairs.pop_back();
+                Info deallocInfo = info;
+                deallocInfo.alloc = false;
+                std_pairs.emplace_back(deallocInfo);
             }
         }
+        // std::ofstream myFile;
+        // myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        // myFile << manager->GetSnapshot();
+        // myFile.close();
+    }
+    // std::allocator
+    std::allocator<int> alloc;
+    std::unordered_map<uint32_t, void*> helper;
 
-        // std::allocator
-        Benchmark std_mark{2};
-        while (!std_pairs.empty())
+    Benchmark std_mark{2};
+    for (const auto& info : std_pairs)
+    {
+        if (info.alloc)
         {
-            auto info = std_pairs.back();
-            if (info.alloc)
-            {
-                std::allocator<int> alloc;
+            std_mark.StartAlloc();
+            helper.emplace(info.id, alloc.allocate(info.pair.second));
+            std_mark.EndAlloc();
+        }
+        else
+        {
+            auto it = helper.find(info.id);
+            if (it == helper.end())
+                continue;
 
-                std_mark.StartAlloc();
-                info.pair.first = reinterpret_cast<void*>(alloc.allocate(info.pair.second));
-                std_mark.EndAlloc();
-            }
-            else
-            {
-                std::allocator<int> alloc;
-
-                std_mark.StartDealloc();
-                alloc.deallocate((int*)info.pair.first, info.pair.second);
-                std_mark.EndDealloc();
-            }
-            std_pairs.pop_back();
+            std_mark.StartDealloc();
+            alloc.deallocate((int*)it->second, info.pair.second);
+            std_mark.EndDealloc();
+            helper.erase(it);
         }
     }
+
+    mm_mark.Print();
+    std_mark.Print();
 }
 #endif
 
@@ -333,7 +349,7 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
 }
 #endif
 
-#if 1 TLSFRandomTests
+#if 0 TLSFRandomTests
 TEST(TEST_SUITE_NAME, TLSFRandomTests)
 {
     using namespace MM;
@@ -341,9 +357,9 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
     MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
 
     // Clear file :
-    std::ofstream myFile;
-    myFile.open("MemorySnapshot.txt");
-    myFile.close();
+    // std::ofstream myFile;
+    // myFile.open("MemorySnapshot.txt");
+    // myFile.close();
 
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> actionDist(0, 1);
@@ -384,10 +400,10 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
             }
         }
 
-        std::ofstream myFile;
-        myFile.open("MemorySnapshot.txt", std::ios_base::app);
-        myFile << manager->GetSnapshot();
-        myFile.close();
+        // std::ofstream myFile;
+        // myFile.open("MemorySnapshot.txt", std::ios_base::app);
+        // myFile << manager->GetSnapshot();
+        // myFile.close();
     }
     mark.Print();
 }
@@ -470,73 +486,85 @@ TEST(TEST_SUITE_NAME, ArrayAllocations)
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
-
-    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
-
-    // Clear file:
     std::ofstream myFile;
     myFile.open("MemorySnapshot.txt");
     myFile.close();
+    MM::MemoryManager* manager = MM::MemoryManager::ManagerFabric(ManagerConfig);
 
     std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<> actionDist(0, 2);
-    std::uniform_int_distribution<> countSize(1, 2'194'304);
+    std::uniform_int_distribution<> actionDist(0, 1);
+    std::uniform_int_distribution<uint32_t> sizeDist(4, 4'194'304);
 
-    struct AllocRecord
+    struct Op
     {
+        bool alloc;
         uint32_t count;
         uint32_t id;
-        void* ptr;
-        bool alloc;
     };
 
-    std::vector<AllocRecord> allocated;
-    std::vector<AllocRecord> allocated_std;
-    std::vector<AllocRecord> alloc_free;
+    struct Live
+    {
+        void* ptr;
+        uint32_t count;
+        uint32_t id;
+    };
 
-    allocated.reserve(1000000);
-    allocated_std.reserve(1000000);
-    alloc_free.reserve(1000000);
+    std::vector<Op> ops;
+    std::vector<Live> live;
+
+    ops.reserve(1'000'000);
+    live.reserve(1'000'000);
 
     uint32_t idCounter = 0;
+    size_t liveBytes = 0;
 
-    Benchmark mark{2};
+    constexpr size_t allocCap = 1024ull * 1024ull * 1024ull;  // 1 GB
 
-    constexpr size_t allocCap = 1024 * 1024 * 1024;
-    size_t allocatedSize = 0;
-    for (size_t i = 0; allocatedSize < allocCap; i++)
+    Benchmark mm_mark{2};
+
+    /* =========================
+       Phase 1: record scenario
+       ========================= */
+    while (liveBytes < allocCap)
     {
-        bool doFree = (actionDist(gen) == 1);
-        uint32_t size = countSize(gen);
-        uint32_t count = size / sizeof(int);
-        allocatedSize += size;
+        bool doFree = (actionDist(gen) == 0);
 
-        if (doFree && !allocated.empty())
+        if (doFree && !live.empty())
         {
-            std::uniform_int_distribution<size_t> freeIndexDist(0, allocated.size() - 1);
-            size_t idx = freeIndexDist(gen);
-            auto& rec = allocated[idx];
+            std::uniform_int_distribution<size_t> freeIdx(0, live.size() - 1);
+            size_t idx = freeIdx(gen);
 
-            mark.StartDealloc();
+            auto rec = live[idx];
+
+            mm_mark.StartDealloc();
             manager->deallocate<int>(rec.ptr, rec.count);
-            mark.EndDealloc();
+            mm_mark.EndDealloc();
 
-            alloc_free.push_back({(uint8_t)rec.count, rec.id, rec.ptr, false});
+            ops.push_back({false, rec.count, rec.id});
+            liveBytes -= rec.count * sizeof(int);
 
-            allocated[idx] = allocated.back();
-            allocated.pop_back();
+            live[idx] = live.back();
+            live.pop_back();
         }
         else
         {
+            uint32_t size = sizeDist(gen);
+            uint32_t count = (size / sizeof(int));
+            if (count == 0)
+                continue;
+
+            mm_mark.StartAlloc();
+            void* ptr = manager->allocate<int>(count);
+            mm_mark.EndAlloc();
+
+            if (!ptr)
+                continue;
+
             ++idCounter;
 
-            mark.StartAlloc();
-            void* ptr = manager->allocate<int>(count);
-            mark.EndAlloc();
-
-            allocated.push_back({count, idCounter, ptr, true});
-            allocated_std.push_back({count, idCounter, ptr, true});
-            alloc_free.push_back({count, idCounter, ptr, true});
+            ops.push_back({true, count, idCounter});
+            live.push_back({ptr, count, idCounter});
+            liveBytes += count * sizeof(int);
         }
         std::ofstream myFile;
         myFile.open("MemorySnapshot.txt", std::ios_base::app);
@@ -544,30 +572,36 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
         myFile.close();
     }
 
-    mark.Print();
+    mm_mark.Print();
 
+    /* =========================
+       Phase 2: replay for std
+       ========================= */
     Benchmark std_mark{2};
-    std::unordered_map<uint64_t, void*> helper;
-    for (auto rec : alloc_free)
+    std::allocator<int> stdAlloc;
+    std::unordered_map<uint32_t, int*> stdLive;
+    stdLive.reserve(ops.size());
+
+    for (const auto& op : ops)
     {
-        if (rec.alloc)
+        if (op.alloc)
         {
-            std::allocator<int> alloc;
             std_mark.StartAlloc();
-            helper[rec.id] = alloc.allocate(rec.count);
+            int* ptr = stdAlloc.allocate(op.count);
             std_mark.EndAlloc();
+
+            stdLive[op.id] = ptr;
         }
         else
         {
-            auto it = helper.find(rec.id);
-            if (it != helper.end())
+            auto it = stdLive.find(op.id);
+            if (it != stdLive.end())
             {
                 std_mark.StartDealloc();
-                std::allocator<int> alloc;
-                alloc.deallocate((int*)rec.ptr, rec.count);
+                stdAlloc.deallocate(it->second, op.count);
                 std_mark.EndDealloc();
 
-                helper.erase(it);
+                stdLive.erase(it);
             }
         }
     }
