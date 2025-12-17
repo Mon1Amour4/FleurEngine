@@ -238,14 +238,14 @@ public:
         }
     }
 
-    template <typename T, typename... Args, size_t Align = 0>
+    template <typename T, size_t Align = 0, typename... Args>
     [[nodiscard]] T* construct_at(Args&&... args)
     {
         T* ptr = allocate<T>();
         return new (ptr) T(std::forward<Args>(args)...);
     }
 
-    template <typename T, typename... Args, size_t Align = 0>
+    template <typename T, size_t Align = 0, typename... Args>
     [[nodiscard]] T* construct_array_at(uint32_t count, Args&&... args)
     {
         T* ptr = allocate<T>(count);
