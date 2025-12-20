@@ -8,7 +8,8 @@ SET(CORELIB_HEADERS
   singleton.hpp 
   DefaultAllocator.h 
   Bitmap.hpp
-  BitSet64.h)
+  BitSet64.h
+  FleurAllocator.hpp)
 
 SET(CORELIB_SOURCES 
   CoreLib.cpp
@@ -44,3 +45,6 @@ SET_TARGET_PROPERTIES(
   CoreLib
   PROPERTIES FOLDER "Core" DEBUG_POSTFIX "_d"
 )
+
+TARGET_LINK_LIBRARIES(CoreLib PRIVATE MemoryManager)
+
