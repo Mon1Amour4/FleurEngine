@@ -16,12 +16,6 @@ using Model = Fleur::Graphics::Model;
 using Renderer = Fleur::Graphics::Renderer;
 using Color = Fleur::Graphics::Color;
 
-template <>
-FleurAllocator& singleton<FleurAllocator>::instance()
-{
-    static FleurAllocator inst;
-    return inst;
-}
 
 template <>
 Application& singleton<Application>::instance()
@@ -182,7 +176,7 @@ Window& Application::GetWindow()
 
 void Application::Init(ApplicationBootSettings& settings)
 {
-    FleurAllocator::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
+    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
