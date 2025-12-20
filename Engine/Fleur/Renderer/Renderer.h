@@ -55,6 +55,9 @@ public:
     // IRenderer;
     void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
+    void DrawQuad(Color backgroundColor, Fleur::Graphics::Rect);
+    void DrawLine();
+
     // IUpdatable
     void OnUpdate(float dtTime);
     void OnPostUpdate(float dtTime);

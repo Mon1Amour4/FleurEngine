@@ -14,9 +14,7 @@
 #endif
 #include <Application.h>
 
-namespace Fleur::FS
-{
-class FileSystem::FileSystemImpl
+class Fleur::FS::FileSystem::FileSystemImpl
 {
     friend class FileSystem;
     std::string GetExecutablePath();
@@ -29,22 +27,22 @@ class FileSystem::FileSystemImpl
                                                                                                           m_ModelsPath.data(), m_ScenesPath.data()};
 };
 
-FileSystem::FileSystem()
+Fleur::FS::FileSystem::FileSystem()
     : d(new FileSystemImpl())
 {
 }
 
-void FileSystem::OnInit()
+void Fleur::FS::FileSystem::OnInit()
 {
     // TODO
 }
 
-void FileSystem::OnShutdown()
+void Fleur::FS::FileSystem::OnShutdown()
 {
     // TODO
 }
 
-std::optional<std::string> FileSystem::OpenFile(const std::string& file, std::fstream::ios_base::openmode mode)
+std::optional<std::string> Fleur::FS::FileSystem::OpenFile(const std::string& file, std::fstream::ios_base::openmode mode)
 {
     auto res = GetFullPathToFile(file);
     if (!res)
@@ -60,7 +58,7 @@ std::optional<std::string> FileSystem::OpenFile(const std::string& file, std::fs
     return std::optional<std::string>(buffer.str());
 }
 
-std::string FileSystem::FileSystemImpl::GetExecutablePath()
+std::string Fleur::FS::FileSystem::FileSystemImpl::GetExecutablePath()
 {
 #if defined(FLEUR_PLATFORM_WIN)
     char path[MAX_PATH];
@@ -76,7 +74,7 @@ std::string FileSystem::FileSystemImpl::GetExecutablePath()
     return std::filesystem::path(path).parent_path().string();
 }
 
-std::optional<std::string> FileSystem::GetFullPathToFile(std::string_view fileName) const
+std::optional<std::string> Fleur::FS::FileSystem::GetFullPathToFile(std::string_view fileName) const
 {
     if (fileName.empty())
         return std::nullopt;
@@ -127,7 +125,7 @@ std::optional<std::string> FileSystem::GetFullPathToFile(std::string_view fileNa
     return std::optional<std::string>(outName);
 }
 
-std::optional<std::string> FileSystem::GetFullPathToFolder(std::string_view folderName) const
+std::optional<std::string> Fleur::FS::FileSystem::GetFullPathToFolder(std::string_view folderName) const
 {
     for (const auto& path : d->m_SearchPaths)
     {
@@ -143,7 +141,7 @@ std::optional<std::string> FileSystem::GetFullPathToFolder(std::string_view fold
     }
     return std::nullopt;
 }
-bool FileSystem::FUCreateFile(const std::string& fileName, std::string_view folder) const
+bool Fleur::FS::FileSystem::FUCreateFile(const std::string& fileName, std::string_view folder) const
 {
     auto res = GetFullPathToFolder(folder);
     if (!res)
@@ -158,7 +156,7 @@ bool FileSystem::FUCreateFile(const std::string& fileName, std::string_view fold
     else
         return false;
 }
-void FileSystem::WriteToFile(std::string_view fileName, const char* buffer)
+void Fleur::FS::FileSystem::WriteToFile(std::string_view fileName, const char* buffer)
 {
     if (!buffer || fileName.empty())
         return;
@@ -174,5 +172,3 @@ void FileSystem::WriteToFile(std::string_view fileName, const char* buffer)
         file.close();
     }
 }
-
-}  // namespace Fleur::FS

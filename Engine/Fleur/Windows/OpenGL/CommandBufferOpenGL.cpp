@@ -9,9 +9,7 @@
 #include "TextureOpenGL.h"
 #include "VertexLayout.h"
 
-namespace Fleur::Graphics
-{
-CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor descriptor)
+Fleur::Graphics::CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor descriptor)
     : CommandBuffer(descriptor)
     , m_MainVsShader(-1)
     , m_PixelShader(-1)
@@ -23,7 +21,7 @@ CommandBufferOpenGL::CommandBufferOpenGL(DepthStencilDescriptor descriptor)
     glCreateVertexArrays(1, &m_VAO);
 }
 
-CommandBufferOpenGL::~CommandBufferOpenGL()
+Fleur::Graphics::CommandBufferOpenGL::~CommandBufferOpenGL()
 {
     glDeleteVertexArrays(1, &m_VAO);
 
@@ -33,7 +31,7 @@ CommandBufferOpenGL::~CommandBufferOpenGL()
     }
 }
 
-void CommandBufferOpenGL::BeginRecording()
+void Fleur::Graphics::CommandBufferOpenGL::BeginRecording()
 {
     if (m_Descriptor.death_test)
         glDepthMask(true);
@@ -46,16 +44,16 @@ void CommandBufferOpenGL::BeginRecording()
     m_IsFree = false;
 }
 
-void CommandBufferOpenGL::EndRecording()
+void Fleur::Graphics::CommandBufferOpenGL::EndRecording()
 {
 }
 
-void CommandBufferOpenGL::Submit()
+void Fleur::Graphics::CommandBufferOpenGL::Submit()
 {
     m_IsFree = true;
 }
 
-void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw)
+void Fleur::Graphics::CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, EFramebufferRWOperation rw)
 {
     if (rw == EFramebufferRWOperation::READ_ONLY)
         glBindFramebuffer(GL_READ_FRAMEBUFFER, static_cast<const FramebufferOpenGL&>(fbo).ID());
@@ -68,7 +66,7 @@ void CommandBufferOpenGL::BindRenderTarget(const Framebuffer& fbo, EFramebufferR
     }
 }
 
-void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
+void Fleur::Graphics::CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer, VertexLayout layout)
 {
     m_VertexGlobalBuffer = std::move(vertexBuffer);
     auto buff = static_cast<const BufferOpenGL*>(m_VertexGlobalBuffer.get());
@@ -86,7 +84,7 @@ void CommandBufferOpenGL::BindVertexBuffer(std::unique_ptr<Buffer> vertexBuffer,
     }
 }
 
-void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
+void Fleur::Graphics::CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
 {
     m_IndexGlobalBuffer = std::move(buffer);
     auto buff = static_cast<const BufferOpenGL*>(m_IndexGlobalBuffer.get());
@@ -94,7 +92,7 @@ void CommandBufferOpenGL::BindIndexBuffer(std::unique_ptr<Buffer> buffer)
     glVertexArrayElementBuffer(m_VAO, buff->GetBufferID());
 }
 
-size_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes)
+size_t Fleur::Graphics::CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::EBufferType type, const void* data, size_t sizeBytes)
 {
     if (type == Buffer::EBufferType::Vertex)
         return m_VertexGlobalBuffer->UpdateSubData(data, sizeBytes);
@@ -102,14 +100,14 @@ size_t CommandBufferOpenGL::UpdateBufferSubDataImpl(Buffer::EBufferType type, co
         return m_IndexGlobalBuffer->UpdateSubData(data, sizeBytes);
 }
 
-void CommandBufferOpenGL::BindTexture(Texture* texture)
+void Fleur::Graphics::CommandBufferOpenGL::BindTexture(Texture* texture)
 {
     TextureOpenGL& textureGL = static_cast<TextureOpenGL&>(*texture);
 
     glBindTextureUnit(textureGL.GetTextureUnit(), *textureGL.GetTextureID());
 }
 
-void CommandBufferOpenGL::Draw(uint32_t vertexCount)
+void Fleur::Graphics::CommandBufferOpenGL::Draw(uint32_t vertexCount)
 {
     glBindVertexArray(m_VAO);
 
@@ -117,12 +115,12 @@ void CommandBufferOpenGL::Draw(uint32_t vertexCount)
     glBindVertexArray(0);
 }
 
-void CommandBufferOpenGL::IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex)
+void Fleur::Graphics::CommandBufferOpenGL::IndexedDraw(uint32_t indexCount, size_t indexOffsetBytes, uint32_t baseVertex)
 {
     glDrawElementsBaseVertex(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, reinterpret_cast<void*>(indexOffsetBytes), baseVertex);
 }
 
-void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
+void Fleur::Graphics::CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
 {
     if (!message || !*message || *message == '\n')
     {
@@ -136,13 +134,13 @@ void CommandBufferOpenGL::PushDebugGroup(uint32_t id, const char* message)
     m_PushDebugGroupCommands++;
 }
 
-void CommandBufferOpenGL::PopDebugGroup()
+void Fleur::Graphics::CommandBufferOpenGL::PopDebugGroup()
 {
     glPopDebugGroup();
     m_PushDebugGroupCommands--;
 }
 
-void CommandBufferOpenGL::SetLabel(EObjectLabel id, uint32_t name, const char* message)
+void Fleur::Graphics::CommandBufferOpenGL::SetLabel(EObjectLabel id, uint32_t name, const char* message)
 {
     if (!message || !*message || *message == '\n')
     {
@@ -172,19 +170,19 @@ void CommandBufferOpenGL::SetLabel(EObjectLabel id, uint32_t name, const char* m
     glObjectLabel(identifier, name, length, message);
 }
 
-void CommandBufferOpenGL::BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader)
+void Fleur::Graphics::CommandBufferOpenGL::BindShaderObject(std::shared_ptr<Fleur::Graphics::ShaderObject> shader)
 {
     m_ShaderObject = shader;
 }
 
-void CommandBufferOpenGL::BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex)
+void Fleur::Graphics::CommandBufferOpenGL::BindDescriptorSet(const DescriptorBuffer& descriptorSet, int setIndex)
 {
     UNUSED(descriptorSet);
     UNUSED(setIndex);
     FL_CORE_INFO("[OpenGL unused function: BindDescriptorSet]");
 }
 
-int CommandBufferOpenGL::ConvertUsage(ERenderStage& stage) const
+int Fleur::Graphics::CommandBufferOpenGL::ConvertUsage(ERenderStage& stage) const
 {
     switch (stage)
     {
@@ -195,7 +193,7 @@ int CommandBufferOpenGL::ConvertUsage(ERenderStage& stage) const
     }
 }
 
-uint32_t CommandBufferOpenGL::GetDeathFuncOp(EDepthTestOperation op) const
+uint32_t Fleur::Graphics::CommandBufferOpenGL::GetDeathFuncOp(EDepthTestOperation op) const
 {
     switch (op)
     {
@@ -219,5 +217,3 @@ uint32_t CommandBufferOpenGL::GetDeathFuncOp(EDepthTestOperation op) const
         return GL_LESS;
     }
 }
-
-}  // namespace Fleur::Graphics

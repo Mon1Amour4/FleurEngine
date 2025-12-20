@@ -5,9 +5,6 @@
 #include "Renderer/Material.h"
 #include "TextureOpenGL.h"
 
-namespace Fleur::Graphics
-{
-
 struct uniform_info
 {
     GLint Location;
@@ -15,12 +12,12 @@ struct uniform_info
     GLenum Type;
 };
 
-ShaderObject* ShaderObject::CreateShaderObject(std::string_view name, Shader* vs, Shader* px)
+Fleur::Graphics::ShaderObject* Fleur::Graphics::ShaderObject::CreateShaderObject(std::string_view name, Shader* vs, Shader* px)
 {
     return new ShaderObjectOpenGL(name, vs, px);
 }
 
-ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px)
+Fleur::Graphics::ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px)
     : ShaderObject(name)
     , m_Program(glCreateProgram())
     , m_VertexShader(nullptr)
@@ -68,12 +65,12 @@ ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader
     glUseProgram(0);
 }
 
-ShaderObjectOpenGL::~ShaderObjectOpenGL()
+Fleur::Graphics::ShaderObjectOpenGL::~ShaderObjectOpenGL()
 {
     Release();
 }
 
-void ShaderObjectOpenGL::Release()
+void Fleur::Graphics::ShaderObjectOpenGL::Release()
 {
     glDeleteProgram(m_Program);
     m_Program = 0;
@@ -93,12 +90,12 @@ void ShaderObjectOpenGL::Release()
     m_Uniforms.clear();
 }
 
-void ShaderObjectOpenGL::Use() const
+void Fleur::Graphics::ShaderObjectOpenGL::Use() const
 {
     glUseProgram(m_Program);
 }
 
-void ShaderObjectOpenGL::BindMaterial(const Material* material)
+void Fleur::Graphics::ShaderObjectOpenGL::BindMaterial(const Material* material)
 {
     this->m_Material = material;
     const ShaderComponentContext& ctx = this->m_Material->GetShaderContext();
@@ -108,7 +105,7 @@ void ShaderObjectOpenGL::BindMaterial(const Material* material)
         SetText2dImpl(ctx.skybox_cubemap_text.first, *ctx.skybox_cubemap_text.second);
 }
 
-int ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
+int Fleur::Graphics::ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) const
 {
     if (uniform_name.empty())
         return -1;
@@ -117,7 +114,7 @@ int ShaderObjectOpenGL::find_uniform_location(std::string_view uniform_name) con
     return (it != m_Uniforms.end()) ? it->second : -1;
 }
 
-bool ShaderObjectOpenGL::AddVar(std::string_view uniformName, uint32_t id)
+bool Fleur::Graphics::ShaderObjectOpenGL::AddVar(std::string_view uniformName, uint32_t id)
 {
     GLint location = find_uniform_location(uniformName);
     if (location != -1)
@@ -127,7 +124,7 @@ bool ShaderObjectOpenGL::AddVar(std::string_view uniformName, uint32_t id)
     return true;
 }
 
-bool ShaderObjectOpenGL::SetVec3fImpl(std::string_view uniformName, const glm::vec3& vec)
+bool Fleur::Graphics::ShaderObjectOpenGL::SetVec3fImpl(std::string_view uniformName, const glm::vec3& vec)
 {
     GLint location = find_uniform_location(uniformName);
     if (location == -1)
@@ -137,7 +134,7 @@ bool ShaderObjectOpenGL::SetVec3fImpl(std::string_view uniformName, const glm::v
     return true;
 }
 
-bool ShaderObjectOpenGL::SetMat4fImpl(std::string_view uniformName, const glm::mat4& matrix)
+bool Fleur::Graphics::ShaderObjectOpenGL::SetMat4fImpl(std::string_view uniformName, const glm::mat4& matrix)
 {
     GLint location = find_uniform_location(uniformName);
     if (location == -1)
@@ -147,7 +144,7 @@ bool ShaderObjectOpenGL::SetMat4fImpl(std::string_view uniformName, const glm::m
     return true;
 }
 
-bool ShaderObjectOpenGL::SetText2dImpl(std::string_view uniformName, const Texture& texture)
+bool Fleur::Graphics::ShaderObjectOpenGL::SetText2dImpl(std::string_view uniformName, const Texture& texture)
 {
     GLint location = find_uniform_location(uniformName);
     if (location == -1)
@@ -161,5 +158,3 @@ bool ShaderObjectOpenGL::SetText2dImpl(std::string_view uniformName, const Textu
     glBindTextureUnit(textureGL.GetTextureUnit(), *textureGL.GetTextureID());
     return true;
 }
-
-}  // namespace Fleur::Graphics

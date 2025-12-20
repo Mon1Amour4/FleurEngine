@@ -2,9 +2,7 @@
 
 #include "spdlog/sinks/stdout_color_sinks.h"
 
-namespace Fleur
-{
-class Log::LogImpl
+class Fleur::Log::LogImpl
 {
 private:
     friend class Log;
@@ -12,10 +10,10 @@ private:
     static std::shared_ptr<spdlog::logger> s_ClientLogger;
 };
 
-std::shared_ptr<spdlog::logger> Log::LogImpl::s_CoreLogger;
-std::shared_ptr<spdlog::logger> Log::LogImpl::s_ClientLogger;
+std::shared_ptr<spdlog::logger> Fleur::Log::LogImpl::s_CoreLogger;
+std::shared_ptr<spdlog::logger> Fleur::Log::LogImpl::s_ClientLogger;
 
-void Log::Init()
+void Fleur::Log::Init()
 {
     spdlog::set_pattern("%^[%T] %n: %v%$");
 
@@ -27,12 +25,11 @@ void Log::Init()
 
     FL_CORE_TRACE("[LOG] has been initialized");
 }
-std::shared_ptr<spdlog::logger>& Log::GetCoreLogger()
+std::shared_ptr<spdlog::logger>& Fleur::Log::GetCoreLogger()
 {
     return LogImpl::s_CoreLogger;
 }
-std::shared_ptr<spdlog::logger>& Log::GetClientLogger()
+std::shared_ptr<spdlog::logger>& Fleur::Log::GetClientLogger()
 {
     return LogImpl::s_ClientLogger;
 }
-}  // namespace Fleur

@@ -5,16 +5,13 @@
 #include "ShaderObjectOpenGL.h"
 #include "TextureOpenGL.h"
 
-namespace Fleur::Graphics
-{
-
-GLint GetShaderType(Shader::EShaderType type)
+GLint GetShaderType(Fleur::Graphics::Shader::EShaderType type)
 {
     switch (type)
     {
-    case Shader::Pixel:
+    case Fleur::Graphics::Shader::Pixel:
         return GL_FRAGMENT_SHADER;
-    case Shader::Vertex:
+    case Fleur::Graphics::Shader::Vertex:
         return GL_VERTEX_SHADER;
     default:
         FL_CORE_ASSERT(false, "[Shader] Invalid shader type:")
@@ -22,7 +19,7 @@ GLint GetShaderType(Shader::EShaderType type)
     }
 }
 
-ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, EShaderType type)
+Fleur::Graphics::ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, EShaderType type)
     : Shader(name)
     , m_ShaderObject(0)
     , m_Type(type)
@@ -52,18 +49,18 @@ ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* shaderCode, EShade
     }
 }
 
-ShaderOpenGL::~ShaderOpenGL()
+Fleur::Graphics::ShaderOpenGL::~ShaderOpenGL()
 {
     Release();
 }
 
-void ShaderOpenGL::BindToShaderObject(ShaderObject& obj)
+void Fleur::Graphics::ShaderOpenGL::BindToShaderObject(ShaderObject& obj)
 {
     ShaderObjectOpenGL& objectGL = static_cast<ShaderObjectOpenGL&>(obj);
     m_ShaderObject = objectGL.GetObjectID();
 }
 
-void ShaderOpenGL::Release()
+void Fleur::Graphics::ShaderOpenGL::Release()
 {
     glDeleteShader(m_ShaderID);
 
@@ -71,5 +68,3 @@ void ShaderOpenGL::Release()
     m_ShaderID = 0;
     m_Type = None;
 }
-
-}  // namespace Fleur::Graphics

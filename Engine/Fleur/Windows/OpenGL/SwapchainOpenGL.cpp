@@ -4,36 +4,34 @@
 
 #include "OpenGL/SurfaceOpenGL.h"
 
-namespace Fleur::Graphics
-{
-SwapchainOpenGL::SwapchainOpenGL(std::unique_ptr<Surface> surface)
+Fleur::Graphics::SwapchainOpenGL::SwapchainOpenGL(std::unique_ptr<Surface> surface)
 {
     auto rawSurface = static_cast<SurfaceOpenGL*>(surface.release());
     this->m_Surface = std::unique_ptr<SurfaceOpenGL>(rawSurface);
 
-    Surface::Rect rect = this->m_Surface->GetRect();
+    Rect rect = this->m_Surface->GetRect();
 
     m_BackBuffer = std::make_unique<DefaultFramebufferOpenGL>(rect.width, rect.height);
 
     glViewport(rect.x, rect.y, rect.width, rect.height);
 }
 
-SwapchainOpenGL::~SwapchainOpenGL()
+Fleur::Graphics::SwapchainOpenGL::~SwapchainOpenGL()
 {
 }
 
-void SwapchainOpenGL::Present()
+void Fleur::Graphics::SwapchainOpenGL::Present()
 {
     m_BackBuffer->Bind();
     SwapBuffers(m_Surface->GetHdc());
 }
 
-const Framebuffer& SwapchainOpenGL::GetScreenTexture()
+const Fleur::Graphics::Framebuffer& Fleur::Graphics::SwapchainOpenGL::GetScreenTexture()
 {
     return *m_BackBuffer.get();
 }
 
-void SwapchainOpenGL::ShowWireFrame(bool show)
+void Fleur::Graphics::SwapchainOpenGL::ShowWireFrame(bool show)
 {
     if (show)
     {
@@ -45,19 +43,18 @@ void SwapchainOpenGL::ShowWireFrame(bool show)
     }
 }
 
-void SwapchainOpenGL::ValidateWindow()
+void Fleur::Graphics::SwapchainOpenGL::ValidateWindow()
 {
     static PAINTSTRUCT ps;
     BeginPaint((HWND)m_Surface->GetNativeHandle(), &ps);
     EndPaint((HWND)m_Surface->GetNativeHandle(), &ps);
 }
 
-void SwapchainOpenGL::ClearBackbuffer() const
+void Fleur::Graphics::SwapchainOpenGL::ClearBackbuffer() const
 {
     m_BackBuffer->Clear();
 }
-void SwapchainOpenGL::Release()
+void Fleur::Graphics::SwapchainOpenGL::Release()
 {
     m_Surface->Release();
 }
-}  // namespace Fleur::Graphics

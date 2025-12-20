@@ -2,15 +2,12 @@
 
 #include "imgui.h"
 
-namespace Fleur
-{
-
-ImGuiLayer::ImGuiLayer(const std::string& name)
+Fleur::ImGuiLayer::ImGuiLayer(const std::string& name)
     : Layer(name)
 {
 }
 
-void ImGuiLayer::OnAttach()
+void Fleur::ImGuiLayer::OnAttach()
 {
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
@@ -20,18 +17,17 @@ void ImGuiLayer::OnAttach()
     io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;
 }
 
-void ImGuiLayer::OnDetach()
+void Fleur::ImGuiLayer::OnDetach()
 {
 }
 
-void ImGuiLayer::OnUpdate(float dtTime)
+void Fleur::ImGuiLayer::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void ImGuiLayer::OnEvent(EventVariant& event)
+void Fleur::ImGuiLayer::OnEvent(EventVariant& event)
 {
     UNUSED(event);
 }
-}  // namespace Fleur

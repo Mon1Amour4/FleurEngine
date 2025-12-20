@@ -1,58 +1,54 @@
 #include "Layer.h"
 
-namespace Fleur
-{
-
-class Layer::LayerImpl
+class Fleur::Layer::LayerImpl
 {
     friend class Layer;
 
     std::string m_Name;
 };
 
-Layer::Layer(const std::string& name)
+Fleur::Layer::Layer(const std::string& name)
     : d(new LayerImpl)
 {
     d->m_Name = name;
 }
 
-Layer::~Layer()
+Fleur::Layer::~Layer()
 {
     delete d;
 }
 
-void Layer::OnAttach()
+void Fleur::Layer::OnAttach()
 {
 }
 
-void Layer::OnDetach()
+void Fleur::Layer::OnDetach()
 {
 }
 
-void Layer::OnUpdate(float dtTime)
-{
-    UNUSED(dtTime);
-    // TODO
-}
-
-void Layer::OnPostUpdate(float dtTime)
+void Fleur::Layer::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void Layer::OnFixedUpdate()
+void Fleur::Layer::OnPostUpdate(float dtTime)
+{
+    UNUSED(dtTime);
+    // TODO
+}
+
+void Fleur::Layer::OnFixedUpdate()
 {
     // TODO
 }
 
-void Layer::OnEvent(EventVariant& event)
+void Fleur::Layer::OnEvent(EventVariant& event)
 {
     UNUSED(event);
 }
 
-const std::string& Layer::GetName() const
+const std::string& Fleur::Layer::GetName() const
 {
     return d->m_Name;
 }
-}  // namespace Fleur

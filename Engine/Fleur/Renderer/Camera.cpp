@@ -5,12 +5,9 @@
 #define MOUSE_WHEEL_SCROLL_SPEED 5.f
 static constexpr float MOUSE_EPSILON = 1e-3f;
 
-namespace Fleur::Graphics
-{
+Fleur::Graphics::Camera* Fleur::Graphics::Camera::s_ActiveCamera = nullptr;
 
-Camera* Camera::s_ActiveCamera = nullptr;
-
-Camera::Camera()
+Fleur::Graphics::Camera::Camera()
     : m_Speed(50.1)
     , m_Position(0.0f)
     , m_Up(glm::vec3(0.0f, 1.0f, 0.0f))
@@ -30,29 +27,29 @@ Camera::Camera()
     UpdateForward();
 }
 
-Camera::~Camera()
+Fleur::Graphics::Camera::~Camera()
 {
 }
 
-void Camera::Activate()
+void Fleur::Graphics::Camera::Activate()
 {
     s_ActiveCamera = this;
 }
 
-const mat4* Camera::GetViewPtr() const
+const mat4* Fleur::Graphics::Camera::GetViewPtr() const
 {
     return &m_View;
 }
-vec3 Camera::GetDir() const
+vec3 Fleur::Graphics::Camera::GetDir() const
 {
     return m_Dir;
 }
-Camera* Camera::GetActiveCamera()
+Fleur::Graphics::Camera* Fleur::Graphics::Camera::GetActiveCamera()
 {
     return s_ActiveCamera;
 }
 
-void Camera::OnUpdate(float dtTime)
+void Fleur::Graphics::Camera::OnUpdate(float dtTime)
 {
     if (Input::IsKeyPressed(Key::W))
     {
@@ -89,28 +86,28 @@ void Camera::OnUpdate(float dtTime)
     m_View = glm::lookAt(m_Position, m_Position + m_CameraForward, m_Up);
 }
 
-void Camera::OnPostUpdate(float dtTime)
+void Fleur::Graphics::Camera::OnPostUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void Camera::OnFixedUpdate()
+void Fleur::Graphics::Camera::OnFixedUpdate()
 {
     // TODO
 }
 
-float Camera::FarClip() const
+float Fleur::Graphics::Camera::FarClip() const
 {
     return m_FarClip;
 }
 
-float Camera::NearClip() const
+float Fleur::Graphics::Camera::NearClip() const
 {
     return m_NearClip;
 }
 
-void Camera::UpdateForward()
+void Fleur::Graphics::Camera::UpdateForward()
 {
     glm::vec3 direction;
     direction.x = cos(glm::radians(m_Yaw)) * cos(glm::radians(m_Pitch));
@@ -119,7 +116,7 @@ void Camera::UpdateForward()
     m_CameraForward = glm::normalize(direction);
 }
 
-void Camera::RotateCamera(float dtTime)
+void Fleur::Graphics::Camera::RotateCamera(float dtTime)
 {
     glm::vec2 mouseDir = Input::GetMouseDir();
     if (fabs(mouseDir.x) > MOUSE_EPSILON || fabs(mouseDir.y) > MOUSE_EPSILON)
@@ -130,6 +127,4 @@ void Camera::RotateCamera(float dtTime)
 
         UpdateForward();
     }
-}  // namespace Fleur::Graphics
-
-}  // namespace Fleur::Graphics
+}

@@ -4,12 +4,9 @@
 
 #include "FleurAllocator.hpp"
 
-namespace Fleur::Graphics
-{
+uint32_t Fleur::Graphics::Renderer::MAX_TEXTURES_COUNT = 0;
 
-uint32_t Renderer::MAX_TEXTURES_COUNT = 0;
-
-Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
+Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
     : m_ShowWireframe(false)
     , m_Camera(nullptr)
     , m_CurrentShaderObj(nullptr)
@@ -19,7 +16,7 @@ Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> 
 {
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_view path)
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view path)
 {
     if (path.empty())
         return GetLoadedTexture("fallback");
@@ -49,7 +46,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_vie
     return m_Textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_view name, Color color, int width, int height)
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view name, Color color, int width, int height)
 {
     if (name.empty())
         return GetLoadedTexture("fallback");
@@ -72,7 +69,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::string_vie
     return m_Textures.emplace(image->Name(), texture).first->second;
 }
 
-std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img)
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img)
 {
     if (!img)
         return GetLoadedTexture("fallback");
@@ -86,7 +83,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::shared_ptr
     return m_Textures.emplace(img->Name(), texture).first->second;
 }
 
-void Renderer::OnInit()
+void Fleur::Graphics::Renderer::OnInit()
 {
     Fleur::Memory::FleurAllocator<Camera> alloc;
     m_Camera.reset(alloc.construct_at());
@@ -173,13 +170,13 @@ void Renderer::OnInit()
     m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
 }
 
-void Renderer::OnShutdown()
+void Fleur::Graphics::Renderer::OnShutdown()
 {
     m_Device->Release();
     m_Swapchain->Release();
 }
 
-std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTexture(std::string_view path) const
 {
     if (path.empty())
         return m_Textures.find("fallback")->second;
@@ -193,7 +190,7 @@ std::shared_ptr<Texture> Renderer::GetLoadedTexture(std::string_view path) const
         return m_Textures.find("fallback")->second;
 }
 
-void Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
+void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
 {
     switch (stage)
     {
@@ -242,18 +239,18 @@ void Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model
     }
 }
 
-void Renderer::Clear()
+void Fleur::Graphics::Renderer::Clear()
 {
     m_Swapchain->ClearBackbuffer();
     m_GizmoFBO->Clear();
 }
 
-void Renderer::Present()
+void Fleur::Graphics::Renderer::Present()
 {
     m_Swapchain->Present();
 }
 
-void Renderer::ShowWireFrame()
+void Fleur::Graphics::Renderer::ShowWireFrame()
 {
     if (m_ShowWireframe)
         m_Swapchain->ShowWireFrame(true);
@@ -261,28 +258,28 @@ void Renderer::ShowWireFrame()
         m_Swapchain->ShowWireFrame(false);
 }
 
-void Renderer::ToggleWireFrame()
+void Fleur::Graphics::Renderer::ToggleWireFrame()
 {
     m_ShowWireframe = !m_ShowWireframe;
 }
 
-void Renderer::ValidateWindow()
+void Fleur::Graphics::Renderer::ValidateWindow()
 {
     m_Swapchain->ValidateWindow();
 }
 
-void Renderer::SetVSync(bool active)
+void Fleur::Graphics::Renderer::SetVSync(bool active)
 {
     m_IsVsync = active;
     m_Device->SetVSync(m_IsVsync);
 }
 
-bool Renderer::IsVSync()
+bool Fleur::Graphics::Renderer::IsVSync()
 {
     return m_IsVsync;
 }
 
-void Renderer::OnUpdate(float dtTime)
+void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
     m_Toolchain->Update();
@@ -420,18 +417,18 @@ void Renderer::OnUpdate(float dtTime)
     m_CopyFBOCmd->PopDebugGroup();
 }
 
-void Renderer::OnPostUpdate(float dtTime)
+void Fleur::Graphics::Renderer::OnPostUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void Renderer::OnFixedUpdate()
+void Fleur::Graphics::Renderer::OnFixedUpdate()
 {
     // TODO
 }
 
-void Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+void Fleur::Graphics::Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
 {
     UNUSED(y);
     UNUSED(x);
@@ -440,14 +437,14 @@ void Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t h
     m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
 }
 
-VertexData::VertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
+Fleur::Graphics::VertexData::VertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
     : Position(pos)
     , TexCoord(texCoord)
     , Normal(normal)
 {
 }
 
-void Renderer::SkyboxPass() const
+void Fleur::Graphics::Renderer::SkyboxPass() const
 {
     if (!m_Skybox)
         return;
@@ -467,7 +464,7 @@ void Renderer::SkyboxPass() const
     m_SkyboxCmd->PopDebugGroup();
 }
 
-void Renderer::StaticGeometryPass() const
+void Fleur::Graphics::Renderer::StaticGeometryPass() const
 {
     m_StaticGeometryCmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
     m_StaticGeometryCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
@@ -505,5 +502,3 @@ void Renderer::StaticGeometryPass() const
     }
     m_StaticGeometryCmd->PopDebugGroup();
 }
-
-}  // namespace Fleur::Graphics

@@ -4,10 +4,7 @@
 
 #include "Renderer/Graphics.hpp"
 
-namespace Fleur::Graphics
-{
-
-BufferOpenGL::BufferOpenGL(EBufferType type, ERenderStage stage, size_t sizeBytes)
+Fleur::Graphics::BufferOpenGL::BufferOpenGL(EBufferType type, ERenderStage stage, size_t sizeBytes)
     : Buffer(type, sizeBytes)
     , m_Id(UINT32_MAX)
 {
@@ -17,12 +14,12 @@ BufferOpenGL::BufferOpenGL(EBufferType type, ERenderStage stage, size_t sizeByte
     glNamedBufferData(m_Id, sizeBytes, nullptr, NativeUsage(stage));
 }
 
-BufferOpenGL::~BufferOpenGL()
+Fleur::Graphics::BufferOpenGL::~BufferOpenGL()
 {
     glDeleteBuffers(1, &m_Id);
 }
 
-size_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
+size_t Fleur::Graphics::BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
 {
     FL_CORE_ASSERT(m_UsedBytesIdx + sizeBytes <= m_EndIdx, "Buffer overflow");
 
@@ -33,17 +30,17 @@ size_t BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
     return offset_before_write;
 }
 
-uint32_t BufferOpenGL::NativeType() const
+uint32_t Fleur::Graphics::BufferOpenGL::NativeType() const
 {
     return m_BufferNativeType;
 }
 
-uint32_t BufferOpenGL::GetBufferID() const
+uint32_t Fleur::Graphics::BufferOpenGL::GetBufferID() const
 {
     return m_Id;
 }
 
-int BufferOpenGL::NativeUsage(ERenderStage& stage) const
+int Fleur::Graphics::BufferOpenGL::NativeUsage(ERenderStage& stage) const
 {
     switch (stage)
     {
@@ -55,11 +52,10 @@ int BufferOpenGL::NativeUsage(ERenderStage& stage) const
         return GL_STATIC_DRAW;
     }
 }
-int BufferOpenGL::NativeBufferType(const EBufferType& type) const
+int Fleur::Graphics::BufferOpenGL::NativeBufferType(const EBufferType& type) const
 {
     if (type == EBufferType::Vertex)
         return GL_ARRAY_BUFFER;
     else
         return GL_ELEMENT_ARRAY_BUFFER;
 }
-}  // namespace Fleur::Graphics

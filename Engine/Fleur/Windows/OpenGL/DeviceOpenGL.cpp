@@ -101,10 +101,7 @@ void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum sever
     FL_CORE_ERROR("Message: {0}, Source: {1}, Type: {2}, ID: {3}, Severity: {4}\n", (const char*)message, source, type, id, severity);
 }
 
-namespace Fleur::Graphics
-{
-
-DeviceOpenGL::DeviceOpenGL()
+Fleur::Graphics::DeviceOpenGL::DeviceOpenGL()
     : m_Ctx(nullptr)
     , m_MaxTexturesUnits(0)
 {
@@ -190,53 +187,56 @@ DeviceOpenGL::DeviceOpenGL()
     glClearStencil(0);
 }
 
-DeviceOpenGL::~DeviceOpenGL()
+Fleur::Graphics::DeviceOpenGL::~DeviceOpenGL()
 {
     Release();
 }
 
-std::unique_ptr<Device> Device::CreateDevice()
+std::unique_ptr<Fleur::Graphics::Device> Fleur::Graphics::Device::CreateDevice()
 {
     return std::unique_ptr<Device>(new DeviceOpenGL());
 }
 
-std::unique_ptr<Surface> DeviceOpenGL::CreateSurface(const void* window)
+std::unique_ptr<Fleur::Graphics::Surface> Fleur::Graphics::DeviceOpenGL::CreateSurface(const void* window)
 {
     return std::make_unique<SurfaceOpenGL>(window);
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer, uint32_t width,
-                                                     uint32_t height) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format,
+                                                                                       unsigned char* buffer, uint32_t width, uint32_t height) const
 {
-    return std::make_shared<TextureOpenGL>(name, ext, buffer, format, width, height, static_cast<uint16_t>(1));
+    return std::make_shared<Fleur::Graphics::TextureOpenGL>(name, ext, buffer, format, width, height, static_cast<uint16_t>(1));
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::DeviceOpenGL::CreateTexture(std::string_view name, std::string_view ext) const
 {
-    return std::make_shared<TextureOpenGL>(name, ext, static_cast<uint16_t>(1));
+    return std::make_shared<Fleur::Graphics::TextureOpenGL>(name, ext, static_cast<uint16_t>(1));
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::DeviceOpenGL::CreateCubemap(const CubemapImage* equirectangular) const
 {
-    return std::make_shared<TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(), reinterpret_cast<const unsigned char*>(equirectangular->Data()),
-                                           Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()), equirectangular->Width(),
-                                           equirectangular->Height(), static_cast<uint16_t>(6));
+    return std::make_shared<Fleur::Graphics::TextureOpenGL>(equirectangular->Name(), equirectangular->Ext(),
+                                                            reinterpret_cast<const unsigned char*>(equirectangular->Data()),
+                                                            Texture::GetTextureFormat(equirectangular->Channels(), equirectangular->Depth()),
+                                                            equirectangular->Width(), equirectangular->Height(), static_cast<uint16_t>(6));
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(const Image2D* cubemapImage) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::DeviceOpenGL::CreateCubemap(const Image2D* cubemapImage) const
 {
-    return std::make_shared<TextureOpenGL>(cubemapImage->Name(), cubemapImage->Ext(), reinterpret_cast<const unsigned char*>(cubemapImage->Data()),
-                                           Texture::GetTextureFormat(cubemapImage->Channels(), cubemapImage->Depth()), cubemapImage->Width(),
-                                           cubemapImage->Height(), static_cast<uint16_t>(6));
+    return std::make_shared<Fleur::Graphics::TextureOpenGL>(
+        cubemapImage->Name(), cubemapImage->Ext(), reinterpret_cast<const unsigned char*>(cubemapImage->Data()),
+        Texture::GetTextureFormat(cubemapImage->Channels(), cubemapImage->Depth()), cubemapImage->Width(), cubemapImage->Height(), static_cast<uint16_t>(6));
 }
 
-std::shared_ptr<Texture> DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
+std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::DeviceOpenGL::CreateCubemap(std::string_view name, const CubemapInitData& images) const
 {
-    return std::make_shared<TextureOpenGL>(name, images.right->Ext(), images, Texture::GetTextureFormat(images.right->Channels(), images.right->Depth()),
-                                           images.right->Width(), images.right->Height(), static_cast<uint16_t>(6));
+    return std::make_shared<Fleur::Graphics::TextureOpenGL>(name, images.right->Ext(), images,
+                                                            Texture::GetTextureFormat(images.right->Channels(), images.right->Depth()), images.right->Width(),
+                                                            images.right->Height(), static_cast<uint16_t>(6));
 }
 
-std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const
+std::unique_ptr<Fleur::Graphics::Framebuffer> Fleur::Graphics::DeviceOpenGL::CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height,
+                                                                                               uint32_t flags) const
 {
     auto fbo = std::unique_ptr<FramebufferOpenGL>(new FramebufferOpenGL(name, width, height, flags));
 
@@ -265,12 +265,12 @@ std::unique_ptr<Framebuffer> DeviceOpenGL::CreateFramebuffer(std::string_view na
     return fbo;
 }
 
-void DeviceOpenGL::SetVSync(bool active) const
+void Fleur::Graphics::DeviceOpenGL::SetVSync(bool active) const
 {
     wglSwapIntervalEXT(active);
 }
 
-void DeviceOpenGL::Release()
+void Fleur::Graphics::DeviceOpenGL::Release()
 {
     if (m_Ctx)
     {
@@ -280,32 +280,32 @@ void DeviceOpenGL::Release()
     }
 }
 
-std::unique_ptr<Buffer> DeviceOpenGL::CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size)
+std::unique_ptr<Fleur::Graphics::Buffer> Fleur::Graphics::DeviceOpenGL::CreateBuffer(Buffer::EBufferType type, ERenderStage stage, size_t size)
 {
     return std::unique_ptr<Buffer>(new BufferOpenGL(type, stage, size));
 }
 
-std::unique_ptr<CommandQueue> DeviceOpenGL::CreateCommandQueue()
+std::unique_ptr<Fleur::Graphics::CommandQueue> Fleur::Graphics::DeviceOpenGL::CreateCommandQueue()
 {
     return std::unique_ptr<CommandQueue>(new CommandQueueOpenGL());
 }
 
-std::unique_ptr<CommandPool> DeviceOpenGL::CreateCommandPool(const CommandQueue& queue)
+std::unique_ptr<Fleur::Graphics::CommandPool> Fleur::Graphics::DeviceOpenGL::CreateCommandPool(const CommandQueue& queue)
 {
     return std::unique_ptr<CommandPoolOpenGL>(new CommandPoolOpenGL(queue));
 }
 
-std::unique_ptr<CommandBuffer> DeviceOpenGL::CreateCommandBuffer(DepthStencilDescriptor desc)
+std::unique_ptr<Fleur::Graphics::CommandBuffer> Fleur::Graphics::DeviceOpenGL::CreateCommandBuffer(DepthStencilDescriptor desc)
 {
     return std::unique_ptr<CommandBufferOpenGL>(new CommandBufferOpenGL(desc));
 }
 
-std::unique_ptr<Swapchain> DeviceOpenGL::CreateSwapchain(std::unique_ptr<Surface> surface)
+std::unique_ptr<Fleur::Graphics::Swapchain> Fleur::Graphics::DeviceOpenGL::CreateSwapchain(std::unique_ptr<Surface> surface)
 {
     return std::unique_ptr<Swapchain>(new SwapchainOpenGL(std::move(surface)));
 }
 
-Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::EShaderType type)
+Fleur::Graphics::Shader* Fleur::Graphics::DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::EShaderType type)
 {
     // TODO: rework shaders
     if (shaderName.empty())
@@ -330,4 +330,3 @@ Shader* DeviceOpenGL::CreateShader(std::string_view shaderName, Shader::EShaderT
 
     return new ShaderOpenGL(shaderName, res.value().c_str(), type);
 }
-}  // namespace Fleur::Graphics

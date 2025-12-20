@@ -2,20 +2,18 @@
 
 #include <glad/wgl.h>
 
-namespace Fleur::Graphics
-{
-SurfaceOpenGL::SurfaceOpenGL(const void* window)
+Fleur::Graphics::SurfaceOpenGL::SurfaceOpenGL(const void* window)
 {
     m_Window = (HWND)window;
     m_HDC = GetDC(m_Window);
 }
 
-SurfaceOpenGL::~SurfaceOpenGL()
+Fleur::Graphics::SurfaceOpenGL::~SurfaceOpenGL()
 {
     Release();
 }
 
-Surface::Rect SurfaceOpenGL::GetRect() const
+Fleur::Graphics::Rect Fleur::Graphics::SurfaceOpenGL::GetRect() const
 {
     RECT rect;
     if (GetClientRect(m_Window, &rect))
@@ -26,21 +24,19 @@ Surface::Rect SurfaceOpenGL::GetRect() const
     return {0, 0, 0, 0};
 }
 
-const void* SurfaceOpenGL::GetNativeHandle() const
+const void* Fleur::Graphics::SurfaceOpenGL::GetNativeHandle() const
 {
     return m_Window;
 }
 
-HDC SurfaceOpenGL::GetHdc() const
+HDC Fleur::Graphics::SurfaceOpenGL::GetHdc() const
 {
     return m_HDC;
 }
 
-void SurfaceOpenGL::Release()
+void Fleur::Graphics::SurfaceOpenGL::Release()
 {
     if (m_HDC)
         ReleaseDC(m_Window, m_HDC);
     m_HDC = nullptr;
 }
-
-}  // namespace Fleur::Graphics

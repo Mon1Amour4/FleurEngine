@@ -3,30 +3,28 @@
 #include "Application.h"
 #include "WindowWin.h"
 
-namespace Fleur
-{
 template <>
-InputWin& singleton<InputWin>::instance()
+Fleur::InputWin& Fleur::singleton<Fleur::InputWin>::instance()
 {
     static InputWin inst;
     return inst;
 }
 
-bool InputWin::IsKeyPressedImpl(EKeyCode keyCode) const
+bool Fleur::InputWin::IsKeyPressedImpl(EKeyCode keyCode) const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     Input::EKeyState state = window.GetKeyState(keyCode);
     return state == Input::KEY_PRESSED || state == Input::KEY_REPEAT;
 }
 
-bool InputWin::IsMouseButtonPressedImpl(uint16_t mouseCode)
+bool Fleur::InputWin::IsMouseButtonPressedImpl(uint16_t mouseCode)
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     Input::EMouseState state = window.GetMouseState(mouseCode);
     return state == Input::MOUSE_LPRESSED || state == Input::MOUSE_RPRESSED;
 }
 
-std::pair<int, int> InputWin::GetMousePositionImpl() const
+std::pair<int, int> Fleur::InputWin::GetMousePositionImpl() const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     int xPos, yPos;
@@ -34,7 +32,7 @@ std::pair<int, int> InputWin::GetMousePositionImpl() const
     return {xPos, yPos};
 }
 
-bool InputWin::IsMouseWheelScrolledImpl(std::pair<int, int>& pair) const
+bool Fleur::InputWin::IsMouseWheelScrolledImpl(std::pair<int, int>& pair) const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     pair = window.GetMouseWheelScrollData();
@@ -43,26 +41,25 @@ bool InputWin::IsMouseWheelScrolledImpl(std::pair<int, int>& pair) const
     return false;
 }
 
-int InputWin::GetMouseXImpl() const
+int Fleur::InputWin::GetMouseXImpl() const
 {
     auto [x, y] = GetMousePositionImpl();
     return x;
 }
 
-int InputWin::GetMouseYImpl() const
+int Fleur::InputWin::GetMouseYImpl() const
 {
     auto [x, y] = GetMousePositionImpl();
     return y;
 }
 
-glm::ivec2 InputWin::GetMouseDirImpl() const
+glm::ivec2 Fleur::InputWin::GetMouseDirImpl() const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     return window.GetMouseDir();
 }
 
-Input& Input::platform_instance()
+Fleur::Input& Fleur::Input::platform_instance()
 {
     return InputWin::instance();
 }
-}  // namespace Fleur

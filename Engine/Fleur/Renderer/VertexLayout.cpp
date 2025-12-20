@@ -1,16 +1,14 @@
 #include "VertexLayout.h"
 
-namespace Fleur::Graphics
-{
 // Layout:
-VertexLayout::VertexLayout()
+Fleur::Graphics::VertexLayout::VertexLayout()
     : m_Stride(0)
     , m_It(nullptr)
 {
     m_Attribs.reserve(1);
 }
 
-uint32_t VertexLayout::GetAPIDataType(EDataType type) const
+uint32_t Fleur::Graphics::VertexLayout::GetAPIDataType(EDataType type) const
 {
 #if defined(FLEUR_PLATFORM_WIN)
 
@@ -47,7 +45,7 @@ uint32_t VertexLayout::GetAPIDataType(EDataType type) const
 #endif
 }
 
-uint16_t VertexLayout::GetSizeOfDataType(EDataType type) const
+uint16_t Fleur::Graphics::VertexLayout::GetSizeOfDataType(EDataType type) const
 {
     switch (type)
     {
@@ -68,14 +66,14 @@ uint16_t VertexLayout::GetSizeOfDataType(EDataType type) const
     }
 }
 
-void VertexLayout::AddAttribute(VertexAttribute attrib)
+void Fleur::Graphics::VertexLayout::AddAttribute(VertexAttribute attrib)
 {
     attrib.Offset = m_Stride;
     m_Stride += GetSizeOfDataType(attrib.ComponentsType) * attrib.ComponentsAmount;
     m_Attribs.push_back(attrib);
 }
 
-void VertexLayout::EnableAttribute(uint16_t attribIndex)
+void Fleur::Graphics::VertexLayout::EnableAttribute(uint16_t attribIndex)
 {
     if (attribIndex < m_Attribs.size())
     {
@@ -83,7 +81,7 @@ void VertexLayout::EnableAttribute(uint16_t attribIndex)
     }
 }
 
-void VertexLayout::DisableAttribute(uint16_t attribIndex)
+void Fleur::Graphics::VertexLayout::DisableAttribute(uint16_t attribIndex)
 {
     if (attribIndex < m_Attribs.size())
     {
@@ -93,7 +91,7 @@ void VertexLayout::DisableAttribute(uint16_t attribIndex)
 
 
 // Attribute:
-VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t compAmount, EDataType compType, bool enabled)
+Fleur::Graphics::VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t compAmount, EDataType compType, bool enabled)
     : Index(ind)
     , ComponentsAmount(compAmount)
     , ComponentsType(compType)
@@ -104,7 +102,7 @@ VertexLayout::VertexAttribute::VertexAttribute(uint16_t ind, uint8_t compAmount,
 
 
 // Iterator:
-VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
+Fleur::Graphics::VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribute* attrib)
     : m_Master(master)
     , m_Attrib(attrib)
     , m_IsDone(false)
@@ -112,7 +110,7 @@ VertexLayout::LayoutIterator::LayoutIterator(VertexLayout* master, VertexAttribu
 {
 }
 
-VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
+Fleur::Graphics::VertexLayout::LayoutIterator* Fleur::Graphics::VertexLayout::GetIteratorBegin()
 {
     if (m_Attribs.size() == 0)
     {
@@ -124,7 +122,7 @@ VertexLayout::LayoutIterator* VertexLayout::GetIteratorBegin()
     return m_It;
 }
 
-VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
+Fleur::Graphics::VertexLayout::LayoutIterator* Fleur::Graphics::VertexLayout::GetNextIterator()
 {
     if (!m_It)
         return nullptr;
@@ -148,15 +146,13 @@ VertexLayout::LayoutIterator* VertexLayout::GetNextIterator()
     return nullptr;
 }
 
-bool VertexLayout::LayoutIterator::IsDone()
+bool Fleur::Graphics::VertexLayout::LayoutIterator::IsDone()
 {
     return m_IsDone;
 }
 
-void VertexLayout::ReleaseIterator()
+void Fleur::Graphics::VertexLayout::ReleaseIterator()
 {
     delete m_It;
     m_It = nullptr;
 }
-
-}  // namespace Fleur::Graphics

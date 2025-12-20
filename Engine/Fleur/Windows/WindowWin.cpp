@@ -6,15 +6,12 @@
 #include "KeyCodesWin.h"
 #include "Log.h"
 
-namespace Fleur
-{
-
-void WindowWin::SetTitle(std::string title)
+void Fleur::WindowWin::SetTitle(std::string title)
 {
     SetWindowText(m_HWND, std::string(m_Props.Title + " " + title).c_str());
 }
 
-DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
+DWORD WINAPI Fleur::WindowWin::WinThreadMain(LPVOID lpParameter)
 {
     InitOpenGLExtensions();
 
@@ -99,7 +96,7 @@ DWORD WINAPI WindowWin::WinThreadMain(LPVOID lpParameter)
     return S_OK;
 }
 
-LRESULT CALLBACK WindowWin::WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK Fleur::WindowWin::WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     if (WindowWin* window = reinterpret_cast<WindowWin*>(GetWindowLongPtr(hWnd, GWLP_USERDATA)))
     {
@@ -109,7 +106,7 @@ LRESULT CALLBACK WindowWin::WindowProcStatic(HWND hWnd, UINT uMsg, WPARAM wParam
     return DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-void WindowWin::InitOpenGLExtensions()
+void Fleur::WindowWin::InitOpenGLExtensions()
 {
     WNDCLASSA window_class = {
         .style = CS_HREDRAW | CS_VREDRAW | CS_OWNDC,
@@ -168,7 +165,7 @@ void WindowWin::InitOpenGLExtensions()
     DestroyWindow(dummyWindow);
 }
 
-LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT Fleur::WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     m_MouseDir.x = 0;
     m_MouseDir.y = 0;
@@ -505,7 +502,7 @@ LRESULT WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hWnd, msg, wParam, lParam);
 }
 
-WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
+Fleur::WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     : m_EventQueue(static_cast<EventQueueWin*>(&eventQueue))
     , m_Hinstance(GetModuleHandle(nullptr))
     , m_Props(props)
@@ -537,7 +534,7 @@ WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     WaitForSingleObject(m_OnThreadCreated, INFINITE);
 }
 
-void WindowWin::OnUpdate(float dtTime)
+void Fleur::WindowWin::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
     glm::ivec2 tmp = m_MouseDir;
@@ -556,62 +553,62 @@ void WindowWin::OnUpdate(float dtTime)
     m_EventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
-void WindowWin::OnPostUpdate(float dtTime)
+void Fleur::WindowWin::OnPostUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void WindowWin::OnFixedUpdate()
+void Fleur::WindowWin::OnFixedUpdate()
 {
     // TODO
 }
 
-const void* WindowWin::GetNativeHandle() const
+const void* Fleur::WindowWin::GetNativeHandle() const
 {
     return m_HWND;
 }
 
-Input::EKeyState WindowWin::GetKeyState(EKeyCode keyCode) const
+Fleur::Input::EKeyState Fleur::WindowWin::GetKeyState(EKeyCode keyCode) const
 {
     return m_PressedKeys[keyCode];
 }
 
-Input::EMouseState WindowWin::GetMouseState(EMouseCode mouseCode) const
+Fleur::Input::EMouseState Fleur::WindowWin::GetMouseState(EMouseCode mouseCode) const
 {
     return m_LastMouse.MouseCode == mouseCode ? m_LastMouse.State : Input::EMouseState::MOUSE_NONE;
 }
 
-std::pair<int, int> WindowWin::GetMouseWheelScrollData() const
+std::pair<int, int> Fleur::WindowWin::GetMouseWheelScrollData() const
 {
     return m_MouseWheelData;
 }
 
-void WindowWin::GetMousePos(OUT int& xPos, OUT int& yPos) const
+void Fleur::WindowWin::GetMousePos(OUT int& xPos, OUT int& yPos) const
 {
     xPos = m_CursorPos.x;
     yPos = m_CursorPos.y;
 }
 
-std::unique_ptr<Window> Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
+std::unique_ptr<Fleur::Window> Fleur::Window::CreateAppWindow(const WindowProps& props, EventQueue& eventQueue)
 {
     return std::make_unique<WindowWin>(props, eventQueue);
 }
 
-void WindowWin::SetMousePos(int x, int y)
+void Fleur::WindowWin::SetMousePos(int x, int y)
 {
     m_PrevCursorPos = m_CursorPos;
     m_CursorPos.x = x;
     m_CursorPos.y = y;
 }
 
-void WindowWin::SetMouseWheelScrollData(int x, int y)
+void Fleur::WindowWin::SetMouseWheelScrollData(int x, int y)
 {
     m_MouseWheelData.first = x;
     m_MouseWheelData.second = y;
 }
 
-void WindowWin::SetGamingMode()
+void Fleur::WindowWin::SetGamingMode()
 {
     RECT rect;
     GetClientRect(m_HWND, &rect);
@@ -632,7 +629,7 @@ void WindowWin::SetGamingMode()
     SetCursor(NULL);
 }
 
-void WindowWin::UnlockMouse()
+void Fleur::WindowWin::UnlockMouse()
 {
     if (m_InteractionMode == EInteractionMode::GAMING)
     {
@@ -641,7 +638,7 @@ void WindowWin::UnlockMouse()
     }
 }
 
-void WindowWin::SetWindowMode(WPARAM mode)
+void Fleur::WindowWin::SetWindowMode(WPARAM mode)
 {
     switch (mode)
     {
@@ -656,4 +653,3 @@ void WindowWin::SetWindowMode(WPARAM mode)
         break;
     }
 }
-}  // namespace Fleur

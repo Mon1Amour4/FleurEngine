@@ -1,49 +1,46 @@
 #include "EventQueueWin.h"
 
-namespace Fleur
-{
-void EventQueueWin::OnUpdate(float dtTime)
+void Fleur::EventQueueWin::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void EventQueueWin::OnPostUpdate(float dtTime)
+void Fleur::EventQueueWin::OnPostUpdate(float dtTime)
 {
     UNUSED(dtTime);
     // TODO
 }
 
-void EventQueueWin::OnFixedUpdate()
+void Fleur::EventQueueWin::OnFixedUpdate()
 {
     // TODO
 }
 
-std::shared_ptr<EventVariant> EventQueueWin::Front()
+std::shared_ptr<Fleur::EventVariant> Fleur::EventQueueWin::Front()
 {
     std::lock_guard lock(m_Mutex);
     return m_Queue.front();
 }
 
-void EventQueueWin::Pop()
+void Fleur::EventQueueWin::Pop()
 {
     std::lock_guard lock(m_Mutex);
     m_Queue.pop();
 }
 
-bool EventQueueWin::Empty()
+bool Fleur::EventQueueWin::Empty()
 {
     return m_Queue.empty();
 }
 
-void EventQueueWin::PushEvent(std::shared_ptr<EventVariant>&& e)
+void Fleur::EventQueueWin::PushEvent(std::shared_ptr<EventVariant>&& e)
 {
     std::lock_guard lock(m_Mutex);
     m_Queue.push(std::move(e));
 }
 
-std::unique_ptr<EventQueue> EventQueue::CreateEventQueue()
+std::unique_ptr<Fleur::EventQueue> Fleur::EventQueue::CreateEventQueue()
 {
     return std::make_unique<EventQueueWin>();
 }
-}  // namespace Fleur

@@ -7,8 +7,6 @@
 #include "ThreadPool.h"
 #include "Toolchain.h"
 
-namespace Fleur
-{
 using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;
 using CubemapImage = Fleur::Graphics::CubemapImage;
@@ -18,33 +16,33 @@ using Color = Fleur::Graphics::Color;
 
 
 template <>
-Application& singleton<Application>::instance()
+Fleur::Application& Fleur::singleton<Fleur::Application>::instance()
 {
     static Application inst;
     return inst;
 }
 
-Application::Application()
+Fleur::Application::Application()
     : m_IsInitialized(false)
     , m_IsRunning(false)
 {
 }
 
-Application::~Application()
+Fleur::Application::~Application()
 {
 }
 
-void Application::PushLayer(Layer* layer)
+void Fleur::Application::PushLayer(Layer* layer)
 {
     m_LayerStack.PushLayer(layer);
     layer->OnAttach();
 }
-void Application::PushOverlay(Layer* overlay)
+void Fleur::Application::PushOverlay(Layer* overlay)
 {
     m_LayerStack.PushOverlay(overlay);
 }
 
-void Application::OnEvent(EventVariant& event)
+void Fleur::Application::OnEvent(EventVariant& event)
 {  // clang-format off
     auto ApplicationEventVisitor = EventVisitor{[this](WindowResizeEvent&   ev) { OnWindowResize(ev); },
                                                 [this](WindowStartResizeEvent&   ev) { OnStartResizeWindow(ev); },
@@ -71,36 +69,36 @@ void Application::OnEvent(EventVariant& event)
     }
 }
 
-bool Application::OnWindowClose(WindowCloseEvent& event)
+bool Fleur::Application::OnWindowClose(WindowCloseEvent& event)
 {
     m_IsRunning = false;
     event.SetHandled();
     return true;
 }
-bool Application::OnWindowResize(WindowResizeEvent& event)
+bool Fleur::Application::OnWindowResize(WindowResizeEvent& event)
 {
     ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
     event.SetHandled();
     return true;
 }
-bool Application::OnStartResizeWindow(WindowStartResizeEvent& event)
+bool Fleur::Application::OnStartResizeWindow(WindowStartResizeEvent& event)
 {
     event.SetHandled();
     return true;
 }
-bool Application::OnEndResizeWindow(WindowEndResizeEvent& event)
+bool Fleur::Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 {
     event.SetHandled();
     return true;
 }
-bool Application::OnValidateWindow(WindowValidateEvent& event)
+bool Fleur::Application::OnValidateWindow(WindowValidateEvent& event)
 {
     ServiceLocator::instance().GetService<Renderer>()->ValidateWindow();
     m_Window->SetPainted();
     event.SetHandled();
     return true;
 }
-bool Application::OnKeyPressEvent(KeyPressedEvent& event)
+bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
 {
     EKeyCode crossplatformKey = event.GetKeyCode();
 
@@ -117,7 +115,7 @@ bool Application::OnKeyPressEvent(KeyPressedEvent& event)
     return true;
 }
 
-bool Application::OnRenderEvent(AppRenderEvent& event)
+bool Fleur::Application::OnRenderEvent(AppRenderEvent& event)
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
     auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
@@ -157,24 +155,24 @@ bool Application::OnRenderEvent(AppRenderEvent& event)
     UNUSED(event);
     return true;
 }
-bool Application::OnMouseMoveEvent(MouseMovedEvent& event)
+bool Fleur::Application::OnMouseMoveEvent(MouseMovedEvent& event)
 {
     UNUSED(event);
     return true;
 }
 
-bool Application::OnMouseWheelScrollEvent(MouseScrolledEvent& event)
+bool Fleur::Application::OnMouseWheelScrollEvent(MouseScrolledEvent& event)
 {
     m_Window->SetMouseWheelScrollData(event.GetXOffset(), event.GetYOffset());
     return false;
 }
 
-Window& Application::GetWindow()
+Fleur::Window& Fleur::Application::GetWindow()
 {
     return *m_Window;
 }
 
-void Application::Init(ApplicationBootSettings& settings)
+void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
     Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
 
@@ -213,19 +211,19 @@ void Application::Init(ApplicationBootSettings& settings)
     m_IsRunning = true;
 }
 
-void Application::SetVSync(bool active) const
+void Fleur::Application::SetVSync(bool active) const
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
     renderer->SetVSync(active);
 }
 
-bool Application::IsVSync() const
+bool Fleur::Application::IsVSync() const
 {
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
     return renderer->IsVSync();
 }
 
-void Application::Run()
+void Fleur::Application::Run()
 {
     if (!m_IsInitialized)
     {
@@ -268,8 +266,6 @@ void Application::Run()
         renderer->OnUpdate(dtTime);
         renderer->Present();
         m_Window->SetMouseWheelScrollData(0, 0);
-        //Fleur::Core::Benchmark::Frame();
+        // Fleur::Core::Benchmark::Frame();
     }
 }
-
-}  // namespace Fleur
