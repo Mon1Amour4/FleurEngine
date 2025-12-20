@@ -27,7 +27,7 @@ public:
     template <class T>
     void deallocate(void* ptr, uint32_t count)
     {
-        memory->deallocate<int>(ptr, count);
+        memory->deallocate<T>(ptr, count);
     }
 
     template <typename T, size_t Align = 0, typename... Args>
