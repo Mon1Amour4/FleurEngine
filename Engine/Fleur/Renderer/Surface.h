@@ -1,16 +1,11 @@
 ﻿#pragma once
+#include "Graphics.hpp"
 
 namespace Fleur::Graphics
 {
 class Surface
 {
 public:
-    struct Rect
-    {
-        int x, y;
-        uint32_t width, height;
-    };
-
     virtual ~Surface() = default;
     virtual Rect GetRect() const = 0;
 

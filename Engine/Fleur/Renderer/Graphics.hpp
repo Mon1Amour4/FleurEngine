@@ -42,4 +42,10 @@ enum ERenderStage : uint8_t
     GIZMO
 };
 
+struct Rect
+{
+    int x, y;
+    uint32_t width, height;
+};
+
 }  // namespace Fleur::Graphics
