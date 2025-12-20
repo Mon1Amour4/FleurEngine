@@ -13,7 +13,7 @@ struct TLSFAllocator
     {
         // [0]F [1]T
         char bytes[2];
-        int64_t _size;
+        uint32_t _size;
         free_block_header* prev_phys_block;
 
         free_block_header* next_free;
@@ -55,7 +55,7 @@ struct TLSFAllocator
         // [0]F  1:free, 0:used
         // [1]T  1:last, 0:not last
         char bytes[2];
-        int64_t _size;
+        uint32_t _size;
         free_block_header* prev_phys_block;
 
         // 1 - free
@@ -112,9 +112,8 @@ struct TLSFAllocator
         // Second level bitmap initialization
         for (uint32_t i = 0; i < m_FLI; i++)
         {
-            m_SL_Bitmap[i] = Fleur::Core::BitSet64(pow(2, m_SLI));
+            m_SL_Bitmap[i] = Fleur::Core::BitSet64(static_cast<uint8_t>(pow(2, m_SLI)));
         }
-        size_t listsNumber = pow(2, m_SLI) * (m_FLI - log2(m_MBS));
     }
 
     template <typename T, uint32_t ALign = 0>
@@ -169,7 +168,7 @@ struct TLSFAllocator
     }
 
 private:
-    void mapping(size_t size, uint32_t* fl, uint32_t* sl)
+    void mapping(uint32_t size, uint32_t* fl, uint32_t* sl)
     {
         if (Fleur::Core::bit_scan_reverse(size, fl))
         {
@@ -183,7 +182,7 @@ private:
         Fleur::Core::bit_scan_reverse(*size, fl);
         *sl = (*size >> (*fl - m_SLI)) - (1u << m_SLI);
     }
-    inline void sli_no_rounding(size_t size, uint32_t* fl, uint32_t* sl)
+    inline void sli_no_rounding(uint32_t size, uint32_t* fl, uint32_t* sl)
     {
         Fleur::Core::bit_scan_reverse(size, fl);
         *sl = (size >> (*fl - m_SLI)) - (1u << m_SLI);
@@ -195,7 +194,7 @@ private:
         return slBitmap->scan_forward_from(sl);
     }
 
-    inline free_block_header* request_block(size_t size)
+    inline free_block_header* request_block(uint32_t size)
     {
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
         MM_DEBUG_BREAK(ptr == nullptr);
@@ -225,9 +224,9 @@ private:
             nextBlock->prev_free = nullptr;
         else
         {
-            m_SL_Bitmap[fli].ClearBit(sli);
+            m_SL_Bitmap[fli].ClearBit(static_cast<uint8_t>(sli));
             if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
-                m_FL_Bitmap.ClearBit(fli);
+                m_FL_Bitmap.ClearBit(static_cast<uint8_t>(fli));
         }
 
         currentBlock->set_used();
@@ -238,7 +237,7 @@ private:
         return reinterpret_cast<used_block_header*>(currentBlock);
     }
 
-    inline used_block_header* request_and_use_block(size_t size, uint32_t fli, uint32_t sli)
+    inline used_block_header* request_and_use_block(uint32_t size, uint32_t fli, uint32_t sli)
     {
         free_block_header* block = request_block(size);
         insert(block, fli, sli);
@@ -247,8 +246,8 @@ private:
 
     inline void free_block(free_block_header* deallocatedBlock, uint32_t fli, uint32_t sli)
     {
-        m_FL_Bitmap.SetBit(fli);
-        m_SL_Bitmap[fli].SetBit(sli);
+        m_FL_Bitmap.SetBit(static_cast<uint8_t>(fli));
+        m_SL_Bitmap[fli].SetBit(static_cast<uint8_t>(sli));
 
         free_block_header* currentHead = m_FreeListHead[fli][sli];
         if (!currentHead)
@@ -278,7 +277,7 @@ private:
                 return nullptr;
 
             Fleur::Core::bit_scan_reverse(tempBitmap, fl);
-            uint32_t tempSliBitmap = m_SL_Bitmap[*fl].Get();
+            uint32_t tempSliBitmap = static_cast<uint32_t>(m_SL_Bitmap[*fl].Get());
             Fleur::Core::bit_scan_reverse(tempSliBitmap, sl);
         }
         auto block = m_FreeListHead[*fl][*sl];
@@ -309,7 +308,7 @@ private:
 
     inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)
     {
-        size_t remainingSize = usedBlock->_size - usedSize;
+        uint32_t remainingSize = usedBlock->_size - usedSize;
 
         MM_DEBUG_BREAK(remainingSize == -1234)
 
@@ -338,8 +337,8 @@ private:
     {
         MM_DEBUG_BREAK(block->_size < SIZE_TRASHHOLD || block->_size > MAX_VALUE)
 
-        m_FL_Bitmap.SetBit(fli);
-        m_SL_Bitmap[fli].SetBit(sli);
+        m_FL_Bitmap.SetBit(static_cast<uint8_t>(fli));
+        m_SL_Bitmap[fli].SetBit(static_cast<uint8_t>(sli));
 
         free_block_header* currentBlock = m_FreeListHead[fli][sli];
         block->next_free = currentBlock;
@@ -385,7 +384,7 @@ private:
                 }
                 else
                 {
-                    MM_DEBUG_BREAK(true)
+                    MM_DEBUG_BREAK(rightBlockBytePtr >= m_EndOfMemory)
                 }
             }
             else
@@ -394,7 +393,7 @@ private:
             }
 
             currentBlock->prev_phys_block = nullptr;
-            currentBlock->_size = -1234;
+            currentBlock->_size = 0;
 
             return prevBlock;
         }
@@ -437,7 +436,7 @@ private:
                     }
                     else
                     {
-                        MM_DEBUG_BREAK(true)
+                        MM_DEBUG_BREAK(rightBlockBytePtr >= m_EndOfMemory)
                     }
                 }
                 else
@@ -455,9 +454,9 @@ private:
 public:
     void GetSnapshot(char*& buffer) const
     {
-        buffer += std::sprintf(buffer, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
 
-        buffer += std::sprintf(buffer, "FLI:     {%-32s}\n", m_FL_Bitmap.StringRepresentation().c_str());
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "FLI:     {%-32s}\n", m_FL_Bitmap.StringRepresentation().c_str());
 
         uint32_t fl_idx = 0;
 
@@ -498,11 +497,11 @@ public:
                 if (i == 15)
                     str += '\t';
             }
-            buffer += std::sprintf(buffer, "SLI[%-2d]: {%s}\n", fl_idx, str.c_str());
+            buffer += sprintf_s(buffer, 1024l * 1024l * 50, "SLI[%-2d]: {%s}\n", fl_idx, str.c_str());
             fl_idx++;
         }
 
 
-        buffer += std::sprintf(buffer, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
     }
 };

@@ -1,15 +1,19 @@
 #pragma once
-
+#include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <iostream>
+#include <unordered_map>
 #pragma region MemoryManager Debug profiling definitions
 //======================================================================
 #if defined(_DEBUG) && defined(MEMORYMANAGER_PROFILING)
-#include <algorithm>
+
 
 struct MemoryInfo
 {
     struct record
     {
-        record(uint32_t slotSize)
+        record()
             : allocAmount(0)
             , deallocAmount(0)
             , allocatedOverallMemoryBytes(0)

@@ -25,7 +25,7 @@ public:
         MM_PRINT(", Head{" << static_cast<void*>(localHead) << "}, Tail{" << static_cast<void*>(localHead + m_CapacityBytes) << "}\n")
 
         // TODO A place for optimization
-        for (size_t i = 0; i < slotCount; i++)
+        for (uint32_t i = 0; i < slotCount; i++)
         {
             uint32_t* slotPtr = reinterpret_cast<uint32_t*>(localHead + (m_SlotSize * i));
             if (i == slotCount - 1)
@@ -45,7 +45,6 @@ public:
     {
         MM_DEBUG_BREAK(!IsValid())
 
-        uint32_t oldCapacity = m_UsedBytes;
         m_UsedBytes += m_SlotSize;
 
         MM_DEBUG_BREAK(m_UsedBytes > m_CapacityBytes);
@@ -53,7 +52,7 @@ public:
         if (m_FreeSlot == II_NULL_INDEX)
         {
             // No Space in Chunk at all, we cant have this case because Pool stores ptr to chunk that has at least one free slot
-            MM_DEBUG_BREAK(true);
+            MM_DEBUG_BREAK(m_FreeSlot == II_NULL_INDEX);
             return false;
         }
         else
@@ -93,7 +92,7 @@ public:
 
         bool wasFull = m_UsedBytes == m_CapacityBytes;
         m_UsedBytes -= m_SlotSize;
-        uint32_t deallocatedIdx = (ptrToSLot - localHead) / m_SlotSize;
+        uint32_t deallocatedIdx = static_cast<uint32_t>((ptrToSLot - localHead) / m_SlotSize);
         if (wasFull)
         {
             MM_DEBUG_BREAK(deallocatedIdx == II_NULL_INDEX)
@@ -147,12 +146,6 @@ public:
     }
     void Print(uint32_t chunkNum)
     {
-        constexpr const char* Reset = "\033[0m";
-        constexpr const char* FG_Black = "\033[30m";
-        constexpr const char* FG_White = "\033[97m";
-        constexpr const char* BG_Red = "\033[41m";
-        constexpr const char* BG_Green = "\033[42m";
-
         static constexpr char emptyCell = ' ';
         static constexpr char occupiedCell = 'x';
         static constexpr uint32_t cellsPerRow = 40;
@@ -172,17 +165,6 @@ public:
 
             for (uint32_t i = start; i < end; ++i) std::cout << '[' << std::setw(width) << i << "] ";
             std::cout << "\n";
-
-            for (uint32_t i = start; i < end; ++i)
-            {
-                // TODO: FIX const bool isOccupied = bitmap.IsBitOccupied(i);
-
-                // TODO: FIX
-                /* if (isOccupied)
-                     std::cout << FG_White << BG_Red << "  X " << Reset << " ";
-                 else
-                     std::cout << FG_Black << BG_Green << "  O " << Reset << " ";*/
-            }
 
             std::cout << "\n\n";
         }
@@ -228,8 +210,8 @@ public:
             oss << nextChunk;
             next = oss.str();
         }
-        buffer += std::sprintf(buffer, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{%-16s} |\n", chunkNum, this, m_SlotSize, m_CapacityBytes / m_SlotSize,
-                               m_UsedBytes, m_CapacityBytes, sign.c_str(), next.c_str());
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{%-16s} |\n", chunkNum, this, m_SlotSize,
+                            m_CapacityBytes / m_SlotSize, m_UsedBytes, m_CapacityBytes, sign.c_str(), next.c_str());
         if (nextChunk)
             nextChunk->ChunkSnapshot(++chunkNum, buffer);
     }
@@ -244,7 +226,7 @@ public:
             m_NextChunkOffsetInChunkStride = 0;
             return;
         }
-        int nextPtrDiff = TOCHARPTR(next) - TOCHARPTR(this);
+        int nextPtrDiff = static_cast<int>(TOCHARPTR(next) - TOCHARPTR(this));
         m_NextChunkOffsetInChunkStride = nextPtrDiff / static_cast<int>(4096);
     }
     void SetPrev(Chunk* prev)
@@ -257,7 +239,7 @@ public:
             m_PrevChunkOffsetInChunkStride = 0;
             return;
         }
-        int prevPtrDiff = TOCHARPTR(prev) - TOCHARPTR(this);
+        int prevPtrDiff = static_cast<int>(TOCHARPTR(prev) - TOCHARPTR(this));
         m_PrevChunkOffsetInChunkStride = prevPtrDiff / static_cast<int>(4096);
     }
     inline Chunk* GetNext()
@@ -382,7 +364,7 @@ struct Pool
                     size_t localVar = TOCHARPTR(nextHead) - TOCHARPTR(this);
                     MM_DEBUG_BREAK(localVar > 4'294'967'295);
                 })
-                m_HeadOffsetBytes = TOCHARPTR(nextHead) - TOCHARPTR(this);
+                m_HeadOffsetBytes = static_cast<uint32_t>(TOCHARPTR(nextHead) - TOCHARPTR(this));
                 MM_DEBUG_BREAK(m_HeadOffsetBytes > 4000000000);
             }
             else
@@ -402,12 +384,12 @@ struct Pool
                 size_t localVar = TOCHARPTR(chunk) - TOCHARPTR(this);
                 MM_DEBUG_BREAK(localVar > 4'294'967'295);
             })
-            m_HeadOffsetBytes = reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this);
+            m_HeadOffsetBytes = static_cast<uint32_t>(reinterpret_cast<unsigned char*>(chunk) - reinterpret_cast<unsigned char*>(this));
         }
         else
         {
             Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
-            m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+            m_HeadOffsetBytes = static_cast<uint32_t>(TOCHARPTR(chunk) - TOCHARPTR(this));
             currentHead->SetPrev(chunk);
             chunk->SetNext(currentHead);
         }
@@ -453,12 +435,12 @@ struct Pool
                     size_t localVar = TOCHARPTR(chunk) - TOCHARPTR(this);
                     MM_DEBUG_BREAK(localVar > 4'294'967'295);
                 })
-                m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+                m_HeadOffsetBytes = static_cast<uint32_t>(TOCHARPTR(chunk) - TOCHARPTR(this));
             }
             else
             {
                 Chunk* currentHead = reinterpret_cast<Chunk*>(TOCHARPTR(this) + m_HeadOffsetBytes);
-                m_HeadOffsetBytes = TOCHARPTR(chunk) - TOCHARPTR(this);
+                m_HeadOffsetBytes = static_cast<uint32_t>(TOCHARPTR(chunk) - TOCHARPTR(this));
                 MM_DEBUG_BREAK(m_HeadOffsetBytes > 4000000000)
 
                 //  Before:            [current]-><-[other]-><-[other]
@@ -502,7 +484,7 @@ struct Pool
                                     size_t localVar = TOCHARPTR(next) - TOCHARPTR(this);
                                     MM_DEBUG_BREAK(localVar > 4'294'967'295);
                                 })
-                                m_HeadOffsetBytes = TOCHARPTR(next) - TOCHARPTR(this);
+                                m_HeadOffsetBytes = static_cast<uint32_t>(TOCHARPTR(next) - TOCHARPTR(this));
                             }
                             else
                                 m_HeadOffsetBytes = INVALID_OFFSET;
@@ -543,9 +525,9 @@ struct SLUBAllocator
 
         for (size_t i = 0; i < poolsCount; i++)
         {
-            uint32_t poolSize = m_MinSlotSize + (8 * i);
+            uint32_t poolSize = static_cast<uint32_t>(m_MinSlotSize + (8 * i));
             unsigned char* poolPtr = m_BasePool + offset * i;
-            Pool* pool = new (poolPtr) Pool(poolSize, CHUNK_PAYLOAD_SIZE(m_PageSize) / poolSize);
+            new (poolPtr) Pool(poolSize, CHUNK_PAYLOAD_SIZE(m_PageSize) / poolSize);
         }
     }
     ~SLUBAllocator()
@@ -627,19 +609,18 @@ struct SLUBAllocator
 
     void GetSnapshot(char*& buffer) const
     {
-        buffer += std::sprintf(buffer, "//-------------------------- SLUB ALLOCATOR ----------------------------\\\n");
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "%s", "//-------------------------- SLUB ALLOCATOR ----------------------------\\\n");
 
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);
 
         for (size_t i = 0; i < poolsCount; i++)
         {
-            uint32_t poolSize = m_MinSlotSize + (8 * i);
             Pool* pool = reinterpret_cast<Pool*>(m_BasePool + offset * i);
             pool->PoolSpapshot(buffer);
         }
 
-        buffer += std::sprintf(buffer, "\n//---------------------- END OF SLUB ALLOCATOR ----------------------------\\ \n\n");
+        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF SLUB ALLOCATOR ----------------------------\\ \n\n");
     }
 
 private:

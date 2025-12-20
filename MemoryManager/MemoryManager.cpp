@@ -291,7 +291,7 @@ void MemoryInfo::AddAlloc(size_t slotSize)
     }
     else
     {
-        infos.insert({slotSize, record(slotSize)});
+        infos.insert({slotSize, record()});
     }
 }
 void MemoryInfo::AddDealloc(size_t slotSize)
