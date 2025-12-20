@@ -128,7 +128,6 @@ struct TLSFAllocator
         foundBlock = get_block(size, &firstIndex, &secondIndex);
 
         MM_DEBUG_BREAK(foundBlock->_size < originalSize)
-        MM_DEBUG_BREAK(foundBlock->_size == -1234)
 
         if (foundBlock->_size - size > SIZE_TRASHHOLD)
         {
@@ -297,7 +296,6 @@ private:
             foundBlock = search_suitable_block(fl, sl);
             if (foundBlock)
             {
-                MM_DEBUG_BREAK(foundBlock->_size == -1234)
                 return use_block(*fl, *sl);
             }
         }
@@ -309,8 +307,6 @@ private:
     inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)
     {
         uint32_t remainingSize = usedBlock->_size - usedSize;
-
-        MM_DEBUG_BREAK(remainingSize == -1234)
 
         usedBlock->_size = usedSize;
         usedBlock->set_not_last_physical_block();
