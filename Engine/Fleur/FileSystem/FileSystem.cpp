@@ -1,5 +1,7 @@
 #include "FileSystem.h"
 
+#include "FleurAllocator.hpp"
+
 #if defined(FLEUR_PLATFORM_WIN)
 #include "FileSystemPathsWin.h"
 #endif
@@ -10,6 +12,7 @@
 
 #include "FileSystemPathsMacOS.h"
 #endif
+#include <Application.h>
 
 namespace Fleur::FS
 {
@@ -22,8 +25,8 @@ class FileSystem::FileSystemImpl
     const std::string m_ImagesPath = "Images";
     const std::string m_ModelsPath = "Models";
     const std::string m_ScenesPath = "Scenes";
-    const std::vector<std::string_view> m_SearchPaths = {m_ShadersPath.data(), m_ImagesPath.data(),
-                                                                                                         m_ModelsPath.data(), m_ScenesPath.data()};
+    const std::vector<std::string_view, Fleur::Memory::FleurAllocator<std::string_view>> m_SearchPaths = {m_ShadersPath.data(), m_ImagesPath.data(),
+                                                                                                          m_ModelsPath.data(), m_ScenesPath.data()};
 };
 
 FileSystem::FileSystem()

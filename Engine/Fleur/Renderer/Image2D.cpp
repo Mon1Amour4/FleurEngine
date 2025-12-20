@@ -1,8 +1,8 @@
 #include "Image2D.h"
 
 #include "Color.h"
+#include "FleurAllocator.hpp"
 #include "Services/ServiceLocator.h"
-
 
 // ImageBase
 Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint16_t layers)
@@ -191,8 +191,8 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
         {},     {}   // 10,11
     };
 
-    std::vector<float> normU(faceSize);
-    std::vector<float> normV(faceSize);
+    std::vector<float, Fleur::Memory::FleurAllocator<float>> normU(faceSize);
+    std::vector<float, Fleur::Memory::FleurAllocator<float>> normV(faceSize);
     for (uint32_t i = 0; i < faceSize; ++i)
     {
         normU[i] = ((i + 0.5f) / faceSize) * 2.f - 1.f;

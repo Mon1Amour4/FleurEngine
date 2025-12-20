@@ -8,8 +8,8 @@ class LayerStack::LayerStackImpl
 {
     friend class LayerStack;
 
-    std::vector<Layer*> m_Layers;
-    std::vector<Layer*>::iterator m_LayerInsert;
+    vector m_Layers;
+    vector::iterator m_LayerInsert;
 };
 
 LayerStack::LayerStack()
@@ -57,12 +57,12 @@ void LayerStack::PopOverlay(Layer* overlay)
     }
 }
 
-std::vector<Layer*>::iterator LayerStack::begin()
+LayerStack::vector::iterator LayerStack::begin()
 {
     return d->m_Layers.begin();
 }
 
-std::vector<Layer*>::iterator LayerStack::end()
+LayerStack::vector::iterator LayerStack::end()
 {
     return d->m_Layers.end();
 }
