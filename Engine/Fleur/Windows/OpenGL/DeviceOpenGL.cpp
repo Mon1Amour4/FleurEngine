@@ -175,7 +175,10 @@ DeviceOpenGL::DeviceOpenGL()
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
     glDebugMessageCallback(OpenGLDebugCallbackFunc, nullptr);
-    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+
+    // Turn off performance warning which can be reproduced on nvidia geforce rtx 4070 LAPTOP
+    uint32_t warningId = 8;
+    glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 1, &warningId, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &m_MaxTexturesUnits);
     FL_CORE_INFO("  Max texture units: {0}", m_MaxTexturesUnits);
     ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(m_MaxTexturesUnits);

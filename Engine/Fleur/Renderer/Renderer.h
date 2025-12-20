@@ -7,6 +7,7 @@
 #include "CommandPool.h"
 #include "CommandQueue.h"
 #include "Device.h"
+#include "FleurAllocator.hpp"
 #include "Framebuffer.h"
 #include "Graphics.hpp"
 #include "Image2D.h"
@@ -142,8 +143,8 @@ private:
 
     std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;
     std::unordered_map<std::string, DrawInfo> m_GizmoModels;
-    std::vector<DrawInfo> m_StaticGeometryModelsVector;
-    std::vector<DrawInfo> m_GizmoModelsVector;
+    std::vector<DrawInfo, Fleur::Memory::FleurAllocator<DrawInfo>> m_StaticGeometryModelsVector;
+    std::vector<DrawInfo, Fleur::Memory::FleurAllocator<DrawInfo>> m_GizmoModelsVector;
 
     // Service
 

@@ -4,6 +4,7 @@
 #include <future>
 #include <queue>
 
+#include "FleurAllocator.hpp"
 #include "Services/ServiceInterfaces.hpp"
 
 template <class T, class... Args>
@@ -55,7 +56,7 @@ public:
 
 private:
     uint16_t m_NumWorkers;
-    std::vector<std::thread> m_Workers;
+    std::vector<std::thread, Fleur::Memory::FleurAllocator<std::thread>> m_Workers;
     std::mutex m_QueueMutex;
     std::condition_variable m_Condition;
 

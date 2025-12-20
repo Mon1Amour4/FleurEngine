@@ -1,5 +1,7 @@
 #pragma once
 
+#include <MemoryManager.h>
+
 #include "EventQueue.h"
 #include "Events/ApplicationEvent.h"
 #include "Events/EventVisitor.h"
@@ -21,7 +23,6 @@ class Texture;
 
 namespace Fleur
 {
-
 class FLEUR_API Application : public singleton<Application>
 {
     friend class singleton<Application>;
@@ -74,4 +75,5 @@ protected:
     Application();
     virtual ~Application() override;
 };
+
 }  // namespace Fleur

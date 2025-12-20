@@ -1,9 +1,19 @@
 # === CoreLib - Independent Utility Library ===
 
 # === Source Files ===
-SET(CORELIB_HEADERS CoreLibConcepts.h Uptr.h Sptr.h singleton.hpp DefaultAllocator.h Bitmap.hpp)
+SET(CORELIB_HEADERS 
+  CoreLibConcepts.h
+  Uptr.h 
+  Sptr.h 
+  singleton.hpp 
+  DefaultAllocator.h 
+  Bitmap.hpp
+  BitSet64.h
+  FleurAllocator.hpp)
 
-SET(CORELIB_SOURCES CoreLib.cpp)
+SET(CORELIB_SOURCES 
+  CoreLib.cpp
+  BitSet64.cpp)
 
 # === Library Target ===
 ADD_LIBRARY(CoreLib STATIC ${CORELIB_SOURCES} ${CORELIB_HEADERS})
@@ -12,7 +22,9 @@ ADD_LIBRARY(CoreLib STATIC ${CORELIB_SOURCES} ${CORELIB_HEADERS})
 TARGET_COMPILE_FEATURES(CoreLib PUBLIC cxx_std_${FL_CPP_LANG_VER})
 
 # === Include Directories ===
-TARGET_INCLUDE_DIRECTORIES(CoreLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+TARGET_INCLUDE_DIRECTORIES(CoreLib PUBLIC 
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  ../Engine/External/spdlog/include)
 
 # === Compile Options ===
 IF(MSVC)
@@ -20,6 +32,7 @@ IF(MSVC)
 ELSE()
   TARGET_COMPILE_OPTIONS(CoreLib PRIVATE -Wall -Wextra -Werror)
 ENDIF()
+TARGET_COMPILE_OPTIONS(CoreLib PRIVATE /utf-8)
 
 # === Compile Definitions ===
 TARGET_COMPILE_DEFINITIONS(
@@ -32,3 +45,6 @@ SET_TARGET_PROPERTIES(
   CoreLib
   PROPERTIES FOLDER "Core" DEBUG_POSTFIX "_d"
 )
+
+TARGET_LINK_LIBRARIES(CoreLib PRIVATE MemoryManager)
+

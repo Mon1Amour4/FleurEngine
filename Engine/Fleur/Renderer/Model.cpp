@@ -52,7 +52,8 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
     return *this;
 }
 
-Fleur::Graphics::Model::Mesh::Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials, std::vector<Fleur::Graphics::VertexData>& vertices,
+Fleur::Graphics::Model::Mesh::Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials,
+                                   std::vector<Fleur::Graphics::VertexData>& vertices,
                                    std::vector<uint32_t>& indices)
     : m_MeshName(mesh->name)
     , m_MeshVertexStart(static_cast<uint32_t>(vertices.size()))
@@ -195,7 +196,8 @@ void Fleur::Graphics::Model::process_model(cgltf_data* data, bool async)
     m_Indices.reserve(m_ModelIndicesCount);
 }
 
-Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, uint32_t material, std::vector<Fleur::Graphics::VertexData>& vertices,
+Fleur::Graphics::Model::Primitive::Primitive(const cgltf_primitive* primitive, uint32_t material,
+                                             std::vector<Fleur::Graphics::VertexData>& vertices,
                                              std::vector<uint32_t>& indices)
     : m_MatIdx(material)
     , m_PrimitiveVertexCount(0)

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "FleurAllocator.hpp"
 #include "Texture.h"
 
 namespace Fleur::Graphics
@@ -72,7 +73,7 @@ protected:
 
     uint32_t m_Width, m_Height, m_Flags;
 
-    std::vector<std::shared_ptr<Fleur::Graphics::Texture>> m_ColorAttachments;
+    std::vector<std::shared_ptr<Fleur::Graphics::Texture>, Fleur::Memory::FleurAllocator<std::shared_ptr<Fleur::Graphics::Texture>>> m_ColorAttachments;
     std::shared_ptr<Fleur::Graphics::Texture> m_DepthAttachment;
     std::shared_ptr<Fleur::Graphics::Texture> m_StencilAttachment;
 

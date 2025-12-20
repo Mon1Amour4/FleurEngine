@@ -42,6 +42,6 @@ public:
 private:
     std::unique_ptr<Material> m_Material;
     std::shared_ptr<Texture> m_Cubemap;
-    std::vector<float> m_Vertices;
+    std::vector<float, Fleur::Memory::FleurAllocator<float>> m_Vertices;
 };
 }  // namespace Fleur::Graphics

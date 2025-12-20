@@ -2,6 +2,8 @@
 
 #include <span>
 
+#include "FleurAllocator.hpp"
+
 namespace Fleur::Graphics
 {
 
@@ -86,7 +88,8 @@ std::shared_ptr<Fleur::Graphics::Texture> Renderer::Load_Texture(std::shared_ptr
 
 void Renderer::OnInit()
 {
-    m_Camera.reset(new Camera());
+    Fleur::Memory::FleurAllocator<Camera> alloc;
+    m_Camera.reset(alloc.construct_at());
     m_Camera->Activate();
 
     m_Device = Device::CreateDevice();
@@ -333,7 +336,8 @@ void Renderer::OnUpdate(float dtTime)
                 1.0f,  -1.0f, 1.0f    // 35
             };
 
-            m_Skybox.reset(new Skybox(cubemapTexture, std::span{skyboxVertices}));
+            Fleur::Memory::FleurAllocator<Skybox> alloc;
+            m_Skybox.reset(alloc.construct_at(cubemapTexture, std::span{skyboxVertices}));
             m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->Data(), m_Skybox->GetVertexCount()));
             isSkyboxCreated = true;
         }

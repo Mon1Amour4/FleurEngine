@@ -34,7 +34,8 @@ private:
     ShaderObjectOpenGL(std::string_view name, Shader* vs, Shader* px);
 
 private:
-    std::unordered_map<std::string, uint32_t> m_Uniforms;
+    std::unordered_map<std::string, uint32_t, std::hash<std::string>, std::equal_to<std::string>>
+        m_Uniforms;
 
     int find_uniform_location(std::string_view uniformName) const;
 

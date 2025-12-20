@@ -4,6 +4,8 @@
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/tbb.cmake)
 
+SET(MemoryManagerPath ${CMAKE_CURRENT_SOURCE_DIR}/../MemoryManager)
+
 # === Source Files ===
 SET(ENGINE_HEADERS
     # Core Engine
@@ -44,6 +46,8 @@ SET(ENGINE_HEADERS
     # Main Headers
     Fleur.h
     flpch.h
+    # Concepts
+    Fleur/Concepts.hpp
 )
 
 SET(ENGINE_SOURCES
@@ -105,6 +109,7 @@ SET(ENGINE_PUBLIC_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}/External/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/External/spdlog/include
     ${CMAKE_SOURCE_DIR}/CoreLib
+    ${MemoryManagerPath}
 )
 
 # === FleurInterface - Shared Configuration ===
@@ -132,7 +137,7 @@ ADD_LIBRARY(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 
 TARGET_LINK_LIBRARIES(
   FleurEngine
-  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib
+  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib MemoryManager
   PRIVATE Renderer
 )
 

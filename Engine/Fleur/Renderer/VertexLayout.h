@@ -1,4 +1,5 @@
 #pragma once
+#include "FleurAllocator.hpp"
 
 namespace Fleur::Graphics
 {
@@ -90,7 +91,7 @@ public:
     void ReleaseIterator();
 
 private:
-    std::vector<VertexAttribute> m_Attribs;
+    std::vector<VertexAttribute, Fleur::Memory::FleurAllocator<VertexAttribute>> m_Attribs;
     uint16_t m_Stride;
     LayoutIterator* m_It;
 };

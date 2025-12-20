@@ -16,6 +16,7 @@ using Model = Fleur::Graphics::Model;
 using Renderer = Fleur::Graphics::Renderer;
 using Color = Fleur::Graphics::Color;
 
+
 template <>
 Application& singleton<Application>::instance()
 {
@@ -175,6 +176,8 @@ Window& Application::GetWindow()
 
 void Application::Init(ApplicationBootSettings& settings)
 {
+    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
+
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
     m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
@@ -265,6 +268,7 @@ void Application::Run()
         renderer->OnUpdate(dtTime);
         renderer->Present();
         m_Window->SetMouseWheelScrollData(0, 0);
+        //Fleur::Core::Benchmark::Frame();
     }
 }
 
