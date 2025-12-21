@@ -1,7 +1,6 @@
 #include "ModelFabric.h"
 
 #include "FleurAllocator.hpp"
-#include "Model.h"
 #include "Services/ServiceLocator.h"
 
 //======================================================================
@@ -126,96 +125,10 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
 
         for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
         {
-            // start of primitive
             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
-            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back();
-            meshPrimitive.m_MatIdx = materialIdx;
-            meshPrimitive.m_PrimitiveIndicesCount = static_cast<uint32_t>(cgltfMesh->primitives[i].indices->count);
-            FL_CORE_ASSERT(cgltfPrimitive.type == cgltf_primitive_type_triangles, "Mesh is not triangulated");
+            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(process_primitive(model, cgltfPrimitive, materialIdx));
 
-            for (size_t i = 0; i < cgltfPrimitive.attributes_count; i++)
-            {
-                if (cgltfPrimitive.attributes[i].type == cgltf_attribute_type_position)
-                {
-                    meshPrimitive.m_PrimitiveVertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
-                }
-            }
-            meshPrimitive.m_PrimitiveVertexStart = static_cast<uint32_t>(model->m_Vertices.size());
-            meshPrimitive.m_PrimitiveIndexStart = static_cast<uint32_t>(model->m_Indices.size());
-            const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
-
-            const uint8_t* indexGlobalBuffer = static_cast<const uint8_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
-            size_t primitiveIndeciesStartIdx = primitiveIndicesBuffer->buffer_view->offset + primitiveIndicesBuffer->offset;
-            const void* indexData = indexGlobalBuffer + primitiveIndeciesStartIdx;
-
-            const float* positions = nullptr;
-            const float* normals = nullptr;
-            const float* textcoords = nullptr;
-
-            for (size_t j = 0; j < cgltfPrimitive.attributes_count; j++)
-            {
-                const cgltf_attribute& attribute = cgltfPrimitive.attributes[j];
-                const cgltf_accessor* accessor = attribute.data;
-
-                const uint8_t* attributeGlobalBuffer = static_cast<const uint8_t*>(accessor->buffer_view->buffer->data);
-                size_t startIdx = accessor->buffer_view->offset + accessor->offset;
-                const float* ptr = reinterpret_cast<const float*>(attributeGlobalBuffer + startIdx);
-
-                if (attribute.type == cgltf_attribute_type_position)
-                    positions = ptr;
-                else if (attribute.type == cgltf_attribute_type_normal)
-                    normals = ptr;
-                else if (attribute.type == cgltf_attribute_type_texcoord)
-                    textcoords = ptr;
-            }
-
-            auto readIndex = [&](size_t idx) -> uint32_t
-            {
-                if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_16u)
-                    return reinterpret_cast<const uint16_t*>(indexData)[idx];
-                else if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_32u)
-                    return reinterpret_cast<const uint32_t*>(indexData)[idx];
-                return 0;
-            };
-
-            std::unordered_map<uint32_t, uint32_t> map;
-            for (size_t j = 0; j < primitiveIndicesBuffer->count; ++j)
-            {
-                uint32_t vi = readIndex(j);
-                if (map.contains(vi))
-                {
-                    model->m_Indices.push_back(map[vi]);
-                    continue;
-                }
-                VertexData v{};
-
-                if (positions)
-                {
-                    v.Position.x = positions[vi * 3 + 0];
-                    v.Position.y = positions[vi * 3 + 1];
-                    v.Position.z = positions[vi * 3 + 2];
-                }
-                if (normals)
-                {
-                    v.Normal.x = normals[vi * 3 + 0];
-                    v.Normal.y = normals[vi * 3 + 1];
-                    v.Normal.z = normals[vi * 3 + 2];
-                }
-                if (textcoords)
-                {
-                    v.TexCoord.x = textcoords[vi * 2 + 0];
-                    v.TexCoord.y = textcoords[vi * 2 + 1];
-                }
-
-                model->m_Vertices.push_back(v);
-                uint32_t newIndex = static_cast<uint32_t>(model->m_Vertices.size() - 1);
-                map[vi] = newIndex;
-                model->m_Indices.push_back(newIndex);
-            }
-            meshPrimitive.m_PrimitiveVertexEnd = static_cast<uint32_t>(model->m_Vertices.size()) - 1;
-            meshPrimitive.m_PrimitiveIndexEnd = static_cast<uint32_t>(model->m_Indices.size()) - 1;
-            // end of primitive
             modelMesh.m_MeshVertexCount += meshPrimitive.VertexCount();
             modelMesh.m_MeshIndicesCount += meshPrimitive.IndexCount();
         }
@@ -226,4 +139,97 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
     model->m_Indices.reserve(model->m_ModelIndicesCount);
 
     return model;
+}
+
+Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(Fleur::Graphics::Model* model, cgltf_primitive& cgltfPrimitive,
+                                                                                             uint32_t maxIdx)
+{
+    Fleur::Graphics::Model::Mesh::Primitive meshPrimitive = Fleur::Graphics::Model::Mesh::Primitive();
+    meshPrimitive.m_MatIdx = maxIdx;
+    meshPrimitive.m_PrimitiveIndicesCount = static_cast<uint32_t>(cgltfPrimitive.indices->count);
+    FL_CORE_ASSERT(cgltfPrimitive.type == cgltf_primitive_type_triangles, "Mesh is not triangulated");
+
+    for (size_t i = 0; i < cgltfPrimitive.attributes_count; i++)
+    {
+        if (cgltfPrimitive.attributes[i].type == cgltf_attribute_type_position)
+        {
+            meshPrimitive.m_PrimitiveVertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
+        }
+    }
+    meshPrimitive.m_PrimitiveVertexStart = static_cast<uint32_t>(model->m_Vertices.size());
+    meshPrimitive.m_PrimitiveIndexStart = static_cast<uint32_t>(model->m_Indices.size());
+    const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
+
+    const uint8_t* indexGlobalBuffer = static_cast<const uint8_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
+    size_t primitiveIndeciesStartIdx = primitiveIndicesBuffer->buffer_view->offset + primitiveIndicesBuffer->offset;
+    const void* indexData = indexGlobalBuffer + primitiveIndeciesStartIdx;
+
+    const float* positions = nullptr;
+    const float* normals = nullptr;
+    const float* textcoords = nullptr;
+
+    for (size_t j = 0; j < cgltfPrimitive.attributes_count; j++)
+    {
+        const cgltf_attribute& attribute = cgltfPrimitive.attributes[j];
+        const cgltf_accessor* accessor = attribute.data;
+
+        const uint8_t* attributeGlobalBuffer = static_cast<const uint8_t*>(accessor->buffer_view->buffer->data);
+        size_t startIdx = accessor->buffer_view->offset + accessor->offset;
+        const float* ptr = reinterpret_cast<const float*>(attributeGlobalBuffer + startIdx);
+
+        if (attribute.type == cgltf_attribute_type_position)
+            positions = ptr;
+        else if (attribute.type == cgltf_attribute_type_normal)
+            normals = ptr;
+        else if (attribute.type == cgltf_attribute_type_texcoord)
+            textcoords = ptr;
+    }
+
+    auto readIndex = [&](size_t idx) -> uint32_t
+    {
+        if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_16u)
+            return reinterpret_cast<const uint16_t*>(indexData)[idx];
+        else if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_32u)
+            return reinterpret_cast<const uint32_t*>(indexData)[idx];
+        return 0;
+    };
+
+    std::unordered_map<uint32_t, uint32_t> map;
+    for (size_t j = 0; j < primitiveIndicesBuffer->count; ++j)
+    {
+        uint32_t vi = readIndex(j);
+        if (map.contains(vi))
+        {
+            model->m_Indices.push_back(map[vi]);
+            continue;
+        }
+        VertexData v{};
+
+        if (positions)
+        {
+            v.Position.x = positions[vi * 3 + 0];
+            v.Position.y = positions[vi * 3 + 1];
+            v.Position.z = positions[vi * 3 + 2];
+        }
+        if (normals)
+        {
+            v.Normal.x = normals[vi * 3 + 0];
+            v.Normal.y = normals[vi * 3 + 1];
+            v.Normal.z = normals[vi * 3 + 2];
+        }
+        if (textcoords)
+        {
+            v.TexCoord.x = textcoords[vi * 2 + 0];
+            v.TexCoord.y = textcoords[vi * 2 + 1];
+        }
+
+        model->m_Vertices.push_back(v);
+        uint32_t newIndex = static_cast<uint32_t>(model->m_Vertices.size() - 1);
+        map[vi] = newIndex;
+        model->m_Indices.push_back(newIndex);
+    }
+    meshPrimitive.m_PrimitiveVertexEnd = static_cast<uint32_t>(model->m_Vertices.size()) - 1;
+    meshPrimitive.m_PrimitiveIndexEnd = static_cast<uint32_t>(model->m_Indices.size()) - 1;
+
+    return meshPrimitive;
 }

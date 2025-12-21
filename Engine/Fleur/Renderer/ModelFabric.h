@@ -1,10 +1,10 @@
 #pragma once
 
 #include "External/cgltf/cgltf.h"
+#include "Model.h"
 
 namespace Fleur::Graphics
 {
-class Model;
 
 class ModelFabricBase
 {
@@ -12,14 +12,13 @@ public:
     ModelFabricBase() = default;
     virtual ~ModelFabricBase() = default;
 
-    void process_model(cgltf_data* data, bool async = true);
     virtual Model* ProcessModel(bool async = true) = 0;
 };
 
 class CGLTFModelFabric : public ModelFabricBase
 {
 public:
-    CGLTFModelFabric(std::string_view name, const cgltf_data const* data);
+    CGLTFModelFabric(std::string_view name, const cgltf_data* const data);
     virtual ~CGLTFModelFabric() override = default;
 
     virtual Model* ProcessModel(bool async = true) override;
@@ -27,5 +26,8 @@ public:
 private:
     const cgltf_data* const m_Data;
     std::string_view m_Name;
+
+    Model::Mesh::Primitive process_primitive(Model* model, cgltf_primitive& cgltfPrimitive, uint32_t maxIdx);
 };
+
 }  // namespace Fleur::Graphics
