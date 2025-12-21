@@ -29,6 +29,7 @@ SET(PROJECT_HEADERS
     Toolchain.h
     Skybox.h
     Framebuffer.h
+    ModelFabric.h
 )
 
 SET(PROJECT_SOURCES
@@ -38,6 +39,7 @@ SET(PROJECT_SOURCES
     VertexLayout.cpp
     Image2D.cpp
     Color.cpp
+    ModelFabric.cpp
 )
 
 # === Create Library ===

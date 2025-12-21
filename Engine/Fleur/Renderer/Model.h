@@ -1,13 +1,5 @@
 #pragma once
 
-struct aiScene;
-struct aiMesh;
-struct aiMaterial;
-struct cgltf_data;
-struct cgltf_mesh;
-struct cgltf_material;
-struct cgltf_primitive;
-
 namespace Fleur::Graphics
 {
 struct VertexData;
@@ -15,72 +7,80 @@ class Material;
 
 class FLEUR_API Model
 {
+    friend class CGLTFModelFabric;
+
 public:
-    class FLEUR_API Primitive
-    {
-    public:
-        Primitive(const cgltf_primitive* primitive, uint32_t material, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
-        ~Primitive() = default;
-
-        inline uint32_t VertexCount() const
-        {
-            return m_PrimitiveVertexCount;
-        }
-        inline uint32_t IndexCount() const
-        {
-            return m_PrimitiveIndicesCount;
-        }
-
-        inline uint32_t VertexStart() const
-        {
-            return m_PrimitiveVertexStart;
-        }
-        inline uint32_t VertexEnd() const
-        {
-            return m_PrimitiveVertexEnd;
-        }
-
-        inline uint32_t IndexStart() const
-        {
-            return m_PrimitiveIndexStart;
-        }
-        inline uint32_t IndexEnd() const
-        {
-            return m_PrimitiveIndexEnd;
-        }
-
-        [[nodiscard]] inline uint32_t VertexSize() const
-        {
-            return m_PrimitiveVertexCount * sizeof(float);
-        }
-        [[nodiscard]] inline uint32_t IndexSize() const
-        {
-            return m_PrimitiveIndicesCount * sizeof(uint32_t);
-        }
-
-        [[nodiscard]] inline uint32_t MaterialIdx() const
-        {
-            return m_MatIdx;
-        }
-
-    private:
-        uint32_t m_MatIdx;
-
-        uint32_t m_PrimitiveVertexStart;
-        uint32_t m_PrimitiveVertexEnd;
-
-        uint32_t m_PrimitiveIndexStart;
-        uint32_t m_PrimitiveIndexEnd;
-
-        uint32_t m_PrimitiveVertexCount;
-        uint32_t m_PrimitiveIndicesCount;
-    };
-
     class FLEUR_API Mesh
     {
+        friend class CGLTFModelFabric;
+
     public:
-        Mesh(cgltf_mesh* mesh, const cgltf_material* baseMaterials, std::vector<Fleur::Graphics::VertexData>& vertices, std::vector<uint32_t>& indices);
+        class FLEUR_API Primitive
+        {
+            friend class CGLTFModelFabric;
+
+        public:
+            Primitive();
+            ~Primitive() = default;
+
+            inline uint32_t VertexCount() const
+            {
+                return m_PrimitiveVertexCount;
+            }
+            inline uint32_t IndexCount() const
+            {
+                return m_PrimitiveIndicesCount;
+            }
+
+            inline uint32_t VertexStart() const
+            {
+                return m_PrimitiveVertexStart;
+            }
+            inline uint32_t VertexEnd() const
+            {
+                return m_PrimitiveVertexEnd;
+            }
+
+            inline uint32_t IndexStart() const
+            {
+                return m_PrimitiveIndexStart;
+            }
+            inline uint32_t IndexEnd() const
+            {
+                return m_PrimitiveIndexEnd;
+            }
+
+            [[nodiscard]] inline uint32_t VertexSize() const
+            {
+                return m_PrimitiveVertexCount * sizeof(float);
+            }
+            [[nodiscard]] inline uint32_t IndexSize() const
+            {
+                return m_PrimitiveIndicesCount * sizeof(uint32_t);
+            }
+
+            [[nodiscard]] inline uint32_t MaterialIdx() const
+            {
+                return m_MatIdx;
+            }
+
+        private:
+            uint32_t m_MatIdx;
+
+            uint32_t m_PrimitiveVertexStart;
+            uint32_t m_PrimitiveVertexEnd;
+
+            uint32_t m_PrimitiveIndexStart;
+            uint32_t m_PrimitiveIndexEnd;
+
+            uint32_t m_PrimitiveVertexCount;
+            uint32_t m_PrimitiveIndicesCount;
+        };
+
+        Mesh();
         ~Mesh() = default;
+
+        Mesh(Mesh&& other) noexcept;
 
         inline std::string_view Name() const
         {
@@ -111,7 +111,6 @@ public:
         uint32_t m_MeshIndicesCount;
     };
 
-    Model(std::string_view modelName, cgltf_data* data);
     Model(std::string_view modelName);
 
     ~Model() = default;
@@ -148,8 +147,6 @@ public:
         return &m_Meshes;
     }
 
-    void PostLoad(cgltf_data* data);
-
     const Material* GetMaterial(uint32_t idx) const;
 
 private:
@@ -162,8 +159,5 @@ private:
     std::vector<Model::Mesh> m_Meshes;
 
     std::vector<Material> m_Materials;
-
-    void process_model(cgltf_data* data, bool async = true);
 };
-
 }  // namespace Fleur::Graphics

@@ -1,6 +1,7 @@
 #include "AssetsManager.h"
 
 #include "FleurAllocator.hpp"
+#include "ModelFabric.h"
 
 #if !defined(CGLTF_IMPLEMENTATION)
 #define CGLTF_IMPLEMENTATION
@@ -72,8 +73,16 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
         return handle;
     }
     result = cgltf_load_buffers(&options, data, res->c_str());
-    handle = std::make_shared<Fleur::ResourceHandle<Model>>(std::make_shared<Model>(fileName, data));
+    if (result != cgltf_result_success)
+    {
+        handle->SetCorrupted(NO_DATA);
+        return handle;
+    }
+
+    Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(fileName, data);
+    Fleur::Graphics::Model* model = fabric.ProcessModel();
     handle->SetSuccess();
+    handle->SetResource(std::make_shared<Model>(std::move(*model)));
     m_Models.emplace(std::move(fileName), handle->Resource());
     ++m_ModelsCount;
 
@@ -131,8 +140,11 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view 
                 return;
             }
 
-            handle->SetResource(std::make_shared<Model>(fileName, data));
+            // handle->SetResource(std::make_shared<Model>(fileName, data));
+            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(fileName, data);
+            Fleur::Graphics::Model* model = fabric.ProcessModel();
             handle->SetSuccess();
+            handle->SetResource(std::make_shared<Model>(std::move(*model)));
             m_Models.emplace(fileName, handle->Resource());
             FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), fileName);
             ++m_ModelsCount;
