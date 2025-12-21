@@ -8,16 +8,19 @@ class Material;
 class FLEUR_API Model
 {
     friend class CGLTFModelFabric;
+    friend class MeshBuilder;
 
 public:
     class FLEUR_API Mesh
     {
         friend class CGLTFModelFabric;
+        friend class MeshBuilder;
 
     public:
         class FLEUR_API Primitive
         {
             friend class CGLTFModelFabric;
+            friend class MeshBuilder;
 
         public:
             Primitive();
@@ -63,6 +66,13 @@ public:
             {
                 return m_MatIdx;
             }
+
+            enum PrimitiveShape
+            {
+                Quad,
+                Sphere,
+                Trinagle
+            };
 
         private:
             uint32_t m_MatIdx;
@@ -149,6 +159,9 @@ public:
 
     const Material* GetMaterial(uint32_t idx) const;
 
+    MeshBuilder CreateSubmesh(std::string_view meshName);
+    static Model* QuadModel(Fleur::Graphics::Material&& material);
+
 private:
     std::string m_Name;
     uint32_t m_MeshCount;
@@ -159,5 +172,18 @@ private:
     std::vector<Model::Mesh> m_Meshes;
 
     std::vector<Material> m_Materials;
+};
+
+class FLEUR_API MeshBuilder
+{
+public:
+    MeshBuilder(std::string_view meshName, Model* model);
+    MeshBuilder& AddPrimitive(Model::Mesh::Primitive::PrimitiveShape shape);
+    void Commit();
+
+private:
+    std::string_view m_Name;
+    Model* m_Model;
+    Model::Mesh* m_Mesh;
 };
 }  // namespace Fleur::Graphics
