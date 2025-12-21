@@ -48,6 +48,7 @@ SET(ENGINE_HEADERS
     flpch.h
     # Concepts
     Fleur/Concepts.hpp
+    Fleur/Console.h
 )
 
 SET(ENGINE_SOURCES
@@ -68,6 +69,7 @@ SET(ENGINE_SOURCES
     # Third Party
     External/stb_image/stb_image.cpp
     # Implementation Files
+    Fleur/Console.cpp
 )
 
 # === Engine Configuration ===

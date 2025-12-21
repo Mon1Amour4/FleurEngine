@@ -310,17 +310,21 @@ Fleur::Graphics::Shader* Fleur::Graphics::DeviceOpenGL::CreateShader(std::string
     // TODO: rework shaders
     if (shaderName.empty())
     {
-        FL_CORE_ASSERT(false, "Shader");
+        FL_CORE_ASSERT(false, "[Shader] Shader name is empty");
         return nullptr;
     }
-
-    std::string extension{};
+    std::string fullName = shaderName.data();
     if (type == Shader::EShaderType::Vertex)
-        extension = ".vert";
+        fullName += ".vert";
     else if (type == Shader::EShaderType::Pixel)
-        extension = ".frag";
+        fullName += ".frag";
 
-    auto res = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>()->OpenFile(std::string(shaderName) + extension);
+    if (m_ShaderMap.contains(fullName))
+    {
+        return &m_ShaderMap.find(fullName)->second;
+    }
+
+    auto res = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>()->OpenFile(fullName);
 
     if (!res)
     {

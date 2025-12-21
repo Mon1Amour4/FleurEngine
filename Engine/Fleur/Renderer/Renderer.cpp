@@ -281,6 +281,11 @@ bool Fleur::Graphics::Renderer::IsVSync()
 
 void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 {
+    // auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+    // ShaderComponentContext ctx{};
+    // ctx.albedo_text.second = assets->LoadImage2DFromColor("QuadTexture", Color(150, 150, 150, 255), 250, 250).get()->Resource().get();
+    //     Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
+
     UNUSED(dtTime);
     m_Toolchain->Update();
     static bool isSkyboxCreated = false;

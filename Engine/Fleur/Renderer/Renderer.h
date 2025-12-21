@@ -158,4 +158,15 @@ protected:
     void OnInit();
     void OnShutdown();
 };
+
+class QuadRenderer
+{
+public:
+    QuadRenderer(Material* material = nullptr, Shader* pixelShader = nullptr);
+
+private:
+    Material* m_Material;
+    ShaderObject m_Shader;
+};
+
 }  // namespace Fleur::Graphics

@@ -22,11 +22,10 @@ public:
 
     virtual void Release() = 0;
 
-    protected:
+protected:
     Shader(std::string_view name)
-        : m_Name(name)
-    {
-    }
-        std::string m_Name;
+        : m_Name(name) {};
+
+    std::string m_Name;
 };
 }  // namespace Fleur::Graphics
