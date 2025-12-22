@@ -321,7 +321,7 @@ Fleur::Graphics::Shader* Fleur::Graphics::DeviceOpenGL::CreateShader(std::string
 
     if (m_ShaderMap.contains(fullName))
     {
-        return &m_ShaderMap.find(fullName)->second;
+        return m_ShaderMap.find(fullName)->second;
     }
 
     auto res = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>()->OpenFile(fullName);

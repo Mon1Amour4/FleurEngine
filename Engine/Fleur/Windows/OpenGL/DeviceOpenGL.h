@@ -43,5 +43,6 @@ protected:
 private:
     HGLRC m_Ctx;
     int m_MaxTexturesUnits;
+    std::unordered_map<std::string, Fleur::Graphics::Shader*> m_ShaderMap;
 };
 }  // namespace Fleur::Graphics

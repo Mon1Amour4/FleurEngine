@@ -162,11 +162,11 @@ protected:
 class QuadRenderer
 {
 public:
-    QuadRenderer(Material* material = nullptr, Shader* pixelShader = nullptr);
+    QuadRenderer(const Texture* texture);
 
 private:
     Material* m_Material;
-    ShaderObject m_Shader;
+    const ShaderObject* m_Shader;
 };
 
 }  // namespace Fleur::Graphics

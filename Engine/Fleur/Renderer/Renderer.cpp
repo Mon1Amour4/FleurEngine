@@ -281,10 +281,12 @@ bool Fleur::Graphics::Renderer::IsVSync()
 
 void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 {
-    // auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+    auto renderer = ServiceLocator::instance().GetService<Renderer>();
     // ShaderComponentContext ctx{};
-    // ctx.albedo_text.second = assets->LoadImage2DFromColor("QuadTexture", Color(150, 150, 150, 255), 250, 250).get()->Resource().get();
-    //     Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
+    Fleur::Graphics::Texture* quadTexture = renderer->CreateGraphicsResource<Texture>("QuadTexture", Color(150, 150, 150, 255), 250, 250).get();
+    Fleur::Graphics::QuadRenderer quadRenderer = Fleur::Graphics::QuadRenderer(quadTexture);
+    // Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
 
     UNUSED(dtTime);
     m_Toolchain->Update();
@@ -506,4 +508,13 @@ void Fleur::Graphics::Renderer::StaticGeometryPass() const
         m_StaticGeometryCmd->Submit();
     }
     m_StaticGeometryCmd->PopDebugGroup();
+}
+
+Fleur::Graphics::QuadRenderer::QuadRenderer(const Texture* texture)
+{
+    ShaderComponentContext ctx{};
+    ctx.albedo_text.second = static_cast<const Fleur::Graphics::Texture*>(texture);
+    m_Material = Material::CreateMaterial(ctx);
+
+    m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
 }
