@@ -23,6 +23,9 @@
 #include "Toolchain.h"
 #include "VertexLayout.h"
 #include "tbb/concurrent_unordered_map.h"
+#include "RendererContract.hpp"
+
+typedef IRenderer*(__stdcall RendererBackend_t)(void);
 
 #pragma region concepts
 template <class Resource>

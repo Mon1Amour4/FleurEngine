@@ -168,6 +168,16 @@ void Fleur::Graphics::Renderer::OnInit()
 };
     // clang-format on
     m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
+
+    HMODULE backendLib = LoadLibraryA("Renderer_OpenGL_Backend");
+    if (!backendLib)
+    {
+        std::cout << "Renderer_OpenGL_Backend invalid handle";
+        DWORD error = GetLastError();
+    }
+
+    RendererBackend_t* func1 = (RendererBackend_t*)GetProcAddress(backendLib, "RendererBackend");
+    IRenderer* backend = func1();
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -516,5 +526,5 @@ Fleur::Graphics::QuadRenderer::QuadRenderer(const Texture* texture)
     ctx.albedo_text.second = static_cast<const Fleur::Graphics::Texture*>(texture);
     m_Material = Material::CreateMaterial(ctx);
 
-    m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
+    //m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
 }

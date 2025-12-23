@@ -30,6 +30,7 @@ SET(PROJECT_HEADERS
     Skybox.h
     Framebuffer.h
     ModelFabric.h
+    RendererContract.hpp
 )
 
 SET(PROJECT_SOURCES
