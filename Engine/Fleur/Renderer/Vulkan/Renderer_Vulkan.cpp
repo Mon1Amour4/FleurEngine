@@ -1,6 +1,9 @@
-#include <Windows.h>
-#include <iostream>
 #include "Renderer_Vulkan.h"
+
+#include <Windows.h>
+
+#include <iostream>
+
 
 BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID lpReserved)
 {
