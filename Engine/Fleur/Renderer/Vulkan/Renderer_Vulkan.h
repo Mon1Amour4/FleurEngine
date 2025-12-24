@@ -1,10 +1,11 @@
 #pragma once
 
 #include <Vulkan/vulkan.h>
+
 #include <cassert>
 
-#include "Renderer_Vulkan.h"
 #include "IRenderer.hpp"
+#include "Renderer_Vulkan.h"
 
 #if defined(DLL_EXPORT)
 #define RENDERER_BACKEND_EXPORT __declspec(dllexport)
