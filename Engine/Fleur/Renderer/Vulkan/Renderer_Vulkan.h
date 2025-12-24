@@ -27,5 +27,7 @@ extern "C"
         vulkanBackend();
         VkInstance instance;
         VkInstance createInstance();
+        void enableValidationLayersSupport(VkInstanceCreateInfo& createInfo, const char** layerNames, uint32_t layerCount);
+        void enableExtensions(VkInstanceCreateInfo& createInfo, const char** extensions, uint32_t count);
     };
 }
