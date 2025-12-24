@@ -5,7 +5,7 @@
 
 #include "Renderer/Color.h"
 #include "Services/ServiceInterfaces.hpp"
-#include "tbb/concurrent_unordered_map.h"
+#include "../External/tbb/include/oneapi/tbb/concurrent_unordered_map.h"
 
 #define SHARED_RES(Res) std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
 #define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>

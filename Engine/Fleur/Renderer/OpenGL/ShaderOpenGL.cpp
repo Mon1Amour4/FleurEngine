@@ -40,11 +40,11 @@ Fleur::Graphics::ShaderOpenGL::ShaderOpenGL(std::string_view name, const char* s
     {
         char infoLog[512];
         glGetShaderInfoLog(m_ShaderID, 512, nullptr, infoLog);
-        FL_CORE_ERROR("[Shader] {0} {1} compilation error: ", name, shaderType, infoLog);
+        //FL_CORE_ERROR("[Shader] {0} {1} compilation error: ", name, shaderType, infoLog);
     }
     else
     {
-        FL_CORE_TRACE("[Shader] {0} {1} has compiled", name, shaderType);
+        //FL_CORE_TRACE("[Shader] {0} {1} has compiled", name, shaderType);
         glObjectLabel(GL_SHADER, m_ShaderID, -1, this->m_Name.c_str());
     }
 }

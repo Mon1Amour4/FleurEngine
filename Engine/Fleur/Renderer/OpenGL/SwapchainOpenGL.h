@@ -12,7 +12,7 @@ class Surface;
 class SwapchainOpenGL final : public Swapchain
 {
 public:
-    FLEUR_NON_COPYABLE_NON_MOVABLE(SwapchainOpenGL);
+    //FLEUR_NON_COPYABLE_NON_MOVABLE(SwapchainOpenGL);
 
     virtual ~SwapchainOpenGL() override;
 

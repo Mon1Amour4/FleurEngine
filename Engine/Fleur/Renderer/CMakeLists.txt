@@ -6,38 +6,38 @@ SET(RENDERER_PUBLIC_INCLUDE_DIRECTORIES "")
 SET(RENDERER_PRIVATE_INCLUDE_DIRECTORIES "")
 
 SET(PROJECT_HEADERS
-    Buffer.h
-    CommandBuffer.h
-    CommandPool.h
-    CommandQueue.h
-    DescriptorBuffer.h
-    Device.h
-    Sampler.h
-    Shader.h
-    Surface.h
-    Swapchain.h
+    IRenderer.hpp
+    # Buffer.h
+    # CommandBuffer.h
+    # CommandPool.h
+    # CommandQueue.h
+    # DescriptorBuffer.h
+    # Device.h
+    # Sampler.h
+    # Shader.h
+    # Surface.h
+    # Swapchain.h
     Texture.h
     Renderer.h
     Model.h
     Camera.h
-    Material.h
-    ShaderObject.h
-    VertexLayout.h
+    # Material.h
+    # ShaderObject.h
+    # VertexLayout.h
     Graphics.hpp
     Image2D.h
     Color.h
-    Toolchain.h
+    # Toolchain.h
     Skybox.h
     Framebuffer.h
     ModelFabric.h
-    RendererContract.hpp
 )
 
 SET(PROJECT_SOURCES
     Renderer.cpp
     Model.cpp
     Camera.cpp
-    VertexLayout.cpp
+    # VertexLayout.cpp
     Image2D.cpp
     Color.cpp
     ModelFabric.cpp

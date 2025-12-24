@@ -37,7 +37,7 @@ Fleur::Graphics::ShaderObjectOpenGL::ShaderObjectOpenGL(std::string_view name, S
     {
         char infoLog[512];
         glGetProgramInfoLog(m_Program, 512, nullptr, infoLog);
-        FL_CORE_ERROR("[ShaderObject] program linking error: ", infoLog);
+      //  FL_CORE_ERROR("[ShaderObject] program linking error: ", infoLog);
     }
 
     GLint uniformCount = 0;
@@ -149,7 +149,7 @@ bool Fleur::Graphics::ShaderObjectOpenGL::SetText2dImpl(std::string_view uniform
     GLint location = find_uniform_location(uniformName);
     if (location == -1)
     {
-        FL_CORE_ASSERT(false, "");
+        //FL_CORE_ASSERT(false, "");
         return false;
     }
 

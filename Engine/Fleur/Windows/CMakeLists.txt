@@ -6,18 +6,6 @@ SET(PROJECT_HEADERS
     InputWin.h
     KeyCodesWin.h
     WindowWin.h
-    FileSystemPathsWin.h
-    OpenGL/BufferOpenGL.h
-    OpenGL/DeviceOpenGL.h
-    OpenGL/CommandBufferOpenGL.h
-    OpenGL/ShaderOpenGL.h
-    OpenGL/CommandQueueOpenGL.h
-    OpenGL/SwapchainOpenGL.h
-    OpenGL/CommandPoolOpenGL.h
-    OpenGL/TextureOpenGL.h
-    OpenGL/SurfaceOpenGL.h
-    OpenGL/ShaderObjectOpenGL.h
-    OpenGL/FramebufferOpenGL.h
     TimeWin.h
 )
 
@@ -26,17 +14,6 @@ SET(PROJECT_SOURCES
     InputWin.cpp
     WindowWin.cpp
     EntryPointWindows.cpp
-    OpenGL/BufferOpenGL.cpp
-    OpenGL/DeviceOpenGL.cpp
-    OpenGL/CommandBufferOpenGL.cpp
-    OpenGL/ShaderOpenGL.cpp
-    OpenGL/CommandQueueOpenGL.cpp
-    OpenGL/SwapchainOpenGL.cpp
-    OpenGL/CommandPoolOpenGL.cpp
-    OpenGL/TextureOpenGL.cpp
-    OpenGL/SurfaceOpenGL.cpp
-    OpenGL/ShaderObjectOpenGL.cpp
-    OpenGL/FramebufferOpenGL.cpp
     TimeWin.cpp
 )
 

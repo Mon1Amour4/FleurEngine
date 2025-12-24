@@ -8,5 +8,6 @@ struct DrawInfo
 
 struct IRenderer
 {
+    virtual ~IRenderer() = default;
     virtual void Draw(DrawInfo info) = 0;
 };

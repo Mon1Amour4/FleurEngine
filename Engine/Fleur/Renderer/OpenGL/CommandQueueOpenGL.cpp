@@ -2,7 +2,7 @@
 
 void Fleur::Graphics::CommandQueueOpenGL::Submit(const CommandBuffer& commandBuffer)
 {
-    UNUSED(commandBuffer);
+    //UNUSED(commandBuffer);
 }
 
 void Fleur::Graphics::CommandQueueOpenGL::Wait()

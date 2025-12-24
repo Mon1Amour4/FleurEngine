@@ -7,7 +7,7 @@ namespace Fleur::Graphics
 class ShaderOpenGL final : public Shader
 {
 public:
-    FLEUR_NON_COPYABLE_NON_MOVABLE(ShaderOpenGL)
+    //FLEUR_NON_COPYABLE_NON_MOVABLE(ShaderOpenGL)
 
     virtual ~ShaderOpenGL() override;
 

@@ -10,7 +10,7 @@ class CommandBufferOpenGL;
 class CommandPoolOpenGL final : public CommandPool
 {
 public:
-    FLEUR_NON_COPYABLE_NON_MOVABLE(CommandPoolOpenGL)
+    //FLEUR_NON_COPYABLE_NON_MOVABLE(CommandPoolOpenGL)
 
     virtual ~CommandPoolOpenGL() override = default;
 

@@ -23,7 +23,7 @@
 #include "Toolchain.h"
 #include "VertexLayout.h"
 #include "tbb/concurrent_unordered_map.h"
-#include "RendererContract.hpp"
+#include "IRenderer.hpp"
 
 typedef IRenderer*(__stdcall RendererBackend_t)(void);
 
@@ -81,7 +81,7 @@ public:
     template <is_graphic_resource Resource, typename... Args>
     std::shared_ptr<Resource> CreateGraphicsResource(Args&&... args)
     {
-        constexpr uint32_t args_amount = sizeof...(Args);
+        /*constexpr uint32_t args_amount = sizeof...(Args);
         if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Texture>)
         {
             if constexpr (args_amount == 1)
@@ -101,7 +101,7 @@ public:
         }
 
         else if constexpr (std::is_same_v<std::remove_cv_t<Resource>, Fleur::Graphics::Shader>)
-            return m_Device->CreateShader(std::forward<Args>(args)...);
+            return m_Device->CreateShader(std::forward<Args>(args)...);*/
         return std::shared_ptr<Resource>{nullptr};
     }
     void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);

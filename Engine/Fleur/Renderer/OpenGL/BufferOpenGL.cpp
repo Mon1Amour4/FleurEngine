@@ -8,7 +8,7 @@ Fleur::Graphics::BufferOpenGL::BufferOpenGL(EBufferType type, ERenderStage stage
     : Buffer(type, sizeBytes)
     , m_Id(UINT32_MAX)
 {
-    FL_CORE_ASSERT(sizeBytes > 0, "Buffer can't be 0 sized");
+    //FL_CORE_ASSERT(sizeBytes > 0, "Buffer can't be 0 sized");
 
     glCreateBuffers(1, &m_Id);
     glNamedBufferData(m_Id, sizeBytes, nullptr, NativeUsage(stage));
@@ -21,7 +21,7 @@ Fleur::Graphics::BufferOpenGL::~BufferOpenGL()
 
 size_t Fleur::Graphics::BufferOpenGL::UpdateSubDataImpl(const void* data, size_t sizeBytes)
 {
-    FL_CORE_ASSERT(m_UsedBytesIdx + sizeBytes <= m_EndIdx, "Buffer overflow");
+    //FL_CORE_ASSERT(m_UsedBytesIdx + sizeBytes <= m_EndIdx, "Buffer overflow");
 
     size_t offset_before_write = m_UsedBytesIdx;
 

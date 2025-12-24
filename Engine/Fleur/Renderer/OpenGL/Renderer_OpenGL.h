@@ -3,7 +3,7 @@
 #include <windows.h>
 #include <iostream>
 
-#include "../RendererContract.hpp"
+#include "../IRenderer.hpp"
 
 #if defined(DLL_EXPORT)
 #define RENDERER_BACKEND_EXPORT __declspec(dllexport)

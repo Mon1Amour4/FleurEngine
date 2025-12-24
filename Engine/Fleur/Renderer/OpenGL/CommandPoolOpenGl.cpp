@@ -4,5 +4,5 @@
 
 Fleur::Graphics::CommandPoolOpenGL::CommandPoolOpenGL(const CommandQueue& queue)
 {
-    UNUSED(queue);
+    //UNUSED(queue);
 }

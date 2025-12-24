@@ -2,7 +2,7 @@
 
 #include <glad/wgl.h>
 
-#include "Application.h"
+//#include "Application.h"
 #include "BufferOpenGL.h"
 #include "CommandBufferOpenGL.h"
 #include "CommandPoolOpenGL.h"
@@ -15,8 +15,8 @@
 
 void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userParam)
 {
-    UNUSED(userParam);
-    UNUSED(length);
+    //UNUSED(userParam);
+    //UNUSED(length);
 
     if (id == 131169 || id == 131185 || id == 131218 || id == 131204)
         return;
@@ -24,81 +24,81 @@ void OpenGLDebugCallbackFunc(GLenum source, GLenum type, GLuint id, GLenum sever
     if (severity == GL_DEBUG_SEVERITY_NOTIFICATION)
         return;
 
-    FL_CORE_ERROR("---- OpenGL Debug Message ----");
+    //FL_CORE_ERROR("---- OpenGL Debug Message ----");
     switch (source)
     {
     case GL_DEBUG_SOURCE_API:
-        FL_CORE_ERROR("Source: API");
+        //FL_CORE_ERROR("Source: API");
         break;
     case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-        FL_CORE_ERROR("Source: Window System");
+        //FL_CORE_ERROR("Source: Window System");
         break;
     case GL_DEBUG_SOURCE_SHADER_COMPILER:
-        FL_CORE_ERROR("Source: Shader Compiler");
+        //FL_CORE_ERROR("Source: Shader Compiler");
         break;
     case GL_DEBUG_SOURCE_THIRD_PARTY:
-        FL_CORE_ERROR("Source: Third Party");
+        //FL_CORE_ERROR("Source: Third Party");
         break;
     case GL_DEBUG_SOURCE_APPLICATION:
-        FL_CORE_ERROR("Source: Application");
+        //FL_CORE_ERROR("Source: Application");
         break;
     case GL_DEBUG_SOURCE_OTHER:
     default:
-        FL_CORE_ERROR("Source: Other");
+        //FL_CORE_ERROR("Source: Other");
         break;
     }
 
     switch (type)
     {
     case GL_DEBUG_TYPE_ERROR:
-        FL_CORE_ERROR("Type: Error");
+        //FL_CORE_ERROR("Type: Error");
         break;
     case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
-        FL_CORE_ERROR("Type: Deprecated Behaviour");
+        //FL_CORE_ERROR("Type: Deprecated Behaviour");
         break;
     case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
-        FL_CORE_ERROR("Type: Undefined Behaviour");
+        //FL_CORE_ERROR("Type: Undefined Behaviour");
         break;
     case GL_DEBUG_TYPE_PORTABILITY:
-        FL_CORE_ERROR("Type: Portability");
+        //FL_CORE_ERROR("Type: Portability");
         break;
     case GL_DEBUG_TYPE_PERFORMANCE:
-        FL_CORE_ERROR("Type: Performance");
+       //FL_CORE_ERROR("Type: Performance");
         break;
     case GL_DEBUG_TYPE_MARKER:
-        FL_CORE_ERROR("Type: Marker");
+        //FL_CORE_ERROR("Type: Marker");
         break;
     case GL_DEBUG_TYPE_PUSH_GROUP:
-        FL_CORE_ERROR("Type: Push Group");
+        //FL_CORE_ERROR("Type: Push Group");
         break;
     case GL_DEBUG_TYPE_POP_GROUP:
-        FL_CORE_ERROR("Type: Pop Group");
+       // FL_CORE_ERROR("Type: Pop Group");
         break;
     case GL_DEBUG_TYPE_OTHER:
     default:
-        FL_CORE_ERROR("Type: Other");
+        //FL_CORE_ERROR("Type: Other");
         break;
     }
 
     switch (severity)
     {
     case GL_DEBUG_SEVERITY_HIGH:
-        FL_CORE_ERROR("Severity: High");
+        //FL_CORE_ERROR("Severity: High");
         break;
     case GL_DEBUG_SEVERITY_MEDIUM:
-        FL_CORE_ERROR("Severity: Medium");
+        //FL_CORE_ERROR("Severity: Medium");
         break;
     case GL_DEBUG_SEVERITY_LOW:
-        FL_CORE_ERROR("Severity: Low");
+       // FL_CORE_ERROR("Severity: Low");
         break;
     case GL_DEBUG_SEVERITY_NOTIFICATION:
-        FL_CORE_ERROR("Severity: Notification");
+        //FL_CORE_ERROR("Severity: Notification");
         break;
     default:
         break;
     }
 
-    FL_CORE_ERROR("Message: {0}, Source: {1}, Type: {2}, ID: {3}, Severity: {4}\n", (const char*)message, source, type, id, severity);
+   // FL_CORE_ERROR("Message: {0}, Source: {1}, Type: {2}, ID: {3}, Severity: {4}\n", (const char*)message, source, type, id, severity);
 }
 
 Fleur::Graphics::DeviceOpenGL::DeviceOpenGL()
@@ -130,11 +130,13 @@ Fleur::Graphics::DeviceOpenGL::DeviceOpenGL()
     int res = wglChoosePixelFormatARB(hdc, pixelFormatAttribs, nullptr, 1, &pixelFormat, &numFormats);
     if (!res)
     {
-        FL_CORE_ERROR("Failed to choose pixel format");
+        //FL_CORE_ERROR("Failed to choose pixel format");
     }
 
     if (!numFormats)
-        FL_CORE_ERROR("Failed to set the OpenGL 4.6 pixel format.");
+    {
+        //FL_CORE_ERROR("Failed to set the OpenGL 4.6 pixel format.");
+    }
 
     PIXELFORMATDESCRIPTOR pfd;
     DescribePixelFormat(hdc, pixelFormat, sizeof(pfd), &pfd);
@@ -155,19 +157,19 @@ Fleur::Graphics::DeviceOpenGL::DeviceOpenGL()
 
     m_Ctx = wglCreateContextAttribsARB(hdc, 0, contextAttribs);
     if (!m_Ctx)
-        FL_CORE_ERROR("Failed to create OpenGL 4.6 context.");
+        //FL_CORE_ERROR("Failed to create OpenGL 4.6 context.");
 
     if (!wglMakeCurrent(hdc, m_Ctx))
-        FL_CORE_ERROR("Failed to activate OpenGL 4.6 rendering context.");
+       // FL_CORE_ERROR("Failed to activate OpenGL 4.6 rendering context.");
 
     if (!gladLoaderLoadGL())
-        FL_CORE_ERROR("[OpenGL] can't load OoenGL");
+       // FL_CORE_ERROR("[OpenGL] can't load OoenGL");
 
-    FL_CORE_INFO("OpenGL info:");
-    FL_CORE_INFO("  Version: {0}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
-    FL_CORE_INFO("  GLSL Version: {0}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
-    FL_CORE_INFO("  GPU Vendor: {0}", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
-    FL_CORE_INFO("  Renderer: {0}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
+    //FL_CORE_INFO("OpenGL info:");
+   // FL_CORE_INFO("  Version: {0}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
+   // FL_CORE_INFO("  GLSL Version: {0}", reinterpret_cast<const char*>(glGetString(GL_SHADING_LANGUAGE_VERSION)));
+   // FL_CORE_INFO("  GPU Vendor: {0}", reinterpret_cast<const char*>(glGetString(GL_VENDOR)));
+   // FL_CORE_INFO("  Renderer: {0}", reinterpret_cast<const char*>(glGetString(GL_RENDERER)));
     // TODO: if debug then enable OpenGL debug callback:
     glEnable(GL_DEBUG_OUTPUT);
     glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
@@ -177,7 +179,7 @@ Fleur::Graphics::DeviceOpenGL::DeviceOpenGL()
     uint32_t warningId = 8;
     glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 1, &warningId, GL_TRUE);
     glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &m_MaxTexturesUnits);
-    FL_CORE_INFO("  Max texture units: {0}", m_MaxTexturesUnits);
+   // FL_CORE_INFO("  Max texture units: {0}", m_MaxTexturesUnits);
     ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>()->MAX_TEXTURES_COUNT = static_cast<uint32_t>(m_MaxTexturesUnits);
     glEnable(GL_DEPTH_TEST);
 
@@ -310,7 +312,7 @@ Fleur::Graphics::Shader* Fleur::Graphics::DeviceOpenGL::CreateShader(std::string
     // TODO: rework shaders
     if (shaderName.empty())
     {
-        FL_CORE_ASSERT(false, "[Shader] Shader name is empty");
+      //  FL_CORE_ASSERT(false, "[Shader] Shader name is empty");
         return nullptr;
     }
     std::string fullName = shaderName.data();

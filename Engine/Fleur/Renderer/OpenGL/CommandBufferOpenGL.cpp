@@ -124,7 +124,7 @@ void Fleur::Graphics::CommandBufferOpenGL::PushDebugGroup(uint32_t id, const cha
 {
     if (!message || !*message || *message == '\n')
     {
-        FL_CORE_INFO("[Render Marker] PushDebugGroup: message is empty or invalid");
+        //FL_CORE_INFO("[Render Marker] PushDebugGroup: message is empty or invalid");
         return;
     }
 
@@ -144,7 +144,7 @@ void Fleur::Graphics::CommandBufferOpenGL::SetLabel(EObjectLabel id, uint32_t na
 {
     if (!message || !*message || *message == '\n')
     {
-        FL_CORE_INFO("[Render Marker] SetLabel: message is empty or invalid");
+       // FL_CORE_INFO("[Render Marker] SetLabel: message is empty or invalid");
         return;
     }
 

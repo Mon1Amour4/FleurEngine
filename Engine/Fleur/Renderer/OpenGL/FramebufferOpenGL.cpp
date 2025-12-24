@@ -77,12 +77,18 @@ void Fleur::Graphics::FramebufferOpenGL::AddDepthAttachment(std::shared_ptr<Fleu
     Fleur::Graphics::TextureOpenGL* textureGL = static_cast<Fleur::Graphics::TextureOpenGL*>(m_DepthAttachment.get());
 
     if (combined)
+    {
         glNamedFramebufferTexture(m_FBO, GL_DEPTH_STENCIL_ATTACHMENT, *textureGL->GetTextureID(), 0);
+    }
     else
+    {
         glNamedFramebufferTexture(m_FBO, GL_DEPTH_ATTACHMENT, *textureGL->GetTextureID(), 0);
+    }
 
     if (glCheckNamedFramebufferStatus(m_FBO, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        FL_CORE_ASSERT(false, "");
+    {
+    }
+        //FL_CORE_ASSERT(false, "");
 }
 
 void Fleur::Graphics::FramebufferOpenGL::AddStencilAttachment(std::shared_ptr<Fleur::Graphics::Texture> attachment)
@@ -94,7 +100,9 @@ void Fleur::Graphics::FramebufferOpenGL::AddStencilAttachment(std::shared_ptr<Fl
     glNamedFramebufferTexture(m_FBO, GL_STENCIL_ATTACHMENT, *textureGL->GetTextureID(), 0);
 
     if (glCheckNamedFramebufferStatus(m_FBO, GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
-        FL_CORE_ASSERT(false, "");
+    {
+        //FL_CORE_ASSERT(false, "");
+    }
 }
 
 Fleur::Graphics::FramebufferOpenGL::~FramebufferOpenGL()

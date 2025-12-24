@@ -7,7 +7,7 @@ namespace Fleur::Graphics
 class DeviceOpenGL final : public Device
 {
 public:
-    FLEUR_NON_COPYABLE_NON_MOVABLE(DeviceOpenGL)
+    //FLEUR_NON_COPYABLE_NON_MOVABLE(DeviceOpenGL)
 
     virtual ~DeviceOpenGL() override;
 
