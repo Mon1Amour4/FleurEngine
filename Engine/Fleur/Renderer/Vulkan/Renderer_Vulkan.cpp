@@ -7,29 +7,25 @@
 
 BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID lpReserved)
 {
-    switch (reason_for_call)
-    {
-    case DLL_PROCESS_ATTACH:
-    {
-        std::cout << "Renderer_Vulkan: DLL_PROCESS_ATTACH";
-        break;
-    }
-    case DLL_PROCESS_DETACH:
-    {
-        std::cout << "Renderer_Vulkan: DLL_PROCESS_DETACH";
-        break;
-    }
-    case DLL_THREAD_ATTACH:
-    {
-        std::cout << "Renderer_Vulkan: DLL_THREAD_ATTACH";
-        break;
-    }
-    case DLL_THREAD_DETACH:
-    {
-        std::cout << "Renderer_Vulkan: DLL_THREAD_DETACH";
-        break;
-    }
-    }
+    /* switch (reason_for_call)
+     {
+     case DLL_PROCESS_ATTACH:
+     {
+         break;
+     }
+     case DLL_PROCESS_DETACH:
+     {
+         break;
+     }
+     case DLL_THREAD_ATTACH:
+     {
+         break;
+     }
+     case DLL_THREAD_DETACH:
+     {
+         break;
+     }
+     }*/
     return TRUE;
 }
 
