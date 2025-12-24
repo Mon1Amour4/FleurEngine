@@ -38,6 +38,21 @@ RENDERER_BACKEND_EXPORT void DestroyRendererBackend(IRenderer* backend)
     delete backend;
 }
 
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
+                                                    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
+{
+    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
+    {
+        std::cout << "[Vulkan] debug callback" << pCallbackData->pMessage << '/n';
+        for (size_t i = 0; i < pCallbackData->objectCount; i++)
+        {
+            std::cout << "\t [Object] " << pCallbackData->pObjects[i].pObjectName << '\n';
+        }
+    }
+
+    return VK_FALSE;
+}
+
 vulkanBackend::vulkanBackend()
 {
     instance = createInstance();
@@ -55,7 +70,7 @@ VkInstance vulkanBackend::createInstance()
     appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 4, 335);
     appInfo.pEngineName = "Fleur Engine";
     appInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.apiVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
+    appInfo.apiVersion = VK_MAKE_API_VERSION(0, 0, 0, 0);
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
