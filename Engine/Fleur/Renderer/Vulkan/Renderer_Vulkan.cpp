@@ -61,10 +61,21 @@ VkInstance vulkanBackend::createInstance()
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+    VkExtensionProperties* props = new VkExtensionProperties[extensionCount];
+    std::cout << "\nVulkan available extensions:\n";
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props);
+    for (size_t i = 0; i < extensionCount; i++)
+    {
+        std::cout << '\t' << props[i].extensionName << " v:" << props[i].specVersion << '\n';
+    }
+    delete[] props;
+
     uint32_t fleurExtensionCount = 0;
     const char** fleurExtensions = nullptr;
 
-    //fleurExtensions = fleurGetRequiredInstanceExtensions(&fleurExtensionCount);
+    // fleurExtensions = fleurGetRequiredInstanceExtensions(&fleurExtensionCount);
 
     createInfo.enabledExtensionCount = fleurExtensionCount;
     createInfo.ppEnabledExtensionNames = fleurExtensions;
