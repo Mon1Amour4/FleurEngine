@@ -45,6 +45,7 @@ vulkanBackend::vulkanBackend()
 }
 vulkanBackend::~vulkanBackend()
 {
+    vkDestroyInstance(instance, nullptr);
 }
 
 VkInstance vulkanBackend::createInstance()
