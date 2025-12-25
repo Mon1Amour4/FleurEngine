@@ -5,6 +5,15 @@
 
 #include <iostream>
 
+#if defined(FL_CONF_DEBUG)
+#define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
+#define MODULE "[Vulkan] "
+#define DBG_PRINTM(text) std::cout << MODULE << text << std::endl;
+#else
+#define DBG_PRINT(moduleText, text)
+#define MODULE
+#define DBG_PRINTM(text)
+#endif
 //======================================================================
 // Static functions
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
@@ -12,12 +21,12 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 {
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT)
     {
-        std::cout << "[Vulkan] debug callback" << pCallbackData->pMessage << '/n';
+        DBG_PRINTM("debug callback" << pCallbackData->pMessage);
         for (size_t i = 0; i < pCallbackData->objectCount; i++)
         {
             if (!pCallbackData->pObjects[i].pObjectName)
                 break;
-            std::cout << "\t [Object] " << pCallbackData->pObjects[i].pObjectName << '\n';
+            DBG_PRINT("", "\t [Object] " << pCallbackData->pObjects[i].pObjectName);
         }
     }
 
@@ -38,6 +47,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkInstance createInstance();
     void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo, const char** layernames, uint32_t layercount);
     void enableExtensions(VkInstanceCreateInfo& createinfo, const char** extensions, uint32_t count);
+    // Debug messages
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
@@ -135,11 +145,11 @@ void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceC
 
     VkLayerProperties* availableLayers = new VkLayerProperties[availableLayerCount];
     vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers);
-    std::cout << "Vulkan available validation layers:\n";
+    DBG_PRINTM("Vulkan available validation layers:");
     for (size_t i = 0; i < availableLayerCount; i++)
     {
-        std::cout << '\t' << availableLayers[i].layerName << "spec_v: " << availableLayers[i].specVersion
-                  << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description << '\n';
+        DBG_PRINT("", '\t' << availableLayers[i].layerName << "spec_v: " << availableLayers[i].specVersion
+                           << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description);
     }
 
     createInfo.enabledLayerCount = layerCount;
@@ -154,10 +164,10 @@ void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& cr
     VkExtensionProperties* props = new VkExtensionProperties[extensionCount];
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props);
 
-    std::cout << "\nVulkan available extensions:\n";
+    DBG_PRINTM("Vulkan available extensions:");
     for (size_t i = 0; i < extensionCount; i++)
     {
-        std::cout << '\t' << props[i].extensionName << " v:" << props[i].specVersion << '\n';
+        DBG_PRINT("", '\t' << props[i].extensionName << " v:" << props[i].specVersion);
     }
     delete[] props;
 
@@ -183,7 +193,7 @@ void vulkanBackend::vulkanBackendImpl::setupDebugMessenger()
 
     if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
     {
-        std::cout << "[Vulkan] Failed to set up debug messenger\n";
+        DBG_PRINTM("Failed to set up debug messenger");
     }
 }
 VkResult vulkanBackend::vulkanBackendImpl::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
