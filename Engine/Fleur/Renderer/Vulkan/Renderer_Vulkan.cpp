@@ -4,6 +4,7 @@
 #include <vulkan/vulkan.h>
 
 #include <iostream>
+#include <optional>
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -32,6 +33,15 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 
     return VK_FALSE;
 }
+struct QueueFamilyIndices
+{
+    std::optional<uint32_t> graphicsFamily;
+
+    bool isComplete()
+    {
+        return graphicsFamily.has_value();
+    }
+};
 
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
@@ -41,6 +51,7 @@ struct vulkanBackend::vulkanBackendImpl
     ~vulkanBackendImpl();
 
     VkInstance instance;
+    VkPhysicalDevice physicalDevice;
     VkDebugUtilsMessengerEXT debugMessenger;
     bool enableValidationLayers;
 
@@ -53,6 +64,13 @@ struct vulkanBackend::vulkanBackendImpl
     VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
                                           VkDebugUtilsMessengerEXT* pDebugMessenger);
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+
+    // Physical devices
+    void pickPhysicalDevice();
+    bool isDeviceSuitable(VkPhysicalDevice device);
+
+    // Queue families
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 };
 
 //======================================================================
@@ -73,6 +91,7 @@ void vulkanBackend::Draw(DrawInfo info)
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
 vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
+    : physicalDevice(VK_NULL_HANDLE)
 {
 #if defined(FL_CONF_DEBUG)
     enableValidationLayers = true;
@@ -82,6 +101,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
 
     instance = createInstance();
     setupDebugMessenger();
+    pickPhysicalDevice();
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
@@ -218,4 +238,69 @@ void vulkanBackend::vulkanBackendImpl::DestroyDebugUtilsMessengerEXT(VkInstance 
     {
         func(instance, debugMessenger, pAllocator);
     }
+}
+
+void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
+{
+    uint32_t deviceCount = 0;
+    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+
+    if (deviceCount == 0)
+    {
+        DBG_PRINTM("Failed to find GPUs with Vulkan support")
+        assert(false);
+    }
+
+    VkPhysicalDevice* physicalDevices = new VkPhysicalDevice[deviceCount];
+    vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices);
+
+    for (size_t i = 0; i < deviceCount; i++)
+    {
+        if (isDeviceSuitable(physicalDevices[i]))
+        {
+            physicalDevice = physicalDevices[i];
+            break;
+        }
+    }
+
+    if (physicalDevice == VK_NULL_HANDLE)
+    {
+        DBG_PRINTM("Failed to find a suitable GPU!")
+        assert(false);
+    }
+
+    delete[] physicalDevices;
+}
+QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices;
+    uint32_t queueFamilyCount = 0;
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+
+    VkQueueFamilyProperties* familyProperties = new VkQueueFamilyProperties[queueFamilyCount];
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties);
+
+    for (size_t i = 0; i < queueFamilyCount; i++)
+    {
+        if (familyProperties[i].queueCount > 0 && familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        {
+            indices.graphicsFamily = i;
+            break;
+        }
+    }
+
+    delete[] familyProperties;
+
+    return indices;
+}
+bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice device)
+{
+    QueueFamilyIndices indices = findQueueFamilies(device);
+
+    VkPhysicalDeviceProperties deviceProperties;
+    VkPhysicalDeviceFeatures deviceFeatures;
+    vkGetPhysicalDeviceProperties(device, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
+
+    return indices.isComplete();
 }
