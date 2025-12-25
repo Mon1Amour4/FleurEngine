@@ -61,6 +61,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkDevice device;
     VkQueue graphicsQueue;
     VkSurfaceKHR surface;
+    VkQueue presentQueue;
 
     QueueFamilyIndices family;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -369,12 +370,35 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 
     createInfo.pEnabledFeatures = &deviceFeatures;
 
+    // Queues
+    uint32_t* uniqueQueueFamilies = new uint32_t[2];
+    uniqueQueueFamilies[0] = family.graphicsFamily;
+    uniqueQueueFamilies[1] = family.surfaceSupport;
+
+    VkDeviceQueueCreateInfo* queueCreateInfos = new VkDeviceQueueCreateInfo[2];
+
+    for (size_t i = 0; i < 2; i++)
+    {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = i;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos[i] = queueCreateInfo;
+    }
+    createInfo.queueCreateInfoCount = 2;
+    createInfo.pQueueCreateInfos = queueCreateInfos;
+
+
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create logical device!");
         assert(true);
     }
     vkGetDeviceQueue(device, family.graphicsFamily, 0, &graphicsQueue);
+
+    delete[] queueCreateInfos;
+    delete[] uniqueQueueFamilies;
 }
 
 void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
