@@ -39,7 +39,16 @@ ADD_LIBRARY(OpenGLBackend STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 # === Target Properties ===
 SET_TARGET_PROPERTIES(OpenGLBackend PROPERTIES FOLDER "Engine/Renderer/Backend")
 
+# === Glad Configuration ===
+SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
+FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glad" GLAD_SOURCES)
+
+# === Glad Subdirectory ===
+ADD_SUBDIRECTORY("${GLAD_SOURCES}" "${GLAD_BUILD_DIR}")
+
 TARGET_LINK_LIBRARIES(
   OpenGLBackend  
-  PRIVATE FleurInterface Glad TBB::tbb CoreLib
+  PRIVATE FleurInterface TBB::tbb CoreLib Glad
 )
+
+SET_TARGET_PROPERTIES(Glad PROPERTIES FOLDER "External")

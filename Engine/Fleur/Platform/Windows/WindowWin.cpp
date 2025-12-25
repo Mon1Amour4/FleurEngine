@@ -1,6 +1,6 @@
 ﻿#include "WindowWin.h"
 
-#include <glad/wgl.h>
+// #include <glad/wgl.h>
 
 #include "InputWin.h"
 #include "KeyCodesWin.h"
@@ -157,7 +157,7 @@ void Fleur::WindowWin::InitOpenGLExtensions()
         FL_CORE_ERROR("Failed to activate dummy OpenGL rendering context.");
     }
 
-    gladLoaderLoadWGL(dummyDC);
+    // gladLoaderLoadWGL(dummyDC);
 
     wglMakeCurrent(dummyDC, 0);
     wglDeleteContext(dummyContext);
