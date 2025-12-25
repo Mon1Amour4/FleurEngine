@@ -9,6 +9,7 @@
 
 #include <iostream>
 #include <optional>
+#include <vector>
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -67,11 +68,9 @@ struct vulkanBackend::vulkanBackendImpl
     VkDebugUtilsMessengerEXT debugMessenger;
 
     bool enableValidationLayers;
-    const char** validationLayers;
-    uint32_t validationLayersCount;
+    std::vector<const char*> validationLayers;
 
-    const char** extensions;
-    uint32_t extensionsCount;
+    std::vector<const char*> extensions;
 
     // Instance
     VkInstance createInstance();
@@ -118,10 +117,6 @@ void vulkanBackend::Draw(DrawInfo info)
 // vulkanBackend::vulkanBackendImpl
 vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle)
     : physicalDevice(VK_NULL_HANDLE)
-    , validationLayers(nullptr)
-    , validationLayersCount(0)
-    , extensions(nullptr)
-    , extensionsCount(0)
 {
 #if defined(FL_CONF_DEBUG)
     enableValidationLayers = true;
@@ -144,9 +139,6 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     vkDestroyDevice(device, nullptr);
     vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
-
-    delete[] validationLayers;
-    delete[] extensions;
 }
 
 VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
@@ -163,9 +155,7 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    validationLayersCount = 1;
-    validationLayers = new const char*[validationLayersCount];
-    validationLayers[0] = "VK_LAYER_KHRONOS_validation";
+    validationLayers.emplace_back("VK_LAYER_KHRONOS_validation");
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers)
@@ -180,12 +170,10 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
         createInfo.enabledLayerCount = 0;
     }
 
-    extensionsCount = 3;
-    extensions = new const char*[extensionsCount];
-    extensions[0] = "VK_EXT_debug_utils";
-    extensions[1] = "VK_KHR_surface";
+    extensions.emplace_back("VK_EXT_debug_utils");
+    extensions.emplace_back("VK_KHR_surface");
 #if defined(FLEUR_PLATFORM_WIN)
-    extensions[2] = "VK_KHR_win32_surface";
+    extensions.emplace_back("VK_KHR_win32_surface");
 #endif
     enableExtensions(createInfo);
 
@@ -201,8 +189,8 @@ void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceC
     uint32_t availableLayerCount;
     vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
 
-    VkLayerProperties* availableLayers = new VkLayerProperties[availableLayerCount];
-    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers);
+    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
+    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
     DBG_PRINTM("Vulkan available validation layers:");
     for (size_t i = 0; i < availableLayerCount; i++)
     {
@@ -210,28 +198,25 @@ void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceC
                            << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description);
     }
 
-    createInfo.enabledLayerCount = validationLayersCount;
-    createInfo.ppEnabledLayerNames = validationLayers;
-
-    delete[] availableLayers;
+    createInfo.enabledLayerCount = validationLayers.size();
+    createInfo.ppEnabledLayerNames = validationLayers.data();
 }
 void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& createInfo)
 {
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-    VkExtensionProperties* props = new VkExtensionProperties[extensionCount];
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props);
+
+    std::vector<VkExtensionProperties> props(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props.data());
 
     DBG_PRINTM("Vulkan available extensions:");
     for (size_t i = 0; i < extensionCount; i++)
     {
         DBG_PRINT("", '\t' << props[i].extensionName << " v:" << props[i].specVersion);
     }
-    delete[] props;
 
-
-    createInfo.enabledExtensionCount = extensionsCount;
-    createInfo.ppEnabledExtensionNames = extensions;
+    createInfo.enabledExtensionCount = extensions.size();
+    createInfo.ppEnabledExtensionNames = extensions.data();
 }
 
 void vulkanBackend::vulkanBackendImpl::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -289,8 +274,8 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
         assert(false);
     }
 
-    VkPhysicalDevice* physicalDevices = new VkPhysicalDevice[deviceCount];
-    vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices);
+    std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
+    vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data());
 
     for (size_t i = 0; i < deviceCount; i++)
     {
@@ -306,8 +291,6 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
         DBG_PRINTM("Failed to find a suitable GPU!")
         assert(false);
     }
-
-    delete[] physicalDevices;
 }
 QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice device)
 {
@@ -315,8 +298,8 @@ QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysica
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    VkQueueFamilyProperties* familyProperties = new VkQueueFamilyProperties[queueFamilyCount];
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties);
+    std::vector<VkQueueFamilyProperties> familyProperties(queueFamilyCount);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, familyProperties.data());
 
     for (size_t i = 0; i < queueFamilyCount; i++)
     {
@@ -334,8 +317,6 @@ QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysica
             break;
         }
     }
-
-    delete[] familyProperties;
 
     return indices;
 }
@@ -371,13 +352,13 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     createInfo.pEnabledFeatures = &deviceFeatures;
 
     // Queues
-    uint32_t* uniqueQueueFamilies = new uint32_t[2];
-    uniqueQueueFamilies[0] = family.graphicsFamily;
-    uniqueQueueFamilies[1] = family.surfaceSupport;
+    std::vector<uint32_t> uniqueQueueFamilies;
+    uniqueQueueFamilies.push_back(family.graphicsFamily);
+    uniqueQueueFamilies.push_back(family.surfaceSupport);
 
-    VkDeviceQueueCreateInfo* queueCreateInfos = new VkDeviceQueueCreateInfo[2];
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos(uniqueQueueFamilies.size());
 
-    for (size_t i = 0; i < 2; i++)
+    for (size_t i = 0; i < uniqueQueueFamilies.size(); i++)
     {
         VkDeviceQueueCreateInfo queueCreateInfo{};
         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -387,7 +368,7 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
         queueCreateInfos[i] = queueCreateInfo;
     }
     createInfo.queueCreateInfoCount = 2;
-    createInfo.pQueueCreateInfos = queueCreateInfos;
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
 
     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
@@ -396,9 +377,6 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
         assert(true);
     }
     vkGetDeviceQueue(device, family.graphicsFamily, 0, &graphicsQueue);
-
-    delete[] queueCreateInfos;
-    delete[] uniqueQueueFamilies;
 }
 
 void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
