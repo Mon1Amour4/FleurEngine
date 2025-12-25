@@ -53,6 +53,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
     VkDevice device;
+    VkQueue graphicsQueue;
 
     QueueFamilyIndices family;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -128,6 +129,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     {
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
+    vkDestroyDevice(device, nullptr);
     vkDestroyInstance(instance, nullptr);
 
     delete[] validationLayers;
@@ -342,4 +344,11 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     createInfo.queueCreateInfoCount = 1;
 
     createInfo.pEnabledFeatures = &deviceFeatures;
+
+    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to create logical device!");
+        assert(true);
+    }
+    vkGetDeviceQueue(device, family.graphicsFamily.value(), 0, &graphicsQueue);
 }
