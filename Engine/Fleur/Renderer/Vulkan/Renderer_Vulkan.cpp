@@ -1,6 +1,8 @@
 #include "Renderer_Vulkan.h"
 
 #include <Windows.h>
+
+#define VK_USE_PLATFORM_WIN32_KHR
 #include <vulkan/vulkan.h>
 
 #include <iostream>
@@ -54,6 +56,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkPhysicalDevice physicalDevice;
     VkDevice device;
     VkQueue graphicsQueue;
+    VkSurfaceKHR surface;
 
     QueueFamilyIndices family;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -86,6 +89,9 @@ struct vulkanBackend::vulkanBackendImpl
 
     // Logical device
     void createLogicalDevice();
+
+    // Surface
+    void createSurface();
 };
 
 //======================================================================
@@ -120,6 +126,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
 
     instance = createInstance();
     setupDebugMessenger();
+    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
 }
@@ -130,6 +137,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
     vkDestroyDevice(device, nullptr);
+    vkDestroySurfaceKHR(instance, surface, nullptr);
     vkDestroyInstance(instance, nullptr);
 
     delete[] validationLayers;
@@ -167,9 +175,10 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
         createInfo.enabledLayerCount = 0;
     }
 
-    extensionsCount = 1;
+    extensionsCount = 2;
     extensions = new const char*[extensionsCount];
     extensions[0] = "VK_EXT_debug_utils";
+    extensions[1] = "VK_KHR_surface";
     enableExtensions(createInfo);
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
@@ -351,4 +360,12 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
         assert(true);
     }
     vkGetDeviceQueue(device, family.graphicsFamily.value(), 0, &graphicsQueue);
+}
+
+void vulkanBackend::vulkanBackendImpl::createSurface()
+{
+    VkWin32SurfaceCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.hwnd = glfwGetWin32Window(window);
+    createInfo.hinstance = GetModuleHandle(nullptr);
 }

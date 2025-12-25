@@ -30,7 +30,7 @@ class FLEUR_API Application : public singleton<Application>
 public:
     struct ApplicationBootSettings
     {
-        Fleur::Graphics::EGraphicsAPI Renderer = Fleur::Graphics::EGraphicsAPI::OpenGL;
+        Fleur::Graphics::EGraphicsAPI Renderer = Fleur::Graphics::EGraphicsAPI::Vulkan;
         bool Vsync = false;
         WindowProps WindowProperties = WindowProps{};
         float FixedDt = 0.025f;
