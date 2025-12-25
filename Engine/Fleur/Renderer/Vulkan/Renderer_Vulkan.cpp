@@ -177,10 +177,13 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
         createInfo.enabledLayerCount = 0;
     }
 
-    extensionsCount = 2;
+    extensionsCount = 3;
     extensions = new const char*[extensionsCount];
     extensions[0] = "VK_EXT_debug_utils";
     extensions[1] = "VK_KHR_surface";
+#if defined(FLEUR_PLATFORM_WIN)
+    extensions[2] = "VK_KHR_win32_surface";
+#endif
     enableExtensions(createInfo);
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
@@ -369,8 +372,12 @@ void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
 #if defined(FLEUR_PLATFORM_WIN)
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = reinterpret_cast<const HWND>(pNativeHandle);
+    createInfo.hwnd = reinterpret_cast<HWND>(pNativeHandle);
     createInfo.hinstance = GetModuleHandle(nullptr);
-
 #endif
+    if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to create window surface!")
+        assert(false);
+    }
 }
