@@ -4,6 +4,9 @@
 
 #include "FleurAllocator.hpp"
 
+// Backend
+#include "Vulkan/Renderer_Vulkan.h"
+
 uint32_t Fleur::Graphics::Renderer::MAX_TEXTURES_COUNT = 0;
 
 Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
@@ -88,88 +91,91 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Memory::FleurAllocator<Camera> alloc;
     m_Camera.reset(alloc.construct_at());
     m_Camera->Activate();
-//
-//    m_Device = Device::CreateDevice();
-//    m_Device->SetVSync(m_IsVsync);
-//
-//    m_CommandQueue = m_Device->CreateCommandQueue();
-//
-//    auto& application = Fleur::Application::instance();
-//
-//    m_Swapchain = m_Device->CreateSwapchain(m_Device->CreateSurface(application.GetWindow().GetNativeHandle()));
-//
-//    m_CommandPool = m_Device->CreateCommandPool(*m_CommandQueue);
-//
-//    auto staticGeoVs = m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex);
-//    std::shared_ptr<ShaderObject> staticGeometryShader(
-//        ShaderObject::CreateShaderObject("static_geometry_shader", staticGeoVs, m_Device->CreateShader("static_geo", Shader::EShaderType::Pixel)));
-//    // Static geometry
-//    DepthStencilDescriptor staticGeoDescriptor{true, EDepthTestOperation::LESS};
-//    m_StaticGeometryCmd = m_Device->CreateCommandBuffer(staticGeoDescriptor);
-//    m_StaticGeometryCmd->BindShaderObject(staticGeometryShader);
-//
-//    VertexLayout layout{};
-//    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
-//    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
-//    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
-//    m_StaticGeometryCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024), layout);
-//    m_StaticGeometryCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 * 1024));
-//
-//    // Skybox
-//    std::shared_ptr<ShaderObject> skyboxShader(ShaderObject::CreateShaderObject("skybox_shader", m_Device->CreateShader("skybox", Shader::EShaderType::Vertex),
-//                                                                                m_Device->CreateShader("skybox", Shader::EShaderType::Pixel)));
-//    DepthStencilDescriptor skyboxDescriptor{false, EDepthTestOperation::LESS_OR_EQUAL};
-//    m_SkyboxCmd = m_Device->CreateCommandBuffer(skyboxDescriptor);
-//    m_SkyboxCmd->BindShaderObject(skyboxShader);
-//
-//    VertexLayout skyboxLayout{};
-//    skyboxLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
-//    m_SkyboxCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)), skyboxLayout);
-//
-//    // gizmo
-//    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject(
-//        "gizmo_shader", m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex), m_Device->CreateShader("gizmo", Shader::EShaderType::Pixel)));
-//    DepthStencilDescriptor gizmoDescriptor{false, EDepthTestOperation::ALWAYS};
-//    m_GizmoCmd = m_Device->CreateCommandBuffer(gizmoDescriptor);
-//    m_GizmoCmd->BindShaderObject(gizmoShader);
-//
-//    VertexLayout gizmoLayout{};
-//    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
-//    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
-//    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
-//    m_GizmoCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmoLayout);
-//    m_GizmoCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
-//
-//    m_GizmoFBO = m_Device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
-//                                             (uint32_t)EFramebufferSettings::COLOR | (uint32_t)EFramebufferSettings::DEPTH_STENCIL);
-//
-//
-//    std::shared_ptr<ShaderObject> copy_fbo_shader(
-//        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", staticGeoVs, m_Device->CreateShader("CopyFBOAsQuad", Shader::EShaderType::Pixel)));
-//
-//    DepthStencilDescriptor copyFBODescriptor{true, EDepthTestOperation::LESS};
-//    m_CopyFBOCmd = m_Device->CreateCommandBuffer(copyFBODescriptor);
-//    m_CopyFBOCmd->BindShaderObject(copy_fbo_shader);
-//
-//    VertexLayout copyFBOLayout{};
-//    copyFBOLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
-//    copyFBOLayout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
-//    m_CopyFBOCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copyFBOLayout);
-//    m_CopyFBOCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
-//
-//    // clang-format off
-//    static float quadVertices[] = {
-//    -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,
-//     1.0f, -1.0f, 0.0f,   1.0f, 0.0f,
-//    -1.0f,  1.0f, 0.0f,   0.0f, 1.0f,
-//     -1.0f, 1.0f, 0.0f,   1.0f, 1.0f,
-//     1.0f,  1.0f, 0.0f,   1.0f, 1.0f,
-//     1.0f,  -1.0f, 0.0f,   1.0f, 1.0f
-//};
-//    // clang-format on
-//    m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
+    //
+    //    m_Device = Device::CreateDevice();
+    //    m_Device->SetVSync(m_IsVsync);
+    //
+    //    m_CommandQueue = m_Device->CreateCommandQueue();
+    //
+    //    auto& application = Fleur::Application::instance();
+    //
+    //    m_Swapchain = m_Device->CreateSwapchain(m_Device->CreateSurface(application.GetWindow().GetNativeHandle()));
+    //
+    //    m_CommandPool = m_Device->CreateCommandPool(*m_CommandQueue);
+    //
+    //    auto staticGeoVs = m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex);
+    //    std::shared_ptr<ShaderObject> staticGeometryShader(
+    //        ShaderObject::CreateShaderObject("static_geometry_shader", staticGeoVs, m_Device->CreateShader("static_geo", Shader::EShaderType::Pixel)));
+    //    // Static geometry
+    //    DepthStencilDescriptor staticGeoDescriptor{true, EDepthTestOperation::LESS};
+    //    m_StaticGeometryCmd = m_Device->CreateCommandBuffer(staticGeoDescriptor);
+    //    m_StaticGeometryCmd->BindShaderObject(staticGeometryShader);
+    //
+    //    VertexLayout layout{};
+    //    layout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    //    layout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    //    layout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
+    //    m_StaticGeometryCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 100 * 1024 * 1024),
+    //    layout); m_StaticGeometryCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 100 * 1024 *
+    //    1024));
+    //
+    //    // Skybox
+    //    std::shared_ptr<ShaderObject> skyboxShader(ShaderObject::CreateShaderObject("skybox_shader", m_Device->CreateShader("skybox",
+    //    Shader::EShaderType::Vertex),
+    //                                                                                m_Device->CreateShader("skybox", Shader::EShaderType::Pixel)));
+    //    DepthStencilDescriptor skyboxDescriptor{false, EDepthTestOperation::LESS_OR_EQUAL};
+    //    m_SkyboxCmd = m_Device->CreateCommandBuffer(skyboxDescriptor);
+    //    m_SkyboxCmd->BindShaderObject(skyboxShader);
+    //
+    //    VertexLayout skyboxLayout{};
+    //    skyboxLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    //    m_SkyboxCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 108 * sizeof(float)),
+    //    skyboxLayout);
+    //
+    //    // gizmo
+    //    std::shared_ptr<ShaderObject> gizmoShader(ShaderObject::CreateShaderObject(
+    //        "gizmo_shader", m_Device->CreateShader("static_geo", Shader::EShaderType::Vertex), m_Device->CreateShader("gizmo", Shader::EShaderType::Pixel)));
+    //    DepthStencilDescriptor gizmoDescriptor{false, EDepthTestOperation::ALWAYS};
+    //    m_GizmoCmd = m_Device->CreateCommandBuffer(gizmoDescriptor);
+    //    m_GizmoCmd->BindShaderObject(gizmoShader);
+    //
+    //    VertexLayout gizmoLayout{};
+    //    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    //    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    //    gizmoLayout.AddAttribute(VertexLayout::VertexAttribute(2, 3, VertexLayout::EDataType::FLOAT, true));
+    //    m_GizmoCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), gizmoLayout);
+    //    m_GizmoCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    //
+    //    m_GizmoFBO = m_Device->CreateFramebuffer("gizmo_framebuffer", application.GetWindow().GetWidth(), application.GetWindow().GetHeight(),
+    //                                             (uint32_t)EFramebufferSettings::COLOR | (uint32_t)EFramebufferSettings::DEPTH_STENCIL);
+    //
+    //
+    //    std::shared_ptr<ShaderObject> copy_fbo_shader(
+    //        ShaderObject::CreateShaderObject("copy_fbo_as_quad_shader", staticGeoVs, m_Device->CreateShader("CopyFBOAsQuad", Shader::EShaderType::Pixel)));
+    //
+    //    DepthStencilDescriptor copyFBODescriptor{true, EDepthTestOperation::LESS};
+    //    m_CopyFBOCmd = m_Device->CreateCommandBuffer(copyFBODescriptor);
+    //    m_CopyFBOCmd->BindShaderObject(copy_fbo_shader);
+    //
+    //    VertexLayout copyFBOLayout{};
+    //    copyFBOLayout.AddAttribute(VertexLayout::VertexAttribute(0, 3, VertexLayout::EDataType::FLOAT, true));
+    //    copyFBOLayout.AddAttribute(VertexLayout::VertexAttribute(1, 2, VertexLayout::EDataType::FLOAT, true));
+    //    m_CopyFBOCmd->BindVertexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Vertex, STATIC_GEOMETRY, 500 * 1024), copyFBOLayout);
+    //    m_CopyFBOCmd->BindIndexBuffer(m_Device->CreateBuffer(Fleur::Graphics::Buffer::EBufferType::Index, STATIC_GEOMETRY, 500 * 1024));
+    //
+    //    // clang-format off
+    //    static float quadVertices[] = {
+    //    -1.0f, -1.0f, 0.0f,   0.0f, 0.0f,
+    //     1.0f, -1.0f, 0.0f,   1.0f, 0.0f,
+    //    -1.0f,  1.0f, 0.0f,   0.0f, 1.0f,
+    //     -1.0f, 1.0f, 0.0f,   1.0f, 1.0f,
+    //     1.0f,  1.0f, 0.0f,   1.0f, 1.0f,
+    //     1.0f,  -1.0f, 0.0f,   1.0f, 1.0f
+    //};
+    //    // clang-format on
+    //    m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
 
-    HMODULE backendLib = LoadLibraryA("Renderer_Vulkan_Backend");
+    /*HMODULE backendLib = LoadLibraryA("Renderer_Vulkan_Backend");
     if (!backendLib)
     {
         std::cout << "Renderer_Vulkan_Backend invalid handle";
@@ -179,8 +185,8 @@ void Fleur::Graphics::Renderer::OnInit()
     {
         RendererBackend_t* CreateRendererBackend = (RendererBackend_t*)GetProcAddress(backendLib, "CreateRendererBackend");
         IRenderer* backend = CreateRendererBackend();
-    }
-
+    }*/
+    IRenderer* backend = new vulkanBackend();
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -255,13 +261,13 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
 
 void Fleur::Graphics::Renderer::Clear()
 {
-    //m_Swapchain->ClearBackbuffer();
-    //m_GizmoFBO->Clear();
+    // m_Swapchain->ClearBackbuffer();
+    // m_GizmoFBO->Clear();
 }
 
 void Fleur::Graphics::Renderer::Present()
 {
-    //m_Swapchain->Present();
+    // m_Swapchain->Present();
 }
 
 void Fleur::Graphics::Renderer::ShowWireFrame()
@@ -279,13 +285,13 @@ void Fleur::Graphics::Renderer::ToggleWireFrame()
 
 void Fleur::Graphics::Renderer::ValidateWindow()
 {
-   // m_Swapchain->ValidateWindow();
+    // m_Swapchain->ValidateWindow();
 }
 
 void Fleur::Graphics::Renderer::SetVSync(bool active)
 {
     m_IsVsync = active;
-    //m_Device->SetVSync(m_IsVsync);
+    // m_Device->SetVSync(m_IsVsync);
 }
 
 bool Fleur::Graphics::Renderer::IsVSync()
@@ -368,15 +374,15 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
     StaticGeometryPass();
 
     // gizmo
-    //m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    //m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), EFramebufferRWOperation::WRITE_ONLY);
-    //m_GizmoCmd->BeginRecording();
+    // m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
+    // m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), EFramebufferRWOperation::WRITE_ONLY);
+    // m_GizmoCmd->BeginRecording();
 
-    //m_GizmoCmd->ShaderObject()->Use();
+    // m_GizmoCmd->ShaderObject()->Use();
 
-    //for (const auto& draw_info : m_GizmoModelsVector)
+    // for (const auto& draw_info : m_GizmoModelsVector)
     //{
-    //    m_GizmoCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
+    //     m_GizmoCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
 
     //    glm::mat4 proj = glm::mat4(1.0f);
 
@@ -415,27 +421,27 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
     //    m_GizmoCmd->EndRecording();
     //    m_GizmoCmd->Submit();
     //}
-    //m_GizmoCmd->PopDebugGroup();
+    // m_GizmoCmd->PopDebugGroup();
 
-    //m_StaticGeometryCmd->BeginRecording();
+    // m_StaticGeometryCmd->BeginRecording();
 
     ////
-    //m_CopyFBOCmd->PushDebugGroup(0, "[Copy FBO]");
-    //m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
+    // m_CopyFBOCmd->PushDebugGroup(0, "[Copy FBO]");
+    // m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
 
-    //ShaderComponentContext ctx{};
-    //ctx.albedo_text.second = m_GizmoFBO->GetColorAttachment(0);
+    // ShaderComponentContext ctx{};
+    // ctx.albedo_text.second = m_GizmoFBO->GetColorAttachment(0);
 
-    //m_CopyFBOCmd->ShaderObject()->Use();
-    //m_CopyFBOCmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
+    // m_CopyFBOCmd->ShaderObject()->Use();
+    // m_CopyFBOCmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
 
-    //m_CopyFBOCmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
-    //m_CopyFBOCmd->ShaderObject()->Set("model", glm::mat4(1.0f));
-    //m_CopyFBOCmd->ShaderObject()->Set("view", glm::mat4(1.0f));
+    // m_CopyFBOCmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
+    // m_CopyFBOCmd->ShaderObject()->Set("model", glm::mat4(1.0f));
+    // m_CopyFBOCmd->ShaderObject()->Set("view", glm::mat4(1.0f));
 
-    //m_CopyFBOCmd->Draw(6);
+    // m_CopyFBOCmd->Draw(6);
 
-    //m_CopyFBOCmd->PopDebugGroup();
+    // m_CopyFBOCmd->PopDebugGroup();
 }
 
 void Fleur::Graphics::Renderer::OnPostUpdate(float dtTime)
@@ -453,9 +459,9 @@ void Fleur::Graphics::Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t 
 {
     UNUSED(y);
     UNUSED(x);
-    //m_GizmoFBO->Bind();
-    //uint32_t flags = m_GizmoFBO->Flags();
-    //m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
+    // m_GizmoFBO->Bind();
+    // uint32_t flags = m_GizmoFBO->Flags();
+    // m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
 }
 
 Fleur::Graphics::VertexData::VertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
@@ -530,5 +536,5 @@ Fleur::Graphics::QuadRenderer::QuadRenderer(const Texture* texture)
     ctx.albedo_text.second = static_cast<const Fleur::Graphics::Texture*>(texture);
     m_Material = Material::CreateMaterial(ctx);
 
-    //m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
+    // m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
 }

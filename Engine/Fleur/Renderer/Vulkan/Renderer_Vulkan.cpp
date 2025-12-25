@@ -1,6 +1,7 @@
 #include "Renderer_Vulkan.h"
 
 #include <Windows.h>
+#include <vulkan/vulkan.h>
 
 #include <iostream>
 
@@ -18,17 +19,36 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 
     return VK_FALSE;
 }
-
+struct vulkanBackend::vulkanBackendImpl
+{
+    vulkanBackendImpl();
+    ~vulkanBackendImpl();
+    VkInstance instance;
+    VkInstance createInstance();
+    void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo, const char** layernames, uint32_t layercount);
+    void enableExtensions(VkInstanceCreateInfo& createinfo, const char** extensions, uint32_t count);
+};
 vulkanBackend::vulkanBackend()
+    : pImpl(new vulkanBackendImpl())
+{
+}
+vulkanBackend::~vulkanBackend()
+{
+    delete pImpl;
+}
+
+
+vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
 {
     instance = createInstance();
 }
-vulkanBackend::~vulkanBackend()
+vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
     vkDestroyInstance(instance, nullptr);
 }
 
-VkInstance vulkanBackend::createInstance()
+
+VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
 {
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -66,8 +86,7 @@ VkInstance vulkanBackend::createInstance()
 
     return instance;
 }
-
-void vulkanBackend::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo, const char** layerNames, uint32_t layerCount)
+void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo, const char** layerNames, uint32_t layerCount)
 {
     uint32_t availableLayerCount;
     vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
@@ -86,8 +105,7 @@ void vulkanBackend::enableValidationLayersSupport(VkInstanceCreateInfo& createIn
 
     delete[] availableLayers;
 }
-
-void vulkanBackend::enableExtensions(VkInstanceCreateInfo& createInfo, const char** extensions, uint32_t count)
+void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& createInfo, const char** extensions, uint32_t count)
 {
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
