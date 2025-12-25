@@ -39,11 +39,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 }
 struct QueueFamilyIndices
 {
-    std::optional<uint32_t> graphicsFamily;
+    uint32_t graphicsFamily;
+    uint32_t surfaceSupport;
+    bool isCompleted;
 
-    bool isComplete()
+    inline bool IsCompleted()
     {
-        return graphicsFamily.has_value();
+        return isCompleted;
     }
 };
 
@@ -308,7 +310,7 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
 }
 QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice device)
 {
-    QueueFamilyIndices indices;
+    QueueFamilyIndices indices{};
     uint32_t queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
@@ -320,6 +322,14 @@ QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysica
         if (familyProperties[i].queueCount > 0 && familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
             indices.graphicsFamily = i;
+
+            VkBool32 presentSupport = false;
+            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+            if (presentSupport)
+            {
+                indices.surfaceSupport = i;
+            }
+            indices.isCompleted = true;
             break;
         }
     }
@@ -337,14 +347,14 @@ bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice device)
     vkGetPhysicalDeviceProperties(device, &deviceProperties);
     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
-    return family.isComplete();
+    return family.IsCompleted();
 }
 
 void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 {
     VkDeviceQueueCreateInfo queueCreateInfo{};
     queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = family.graphicsFamily.value();
+    queueCreateInfo.queueFamilyIndex = family.graphicsFamily;
     queueCreateInfo.queueCount = 1;
 
     float queuePriority = 1.0f;
@@ -364,7 +374,7 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
         DBG_PRINTM("Failed to create logical device!");
         assert(true);
     }
-    vkGetDeviceQueue(device, family.graphicsFamily.value(), 0, &graphicsQueue);
+    vkGetDeviceQueue(device, family.graphicsFamily, 0, &graphicsQueue);
 }
 
 void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
