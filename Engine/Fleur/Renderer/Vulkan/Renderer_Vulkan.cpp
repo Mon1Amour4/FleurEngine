@@ -5,6 +5,8 @@
 
 #include <iostream>
 
+//======================================================================
+// Static functions
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
@@ -13,21 +15,38 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
         std::cout << "[Vulkan] debug callback" << pCallbackData->pMessage << '/n';
         for (size_t i = 0; i < pCallbackData->objectCount; i++)
         {
+            if (!pCallbackData->pObjects[i].pObjectName)
+                break;
             std::cout << "\t [Object] " << pCallbackData->pObjects[i].pObjectName << '\n';
         }
     }
 
     return VK_FALSE;
 }
+
+//======================================================================
+// vulkanBackend::vulkanBackendImpl
 struct vulkanBackend::vulkanBackendImpl
 {
     vulkanBackendImpl();
     ~vulkanBackendImpl();
+
     VkInstance instance;
+    VkDebugUtilsMessengerEXT debugMessenger;
+    bool enableValidationLayers;
+
     VkInstance createInstance();
     void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo, const char** layernames, uint32_t layercount);
     void enableExtensions(VkInstanceCreateInfo& createinfo, const char** extensions, uint32_t count);
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+    void setupDebugMessenger();
+    VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
+                                          VkDebugUtilsMessengerEXT* pDebugMessenger);
+    void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 };
+
+//======================================================================
+// vulkanBackend
 vulkanBackend::vulkanBackend()
     : pImpl(new vulkanBackendImpl())
 {
@@ -36,17 +55,32 @@ vulkanBackend::~vulkanBackend()
 {
     delete pImpl;
 }
+void vulkanBackend::Draw(DrawInfo info)
+{
+}
 
 
+//======================================================================
+// vulkanBackend::vulkanBackendImpl
 vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
 {
+#if defined(FL_CONF_DEBUG)
+    enableValidationLayers = true;
+#else
+    enableValidationLayers = false;
+#endif
+
     instance = createInstance();
+    setupDebugMessenger();
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
+    if (enableValidationLayers)
+    {
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    }
     vkDestroyInstance(instance, nullptr);
 }
-
 
 VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
 {
@@ -65,11 +99,19 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     uint32_t layersCount = 1;
     const char** layerNames = new const char*[layersCount];
     layerNames[0] = "VK_LAYER_KHRONOS_validation";
-#if defined(FL_CONF_DEBUG)
-    enableValidationLayersSupport(createInfo, layerNames, layersCount);
-#else
-    createInfo.enabledLayerCount = 0;
-#endif
+
+    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
+    if (enableValidationLayers)
+    {
+        enableValidationLayersSupport(createInfo, layerNames, layersCount);
+
+        populateDebugMessengerCreateInfo(debugCreateInfo);
+        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
+    }
+    else
+    {
+        createInfo.enabledLayerCount = 0;
+    }
 
     uint32_t fleurExtensionCount = 1;
     const char** fleurExtensions = new const char*[fleurExtensionCount];
@@ -124,6 +166,46 @@ void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& cr
     createInfo.ppEnabledExtensionNames = extensions;
 }
 
-void vulkanBackend::Draw(DrawInfo info)
+void vulkanBackend::vulkanBackendImpl::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
+    createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+    createInfo.messageSeverity =
+        VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    createInfo.messageType =
+        VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    createInfo.pfnUserCallback = debugCallback;
+}
+void vulkanBackend::vulkanBackendImpl::setupDebugMessenger()
+{
+    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    populateDebugMessengerCreateInfo(createInfo);
+
+    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+    {
+        std::cout << "[Vulkan] Failed to set up debug messenger\n";
+    }
+}
+VkResult vulkanBackend::vulkanBackendImpl::CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+                                                                        const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+{
+    auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    if (func != nullptr)
+    {
+        return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+    }
+    else
+    {
+        return VK_ERROR_EXTENSION_NOT_PRESENT;
+    }
+}
+
+void vulkanBackend::vulkanBackendImpl::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger,
+                                                                     const VkAllocationCallbacks* pAllocator)
+{
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr)
+    {
+        func(instance, debugMessenger, pAllocator);
+    }
 }

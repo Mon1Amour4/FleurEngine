@@ -187,6 +187,7 @@ void Fleur::Graphics::Renderer::OnInit()
         IRenderer* backend = CreateRendererBackend();
     }*/
     IRenderer* backend = new vulkanBackend();
+    delete backend;
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
