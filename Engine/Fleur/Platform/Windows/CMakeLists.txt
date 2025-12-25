@@ -2,10 +2,10 @@
 
 # === Source Files ===
 SET(PROJECT_HEADERS
+    WindowWin.h
     EventQueueWin.h
     InputWin.h
     KeyCodesWin.h
-    WindowWin.h
     TimeWin.h
 )
 

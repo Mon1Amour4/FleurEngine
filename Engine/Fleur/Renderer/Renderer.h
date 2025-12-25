@@ -10,6 +10,7 @@
 #include "FleurAllocator.hpp"
 #include "Framebuffer.h"
 #include "Graphics.hpp"
+#include "IRenderer.hpp"
 #include "Image2D.h"
 #include "Material.h"
 #include "Model.h"
@@ -23,9 +24,6 @@
 #include "Toolchain.h"
 #include "VertexLayout.h"
 #include "tbb/concurrent_unordered_map.h"
-#include "IRenderer.hpp"
-
-typedef IRenderer*(__stdcall RendererBackend_t)(void);
 
 #pragma region concepts
 template <class Resource>
@@ -37,7 +35,6 @@ concept is_graphic_resource = requires(Resource t) {
 
 namespace Fleur::Graphics
 {
-
 
 class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
 {

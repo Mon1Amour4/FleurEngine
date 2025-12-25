@@ -62,7 +62,7 @@ public:
 
     virtual bool IsActive() const = 0;
 
-    virtual const void* GetNativeHandle() const = 0;
+    virtual void* GetNativeHandle() const = 0;
 
     virtual inline bool IsResizing() const = 0;
 

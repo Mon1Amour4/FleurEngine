@@ -174,17 +174,19 @@ Fleur::Window& Fleur::Application::GetWindow()
 
 void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
+    m_GraphicsAPI = settings.Renderer;
+
     Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
-    m_Window = Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
+    m_Window = Fleur::Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
     m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
 
     auto fileSystem = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
     fileSystem.value()->Init();
 
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
-    auto renderer = ServiceLocator::instance().Register<Renderer>(Fleur::Graphics::EGraphicsAPI::OpenGL, std::make_unique<PostLoadToolchain>());
+    auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
 

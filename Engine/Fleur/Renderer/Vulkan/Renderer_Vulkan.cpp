@@ -1,8 +1,10 @@
 #include "Renderer_Vulkan.h"
 
+#if defined(FLEUR_PLATFORM_WIN)
 #include <Windows.h>
-
 #define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
 #include <vulkan/vulkan.h>
 
 #include <iostream>
@@ -49,7 +51,7 @@ struct QueueFamilyIndices
 // vulkanBackend::vulkanBackendImpl
 struct vulkanBackend::vulkanBackendImpl
 {
-    vulkanBackendImpl();
+    vulkanBackendImpl(void* pNativeHandle);
     ~vulkanBackendImpl();
 
     VkInstance instance;
@@ -91,13 +93,13 @@ struct vulkanBackend::vulkanBackendImpl
     void createLogicalDevice();
 
     // Surface
-    void createSurface();
+    void createSurface(void* pNativeHandle);
 };
 
 //======================================================================
 // vulkanBackend
-vulkanBackend::vulkanBackend()
-    : pImpl(new vulkanBackendImpl())
+vulkanBackend::vulkanBackend(void* pNativeHandle)
+    : pImpl(new vulkanBackendImpl(pNativeHandle))
 {
 }
 vulkanBackend::~vulkanBackend()
@@ -111,7 +113,7 @@ void vulkanBackend::Draw(DrawInfo info)
 
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
-vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
+vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle)
     : physicalDevice(VK_NULL_HANDLE)
     , validationLayers(nullptr)
     , validationLayersCount(0)
@@ -126,7 +128,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
 
     instance = createInstance();
     setupDebugMessenger();
-    createSurface();
+    createSurface(pNativeHandle);
     pickPhysicalDevice();
     createLogicalDevice();
 }
@@ -362,10 +364,13 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     vkGetDeviceQueue(device, family.graphicsFamily.value(), 0, &graphicsQueue);
 }
 
-void vulkanBackend::vulkanBackendImpl::createSurface()
+void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
 {
+#if defined(FLEUR_PLATFORM_WIN)
     VkWin32SurfaceCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = glfwGetWin32Window(window);
+    createInfo.hwnd = reinterpret_cast<const HWND>(pNativeHandle);
     createInfo.hinstance = GetModuleHandle(nullptr);
+
+#endif
 }

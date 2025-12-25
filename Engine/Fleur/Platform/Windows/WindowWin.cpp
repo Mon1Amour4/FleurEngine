@@ -1,7 +1,5 @@
 ﻿#include "WindowWin.h"
 
-// #include <glad/wgl.h>
-
 #include "InputWin.h"
 #include "KeyCodesWin.h"
 #include "Log.h"
@@ -564,7 +562,7 @@ void Fleur::WindowWin::OnFixedUpdate()
     // TODO
 }
 
-const void* Fleur::WindowWin::GetNativeHandle() const
+void* Fleur::WindowWin::GetNativeHandle() const
 {
     return m_HWND;
 }

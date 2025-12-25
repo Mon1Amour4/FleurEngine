@@ -74,6 +74,8 @@ protected:
 
     Application();
     virtual ~Application() override;
+
+    Fleur::Graphics::EGraphicsAPI m_GraphicsAPI;
 };
 
 }  // namespace Fleur

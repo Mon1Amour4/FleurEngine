@@ -28,7 +28,7 @@ public:
         return m_Props.Height;
     }
 
-    virtual const void* GetNativeHandle() const override;
+    virtual void* GetNativeHandle() const override;
 
     LRESULT WindowProc(HWND hwnd, UINT msg, WPARAM wparam, LPARAM lparam);
 
