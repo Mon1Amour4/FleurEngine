@@ -52,12 +52,23 @@ struct vulkanBackend::vulkanBackendImpl
 
     VkInstance instance;
     VkPhysicalDevice physicalDevice;
-    VkDebugUtilsMessengerEXT debugMessenger;
-    bool enableValidationLayers;
+    VkDevice device;
 
+    QueueFamilyIndices family;
+    VkDebugUtilsMessengerEXT debugMessenger;
+
+    bool enableValidationLayers;
+    const char** validationLayers;
+    uint32_t validationLayersCount;
+
+    const char** extensions;
+    uint32_t extensionsCount;
+
+    // Instance
     VkInstance createInstance();
-    void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo, const char** layernames, uint32_t layercount);
-    void enableExtensions(VkInstanceCreateInfo& createinfo, const char** extensions, uint32_t count);
+    void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo);
+    void enableExtensions(VkInstanceCreateInfo& createinfo);
+
     // Debug messages
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
@@ -71,6 +82,9 @@ struct vulkanBackend::vulkanBackendImpl
 
     // Queue families
     QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+
+    // Logical device
+    void createLogicalDevice();
 };
 
 //======================================================================
@@ -92,6 +106,10 @@ void vulkanBackend::Draw(DrawInfo info)
 // vulkanBackend::vulkanBackendImpl
 vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
     : physicalDevice(VK_NULL_HANDLE)
+    , validationLayers(nullptr)
+    , validationLayersCount(0)
+    , extensions(nullptr)
+    , extensionsCount(0)
 {
 #if defined(FL_CONF_DEBUG)
     enableValidationLayers = true;
@@ -102,6 +120,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl()
     instance = createInstance();
     setupDebugMessenger();
     pickPhysicalDevice();
+    createLogicalDevice();
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
@@ -110,6 +129,9 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
     }
     vkDestroyInstance(instance, nullptr);
+
+    delete[] validationLayers;
+    delete[] extensions;
 }
 
 VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
@@ -126,14 +148,14 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     createInfo.pApplicationInfo = &appInfo;
 
-    uint32_t layersCount = 1;
-    const char** layerNames = new const char*[layersCount];
-    layerNames[0] = "VK_LAYER_KHRONOS_validation";
+    validationLayersCount = 1;
+    validationLayers = new const char*[validationLayersCount];
+    validationLayers[0] = "VK_LAYER_KHRONOS_validation";
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
     if (enableValidationLayers)
     {
-        enableValidationLayersSupport(createInfo, layerNames, layersCount);
+        enableValidationLayersSupport(createInfo);
 
         populateDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
@@ -143,22 +165,19 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
         createInfo.enabledLayerCount = 0;
     }
 
-    uint32_t fleurExtensionCount = 1;
-    const char** fleurExtensions = new const char*[fleurExtensionCount];
-    fleurExtensions[0] = "VK_EXT_debug_utils";
-    enableExtensions(createInfo, fleurExtensions, fleurExtensionCount);
+    extensionsCount = 1;
+    extensions = new const char*[extensionsCount];
+    extensions[0] = "VK_EXT_debug_utils";
+    enableExtensions(createInfo);
 
     if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
     {
         assert(false);
     }
 
-    delete[] layerNames;
-    delete[] fleurExtensions;
-
     return instance;
 }
-void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo, const char** layerNames, uint32_t layerCount)
+void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo)
 {
     uint32_t availableLayerCount;
     vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
@@ -172,12 +191,12 @@ void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceC
                            << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description);
     }
 
-    createInfo.enabledLayerCount = layerCount;
-    createInfo.ppEnabledLayerNames = layerNames;
+    createInfo.enabledLayerCount = validationLayersCount;
+    createInfo.ppEnabledLayerNames = validationLayers;
 
     delete[] availableLayers;
 }
-void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& createInfo, const char** extensions, uint32_t count)
+void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& createInfo)
 {
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -192,7 +211,7 @@ void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& cr
     delete[] props;
 
 
-    createInfo.enabledExtensionCount = count;
+    createInfo.enabledExtensionCount = extensionsCount;
     createInfo.ppEnabledExtensionNames = extensions;
 }
 
@@ -295,12 +314,32 @@ QueueFamilyIndices vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysica
 }
 bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice device)
 {
-    QueueFamilyIndices indices = findQueueFamilies(device);
+    family = findQueueFamilies(device);
 
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties(device, &deviceProperties);
     vkGetPhysicalDeviceFeatures(device, &deviceFeatures);
 
-    return indices.isComplete();
+    return family.isComplete();
+}
+
+void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
+{
+    VkDeviceQueueCreateInfo queueCreateInfo{};
+    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+    queueCreateInfo.queueFamilyIndex = family.graphicsFamily.value();
+    queueCreateInfo.queueCount = 1;
+
+    float queuePriority = 1.0f;
+    queueCreateInfo.pQueuePriorities = &queuePriority;
+
+    VkPhysicalDeviceFeatures deviceFeatures{};
+
+    VkDeviceCreateInfo createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+    createInfo.pQueueCreateInfos = &queueCreateInfo;
+    createInfo.queueCreateInfoCount = 1;
+
+    createInfo.pEnabledFeatures = &deviceFeatures;
 }
