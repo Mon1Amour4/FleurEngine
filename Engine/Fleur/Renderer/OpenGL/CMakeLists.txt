@@ -34,15 +34,12 @@ SET(PROJECT_SOURCES
 
 
 # === Create Library ===
-ADD_LIBRARY(Renderer_OpenGL_Backend SHARED ${PROJECT_HEADERS} ${PROJECT_SOURCES})
+ADD_LIBRARY(OpenGLBackend STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 # === Target Properties ===
-SET_TARGET_PROPERTIES(Renderer_OpenGL_Backend PROPERTIES FOLDER "Engine/Renderer/Backend")
-
-
-TARGET_COMPILE_DEFINITIONS(Renderer_OpenGL_Backend PRIVATE "DLL_EXPORT")
+SET_TARGET_PROPERTIES(OpenGLBackend PROPERTIES FOLDER "Engine/Renderer/Backend")
 
 TARGET_LINK_LIBRARIES(
-  Renderer_OpenGL_Backend  
+  OpenGLBackend  
   PRIVATE FleurInterface Glad TBB::tbb CoreLib
 )

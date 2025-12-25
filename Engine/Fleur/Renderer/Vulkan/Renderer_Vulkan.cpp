@@ -4,40 +4,6 @@
 
 #include <iostream>
 
-
-BOOL APIENTRY DllMain(HMODULE module, DWORD reason_for_call, LPVOID lpReserved)
-{
-    /* switch (reason_for_call)
-     {
-     case DLL_PROCESS_ATTACH:
-     {
-         break;
-     }
-     case DLL_PROCESS_DETACH:
-     {
-         break;
-     }
-     case DLL_THREAD_ATTACH:
-     {
-         break;
-     }
-     case DLL_THREAD_DETACH:
-     {
-         break;
-     }
-     }*/
-    return TRUE;
-}
-
-RENDERER_BACKEND_EXPORT IRenderer* CreateRendererBackend(void)
-{
-    return new vulkanBackend();
-}
-RENDERER_BACKEND_EXPORT void DestroyRendererBackend(IRenderer* backend)
-{
-    delete backend;
-}
-
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
