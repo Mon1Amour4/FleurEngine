@@ -187,7 +187,7 @@ void Fleur::Graphics::Renderer::OnInit()
         IRenderer* backend = CreateRendererBackend();
     }*/
     auto& application = Fleur::Application::instance();
-    IRenderer* backend = new vulkanBackend(application.GetWindow().GetNativeHandle());
+    IRenderer* backend = new vulkanBackend(application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
     delete backend;
 }
 

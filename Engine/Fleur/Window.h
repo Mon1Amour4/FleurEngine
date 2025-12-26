@@ -1,5 +1,6 @@
 #pragma once
 
+#include "WindowPrimitives.hpp"
 #include "EventQueue.h"
 
 namespace Fleur
@@ -75,6 +76,8 @@ public:
     virtual void SetTitle(std::string title) = 0;
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
+
+    virtual Fleur::SRect GetFramebufferSize() const = 0;
 
 private:
     virtual void SetMousePos(int x, int y) = 0;

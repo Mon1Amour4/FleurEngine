@@ -70,7 +70,10 @@ public:
 
     virtual void SetTitle(std::string title) override;
 
+    virtual Fleur::SRect GetFramebufferSize() const override;
+
 private:
+    float m_DPIScale;
     uint32_t m_CurrentWidth, m_CurrentHeigth;
     int m_XPos, m_YPos;
 

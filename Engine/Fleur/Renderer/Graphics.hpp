@@ -22,10 +22,10 @@ struct VertexData
 
 struct Viewport
 {
-    float width = 0.0f;
-    float height = 0.0f;
-    float x = 0.0f;
-    float y = 0.0f;
+    uint32_t width = 0.0f;
+    uint32_t height = 0.0f;
+    uint32_t x = 0.0f;
+    uint32_t y = 0.0f;
 };
 
 enum class ETextureUsage
@@ -40,12 +40,6 @@ enum ERenderStage : uint8_t
     STATIC_GEOMETRY,
     DYNAMIC_DRAW,
     GIZMO
-};
-
-struct Rect
-{
-    int x, y;
-    uint32_t width, height;
 };
 
 }  // namespace Fleur::Graphics

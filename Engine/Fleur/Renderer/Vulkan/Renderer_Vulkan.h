@@ -14,7 +14,7 @@ struct vulkanBackend : public IRenderer
     virtual ~vulkanBackend() override;
     virtual void Draw(DrawInfo info) override;
 
-    vulkanBackend(void* pNativeHandle);
+    vulkanBackend(void* pNativeHandle, Fleur::SRect framebufferSize);
 
 private:
     vulkanBackendImpl* pImpl;

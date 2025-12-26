@@ -9,6 +9,11 @@ void Fleur::WindowWin::SetTitle(std::string title)
     SetWindowText(m_HWND, std::string(m_Props.Title + " " + title).c_str());
 }
 
+Fleur::SRect Fleur::WindowWin::GetFramebufferSize() const
+{
+    return {0, 0, static_cast<uint32_t>(m_CurrentWidth * m_DPIScale), static_cast<uint32_t>(m_CurrentHeigth * m_DPIScale)};
+}
+
 DWORD WINAPI Fleur::WindowWin::WinThreadMain(LPVOID lpParameter)
 {
     InitOpenGLExtensions();
@@ -527,9 +532,13 @@ Fleur::WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
     , m_PrevMouseDir(0, 0)
     , m_MouseDir(0, 0)
     , m_MouseWheelData(std::make_pair(0, 0))
+    , m_DPIScale(0)
 {
     m_WinThread = CreateThread(nullptr, 0, WinThreadMain, this, 0, m_WinThreadID);
     WaitForSingleObject(m_OnThreadCreated, INFINITE);
+
+    UINT dpi = GetDpiForWindow(m_HWND);
+    m_DPIScale = dpi / 96.0f;
 }
 
 void Fleur::WindowWin::OnUpdate(float dtTime)

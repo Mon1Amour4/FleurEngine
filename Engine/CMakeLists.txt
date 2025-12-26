@@ -49,6 +49,8 @@ SET(ENGINE_HEADERS
     # Concepts
     Fleur/Concepts.hpp
     Fleur/Console.h
+    # Primitives
+    Fleur/WindowPrimitives.hpp
 )
 
 SET(ENGINE_SOURCES
