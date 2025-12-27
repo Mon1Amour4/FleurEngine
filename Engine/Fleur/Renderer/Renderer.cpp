@@ -16,6 +16,7 @@ Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRe
     , m_IsVsync(true)
     , m_Renderer(api)
     , m_Toolchain(std::move(toolchain))
+    , m_Backend(nullptr)
 {
 }
 
@@ -187,14 +188,15 @@ void Fleur::Graphics::Renderer::OnInit()
         IRenderer* backend = CreateRendererBackend();
     }*/
     auto& application = Fleur::Application::instance();
-    IRenderer* backend = new vulkanBackend(application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
-    delete backend;
+    m_Backend = new vulkanBackend(application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
 {
     m_Device->Release();
     m_Swapchain->Release();
+
+    delete m_Backend;
 }
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTexture(std::string_view path) const
@@ -303,77 +305,78 @@ bool Fleur::Graphics::Renderer::IsVSync()
 
 void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 {
-    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
-    auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    // ShaderComponentContext ctx{};
-    Fleur::Graphics::Texture* quadTexture = renderer->CreateGraphicsResource<Texture>("QuadTexture", Color(150, 150, 150, 255), 250, 250).get();
-    Fleur::Graphics::QuadRenderer quadRenderer = Fleur::Graphics::QuadRenderer(quadTexture);
-    // Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
+    m_Backend->Update(dtTime);
+    // auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+    // auto renderer = ServiceLocator::instance().GetService<Renderer>();
+    //// ShaderComponentContext ctx{};
+    // Fleur::Graphics::Texture* quadTexture = renderer->CreateGraphicsResource<Texture>("QuadTexture", Color(150, 150, 150, 255), 250, 250).get();
+    // Fleur::Graphics::QuadRenderer quadRenderer = Fleur::Graphics::QuadRenderer(quadTexture);
+    //// Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
 
-    UNUSED(dtTime);
-    m_Toolchain->Update();
-    static bool isSkyboxCreated = false;
+    // UNUSED(dtTime);
+    // m_Toolchain->Update();
+    // static bool isSkyboxCreated = false;
 
-    auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
-    static Fleur::Graphics::CubemapInitData skyboxImages;
+    // auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
+    // static Fleur::Graphics::CubemapInitData skyboxImages;
 
-    {
-        auto cubemap = assetsManager->Get<CubemapImage>("skybox_cross_layout_cubemap");
-        if (!cubemap.expired() && !isSkyboxCreated)
-        {
-            auto cubemapTexture = m_Device->CreateCubemap(cubemap.lock().get());
+    //{
+    //    auto cubemap = assetsManager->Get<CubemapImage>("skybox_cross_layout_cubemap");
+    //    if (!cubemap.expired() && !isSkyboxCreated)
+    //    {
+    //        auto cubemapTexture = m_Device->CreateCubemap(cubemap.lock().get());
 
-            float skyboxVertices[] = {
-                -1.0f, 1.0f,  -1.0f,  // 0
-                -1.0f, -1.0f, -1.0f,  // 1
-                1.0f,  -1.0f, -1.0f,  // 2
-                1.0f,  -1.0f, -1.0f,  // 3
-                1.0f,  1.0f,  -1.0f,  // 4
-                -1.0f, 1.0f,  -1.0f,  // 5
-                -1.0f, -1.0f, 1.0f,   // 6
-                -1.0f, -1.0f, -1.0f,  // 7
-                -1.0f, 1.0f,  -1.0f,  // 8
-                -1.0f, 1.0f,  -1.0f,  // 9
-                -1.0f, 1.0f,  1.0f,   // 10
-                -1.0f, -1.0f, 1.0f,   // 11
-                1.0f,  -1.0f, -1.0f,  // 12
-                1.0f,  -1.0f, 1.0f,   // 13
-                1.0f,  1.0f,  1.0f,   // 14
-                1.0f,  1.0f,  1.0f,   // 15
-                1.0f,  1.0f,  -1.0f,  // 16
-                1.0f,  -1.0f, -1.0f,  // 17
-                -1.0f, -1.0f, 1.0f,   // 18
-                -1.0f, 1.0f,  1.0f,   // 19
-                1.0f,  1.0f,  1.0f,   // 20
-                1.0f,  1.0f,  1.0f,   // 21
-                1.0f,  -1.0f, 1.0f,   // 22
-                -1.0f, -1.0f, 1.0f,   // 23
-                -1.0f, 1.0f,  -1.0f,  // 24
-                1.0f,  1.0f,  -1.0f,  // 25
-                1.0f,  1.0f,  1.0f,   // 26
-                1.0f,  1.0f,  1.0f,   // 27
-                -1.0f, 1.0f,  1.0f,   // 28
-                -1.0f, 1.0f,  -1.0f,  // 29
-                -1.0f, -1.0f, -1.0f,  // 30
-                -1.0f, -1.0f, 1.0f,   // 31
-                1.0f,  -1.0f, -1.0f,  // 32
-                1.0f,  -1.0f, -1.0f,  // 33
-                -1.0f, -1.0f, 1.0f,   // 34
-                1.0f,  -1.0f, 1.0f    // 35
-            };
+    //        float skyboxVertices[] = {
+    //            -1.0f, 1.0f,  -1.0f,  // 0
+    //            -1.0f, -1.0f, -1.0f,  // 1
+    //            1.0f,  -1.0f, -1.0f,  // 2
+    //            1.0f,  -1.0f, -1.0f,  // 3
+    //            1.0f,  1.0f,  -1.0f,  // 4
+    //            -1.0f, 1.0f,  -1.0f,  // 5
+    //            -1.0f, -1.0f, 1.0f,   // 6
+    //            -1.0f, -1.0f, -1.0f,  // 7
+    //            -1.0f, 1.0f,  -1.0f,  // 8
+    //            -1.0f, 1.0f,  -1.0f,  // 9
+    //            -1.0f, 1.0f,  1.0f,   // 10
+    //            -1.0f, -1.0f, 1.0f,   // 11
+    //            1.0f,  -1.0f, -1.0f,  // 12
+    //            1.0f,  -1.0f, 1.0f,   // 13
+    //            1.0f,  1.0f,  1.0f,   // 14
+    //            1.0f,  1.0f,  1.0f,   // 15
+    //            1.0f,  1.0f,  -1.0f,  // 16
+    //            1.0f,  -1.0f, -1.0f,  // 17
+    //            -1.0f, -1.0f, 1.0f,   // 18
+    //            -1.0f, 1.0f,  1.0f,   // 19
+    //            1.0f,  1.0f,  1.0f,   // 20
+    //            1.0f,  1.0f,  1.0f,   // 21
+    //            1.0f,  -1.0f, 1.0f,   // 22
+    //            -1.0f, -1.0f, 1.0f,   // 23
+    //            -1.0f, 1.0f,  -1.0f,  // 24
+    //            1.0f,  1.0f,  -1.0f,  // 25
+    //            1.0f,  1.0f,  1.0f,   // 26
+    //            1.0f,  1.0f,  1.0f,   // 27
+    //            -1.0f, 1.0f,  1.0f,   // 28
+    //            -1.0f, 1.0f,  -1.0f,  // 29
+    //            -1.0f, -1.0f, -1.0f,  // 30
+    //            -1.0f, -1.0f, 1.0f,   // 31
+    //            1.0f,  -1.0f, -1.0f,  // 32
+    //            1.0f,  -1.0f, -1.0f,  // 33
+    //            -1.0f, -1.0f, 1.0f,   // 34
+    //            1.0f,  -1.0f, 1.0f    // 35
+    //        };
 
-            Fleur::Memory::FleurAllocator<Skybox> alloc;
-            m_Skybox.reset(alloc.construct_at(cubemapTexture, std::span{skyboxVertices}));
-            m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->Data(), m_Skybox->GetVertexCount()));
-            isSkyboxCreated = true;
-        }
-    }
+    //        Fleur::Memory::FleurAllocator<Skybox> alloc;
+    //        m_Skybox.reset(alloc.construct_at(cubemapTexture, std::span{skyboxVertices}));
+    //        m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->Data(), m_Skybox->GetVertexCount()));
+    //        isSkyboxCreated = true;
+    //    }
+    //}
 
     // Skybox pass
-    SkyboxPass();
+    // SkyboxPass();
 
     // Main Pass
-    StaticGeometryPass();
+    // StaticGeometryPass();
 
     // gizmo
     // m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");

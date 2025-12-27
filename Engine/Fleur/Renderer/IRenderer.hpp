@@ -11,5 +11,7 @@ struct DrawInfo
 struct IRenderer
 {
     virtual ~IRenderer() = default;
+
     virtual void Draw(DrawInfo info) = 0;
+    virtual void Update(float dtTime) = 0;
 };

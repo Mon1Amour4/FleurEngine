@@ -104,6 +104,7 @@ public:
     void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
 
 private:
+    IRenderer* m_Backend;
     bool m_ShowWireframe;
 
     std::unique_ptr<Device> m_Device;
