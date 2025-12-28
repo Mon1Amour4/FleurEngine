@@ -14,4 +14,5 @@ struct IRenderer
 
     virtual void Draw(DrawInfo info) = 0;
     virtual void Update(float dtTime) = 0;
+    virtual void ResizeEvent(Fleur::SRect& rect) = 0;
 };

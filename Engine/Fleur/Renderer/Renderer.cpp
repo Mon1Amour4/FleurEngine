@@ -20,6 +20,11 @@ Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRe
 {
 }
 
+Fleur::Graphics::Renderer::~Renderer()
+{
+    OnShutdown();
+}
+
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view path)
 {
     if (path.empty())
@@ -193,8 +198,8 @@ void Fleur::Graphics::Renderer::OnInit()
 
 void Fleur::Graphics::Renderer::OnShutdown()
 {
-    m_Device->Release();
-    m_Swapchain->Release();
+    /* m_Device->Release();
+     m_Swapchain->Release();*/
 
     delete m_Backend;
 }
@@ -460,13 +465,12 @@ void Fleur::Graphics::Renderer::OnFixedUpdate()
     // TODO
 }
 
-void Fleur::Graphics::Renderer::UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height)
+void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
 {
-    UNUSED(y);
-    UNUSED(x);
     // m_GizmoFBO->Bind();
     // uint32_t flags = m_GizmoFBO->Flags();
     // m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
+    m_Backend->ResizeEvent(rect);
 }
 
 Fleur::Graphics::VertexData::VertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)

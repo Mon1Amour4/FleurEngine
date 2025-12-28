@@ -42,7 +42,7 @@ public:
     friend struct Service<Renderer>;
 
     Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain);
-    ~Renderer() = default;
+    ~Renderer();
 
     Renderer(const Renderer&) = delete;
     Renderer& operator=(const Renderer&) = delete;
@@ -101,7 +101,8 @@ public:
             return m_Device->CreateShader(std::forward<Args>(args)...);*/
         return std::shared_ptr<Resource>{nullptr};
     }
-    void UpdateViewport(uint32_t x, uint32_t y, uint32_t width, uint32_t height);
+
+    void UpdateViewport(Fleur::SRect& rect);
 
 private:
     IRenderer* m_Backend;

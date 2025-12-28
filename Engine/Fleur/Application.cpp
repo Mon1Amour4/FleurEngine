@@ -77,7 +77,8 @@ bool Fleur::Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Fleur::Application::OnWindowResize(WindowResizeEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight());
+    Fleur::SRect rect{event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight()};
+    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(rect);
     event.SetHandled();
     return true;
 }

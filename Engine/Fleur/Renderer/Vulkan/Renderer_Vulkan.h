@@ -17,6 +17,8 @@ struct vulkanBackend : public IRenderer
 
     vulkanBackend(void* pNativeHandle, Fleur::SRect framebufferSize);
 
+    void ResizeEvent(Fleur::SRect& rect);
+
 private:
     vulkanBackendImpl* pImpl;
 };
