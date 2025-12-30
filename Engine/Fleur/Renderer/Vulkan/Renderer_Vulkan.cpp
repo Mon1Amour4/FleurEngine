@@ -1,4 +1,5 @@
 #include "Renderer_Vulkan.h"
+#include "glm/glm.hpp"
 
 // TODO REMOVE
 #include <fstream>
@@ -17,6 +18,7 @@
 #include <optional>
 #include <set>
 #include <vector>
+#include <array>
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -27,6 +29,43 @@
 #define MODULE
 #define DBG_PRINTM(text)
 #endif
+
+struct Vertex
+{
+    glm::vec2 pos;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription getBindingDescription()
+    {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.stride = sizeof(Vertex);
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
+    {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
+
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+        return attributeDescriptions;
+    }
+};
+
+const std::vector<Vertex> vertices = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
+const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 uint32_t currentFrame = 0;
@@ -100,7 +139,7 @@ struct vulkanBackend::vulkanBackendImpl
     void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo);
     // Extensions
     void enableExtensions(VkInstanceCreateInfo& createinfo);
-    bool checkDeviceExtensionSupport(VkPhysicalDevice m_PhysicalDevice);
+    bool checkDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice);
 
     // Debug messages
 
@@ -117,14 +156,14 @@ struct vulkanBackend::vulkanBackendImpl
     // Physical\Logical device
     struct SLogicalDevice
     {
-        VkPhysicalDevice vkLogicalDevice;
+        VkPhysicalDevice vkPhysicalDevice;
         SSwapchainSupport capabilities;
     };
 
-    VkDevice m_PhysicalDevice;
-    SLogicalDevice m_LogicalDevice;
+    VkDevice m_LogicalDevice;
+    SLogicalDevice m_SPhysicalDevice;
     void pickPhysicalDevice();
-    bool isDeviceSuitable(VkPhysicalDevice& m_PhysicalDevice);
+    bool isDeviceSuitable(VkPhysicalDevice& m_LogicalDevice);
 
     // Queue families
     struct SUniqueFamilyQueue
@@ -142,7 +181,7 @@ struct vulkanBackend::vulkanBackendImpl
     SUniqueFamilyQueue m_GraphicsQueueFamily;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
-    SUniqueFamilyQueue findQueueFamilies(VkPhysicalDevice m_PhysicalDevice);
+    SUniqueFamilyQueue findQueueFamilies(VkPhysicalDevice m_LogicalDevice);
 
     // Logical device
     void createLogicalDevice();
@@ -159,9 +198,10 @@ struct vulkanBackend::vulkanBackendImpl
     VkExtent2D swapChainExtent;
     void cleanupSwapChain();
     void recreateSwapChain();
+    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
 
-    SSwapchainSupport querySwapChainSupport(VkPhysicalDevice vkLogicalDevice);
+    SSwapchainSupport querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice);
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Fleur::SRect& framebufferSize);
@@ -202,6 +242,20 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<VkFence> inFlightFences;
     bool framebufferResized = false;
     void createSyncObjects();
+
+    // VertexBuffer
+    VkBuffer vertexBuffer;
+    VkDeviceMemory vertexBufferMemory;
+
+    VkBuffer indexBuffer;
+    VkDeviceMemory indexBufferMemory;
+
+    VkMemoryRequirements memRequirements;
+
+    void createVertexBuffer();
+    void createIndexBuffer();
+    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 };
 
 
@@ -251,30 +305,38 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
+    createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
-    vkDeviceWaitIdle(m_PhysicalDevice);
+    vkDeviceWaitIdle(m_LogicalDevice);
 
     // Swapchain-dependent
     cleanupSwapChain();
 
-    vkDestroyPipeline(m_PhysicalDevice, m_GraphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(m_PhysicalDevice, pipelineLayout, nullptr);
+    vkDestroyBuffer(m_LogicalDevice, indexBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, indexBufferMemory, nullptr);
 
-    vkDestroyRenderPass(m_PhysicalDevice, renderPass, nullptr);
+    vkDestroyBuffer(m_LogicalDevice, vertexBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, vertexBufferMemory, nullptr);
+
+    vkDestroyPipeline(m_LogicalDevice, m_GraphicsPipeline, nullptr);
+    vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
+
+    vkDestroyRenderPass(m_LogicalDevice, renderPass, nullptr);
     // Sync
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        vkDestroySemaphore(m_PhysicalDevice, renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(m_PhysicalDevice, imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(m_PhysicalDevice, inFlightFences[i], nullptr);
+        vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
+        vkDestroySemaphore(m_LogicalDevice, imageAvailableSemaphores[i], nullptr);
+        vkDestroyFence(m_LogicalDevice, inFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(m_PhysicalDevice, commandPool, nullptr);
-    vkDestroyDevice(m_PhysicalDevice, nullptr);
+    vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
+    vkDestroyDevice(m_LogicalDevice, nullptr);
 
     if (enableValidationLayers)
         DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
@@ -359,13 +421,13 @@ void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& cr
     createInfo.enabledExtensionCount = instanceExtensions.size();
     createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 }
-bool vulkanBackend::vulkanBackendImpl::checkDeviceExtensionSupport(VkPhysicalDevice m_PhysicalDevice)
+bool vulkanBackend::vulkanBackendImpl::checkDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice)
 {
     uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, nullptr);
+    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, nullptr);
 
     std::vector<VkExtensionProperties> availableDeviceExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(m_PhysicalDevice, nullptr, &extensionCount, availableDeviceExtensions.data());
+    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, availableDeviceExtensions.data());
 
     std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
     for (auto& ext : availableDeviceExtensions)
@@ -475,13 +537,13 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
     {
         if (isDeviceSuitable(physicalDevices[i]))
         {
-            m_LogicalDevice.vkLogicalDevice = physicalDevices[i];
-            m_LogicalDevice.capabilities = querySwapChainSupport(physicalDevices[i]);
+            m_SPhysicalDevice.vkPhysicalDevice = physicalDevices[i];
+            m_SPhysicalDevice.capabilities = querySwapChainSupport(physicalDevices[i]);
             break;
         }
     }
 
-    if (m_LogicalDevice.vkLogicalDevice == VK_NULL_HANDLE)
+    if (m_SPhysicalDevice.vkPhysicalDevice == VK_NULL_HANDLE)
     {
         DBG_PRINTM("Failed to find a suitable GPU!")
         assert(false);
@@ -509,7 +571,7 @@ bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice& logica
     }
     return (isQueueFamiliesSupported && isDeviceExtensionsSupported && isSwapchainDetailsSupported);
 }
-vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice m_PhysicalDevice)
+vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice m_LogicalDevice)
 {
     vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue indices{};
     uint32_t queueFamilyCount = 0;
@@ -519,10 +581,10 @@ vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBacken
     // deviceFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     // vkGetPhysicalDeviceFeatures2(device, &deviceFeatures);
 
-    vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(m_LogicalDevice, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> familyProperties(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(m_PhysicalDevice, &queueFamilyCount, familyProperties.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(m_LogicalDevice, &queueFamilyCount, familyProperties.data());
 
     for (size_t i = 0; i < queueFamilyCount; i++)
     {
@@ -531,7 +593,7 @@ vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBacken
             indices.familyIndex = i;
 
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(m_PhysicalDevice, i, surface, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(m_LogicalDevice, i, surface, &presentSupport);
             if (presentSupport)
             {
                 indices.swapchainSupport = true;
@@ -563,13 +625,13 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    if (vkCreateDevice(m_LogicalDevice.vkLogicalDevice, &deviceCreateInfo, nullptr, &m_PhysicalDevice) != VK_SUCCESS)
+    if (vkCreateDevice(m_SPhysicalDevice.vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create logical device!");
         assert(true);
     }
-    vkGetDeviceQueue(m_PhysicalDevice, m_GraphicsQueueFamily.familyIndex, 0, &graphicsQueue);
-    vkGetDeviceQueue(m_PhysicalDevice, m_GraphicsQueueFamily.familyIndex, 1, &presentQueue);
+    vkGetDeviceQueue(m_LogicalDevice, m_GraphicsQueueFamily.familyIndex, 0, &graphicsQueue);
+    vkGetDeviceQueue(m_LogicalDevice, m_GraphicsQueueFamily.familyIndex, 1, &presentQueue);
 }
 
 
@@ -577,14 +639,14 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 // VkSwapchainKHR
 void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebufferSize)
 {
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(m_LogicalDevice.capabilities.formats);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(m_LogicalDevice.capabilities.presentModes);
-    VkExtent2D extent = chooseSwapExtent(m_LogicalDevice.capabilities.capabilities, framebufferSize);
+    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(m_SPhysicalDevice.capabilities.formats);
+    VkPresentModeKHR presentMode = chooseSwapPresentMode(m_SPhysicalDevice.capabilities.presentModes);
+    VkExtent2D extent = chooseSwapExtent(m_SPhysicalDevice.capabilities.capabilities, framebufferSize);
 
-    uint32_t imageCount = m_LogicalDevice.capabilities.capabilities.minImageCount + 1;
-    if (m_LogicalDevice.capabilities.capabilities.maxImageCount > 0 && imageCount > m_LogicalDevice.capabilities.capabilities.maxImageCount)
+    uint32_t imageCount = m_SPhysicalDevice.capabilities.capabilities.minImageCount + 1;
+    if (m_SPhysicalDevice.capabilities.capabilities.maxImageCount > 0 && imageCount > m_SPhysicalDevice.capabilities.capabilities.maxImageCount)
     {
-        imageCount = m_LogicalDevice.capabilities.capabilities.maxImageCount;
+        imageCount = m_SPhysicalDevice.capabilities.capabilities.maxImageCount;
     }
 
     VkSwapchainCreateInfoKHR createInfo{};
@@ -602,50 +664,50 @@ void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebuffer
     createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     createInfo.queueFamilyIndexCount = 1;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    createInfo.preTransform = m_LogicalDevice.capabilities.capabilities.currentTransform;
+    createInfo.preTransform = m_SPhysicalDevice.capabilities.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(m_PhysicalDevice, &createInfo, nullptr, &m_Swapchain) != VK_SUCCESS)
+    if (vkCreateSwapchainKHR(m_LogicalDevice, &createInfo, nullptr, &m_Swapchain) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create swap chain!!")
         assert(false);
     }
 
-    vkGetSwapchainImagesKHR(m_PhysicalDevice, m_Swapchain, &imageCount, nullptr);
+    vkGetSwapchainImagesKHR(m_LogicalDevice, m_Swapchain, &imageCount, nullptr);
     swapChainImages.resize(imageCount);
-    vkGetSwapchainImagesKHR(m_PhysicalDevice, m_Swapchain, &imageCount, swapChainImages.data());
+    vkGetSwapchainImagesKHR(m_LogicalDevice, m_Swapchain, &imageCount, swapChainImages.data());
 
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
 }
-SSwapchainSupport vulkanBackend::vulkanBackendImpl::querySwapChainSupport(VkPhysicalDevice vkLogicalDevice)
+SSwapchainSupport vulkanBackend::vulkanBackendImpl::querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice)
 {
     SSwapchainSupport details;
 
     // Basic surface capabilities
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkLogicalDevice, surface, &details.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkPhysicalDevice, surface, &details.capabilities);
 
     // Supported surface formats
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(vkLogicalDevice, surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(vkPhysicalDevice, surface, &formatCount, nullptr);
 
     if (formatCount != 0)
     {
         details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(vkLogicalDevice, surface, &formatCount, details.formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(vkPhysicalDevice, surface, &formatCount, details.formats.data());
     }
 
     // Supported present modes
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(vkLogicalDevice, surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(vkPhysicalDevice, surface, &presentModeCount, nullptr);
 
     if (presentModeCount != 0)
     {
         details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(vkLogicalDevice, surface, &presentModeCount, details.presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(vkPhysicalDevice, surface, &presentModeCount, details.presentModes.data());
     }
 
 
@@ -716,7 +778,7 @@ void vulkanBackend::vulkanBackendImpl::createImageViews()
         createInfo.subresourceRange.baseArrayLayer = 0;
         createInfo.subresourceRange.layerCount = 1;
 
-        if (vkCreateImageView(m_PhysicalDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
+        if (vkCreateImageView(m_LogicalDevice, &createInfo, nullptr, &swapChainImageViews[i]) != VK_SUCCESS)
         {
             DBG_PRINTM("Failed to create image views!")
             assert(false);
@@ -765,7 +827,7 @@ void vulkanBackend::vulkanBackendImpl::createRenderPass()
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
 
-    if (vkCreateRenderPass(m_PhysicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
+    if (vkCreateRenderPass(m_LogicalDevice, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create render pass!")
         assert(false);
@@ -777,8 +839,8 @@ void vulkanBackend::vulkanBackendImpl::createRenderPass()
 // VkPipeline
 void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
 {
-    auto vertShaderCode = readFile("C:/Engine/FleurEngine/Sandbox/Resources/Shaders/vert.spv");
-    auto fragShaderCode = readFile("C:/Engine/FleurEngine/Sandbox/Resources/Shaders/frag.spv");
+    auto vertShaderCode = readFile("D:/Engine/GameEngine/Sandbox/Resources/Shaders/vertex.spv");
+    auto fragShaderCode = readFile("D:/Engine/GameEngine/Sandbox/Resources/Shaders/opaque.spv");
 
     VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
     VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
@@ -806,18 +868,21 @@ void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
     pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
 
-    if (vkCreatePipelineLayout(m_PhysicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create pipeline layout!")
         assert(false);
     }
 
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.pVertexBindingDescriptions = nullptr;  // Optional
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
-    vertexInputInfo.pVertexAttributeDescriptions = nullptr;  // Optional
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -909,14 +974,14 @@ void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
     pipelineInfo.basePipelineIndex = -1;               // Optional
 
-    if (vkCreateGraphicsPipelines(m_PhysicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create graphics pipeline!")
         assert(false);
     }
 
-    vkDestroyShaderModule(m_PhysicalDevice, fragShaderModule, nullptr);
-    vkDestroyShaderModule(m_PhysicalDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(m_LogicalDevice, fragShaderModule, nullptr);
+    vkDestroyShaderModule(m_LogicalDevice, vertShaderModule, nullptr);
 }
 
 
@@ -930,7 +995,7 @@ VkShaderModule vulkanBackend::vulkanBackendImpl::createShaderModule(const std::v
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(m_PhysicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+    if (vkCreateShaderModule(m_LogicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create shader module!")
         assert(false);
@@ -959,7 +1024,7 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
         framebufferInfo.height = swapChainExtent.height;
         framebufferInfo.layers = 1;
 
-        if (vkCreateFramebuffer(m_PhysicalDevice, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
+        if (vkCreateFramebuffer(m_LogicalDevice, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS)
         {
             DBG_PRINTM("Failed to create graphics framebuffer!")
             assert(false);
@@ -977,7 +1042,7 @@ void vulkanBackend::vulkanBackendImpl::createCommandPool()
     poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     poolInfo.queueFamilyIndex = m_GraphicsQueueFamily.familyIndex;
 
-    if (vkCreateCommandPool(m_PhysicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
+    if (vkCreateCommandPool(m_LogicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create command pool!")
         assert(false);
@@ -997,21 +1062,20 @@ void vulkanBackend::vulkanBackendImpl::createCommandBuffers()
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
 
-    if (vkAllocateCommandBuffers(m_PhysicalDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
+    if (vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, commandBuffers.data()) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create command buffers!")
         assert(false);
     }
 }
-
-void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer commandBuffers, uint32_t imageIndex)
+void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;                   // Optional
     beginInfo.pInheritanceInfo = nullptr;  // Optional
 
-    if (vkBeginCommandBuffer(commandBuffers, &beginInfo) != VK_SUCCESS)
+    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to begin recording command buffer!")
         assert(false);
@@ -1028,9 +1092,16 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
     renderPassInfo.clearValueCount = 1;
     renderPassInfo.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(commandBuffers, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(commandBuffers, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+
+    VkBuffer vertexBuffers[] = {vertexBuffer};
+    VkDeviceSize offsets[] = {0};
+
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
+    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -1039,18 +1110,19 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
     viewport.height = static_cast<float>(swapChainExtent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffers, 0, 1, &viewport);
+    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = swapChainExtent;
-    vkCmdSetScissor(commandBuffers, 0, 1, &scissor);
+    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffers, 3, 1, 0, 0);
+    // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-    vkCmdEndRenderPass(commandBuffers);
+    vkCmdEndRenderPass(commandBuffer);
 
-    if (vkEndCommandBuffer(commandBuffers) != VK_SUCCESS)
+    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to record command buffer!")
         assert(false);
@@ -1072,9 +1144,9 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
-        if (vkCreateSemaphore(m_PhysicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(m_PhysicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(m_PhysicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
+        if (vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
+            vkCreateFence(m_LogicalDevice, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
         {
             DBG_PRINTM("Failed to create semaphores!")
             assert(false);
@@ -1085,12 +1157,12 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 
 void vulkanBackend::vulkanBackendImpl::update(float dtTime)
 {
-    vkWaitForFences(m_PhysicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_PhysicalDevice, 1, &inFlightFences[currentFrame]);
+    vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
 
     uint32_t imageIndex;
     VkResult isSwapchainValid{};
-    isSwapchainValid = vkAcquireNextImageKHR(m_PhysicalDevice, m_Swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    isSwapchainValid = vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR || framebufferResized)
     {
         framebufferResized = false;
@@ -1101,7 +1173,7 @@ void vulkanBackend::vulkanBackendImpl::update(float dtTime)
         DBG_PRINTM("Failed to present swap chain image!")
         assert(false);
     }
-    vkResetFences(m_PhysicalDevice, 1, &inFlightFences[currentFrame]);
+    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
 
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
@@ -1159,23 +1231,156 @@ void vulkanBackend::vulkanBackendImpl::cleanupSwapChain()
 {
     for (auto framebuffer : swapChainFramebuffers)
     {
-        vkDestroyFramebuffer(m_PhysicalDevice, framebuffer, nullptr);
+        vkDestroyFramebuffer(m_LogicalDevice, framebuffer, nullptr);
     }
 
     for (auto imageView : swapChainImageViews)
     {
-        vkDestroyImageView(m_PhysicalDevice, imageView, nullptr);
+        vkDestroyImageView(m_LogicalDevice, imageView, nullptr);
     }
 
-    vkDestroySwapchainKHR(m_PhysicalDevice, m_Swapchain, nullptr);
+    vkDestroySwapchainKHR(m_LogicalDevice, m_Swapchain, nullptr);
 }
 void vulkanBackend::vulkanBackendImpl::recreateSwapChain()
 {
-    vkDeviceWaitIdle(m_PhysicalDevice);
+    vkDeviceWaitIdle(m_LogicalDevice);
 
     cleanupSwapChain();
 
     createSwapChain(surfaceRect);
     createImageViews();
     createFramebuffers();
+}
+
+void vulkanBackend::vulkanBackendImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
+                                                    VkDeviceMemory& bufferMemory)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateBuffer(m_LogicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to create buffer!!")
+        assert(false);
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_LogicalDevice, buffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to allocate buffer memory!!")
+        assert(false);
+    }
+
+    vkBindBufferMemory(m_LogicalDevice, buffer, bufferMemory, 0);
+}
+
+
+//======================================================================
+// VertexBuffer
+void vulkanBackend::vulkanBackendImpl::createVertexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), (size_t)bufferSize);
+    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,
+                 vertexBufferMemory);
+
+    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+}
+void vulkanBackend::vulkanBackendImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
+{
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = commandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer;
+    vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;  // Optional
+    copyRegion.dstOffset = 0;  // Optional
+    copyRegion.size = size;
+    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(graphicsQueue);
+
+    vkFreeCommandBuffers(m_LogicalDevice, commandPool, 1, &commandBuffer);
+}
+uint32_t vulkanBackend::vulkanBackendImpl::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+{
+    VkPhysicalDeviceMemoryProperties memProperties;
+    vkGetPhysicalDeviceMemoryProperties(m_SPhysicalDevice.vkPhysicalDevice, &memProperties);
+
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+            return i;
+        }
+    }
+    assert(false);
+}
+
+
+//======================================================================
+// IndexBuffer
+void vulkanBackend::vulkanBackendImpl::createIndexBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, indices.data(), (size_t)bufferSize);
+    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+
+    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,
+                 indexBufferMemory);
+
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
+    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
 }
