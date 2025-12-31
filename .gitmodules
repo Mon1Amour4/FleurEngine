@@ -16,3 +16,6 @@
 [submodule "Engine/External/cgltf"]
 	path = Engine/External/cgltf
 	url = https://github.com/jkuhlmann/cgltf
+[submodule "Engine/External/VulkanMemoryAllocator"]
+	path = Engine/External/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
