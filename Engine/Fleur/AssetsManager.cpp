@@ -525,3 +525,30 @@ uint16_t Fleur::AssetsManager::ImageChannels(std::string_view image2DExt)
         return static_cast<uint16_t>(3);
     }
 }
+
+
+//======================================================================
+// Service
+void Fleur::AssetsManager::OnInit()
+{
+    load_all_shaders();
+}
+void Fleur::AssetsManager::OnShutdown()
+{
+}
+
+
+//======================================================================
+// Shader
+void Fleur::AssetsManager::load_all_shaders()
+{
+    auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+    auto path = fileSystem->GetFullPathToFolder("Shaders");
+
+    std::vector<std::string> paths = fileSystem->GetAllFilesInFolder(path->c_str(), ".spv");
+
+    for (const auto& path : paths)
+    {
+        m_ShaderMap.emplace(fileSystem->GetFileNameWithoutExtFromPath(path), Fleur::Graphics::Shader(fileSystem->OpenFile(path).value()));
+    }
+}

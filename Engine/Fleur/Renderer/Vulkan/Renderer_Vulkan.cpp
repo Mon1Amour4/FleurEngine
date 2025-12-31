@@ -325,6 +325,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::
     createSurface(pNativeHandle);
     pickPhysicalDevice();
     createLogicalDevice();
+
     createSwapChain(framebufferSize);
     createImageViews();
     createRenderPass();

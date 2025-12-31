@@ -30,6 +30,9 @@ public:
     [[nodiscard]] bool FUCreateFile(const std::string& fileName, std::string_view folder) const;
     void WriteToFile(std::string_view fileName, const char* buffer);
 
+    std::vector<std::string> GetAllFilesInFolder(std::string_view fullPathToFolder, const char* extensions = ".*");
+    std::string GetFileNameWithoutExtFromPath(std::string_view path);
+
     friend class Application;
     FileSystem();
     ~FileSystem() = default;

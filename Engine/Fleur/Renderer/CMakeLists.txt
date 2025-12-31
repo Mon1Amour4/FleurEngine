@@ -14,7 +14,7 @@ SET(PROJECT_HEADERS
     # DescriptorBuffer.h
     # Device.h
     # Sampler.h
-    # Shader.h
+    Shader.h
     # Surface.h
     # Swapchain.h
     Texture.h
@@ -41,6 +41,7 @@ SET(PROJECT_SOURCES
     Image2D.cpp
     Color.cpp
     ModelFabric.cpp
+    Shader.cpp
 )
 
 # === Create Library ===

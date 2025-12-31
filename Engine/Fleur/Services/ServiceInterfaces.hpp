@@ -29,8 +29,8 @@ struct IUpdatable
 
 struct IInitializable
 {
-    void Init();
-    void Shutdown();
+    virtual void Init() = 0;
+    virtual void Shutdown() = 0;
 };
 
 template <class Derived>

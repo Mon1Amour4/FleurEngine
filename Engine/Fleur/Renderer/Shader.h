@@ -1,31 +1,19 @@
-﻿#pragma once
+#pragma once
 
 namespace Fleur::Graphics
 {
-class ShaderObject;
-class Texture;
 
 class Shader
 {
 public:
-    enum EShaderType
-    {
-        None = 0,
-        Vertex = 1,
-        Pixel = 2
-    };
+    Shader(std::string shaderCode);
 
-    friend class ShaderObject;
-    virtual void BindToShaderObject(ShaderObject& obj) = 0;
+    ~Shader() = default;
 
-    virtual ~Shader() = default;
+    const char* GetShaderCode() const;
 
-    virtual void Release() = 0;
-
-protected:
-    Shader(std::string_view name)
-        : m_Name(name) {};
-
-    std::string m_Name;
+private:
+    std::string byteCode;
 };
+
 }  // namespace Fleur::Graphics

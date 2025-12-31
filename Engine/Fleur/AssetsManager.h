@@ -3,9 +3,10 @@
 #include <filesystem>
 #include <type_traits>
 
-#include "Renderer/Color.h"
-#include "Services/ServiceInterfaces.hpp"
 #include "../External/tbb/include/oneapi/tbb/concurrent_unordered_map.h"
+#include "Renderer/Color.h"
+#include "Renderer/Shader.h"
+#include "Services/ServiceInterfaces.hpp"
 
 #define SHARED_RES(Res) std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
 #define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
@@ -97,6 +98,9 @@ public:
 
     AssetsManager();
     ~AssetsManager();
+
+    void OnShutdown();
+    void OnInit();
 
     [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
     [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
@@ -243,6 +247,9 @@ private:
         }
         return false;
     }
+
+    std::unordered_map<std::string, Fleur::Graphics::Shader> m_ShaderMap;
+    void load_all_shaders();
 };
 
 }  // namespace Fleur

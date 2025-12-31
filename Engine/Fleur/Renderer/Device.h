@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Buffer.h"
-#include "Shader.h"
+// #include "Shader.h"
 
 namespace Fleur::Graphics
 {
@@ -52,7 +52,7 @@ public:
     [[nodiscard]] virtual std::unique_ptr<Framebuffer> CreateFramebuffer(std::string_view name, uint32_t width, uint32_t height, uint32_t flags) const = 0;
 
     // Yes, I know, raw pointer, so be careful here
-    [[nodiscard]] virtual Shader* CreateShader(std::string_view shaderName, Shader::EShaderType type) = 0;
+    //[[nodiscard]] virtual Shader* CreateShader(std::string_view shaderName, Shader::EShaderType type) = 0;
 
     virtual void SetVSync(bool active) const = 0;
 

@@ -132,7 +132,7 @@ std::optional<std::string> Fleur::FS::FileSystem::GetFullPathToFolder(std::strin
         std::filesystem::path folderPath = ((d->m_ResourcePath / std::filesystem::path(path)).lexically_normal());
         if (std::filesystem::exists(folderPath) && std::filesystem::is_directory(folderPath))
         {
-            std::string folder = folderPath.parent_path().filename().string();
+            std::string folder = folderPath.filename().filename().string();
             if (folder.compare(folderName.data()) == 0)
             {
                 return std::optional<std::string>(folderPath.string());
@@ -171,4 +171,50 @@ void Fleur::FS::FileSystem::WriteToFile(std::string_view fileName, const char* b
         file << buffer << std::endl;
         file.close();
     }
+}
+
+std::vector<std::string> Fleur::FS::FileSystem::GetAllFilesInFolder(std::string_view fullPathToFolder, const char* extensions)
+{
+    std::vector<std::string> paths;
+
+    if (*(extensions + 1) == '*')
+    {
+        for (const auto& entry : std::filesystem::directory_iterator(fullPathToFolder))
+        {
+            paths.push_back(entry.path().string());
+        }
+    }
+    else
+    {
+        char* buffer = new char[64];
+        buffer[31] = '\0';
+        char* tmp = buffer;
+        while (*extensions != '\0')
+        {
+            while (*extensions == ' ') extensions++;
+            while (*extensions != ',' && *extensions != '\0' && *extensions != '\n')
+            {
+                *tmp++ = *extensions++;
+            }
+            *tmp = '\0';
+
+            for (const auto& entry : std::filesystem::directory_iterator(fullPathToFolder))
+            {
+                auto a = entry.path().extension().string();
+                if (strcmp(entry.path().extension().string().c_str(), buffer) == 0)
+                {
+                    paths.push_back(entry.path().string());
+                }
+            }
+            extensions++;
+            tmp = buffer;
+        }
+        delete[] buffer;
+    }
+    return paths;
+}
+
+std::string Fleur::FS::FileSystem::GetFileNameWithoutExtFromPath(std::string_view pathToFile)
+{
+    return std::filesystem::path(pathToFile).filename().stem().string();
 }

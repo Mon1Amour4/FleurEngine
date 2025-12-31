@@ -187,6 +187,8 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     fileSystem.value()->Init();
 
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
+    assetsManager.value()->OnInit();
+
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
