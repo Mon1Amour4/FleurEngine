@@ -1,23 +1,24 @@
 #include "Renderer_Vulkan.h"
 
+#if defined(FLEUR_PLATFORM_WIN)
+#define NOMINMAX
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
+
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+
 #define GLM_FORCE_RADIANS
 #include <chrono>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 // TODO REMOVE
-#include <fstream>
-
-#if defined(FLEUR_PLATFORM_WIN)
-#define NOMINMAX
-#include <Windows.h>
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
-
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -1449,6 +1450,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
 void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 {
     std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
