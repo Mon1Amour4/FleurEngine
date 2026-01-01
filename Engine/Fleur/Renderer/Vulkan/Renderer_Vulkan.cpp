@@ -1,5 +1,4 @@
 #include "Renderer_Vulkan.h"
-
 #if defined(FLEUR_PLATFORM_WIN)
 #define NOMINMAX
 #define VK_USE_PLATFORM_WIN32_KHR
@@ -24,6 +23,8 @@
 #include <optional>
 #include <set>
 #include <vector>
+
+#define VULKAN_VERSION VK_API_VERSION_1_4
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -145,7 +146,7 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<const char*> instanceExtensions = {"VK_EXT_debug_utils", "VK_KHR_surface"};
 
     // Instance
-    VkInstance instance;
+    VkInstance m_VulkanInstance;
     VkInstance createInstance();
     // Validation Layers
     void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo);
@@ -283,6 +284,13 @@ struct vulkanBackend::vulkanBackendImpl
 
     std::vector<VkDescriptorSet> descriptorSets;
     void createDescriptorSets();
+
+    // VMA
+    VmaAllocator m_Allocator;
+    void initializeVma();
+    void freeVma();
+    VkBuffer m_VmaVertexBuffer;
+    VmaAllocation m_VmaVertexBufferAllocaction;
 };
 
 
@@ -321,12 +329,12 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::
     enableValidationLayers = false;
 #endif
 
-    instance = createInstance();
+    m_VulkanInstance = createInstance();
     setupDebugMessenger();
     createSurface(pNativeHandle);
     pickPhysicalDevice();
     createLogicalDevice();
-
+    initializeVma();
     createSwapChain(framebufferSize);
     createImageViews();
     createRenderPass();
@@ -377,13 +385,17 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     }
 
     vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
+
+    vmaDestroyBuffer(m_Allocator, m_VmaVertexBuffer, m_VmaVertexBufferAllocaction);
+    freeVma();
+
     vkDestroyDevice(m_LogicalDevice, nullptr);
 
     if (enableValidationLayers)
-        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+        DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
 
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    vkDestroySurfaceKHR(m_VulkanInstance, surface, nullptr);
+    vkDestroyInstance(m_VulkanInstance, nullptr);
 }
 
 
@@ -394,10 +406,10 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Fleur Engine";
-    appInfo.applicationVersion = VK_MAKE_API_VERSION(0, 1, 4, 335);
+    appInfo.applicationVersion = VULKAN_VERSION;
     appInfo.pEngineName = "Fleur Engine";
     appInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_2;
+    appInfo.apiVersion = VULKAN_VERSION;
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -421,12 +433,12 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
 #endif
     enableExtensions(createInfo);
 
-    if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
+    if (vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance) != VK_SUCCESS)
     {
         assert(false);
     }
 
-    return instance;
+    return m_VulkanInstance;
 }
 void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo)
 {
@@ -494,7 +506,7 @@ void vulkanBackend::vulkanBackendImpl::setupDebugMessenger()
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
     populateDebugMessengerCreateInfo(createInfo);
 
-    if (CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+    if (CreateDebugUtilsMessengerEXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to set up debug messenger");
     }
@@ -533,7 +545,7 @@ void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
     createInfo.hwnd = reinterpret_cast<HWND>(pNativeHandle);
     createInfo.hinstance = GetModuleHandle(nullptr);
 
-    if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &surface) != VK_SUCCESS)
+    if (vkCreateWin32SurfaceKHR(m_VulkanInstance, &createInfo, nullptr, &surface) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create window surface!")
         assert(false);
@@ -547,7 +559,7 @@ void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
 void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
 {
     uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
+    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, nullptr);
 
     if (deviceCount == 0)
     {
@@ -556,7 +568,7 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
     }
 
     std::vector<VkPhysicalDevice> physicalDevices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, physicalDevices.data());
+    vkEnumeratePhysicalDevices(m_VulkanInstance, &deviceCount, physicalDevices.data());
 
     // Sort devices so we can bring GPU\dGPU to the first place
     std::vector<VkPhysicalDevice> nonDiscreateGPU;
@@ -1156,7 +1168,7 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
 
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VmaVertexBuffer, offsets);
     vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
@@ -1334,25 +1346,19 @@ void vulkanBackend::vulkanBackendImpl::createBuffer(VkDeviceSize size, VkBufferU
 // VertexBuffer
 void vulkanBackend::vulkanBackendImpl::createVertexBuffer()
 {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size = 65536;
+    bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-    void* data;
-    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), (size_t)bufferSize);
-    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, vertexBuffer,
-                 vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
-    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+    vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &m_VmaVertexBuffer, &m_VmaVertexBufferAllocaction, nullptr);
+    if (vmaCopyMemoryToAllocation(m_Allocator, vertices.data(), m_VmaVertexBufferAllocaction, 0, vertices.size() * sizeof(Vertex)) != VK_SUCCESS)
+    {
+        assert(false);
+    }
 }
 void vulkanBackend::vulkanBackendImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
 {
@@ -1540,4 +1546,27 @@ void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
+
+
+//======================================================================
+// VulkanMemoryAllocator
+void vulkanBackend::vulkanBackendImpl::initializeVma()
+{
+    VmaAllocatorCreateInfo allocCreateInfo{};
+    allocCreateInfo.instance = m_VulkanInstance;
+    allocCreateInfo.physicalDevice = m_SPhysicalDevice.vkPhysicalDevice;
+    allocCreateInfo.device = m_LogicalDevice;
+    allocCreateInfo.vulkanApiVersion = VULKAN_VERSION;
+
+    if (vmaCreateAllocator(&allocCreateInfo, &m_Allocator) != VkResult::VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to initialize Vma!");
+        assert(true);
+    }
+}
+
+void vulkanBackend::vulkanBackendImpl::freeVma()
+{
+    vmaDestroyAllocator(m_Allocator);
 }
