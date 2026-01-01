@@ -270,7 +270,8 @@ struct vulkanBackend::vulkanBackendImpl
 
     VkMemoryRequirements memRequirements;
 
-    void createVertexBuffer();
+    void CreateBuffer(VkBufferUsageFlags usage, VkBuffer& buffer, VmaAllocation& allocation, VkDeviceSize size);
+    void createVertexBuffer(VkBuffer& buffer, VmaAllocation& allocation, VkDeviceSize size);
     void createIndexBuffer();
     void createUniformBuffers();
     void updateUniformBuffer(uint32_t currentImage);
@@ -290,7 +291,11 @@ struct vulkanBackend::vulkanBackendImpl
     void initializeVma();
     void freeVma();
     VkBuffer m_VmaVertexBuffer;
+    VkBuffer m_VmaIndexBuffer;
     VmaAllocation m_VmaVertexBufferAllocaction;
+    VmaAllocation m_VmaIndexBufferAllocaction;
+
+    uint64_t UploadDataToBuffer(VmaAllocation& allocation, const void* pData, VkDeviceSize localOffset, VkDeviceSize sizeBytes);
 };
 
 
@@ -342,8 +347,15 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-    createVertexBuffer();
-    createIndexBuffer();
+
+    // createVertexBuffer(m_VmaVertexBuffer, m_VmaVertexBufferAllocaction, 65536);
+    CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VmaVertexBuffer, m_VmaVertexBufferAllocaction, 65536);
+    UploadDataToBuffer(m_VmaVertexBufferAllocaction, vertices.data(), 0, sizeof(Vertex) * vertices.size());
+
+    CreateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VmaIndexBuffer, m_VmaIndexBufferAllocaction, 65536);
+    UploadDataToBuffer(m_VmaIndexBufferAllocaction, indices.data(), 0, sizeof(uint16_t) * indices.size());
+
+    // createIndexBuffer();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -1169,7 +1181,7 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
 
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VmaVertexBuffer, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindIndexBuffer(commandBuffer, m_VmaIndexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
     // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
@@ -1342,20 +1354,35 @@ void vulkanBackend::vulkanBackendImpl::createBuffer(VkDeviceSize size, VkBufferU
 }
 
 
-//======================================================================
-// VertexBuffer
-void vulkanBackend::vulkanBackendImpl::createVertexBuffer()
+void vulkanBackend::vulkanBackendImpl::CreateBuffer(VkBufferUsageFlags usage, VkBuffer& buffer, VmaAllocation& allocation, VkDeviceSize size)
 {
     VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size = 65536;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+
+    VmaAllocationCreateInfo allocInfo = {};
+    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
+    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+
+    if (vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &buffer, &allocation, nullptr) != VK_SUCCESS)
+    {
+        assert(false);
+    }
+}
+
+//======================================================================
+// VertexBuffer
+void vulkanBackend::vulkanBackendImpl::createVertexBuffer(VkBuffer& buffer, VmaAllocation& allocation, VkDeviceSize size)
+{
+    VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    bufferInfo.size = size;
     bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
     allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
 
-    vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &m_VmaVertexBuffer, &m_VmaVertexBufferAllocaction, nullptr);
-    if (vmaCopyMemoryToAllocation(m_Allocator, vertices.data(), m_VmaVertexBufferAllocaction, 0, vertices.size() * sizeof(Vertex)) != VK_SUCCESS)
+    if (vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &m_VmaVertexBuffer, &m_VmaVertexBufferAllocaction, nullptr) != VK_SUCCESS)
     {
         assert(false);
     }
@@ -1569,4 +1596,15 @@ void vulkanBackend::vulkanBackendImpl::initializeVma()
 void vulkanBackend::vulkanBackendImpl::freeVma()
 {
     vmaDestroyAllocator(m_Allocator);
+}
+
+
+uint64_t vulkanBackend::vulkanBackendImpl::UploadDataToBuffer(VmaAllocation& allocation, const void* pData, VkDeviceSize localOffset, VkDeviceSize sizeBytes)
+{
+    VkDeviceSize offset = localOffset + sizeBytes;
+    if (vmaCopyMemoryToAllocation(m_Allocator, pData, allocation, localOffset, sizeBytes) != VK_SUCCESS)
+    {
+        assert(false);
+    }
+    return offset;
 }
