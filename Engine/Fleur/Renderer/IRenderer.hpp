@@ -2,17 +2,19 @@
 
 #include "../WindowPrimitives.hpp"
 
-struct DrawInfo
+struct SFLDrawUploadInfo
 {
-    char* byte;
-    size_t size;
+    const void* pVertex = nullptr;
+    uint64_t vertexCount = 0;
+    const void* pIndex = nullptr;
+    uint64_t indexCount;
 };
 
 struct IRenderer
 {
     virtual ~IRenderer() = default;
 
-    virtual void Draw(DrawInfo info) = 0;
+    virtual void AddToDrawList(SFLDrawUploadInfo* pInfo) = 0;
     virtual void Update(float dtTime) = 0;
     virtual void ResizeEvent(Fleur::SRect& rect) = 0;
 };

@@ -118,43 +118,44 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
 
 bool Fleur::Application::OnRenderEvent(AppRenderEvent& event)
 {
-    auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
-    // renderer->ShowWireFrame();
-    //  TODO: As for now we use just one opaque shader, but we must think about different passes
-    //  using different shaders with blending and probably using pre-passes
-
-    auto waterCoolerModel = assetsManager->Get<Model>("WaterCooler");
-    auto waterCoolerModelLocked = waterCoolerModel.lock();
-    if (waterCoolerModelLocked)
-    {
-        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(),
-                            glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
-    }
-
-    auto sponzaModel = assetsManager->Get<Model>("Sponza");
-    auto sponzaModelLocked = sponzaModel.lock();
-    if (sponzaModelLocked)
-    {
-        glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-        glm::mat4 R = glm::mat4(1.f);
-        glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-        glm::mat4 M = T * R * S;
-
-        renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponzaModelLocked.get(), M);
-    }
-
-    auto gizmoModel = assetsManager->Get<Model>("gizmo");
-    if (!gizmoModel.expired())
-    {
-        glm::mat4 gizmoMatrix(1.0f);
-        gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
-
-        renderer->DrawModel(Fleur::Graphics::ERenderStage::GIZMO, gizmoModel.lock().get(), gizmoMatrix);
-    }
-
-    UNUSED(event);
     return true;
+    // auto renderer = ServiceLocator::instance().GetService<Renderer>();
+    // auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    //// renderer->ShowWireFrame();
+    ////  TODO: As for now we use just one opaque shader, but we must think about different passes
+    ////  using different shaders with blending and probably using pre-passes
+
+    // auto waterCoolerModel = assetsManager->Get<Model>("WaterCooler");
+    // auto waterCoolerModelLocked = waterCoolerModel.lock();
+    // if (waterCoolerModelLocked)
+    //{
+    //     renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(),
+    //                         glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
+    // }
+
+    // auto sponzaModel = assetsManager->Get<Model>("Sponza");
+    // auto sponzaModelLocked = sponzaModel.lock();
+    // if (sponzaModelLocked)
+    //{
+    //     glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+    //     glm::mat4 R = glm::mat4(1.f);
+    //     glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    //     glm::mat4 M = T * R * S;
+
+    //    renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponzaModelLocked.get(), M);
+    //}
+
+    // auto gizmoModel = assetsManager->Get<Model>("gizmo");
+    // if (!gizmoModel.expired())
+    //{
+    //     glm::mat4 gizmoMatrix(1.0f);
+    //     gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
+
+    //    renderer->DrawModel(Fleur::Graphics::ERenderStage::GIZMO, gizmoModel.lock().get(), gizmoMatrix);
+    //}
+
+    // UNUSED(event);
+    // return true;
 }
 bool Fleur::Application::OnMouseMoveEvent(MouseMovedEvent& event)
 {
@@ -199,7 +200,14 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
-    assetsManager.value()->Load<Model>("Sponza/Sponza.glb");
+    assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
+    auto sponza = assetsManager.value()->Get<Model>("Sponza");
+    glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+    glm::mat4 R = glm::mat4(1.f);
+    glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    glm::mat4 M = T * R * S;
+    renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
+
     assetsManager.value()->Load<Model>("gizmo.glb");
     assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 

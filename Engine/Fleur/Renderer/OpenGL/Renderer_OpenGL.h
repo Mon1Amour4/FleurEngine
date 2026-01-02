@@ -8,6 +8,5 @@ namespace Renderer::Backend
 {
 class RendererOpenGL : public IRenderer
 {
-    virtual void Draw(DrawInfo info) override;
 };
 }  // namespace Renderer::Backend

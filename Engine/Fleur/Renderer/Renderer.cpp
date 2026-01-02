@@ -220,52 +220,60 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTe
 
 void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
 {
-    return;
-    switch (stage)
-    {
-    case STATIC_GEOMETRY:
-    {
-        auto it = m_StaticGeometryModels.find(model->GetName().data());
-        if (it != m_StaticGeometryModels.end())
-        {
-            it->second.ModelMatrix = model_pos;
-            return;
-        }
+    SFLDrawUploadInfo uploadInfo{};
+    uploadInfo.pVertex = model->GetVerticesData();
+    uploadInfo.vertexCount = model->GetVertexCount();
+    uploadInfo.pIndex = model->GetIndicesData();
+    uploadInfo.indexCount = model->GetIndicesCount();
 
-        DrawInfo draw{model, model_pos};
+    m_Backend->AddToDrawList(&uploadInfo);
 
-        draw.VertexGlobalOffsetBytes =
-            m_StaticGeometryCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+    /* return;
+     switch (stage)
+     {
+     case STATIC_GEOMETRY:
+     {
+         auto it = m_StaticGeometryModels.find(model->GetName().data());
+         if (it != m_StaticGeometryModels.end())
+         {
+             it->second.ModelMatrix = model_pos;
+             return;
+         }
 
-        draw.IndexGlobalOffsetBytes = m_StaticGeometryCmd->UpdateBufferSubData(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+         DrawInfo draw{model, model_pos};
 
-        m_StaticGeometryModels.emplace(model->GetName().data(), draw);
-        m_StaticGeometryModelsVector.emplace_back(draw);
-        break;
-    }
-    case GIZMO:
-    {
-        auto it = m_GizmoModels.find(model->GetName().data());
-        if (it != m_GizmoModels.end())
-        {
-            it->second.ModelMatrix = model_pos;
-            return;
-        }
+         draw.VertexGlobalOffsetBytes =
+             m_StaticGeometryCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
 
-        DrawInfo draw{model, model_pos};
+         draw.IndexGlobalOffsetBytes = m_StaticGeometryCmd->UpdateBufferSubData(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
 
-        draw.VertexGlobalOffsetBytes =
-            m_GizmoCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+         m_StaticGeometryModels.emplace(model->GetName().data(), draw);
+         m_StaticGeometryModelsVector.emplace_back(draw);
+         break;
+     }
+     case GIZMO:
+     {
+         auto it = m_GizmoModels.find(model->GetName().data());
+         if (it != m_GizmoModels.end())
+         {
+             it->second.ModelMatrix = model_pos;
+             return;
+         }
 
-        draw.IndexGlobalOffsetBytes = m_GizmoCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+         DrawInfo draw{model, model_pos};
 
-        m_GizmoModels.emplace(model->GetName().data(), draw);
-        m_GizmoModelsVector.emplace_back(draw);
-        break;
-    }
-    case DYNAMIC_DRAW:
-        break;
-    }
+         draw.VertexGlobalOffsetBytes =
+             m_GizmoCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
+
+         draw.IndexGlobalOffsetBytes = m_GizmoCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
+
+         m_GizmoModels.emplace(model->GetName().data(), draw);
+         m_GizmoModelsVector.emplace_back(draw);
+         break;
+     }
+     case DYNAMIC_DRAW:
+         break;
+     }*/
 }
 
 void Fleur::Graphics::Renderer::Clear()
