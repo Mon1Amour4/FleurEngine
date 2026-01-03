@@ -3,7 +3,6 @@
 #include <span>
 
 #include "FleurAllocator.hpp"
-#include "Graphics.hpp"
 #include "Material.h"
 
 //======================================================================
@@ -135,7 +134,7 @@ Fleur::Graphics::MeshBuilder& Fleur::Graphics::MeshBuilder::AddPrimitive(Model::
     {
         Model::Mesh::Primitive& primitive = m_Mesh->m_Primitives.emplace_back();
 
-        std::vector<Fleur::Graphics::VertexData, Fleur::Memory::FleurAllocator<Fleur::Graphics::VertexData>> vertices{
+        std::vector<Fleur::Graphics::SVertexData, Fleur::Memory::FleurAllocator<Fleur::Graphics::SVertexData>> vertices{
             {glm::vec3(-0.5f, 0.5f, 0)}, {glm::vec3(-0.5f, -0.5f, 0)}, {glm::vec3(0.5f, 0.5f, 0)}, {glm::vec3(0.5f, -0.5f, 0)}};
 
         primitive.m_PrimitiveVertexStart = m_Model->m_Vertices.size();

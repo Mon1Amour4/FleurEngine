@@ -36,50 +36,6 @@
 #define DBG_PRINTM(text)
 #endif
 
-struct UniformBufferObject
-{
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
-};
-
-struct Vertex
-{
-    glm::vec2 pos;
-    glm::vec3 color;
-
-    static VkVertexInputBindingDescription getBindingDescription()
-    {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = sizeof(Vertex);
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-        return bindingDescription;
-    }
-
-    static std::array<VkVertexInputAttributeDescription, 2> getAttributeDescriptions()
-    {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescriptions{};
-
-        attributeDescriptions[0].binding = 0;
-        attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescriptions[0].offset = offsetof(Vertex, pos);
-
-        attributeDescriptions[1].binding = 0;
-        attributeDescriptions[1].location = 1;
-        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescriptions[1].offset = offsetof(Vertex, color);
-
-        return attributeDescriptions;
-    }
-};
-
-const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}}, {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}}, {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}, {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}};
-const std::vector<uint16_t> indices = {0, 1, 2, 2, 3, 0};
-
 const int MAX_FRAMES_IN_FLIGHT = 2;
 uint32_t currentFrame = 0;
 
@@ -143,7 +99,7 @@ struct vulkanBackend::vulkanBackendImpl
         VkBuffer buffer;
         VmaAllocation allocation;
     };
-    vulkanBackendImpl(void* pNativeHandle, Fleur::SRect& framebufferSize);
+    vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize);
     ~vulkanBackendImpl();
 
     void update(float dtTime);
@@ -236,14 +192,22 @@ struct vulkanBackend::vulkanBackendImpl
     VkPipeline m_GraphicsPipeline;
     VkDescriptorSetLayout descriptorSetLayout;
     VkPipelineLayout pipelineLayout;
-    void createGraphicsPipeline();
+
+    // GeometryPipeline
+    VkPipeline m_GeometryPipeline;
+    VkPipelineLayout m_GeometryLayout;
+    VkDescriptorSetLayout m_GeometryDSL;
+    void CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+                                Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
+
 
     // Renderpass
     VkRenderPass renderPass;
     void createRenderPass();
 
     // Shaders
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    // VkShaderModule createShaderModule(const std::vector<char>& code);
+    VkShaderModule CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
     // Framebuffers
     std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -279,7 +243,6 @@ struct vulkanBackend::vulkanBackendImpl
     VkMemoryRequirements memRequirements;
 
     void CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize size, VkDeviceSize strideSize);
-    void createIndexBuffer();
     void createUniformBuffers();
     void updateUniformBuffer(uint32_t currentImage);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
@@ -314,21 +277,24 @@ struct vulkanBackend::vulkanBackendImpl
         uint64_t vertexOffset = 0;
     };
     std::vector<DrawInfo> m_DrawList;
-    void AddToDrawList(SFLDrawUploadInfo* pInfo);
+    void AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo);
+
+    VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
+    std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
 };
 
 
 //======================================================================
 // vulkanBackend
-vulkanBackend::vulkanBackend(void* pNativeHandle, Fleur::SRect framebufferSize)
-    : pImpl(new vulkanBackendImpl(pNativeHandle, framebufferSize))
+vulkanBackend::vulkanBackend(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect framebufferSize)
+    : pImpl(new vulkanBackendImpl(pFrame, pNativeHandle, framebufferSize))
 {
 }
 vulkanBackend::~vulkanBackend()
 {
     delete pImpl;
 }
-void vulkanBackend::AddToDrawList(SFLDrawUploadInfo* pInfo)
+void vulkanBackend::AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo)
 {
     pImpl->AddToDrawList(pInfo);
 }
@@ -345,7 +311,7 @@ void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
-vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::SRect& framebufferSize)
+vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize)
     : m_LogicalDevice(VK_NULL_HANDLE)
 {
 #if defined(FL_CONF_DEBUG)
@@ -364,18 +330,23 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(void* pNativeHandle, Fleur::
     createImageViews();
     createRenderPass();
     createDescriptorSetLayout();
-    createGraphicsPipeline();
+
+    CreateGeometryPipeline(pFrame->pPass->pVertexShaderInfo, pFrame->pPass->pFragmentShaderInfo, pFrame->pPass->inputAssemblyTopology);
+
     createFramebuffers();
     createCommandPool();
 
-    // createVertexBuffer(m_VmaVertexBuffer, m_VmaVertexBufferAllocaction, 65536);
-    CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_VertexBuffer, 1024u * 1024ul * 512ul, sizeof(Vertex));
-    CreateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_IndexBuffer, 1024u * 1024ul * 256ul, sizeof(uint32_t));
-    // UploadDataToBuffer(m_VmaVertexBufferAllocaction, vertices.data(), 0, sizeof(Vertex) * vertices.size());
+    uint32_t vertexInputDescriptorSize = 0;
+    uint32_t indexInputDescriptorSize = 0;
 
-    // UploadDataToBuffer(m_VmaIndexBufferAllocaction, indices.data(), 0, sizeof(uint16_t) * indices.size());
+    if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
+        vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
+    if (pFrame->pPass->vertexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
+        indexInputDescriptorSize = sizeof(uint32_t);
 
-    // createIndexBuffer();
+    CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_VertexBuffer, 1024u * 1024ul * 512ul, vertexInputDescriptorSize);
+    CreateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_IndexBuffer, 1024u * 1024ul * 256ul, indexInputDescriptorSize);
+
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
@@ -922,13 +893,11 @@ void vulkanBackend::vulkanBackendImpl::createRenderPass()
 
 //======================================================================
 // VkPipeline
-void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
+void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+                                                              Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology)
 {
-    auto vertShaderCode = readFile("C:/Engine/FleurEngine/Sandbox/Resources/Shaders/vertex.spv");
-    auto fragShaderCode = readFile("C:/Engine/FleurEngine/Sandbox/Resources/Shaders/opaque.spv");
-
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    VkShaderModule vertShaderModule = CreateShaderModule(pVertexInfo);
+    VkShaderModule fragShaderModule = CreateShaderModule(pFragmentInfo);
 
     // Shaders
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
@@ -953,14 +922,14 @@ void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
     pipelineLayoutInfo.pushConstantRangeCount = 0;          // Optional
     pipelineLayoutInfo.pPushConstantRanges = nullptr;       // Optional
 
-    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &m_GeometryLayout) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create pipeline layout!")
         assert(false);
     }
 
-    auto bindingDescription = Vertex::getBindingDescription();
-    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    auto bindingDescription = GetVertexDataBindingDescriptor();
+    auto attributeDescriptions = GetVertexDataAttributeDescriptions();
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -971,7 +940,8 @@ void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    if (pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST)
+        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
     VkViewport viewport{};
@@ -1072,12 +1042,12 @@ void vulkanBackend::vulkanBackendImpl::createGraphicsPipeline()
 
 //======================================================================
 // VkShaderModule
-VkShaderModule vulkanBackend::vulkanBackendImpl::createShaderModule(const std::vector<char>& code)
+VkShaderModule vulkanBackend::vulkanBackendImpl::CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
-    createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
+    createInfo.codeSize = pShaderInfo->sizeBytes;
+    createInfo.pCode = reinterpret_cast<const uint32_t*>(pShaderInfo->shaderCode);
 
     VkShaderModule shaderModule;
     if (vkCreateShaderModule(m_LogicalDevice, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
@@ -1204,8 +1174,8 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
     vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.size()), 1, 0, 0);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.sizeBytes()), 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, m_IndexBuffer.currentSize / sizeof(uint32_t), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1518,7 +1488,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = uniformBuffers[i];
         bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
         VkWriteDescriptorSet descriptorWrite{};
         descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -1536,32 +1506,9 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 
 //======================================================================
 // IndexBuffer
-void vulkanBackend::vulkanBackendImpl::createIndexBuffer()
-{
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
-
-    void* data;
-    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), (size_t)bufferSize);
-    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
-
-    createBuffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, indexBuffer,
-                 indexBufferMemory);
-
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
-    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
-}
-
 void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
     uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
     uniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
@@ -1583,7 +1530,7 @@ void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage
     auto currentTime = std::chrono::high_resolution_clock::now();
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
-    UniformBufferObject ubo{};
+    Fleur::Graphics::SFLGeometryUBO ubo{};
     ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
@@ -1615,7 +1562,7 @@ void vulkanBackend::vulkanBackendImpl::freeVma()
 }
 
 
-void vulkanBackend::vulkanBackendImpl::AddToDrawList(SFLDrawUploadInfo* pInfo)
+void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo)
 {
     auto& draw = m_DrawList.emplace_back();
 
@@ -1625,4 +1572,38 @@ void vulkanBackend::vulkanBackendImpl::AddToDrawList(SFLDrawUploadInfo* pInfo)
 
     UploadDataToBuffer(&m_VertexBuffer, pInfo->pVertex, pInfo->vertexCount);
     UploadDataToBuffer(&m_IndexBuffer, pInfo->pIndex, pInfo->indexCount);
+}
+
+
+//======================================================================
+// VertexDescriptors
+VkVertexInputBindingDescription vulkanBackend::vulkanBackendImpl::GetVertexDataBindingDescriptor()
+{
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = sizeof(Fleur::Graphics::SVertexData);
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    return bindingDescription;
+}
+std::array<VkVertexInputAttributeDescription, 3> vulkanBackend::vulkanBackendImpl::GetVertexDataAttributeDescriptions()
+{
+    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
+
+    attributeDescriptions[0].binding = 0;
+    attributeDescriptions[0].location = 0;
+    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[0].offset = offsetof(Fleur::Graphics::SVertexData, Position);
+
+    attributeDescriptions[1].binding = 0;
+    attributeDescriptions[1].location = 1;
+    attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
+    attributeDescriptions[1].offset = offsetof(Fleur::Graphics::SVertexData, TexCoord);
+
+    attributeDescriptions[2].binding = 0;
+    attributeDescriptions[2].location = 1;
+    attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
+    attributeDescriptions[2].offset = offsetof(Fleur::Graphics::SVertexData, Normal);
+
+    return attributeDescriptions;
 }

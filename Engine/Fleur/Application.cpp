@@ -3,9 +3,9 @@
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
-#include "Renderer.h"
+#include "Renderer/Renderer.h"
+#include "Renderer/Toolchain.h"
 #include "ThreadPool.h"
-#include "Toolchain.h"
 
 using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;

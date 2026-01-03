@@ -7,6 +7,7 @@ SET(VULKAN_PUBLIC_INCLUDE_DIRS)
 SET(PROJECT_HEADERS
     # IRenderer
     ../IRenderer.hpp
+    ../Graphics.hpp
     # Vulkan
     Renderer_Vulkan.h
     VkDevice.h

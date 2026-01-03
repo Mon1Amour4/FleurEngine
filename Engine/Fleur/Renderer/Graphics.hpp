@@ -1,5 +1,7 @@
 #pragma once
 
+#include "glm/glm.hpp"
+
 namespace Fleur::Graphics
 {
 
@@ -10,15 +12,22 @@ enum EGraphicsAPI
 };
 
 #pragma pack(push, 1)
-struct VertexData
+struct SVertexData
 {
     glm::vec3 Position;
     glm::vec2 TexCoord;
     glm::vec3 Normal;
 
-    VertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
+    SVertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
 };
 #pragma pack(pop)
+
+struct SFLGeometryUBO
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
 
 struct Viewport
 {

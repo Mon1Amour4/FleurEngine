@@ -1,8 +1,10 @@
 #pragma once
 
+#include "Graphics.hpp"
+
 namespace Fleur::Graphics
 {
-struct VertexData;
+struct SVertexData;
 class Material;
 
 class FLEUR_API Model
@@ -144,7 +146,7 @@ public:
     {
         return m_ModelIndicesCount;
     }
-    [[nodiscard]] inline const VertexData* GetVerticesData() const
+    [[nodiscard]] inline const Fleur::Graphics::SVertexData* GetVerticesData() const
     {
         return m_Vertices.data();
     }
@@ -167,7 +169,7 @@ private:
     uint32_t m_MeshCount;
     uint32_t m_ModelVertexCount;
     uint32_t m_ModelIndicesCount;
-    std::vector<Fleur::Graphics::VertexData> m_Vertices;
+    std::vector<Fleur::Graphics::SVertexData> m_Vertices;
     std::vector<uint32_t> m_Indices;
     std::vector<Model::Mesh> m_Meshes;
 

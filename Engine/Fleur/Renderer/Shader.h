@@ -11,6 +11,7 @@ public:
     ~Shader() = default;
 
     const char* GetShaderCode() const;
+    uint32_t GetShaderCodeSizeB() const;
 
 private:
     std::string byteCode;

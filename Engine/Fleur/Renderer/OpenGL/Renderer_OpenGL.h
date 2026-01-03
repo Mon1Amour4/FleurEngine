@@ -6,7 +6,9 @@
 
 namespace Renderer::Backend
 {
-class RendererOpenGL : public IRenderer
+
+class RendererOpenGL : public Fleur::Graphics::IRenderer
 {
 };
+
 }  // namespace Renderer::Backend

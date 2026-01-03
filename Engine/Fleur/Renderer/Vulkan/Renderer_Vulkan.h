@@ -5,17 +5,17 @@
 #include "IRenderer.hpp"
 #include "Renderer_Vulkan.h"
 
-struct vulkanBackend : public IRenderer
+struct vulkanBackend : public Fleur::Graphics::IRenderer
 {
     // pImpl
     struct vulkanBackendImpl;
 
     // Vrtual interface
     virtual ~vulkanBackend() override;
-    virtual void AddToDrawList(SFLDrawUploadInfo* pInfo) override;
+    virtual void AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo) override;
     virtual void Update(float dtTime) override;
 
-    vulkanBackend(void* pNativeHandle, Fleur::SRect framebufferSize);
+    vulkanBackend(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect framebufferSize);
 
     void ResizeEvent(Fleur::SRect& rect);
 

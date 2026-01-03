@@ -169,6 +169,14 @@ public:
             else
                 return std::weak_ptr<Res>{};
         }
+        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Shader>>::value)
+        {
+            auto it = m_ShaderMap.find(name.data());
+            if (it != m_ShaderMap.end())
+                return std::weak_ptr<Res>(it->second);
+            else
+                return std::weak_ptr<Res>{};
+        }
         else
             FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
     }
@@ -248,7 +256,7 @@ private:
         return false;
     }
 
-    std::unordered_map<std::string, Fleur::Graphics::Shader> m_ShaderMap;
+    std::unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Shader>> m_ShaderMap;
     void load_all_shaders();
 };
 

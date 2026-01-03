@@ -203,7 +203,7 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             model->m_Indices.push_back(map[vi]);
             continue;
         }
-        VertexData v{};
+        SVertexData v{};
 
         if (positions)
         {

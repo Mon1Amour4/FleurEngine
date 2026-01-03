@@ -1,7 +1,7 @@
 #include "AssetsManager.h"
 
 #include "FleurAllocator.hpp"
-#include "ModelFabric.h"
+#include "Renderer/ModelFabric.h"
 
 #if !defined(CGLTF_IMPLEMENTATION)
 #define CGLTF_IMPLEMENTATION
@@ -549,6 +549,7 @@ void Fleur::AssetsManager::load_all_shaders()
 
     for (const auto& path : paths)
     {
-        m_ShaderMap.emplace(fileSystem->GetFileNameWithoutExtFromPath(path), Fleur::Graphics::Shader(fileSystem->OpenFile(path).value()));
+        m_ShaderMap.emplace(fileSystem->GetFileNameWithoutExtFromPath(path),
+                            std::make_shared<Fleur::Graphics::Shader>(Fleur::Graphics::Shader(fileSystem->OpenFile(path).value())));
     }
 }

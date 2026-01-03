@@ -193,7 +193,29 @@ void Fleur::Graphics::Renderer::OnInit()
         IRenderer* backend = CreateRendererBackend();
     }*/
     auto& application = Fleur::Application::instance();
-    m_Backend = new vulkanBackend(application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
+    auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+
+    auto pVertexShader = assetsManager->Get<Shader>("vertex").lock().get();
+    Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
+    vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
+    vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
+
+    auto pFragmentShader = assetsManager->Get<Shader>("opaque").lock().get();
+    Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
+    fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
+    fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
+
+    Fleur::Graphics::SFLGeometryPass geometryPass{};
+    geometryPass.pVertexShaderInfo = &vertexShaderInfo;
+    geometryPass.pFragmentShaderInfo = &fragmentShaderInfo;
+    geometryPass.vertexInputInfo = EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA;
+    geometryPass.indexInputInfo = EFLIndexInputDescription::INDEX_INPUT_UINT32;
+    geometryPass.inputAssemblyTopology = EFLInputAssemblyTopology::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST;
+
+    Fleur::Graphics::SFLFrame frame{};
+    frame.pPass = &geometryPass;
+
+    m_Backend = new vulkanBackend(&frame, application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -481,7 +503,7 @@ void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
     m_Backend->ResizeEvent(rect);
 }
 
-Fleur::Graphics::VertexData::VertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
+Fleur::Graphics::SVertexData::SVertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
     : Position(pos)
     , TexCoord(texCoord)
     , Normal(normal)

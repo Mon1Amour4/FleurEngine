@@ -2,6 +2,7 @@
 
 SET(PROJECT_HEADERS
     ../IRenderer.hpp
+    ../Graphics.hpp
     Renderer_OpenGL.h
     # BufferOpenGL.h
     # CommandBufferOpenGL.h
