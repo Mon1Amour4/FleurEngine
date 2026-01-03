@@ -93,16 +93,16 @@ struct vulkanBackend::vulkanBackendImpl
 {
     struct SFLBuffer
     {
-        uint64_t size = 0;
-        uint64_t currentSize = 0;
-        uint32_t strideSizeB = 0;
+        uint64_t sizeBytes = 0;
+        uint64_t currentSizeBytes = 0;
+        uint32_t strideSizeBytes = 0;
         VkBuffer buffer;
         VmaAllocation allocation;
     };
     vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize);
     ~vulkanBackendImpl();
 
-    void update(float dtTime);
+    void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
     void resize_event(Fleur::SRect& rect);
 
     // Extensions
@@ -188,14 +188,9 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<VkImageView> swapChainImageViews;
     void createImageViews();
 
-    // Pipeline
-    VkPipeline m_GraphicsPipeline;
-    VkDescriptorSetLayout descriptorSetLayout;
-    VkPipelineLayout pipelineLayout;
-
     // GeometryPipeline
     VkPipeline m_GeometryPipeline;
-    VkPipelineLayout m_GeometryLayout;
+    VkPipelineLayout m_GeometryPipelineLayout;
     VkDescriptorSetLayout m_GeometryDSL;
     void CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                 Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
@@ -242,9 +237,9 @@ struct vulkanBackend::vulkanBackendImpl
 
     VkMemoryRequirements memRequirements;
 
-    void CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize size, VkDeviceSize strideSize);
+    void CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
     void createUniformBuffers();
-    void updateUniformBuffer(uint32_t currentImage);
+    void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
     uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
@@ -263,10 +258,6 @@ struct vulkanBackend::vulkanBackendImpl
 
     SFLBuffer m_VertexBuffer;
     SFLBuffer m_IndexBuffer;
-    /*VkBuffer m_VmaVertexBuffer;
-    VkBuffer m_VmaIndexBuffer;
-    VmaAllocation m_VmaVertexBufferAllocaction;
-    VmaAllocation m_VmaIndexBufferAllocaction;*/
 
     void UploadDataToBuffer(SFLBuffer* pBuffer, const void* pData, uint64_t count);
 
@@ -299,9 +290,9 @@ void vulkanBackend::AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo)
     pImpl->AddToDrawList(pInfo);
 }
 
-void vulkanBackend::Update(float dtTime)
+void vulkanBackend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
-    pImpl->update(dtTime);
+    pImpl->update(pUbo);
 }
 void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 {
@@ -339,10 +330,13 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame* p
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
 
-    if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
+    if (pFrame->pPass->vertexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
         vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
-    if (pFrame->pPass->vertexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
+
+    if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
         indexInputDescriptorSize = sizeof(uint32_t);
+    else if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
+        indexInputDescriptorSize = sizeof(uint16_t);
 
     CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_VertexBuffer, 1024u * 1024ul * 512ul, vertexInputDescriptorSize);
     CreateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_IndexBuffer, 1024u * 1024ul * 256ul, indexInputDescriptorSize);
@@ -367,7 +361,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     }
 
     vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_LogicalDevice, descriptorSetLayout, nullptr);
+    vkDestroyDescriptorSetLayout(m_LogicalDevice, m_GeometryDSL, nullptr);
 
     vkDestroyBuffer(m_LogicalDevice, indexBuffer, nullptr);
     vkFreeMemory(m_LogicalDevice, indexBufferMemory, nullptr);
@@ -375,8 +369,8 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     vkDestroyBuffer(m_LogicalDevice, vertexBuffer, nullptr);
     vkFreeMemory(m_LogicalDevice, vertexBufferMemory, nullptr);
 
-    vkDestroyPipeline(m_LogicalDevice, m_GraphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(m_LogicalDevice, pipelineLayout, nullptr);
+    vkDestroyPipeline(m_LogicalDevice, m_GeometryPipeline, nullptr);
+    vkDestroyPipelineLayout(m_LogicalDevice, m_GeometryPipelineLayout, nullptr);
 
     vkDestroyRenderPass(m_LogicalDevice, renderPass, nullptr);
     // Sync
@@ -917,12 +911,12 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     // VkPipelineLayout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;                  // Optional
-    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;  // Optional
-    pipelineLayoutInfo.pushConstantRangeCount = 0;          // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;       // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;             // Optional
+    pipelineLayoutInfo.pSetLayouts = &m_GeometryDSL;   // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
+    pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
 
-    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &m_GeometryLayout) != VK_SUCCESS)
+    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &m_GeometryPipelineLayout) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create pipeline layout!")
         assert(false);
@@ -974,7 +968,7 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
+    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -1023,13 +1017,13 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     pipelineInfo.pDepthStencilState = nullptr;  // Optional
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.layout = m_GeometryPipelineLayout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
     pipelineInfo.basePipelineIndex = -1;               // Optional
 
-    if (vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GraphicsPipeline) != VK_SUCCESS)
+    if (vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GeometryPipeline) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create graphics pipeline!")
         assert(false);
@@ -1149,7 +1143,7 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline);
 
     VkBuffer vertexBuffers[] = {vertexBuffer};
     VkDeviceSize offsets[] = {0};
@@ -1171,11 +1165,14 @@ void vulkanBackend::vulkanBackendImpl::recordCommandBuffer(VkCommandBuffer comma
 
 
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, &m_VertexBuffer.buffer, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    if (m_IndexBuffer.strideSizeBytes == 4)
+        vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    else if (m_IndexBuffer.strideSizeBytes == 2)
+        vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-    // vkCmdDraw(commandBuffer, static_cast<uint32_t>(vertices.sizeBytes()), 1, 0, 0);
-    vkCmdDrawIndexed(commandBuffer, m_IndexBuffer.currentSize / sizeof(uint32_t), 1, 0, 0, 0);
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    vkCmdDrawIndexed(commandBuffer, m_IndexBuffer.currentSizeBytes / m_IndexBuffer.strideSizeBytes, 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
 
@@ -1212,7 +1209,7 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 }
 
 
-void vulkanBackend::vulkanBackendImpl::update(float dtTime)
+void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
@@ -1235,7 +1232,7 @@ void vulkanBackend::vulkanBackendImpl::update(float dtTime)
     vkResetCommandBuffer(commandBuffers[currentFrame], 0);
     recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
 
-    updateUniformBuffer(currentFrame);
+    updateUniformBuffer(currentFrame, pUbo);
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1346,13 +1343,13 @@ void vulkanBackend::vulkanBackendImpl::createBuffer(VkDeviceSize size, VkBufferU
 
 //======================================================================
 // Buffer
-void vulkanBackend::vulkanBackendImpl::CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize size, VkDeviceSize strideSize)
+void vulkanBackend::vulkanBackendImpl::CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
 {
-    pBuffer->size = size;
-    pBuffer->strideSizeB = strideSize;
+    pBuffer->sizeBytes = sizeBytes;
+    pBuffer->strideSizeBytes = strideSize;
 
     VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size = size;
+    bufferInfo.size = sizeBytes;
     bufferInfo.usage = usage;
 
     VmaAllocationCreateInfo allocInfo = {};
@@ -1366,9 +1363,10 @@ void vulkanBackend::vulkanBackendImpl::CreateBuffer(VkBufferUsageFlags usage, SF
 }
 void vulkanBackend::vulkanBackendImpl::UploadDataToBuffer(SFLBuffer* pBuffer, const void* pData, uint64_t count)
 {
-    pBuffer->currentSize += count * pBuffer->strideSizeB;
+    uint64_t oldOffset = pBuffer->currentSizeBytes;
+    pBuffer->currentSizeBytes += count * pBuffer->strideSizeBytes;
 
-    if (vmaCopyMemoryToAllocation(m_Allocator, pData, pBuffer->allocation, pBuffer->currentSize, pBuffer->strideSizeB * count) != VK_SUCCESS)
+    if (vmaCopyMemoryToAllocation(m_Allocator, pData, pBuffer->allocation, oldOffset, pBuffer->strideSizeBytes * count) != VK_SUCCESS)
     {
         assert(false);
     }
@@ -1440,7 +1438,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSetLayout()
     layoutInfo.bindingCount = 1;
     layoutInfo.pBindings = &uboLayoutBinding;
 
-    if (vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+    if (vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &m_GeometryDSL) != VK_SUCCESS)
     {
         DBG_PRINTM("failed to create descriptor set layout!!")
         assert(false);
@@ -1468,7 +1466,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
 
 void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_GeometryDSL);
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -1523,19 +1521,11 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
     }
 }
 
-void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage)
+void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
-    static auto startTime = std::chrono::high_resolution_clock::now();
-
-    auto currentTime = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
-
-    Fleur::Graphics::SFLGeometryUBO ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
-    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+    pUbo->proj[1][1] *= -1;
+    pUbo->model = glm::mat4(1.0f);
+    memcpy(uniformBuffersMapped[currentImage], pUbo, sizeof(*pUbo));
 }
 
 
@@ -1567,8 +1557,8 @@ void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLDrawUpl
     auto& draw = m_DrawList.emplace_back();
 
     draw.indexCount = pInfo->indexCount;
-    draw.vertexOffset = m_VertexBuffer.currentSize;
-    draw.indexOffset = m_IndexBuffer.currentSize;
+    draw.vertexOffset = m_VertexBuffer.currentSizeBytes;
+    draw.indexOffset = m_IndexBuffer.currentSizeBytes;
 
     UploadDataToBuffer(&m_VertexBuffer, pInfo->pVertex, pInfo->vertexCount);
     UploadDataToBuffer(&m_IndexBuffer, pInfo->pIndex, pInfo->indexCount);
@@ -1601,7 +1591,7 @@ std::array<VkVertexInputAttributeDescription, 3> vulkanBackend::vulkanBackendImp
     attributeDescriptions[1].offset = offsetof(Fleur::Graphics::SVertexData, TexCoord);
 
     attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 1;
+    attributeDescriptions[2].location = 2;
     attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
     attributeDescriptions[2].offset = offsetof(Fleur::Graphics::SVertexData, Normal);
 

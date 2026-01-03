@@ -14,7 +14,6 @@ enum EFLInputAssemblyTopology
     FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_FAN,
     FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_MAX_VALUE,
 };
-
 enum EFLVertexInputDescription
 {
     VERTEX_INPUT_VERTEX_DATA,
@@ -32,6 +31,7 @@ struct SFLShaderInfo
     const char* shaderCode = nullptr;
     uint32_t sizeBytes = 0;
 };
+
 struct SFLGeometryPass
 {
     SFLShaderInfo* pVertexShaderInfo = nullptr;
@@ -59,7 +59,7 @@ struct IRenderer
     virtual ~IRenderer() = default;
 
     virtual void AddToDrawList(SFLDrawUploadInfo* pInfo) = 0;
-    virtual void Update(float dtTime) = 0;
+    virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) = 0;
     virtual void ResizeEvent(Fleur::SRect& rect) = 0;
 };
 

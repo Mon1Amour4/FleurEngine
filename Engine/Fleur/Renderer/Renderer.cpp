@@ -340,7 +340,11 @@ bool Fleur::Graphics::Renderer::IsVSync()
 
 void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 {
-    m_Backend->Update(dtTime);
+    Fleur::Graphics::SFLGeometryUBO ubo{};
+    ubo.view = m_Camera->GetView();
+    ubo.proj = m_Camera->GetProjection();
+
+    m_Backend->Update(&ubo);
     // auto assets = ServiceLocator::instance().GetService<AssetsManager>();
     // auto renderer = ServiceLocator::instance().GetService<Renderer>();
     //// ShaderComponentContext ctx{};

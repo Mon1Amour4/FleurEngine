@@ -13,7 +13,7 @@ struct vulkanBackend : public Fleur::Graphics::IRenderer
     // Vrtual interface
     virtual ~vulkanBackend() override;
     virtual void AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo) override;
-    virtual void Update(float dtTime) override;
+    virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) override;
 
     vulkanBackend(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect framebufferSize);
 
