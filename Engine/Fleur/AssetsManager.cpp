@@ -549,7 +549,8 @@ void Fleur::AssetsManager::load_all_shaders()
 
     for (const auto& path : paths)
     {
+        auto vec = fileSystem->ReadFileBinary(path);
         m_ShaderMap.emplace(fileSystem->GetFileNameWithoutExtFromPath(path),
-                            std::make_shared<Fleur::Graphics::Shader>(Fleur::Graphics::Shader(fileSystem->OpenFile(path).value())));
+                            std::make_shared<Fleur::Graphics::Shader>(Fleur::Graphics::Shader(vec.data(), vec.size())));
     }
 }

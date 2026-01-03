@@ -6,7 +6,7 @@ namespace Fleur::Graphics
 class Shader
 {
 public:
-    Shader(std::string shaderCode);
+    Shader(const char* shaderCode, size_t size);
 
     ~Shader() = default;
 
@@ -14,7 +14,7 @@ public:
     uint32_t GetShaderCodeSizeB() const;
 
 private:
-    std::string byteCode;
+    std::vector<char> byteCode;
 };
 
 }  // namespace Fleur::Graphics
