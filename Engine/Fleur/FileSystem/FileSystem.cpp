@@ -58,6 +58,26 @@ std::optional<std::string> Fleur::FS::FileSystem::OpenFile(const std::string& fi
     return std::optional<std::string>(buffer.str());
 }
 
+std::vector<char> Fleur::FS::FileSystem::ReadFileBinary(std::string_view pathToFile)
+{
+    auto res = GetFullPathToFile(pathToFile);
+    if (!res)
+        FL_CORE_ASSERT(res, "[FS] failed to open a file");
+
+    std::ifstream file(res.value(), std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+        FL_CORE_ASSERT(res, "[FS] failed to open a file");
+
+    size_t fileSize = (size_t)file.tellg();
+    std::vector<char> buffer(fileSize);
+    file.seekg(0);
+    file.read(buffer.data(), fileSize);
+    file.close();
+
+    return buffer;
+}
+
 std::string Fleur::FS::FileSystem::FileSystemImpl::GetExecutablePath()
 {
 #if defined(FLEUR_PLATFORM_WIN)
