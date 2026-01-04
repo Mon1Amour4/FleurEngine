@@ -9,6 +9,7 @@ SET(PROJECT_HEADERS
     ../IRenderer.hpp
     ../Graphics.hpp
     # Vulkan
+    PrivateVulkanImpl.hpp
     Renderer_Vulkan.h
     VkDevice.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
