@@ -382,13 +382,14 @@ vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBacken
 }
 void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 {
-    float queuePriority = 1.0f;
     // Creation of one QueueFamily
+    std::array<float, 2> queuePriority{1.0f, 1.0f};
+    uint32_t queueCount = 2;
     VkDeviceQueueCreateInfo uniqueFamilyQueueCreateInfo{};
     uniqueFamilyQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     uniqueFamilyQueueCreateInfo.queueFamilyIndex = m_GraphicsQueueFamily.familyIndex;
     uniqueFamilyQueueCreateInfo.queueCount = 2;  // Queues count in this Family
-    uniqueFamilyQueueCreateInfo.pQueuePriorities = &queuePriority;
+    uniqueFamilyQueueCreateInfo.pQueuePriorities = queuePriority.data();
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
