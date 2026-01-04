@@ -966,10 +966,18 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
         needToUpdateSecondaryCmdBuffer = false;
         vkResetCommandBuffer(m_GeometrySecondaryCmdBuffer, 0);
 
+        VkCommandBufferInheritanceInfo inheritanceInfo{};
+        inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+        inheritanceInfo.pNext = NULL;
+        inheritanceInfo.renderPass = m_GeometryRenderPass;
+        inheritanceInfo.subpass = 0;
+        inheritanceInfo.framebuffer = m_Swapchain.framebuffers[currentFrame];
+
+
         VkCommandBufferBeginInfo beginInfo{};
         beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = 0;                   // Optional
-        beginInfo.pInheritanceInfo = nullptr;  // Optional
+        beginInfo.flags = 0;  // Optional
+        beginInfo.pInheritanceInfo = &inheritanceInfo;
 
         if (vkBeginCommandBuffer(m_GeometrySecondaryCmdBuffer, &beginInfo) != VK_SUCCESS)
         {
