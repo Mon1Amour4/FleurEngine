@@ -39,9 +39,6 @@
 
 #pragma endregion
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
-uint32_t currentFrame = 0;
-
 
 //======================================================================
 // Static functions
@@ -114,6 +111,20 @@ struct vulkanBackend::vulkanBackendImpl
         uint64_t vertexOffset = 0;
     };
 
+    struct SFLSwapchain
+    {
+        VkSwapchainKHR swapchain;
+        VkFormat imageFormat;
+        VkExtent2D extent;
+
+        // VkFramebuffer + VkRenderPass defines the render target
+        std::vector<VkImage> images;              // Raw GPU data
+        std::vector<VkImageView> imageViews;      // Describes how to interpret that Raw GPU data
+        std::vector<VkFramebuffer> framebuffers;  // Relates to single RenderPass, defines which VkImageView is to be which attachment.
+
+        uint32_t framebuffersCount;
+    };
+
 #pragma endregion
 
     vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize);
@@ -170,10 +181,10 @@ struct vulkanBackend::vulkanBackendImpl
     Fleur::SRect surfaceRect;
 
     // Swapchain
-    VkSwapchainKHR m_Swapchain;
-    std::vector<VkImage> swapChainImages;
-    VkFormat swapChainImageFormat;
-    VkExtent2D swapChainExtent;
+    SFLSwapchain m_Swapchain;
+    void createImageViews();
+    void createFramebuffers();
+
     void cleanupSwapChain();
     void recreateSwapChain();
     void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
@@ -185,10 +196,6 @@ struct vulkanBackend::vulkanBackendImpl
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Fleur::SRect& framebufferSize);
     void createSwapChain(Fleur::SRect& framebufferSize);
 
-    // ImageViews
-    std::vector<VkImageView> swapChainImageViews;
-    void createImageViews();
-
     // GeometryPipeline
     VkPipeline m_GeometryPipeline;
     VkPipelineLayout m_GeometryPipelineLayout;
@@ -196,27 +203,23 @@ struct vulkanBackend::vulkanBackendImpl
     void CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                 Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
 
-
     // Renderpass
-    VkRenderPass renderPass;
-    void createRenderPass();
+    VkRenderPass m_GeometryRenderPass;
+    void CreateGeometryRenderPass();
 
     // Shaders
-    // VkShaderModule createShaderModule(const std::vector<char>& code);
     VkShaderModule CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
-
-    // Framebuffers
-    std::vector<VkFramebuffer> swapChainFramebuffers;
-    void createFramebuffers();
 
     // CommandPool
     VkCommandPool commandPool;
     void createCommandPool();
 
     // CommandBuffer
-    std::vector<VkCommandBuffer> commandBuffers;
+    std::vector<VkCommandBuffer> m_PrimaryCmdBuffers;
+    VkCommandBuffer m_GeometrySecondaryCmdBuffer;
     void createCommandBuffers();
-    void recordCommandBuffer(VkCommandBuffer commandBuffers, uint32_t imageIndex);
+    VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
+    void InitGeometryPrimaryCmdBuffers();
 
     // Synchronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
@@ -224,13 +227,6 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<VkFence> inFlightFences;
     bool framebufferResized = false;
     void createSyncObjects();
-
-    // VertexBuffer
-    VkBuffer vertexBuffer;
-    VkDeviceMemory vertexBufferMemory;
-
-    VkBuffer indexBuffer;
-    VkDeviceMemory indexBufferMemory;
 
     std::vector<VkBuffer> uniformBuffers;
     std::vector<VkDeviceMemory> uniformBuffersMemory;
@@ -265,7 +261,10 @@ struct vulkanBackend::vulkanBackendImpl
 
     std::vector<DrawInfo> m_DrawList;
     void AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo);
+    bool needToUpdateSecondaryCmdBuffer = false;
 
     VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
     std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
+
+    uint32_t currentFrame = 0;
 };
