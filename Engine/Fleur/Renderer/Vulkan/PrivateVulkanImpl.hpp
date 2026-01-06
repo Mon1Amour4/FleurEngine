@@ -47,13 +47,14 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 {
     if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
     {
-        DBG_PRINTM("debug callback" << pCallbackData->pMessage);
+        DBG_PRINTM("debug callback: " << pCallbackData->pMessage);
         for (size_t i = 0; i < pCallbackData->objectCount; i++)
         {
             if (!pCallbackData->pObjects[i].pObjectName)
                 break;
             DBG_PRINT("", "\t [Object] " << pCallbackData->pObjects[i].pObjectName);
         }
+        std::cout << "\n";
     }
 
     return VK_FALSE;
@@ -215,11 +216,20 @@ struct vulkanBackend::vulkanBackendImpl
     void createCommandPool();
 
     // CommandBuffer
-    std::vector<VkCommandBuffer> m_PrimaryCmdBuffers;
+    struct SFLCmdBuffer
+    {
+        std::vector<VkCommandBuffer> buffers;
+        std::vector<bool> validation;
+        void Invalidate();
+        bool AreValid();
+    };
+    SFLCmdBuffer m_PrimaryCmdBuffers;
     VkCommandBuffer m_GeometrySecondaryCmdBuffer;
     void createCommandBuffers();
     VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
     void InitGeometryPrimaryCmdBuffers();
+    void UpdateGeometryPrimaryBuffer(uint32_t bufferIdx);
+    void UpdateGeometrySecondaryCmdBuffer();
 
     // Synchronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
