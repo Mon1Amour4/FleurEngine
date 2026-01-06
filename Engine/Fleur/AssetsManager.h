@@ -20,6 +20,19 @@ class Model;
 
 namespace Fleur
 {
+
+template <typename T>
+class AssetHandle
+{
+    friend class AssetsManager;
+
+public:
+    AssetHandle() = default;
+
+private:
+    uint32_t ID;
+};
+
 enum EFailure
 {
     WRONG_PATH,
@@ -217,6 +230,20 @@ public:
             FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type");
     }
 
+    template <typename T>
+    AssetHandle<T> MakeHandle(std::string_view name)
+    {
+        static uint32_t counter = 0;
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            auto pair = m_Images.emplace(counter, Fleur::Graphics::Image2D());
+            auto handle = AssetHandle<Fleur::Graphics::Image2D>();
+            handle.ID = pair.first->first;
+            counter++;
+            return handle;
+        }
+    }
+
 private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> m_Models;
 
@@ -258,6 +285,9 @@ private:
 
     std::unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Shader>> m_ShaderMap;
     void load_all_shaders();
+
+    std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_Images;
 };
+
 
 }  // namespace Fleur

@@ -140,7 +140,6 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view 
                 return;
             }
 
-            // handle->SetResource(std::make_shared<Model>(fileName, data));
             Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(fileName, data);
             Fleur::Graphics::Model* model = fabric.ProcessModel();
             handle->SetSuccess();

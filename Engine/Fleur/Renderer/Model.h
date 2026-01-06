@@ -1,11 +1,12 @@
 #pragma once
 
 #include "Graphics.hpp"
+#include "Material.h"
 
 namespace Fleur::Graphics
 {
 struct SVertexData;
-class Material;
+// class Material;
 
 class FLEUR_API Model
 {

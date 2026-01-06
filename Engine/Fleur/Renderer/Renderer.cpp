@@ -519,19 +519,19 @@ void Fleur::Graphics::Renderer::SkyboxPass() const
     if (!m_Skybox)
         return;
 
-    m_SkyboxCmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
-    m_SkyboxCmd->BeginRecording();
-    m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
+    /* m_SkyboxCmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
+     m_SkyboxCmd->BeginRecording();
+     m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
 
-    m_SkyboxCmd->ShaderObject()->Use();
+     m_SkyboxCmd->ShaderObject()->Use();
 
-    m_SkyboxCmd->ShaderObject()->Set("view", m_Camera->GetView());
-    m_SkyboxCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
+     m_SkyboxCmd->ShaderObject()->Set("view", m_Camera->GetView());
+     m_SkyboxCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
 
-    m_SkyboxCmd->ShaderObject()->BindMaterial(m_Skybox->GetMaterial());
-    m_SkyboxCmd->Draw(m_Skybox->GetVertexCount() / 3);
+     m_SkyboxCmd->ShaderObject()->BindMaterial(m_Skybox->GetMaterial());
+     m_SkyboxCmd->Draw(m_Skybox->GetVertexCount() / 3);
 
-    m_SkyboxCmd->PopDebugGroup();
+     m_SkyboxCmd->PopDebugGroup();*/
 }
 
 void Fleur::Graphics::Renderer::StaticGeometryPass() const
@@ -575,9 +575,9 @@ void Fleur::Graphics::Renderer::StaticGeometryPass() const
 
 Fleur::Graphics::QuadRenderer::QuadRenderer(const Texture* texture)
 {
-    ShaderComponentContext ctx{};
+    /*ShaderComponentContext ctx{};
     ctx.albedo_text.second = static_cast<const Fleur::Graphics::Texture*>(texture);
-    m_Material = Material::CreateMaterial(ctx);
+    m_Material = Material::CreateMaterial(ctx);*/
 
     // m_Shader = ShaderObject::CreateShaderObject("QuadShader", "static_geo.frag", )
 }

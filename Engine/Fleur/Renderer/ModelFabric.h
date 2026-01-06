@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetsManager.h"
 #include "External/cgltf/cgltf.h"
 #include "Model.h"
 
