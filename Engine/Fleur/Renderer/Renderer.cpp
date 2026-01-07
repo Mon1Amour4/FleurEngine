@@ -61,21 +61,21 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
         return GetLoadedTexture("fallback");
 
     // Try to find first across loaded textures:
-    auto it = m_Textures.find(name.data());
-    if (it != m_Textures.end())
-        return it->second;
+    // auto it = m_Textures.find(name.data());
+    // if (it != m_Textures.end())
+    //    return it->second;
 
-    // Create image
-    std::shared_ptr<Fleur::Graphics::Image2D> image{nullptr};
-    auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
-    auto existingImg = assetsManager->Get<Fleur::Graphics::Image2D>(name);
-    if (!existingImg.expired())
-        image = existingImg.lock();
-    else
-        image = assetsManager->LoadImage2DFromColor(name, color, width, height)->Resource();
+    //// Create image
+    // std::shared_ptr<Fleur::Graphics::Image2D> image{nullptr};
+    // auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
+    // auto existingImg = assetsManager->Get<Fleur::Graphics::Image2D>(name);
+    // if (!existingImg.expired())
+    //     image = existingImg.lock();
+    // else
+    //     image = assetsManager->LoadImage2DFromColor(name, color, width, height)->Resource();
 
-    auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
-    return m_Textures.emplace(image->Name(), texture).first->second;
+    // auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
+    // return m_Textures.emplace(image->Name(), texture).first->second;
 }
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img)

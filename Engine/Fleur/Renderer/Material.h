@@ -6,11 +6,14 @@
 
 namespace Fleur::Graphics
 {
+
+
 struct Material
 {
-    AssetHandle<Image2D> albedo;
-    AssetHandle<Image2D> normal;
+    AssetID albedo;
+    AssetID normal;
 };
+
 // class TextureBase;
 //
 // struct ShaderComponentContext

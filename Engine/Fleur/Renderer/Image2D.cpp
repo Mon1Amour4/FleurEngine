@@ -80,6 +80,10 @@ Fleur::Graphics::Image2D::Image2D()
     : ImageBase()
 {
 }
+Fleur::Graphics::Image2D::Image2D(std::string_view name)
+    : ImageBase(name, "", 1)
+{
+}
 Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext)
     : ImageBase(name, ext, 1)
 {

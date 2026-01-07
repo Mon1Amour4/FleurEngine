@@ -6,6 +6,7 @@ namespace Fleur::Graphics
 class Color
 {
 public:
+    Color() = default;
     Color(int r, int g = 0, int b = 0, int a = 0);
     Color(float r, float g = 0.f, float b = 0.f, float a = 0.f);
     ~Color() = default;

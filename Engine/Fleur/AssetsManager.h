@@ -10,6 +10,9 @@
 
 #define SHARED_RES(Res) std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
 #define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
+#define ASSET_HANDLE(Res) const std::shared_ptr<Fleur::ResourceHandle<Res>>
+
+using AssetID = uint32_t;
 
 namespace Fleur::Graphics
 {
@@ -121,7 +124,7 @@ public:
     [[nodiscard]] CONST_SHARED_RES(Image2D)
         LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint16_t channels, uint32_t width, uint32_t height);
 
-    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
+    [[nodiscard]] AssetID LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
     std::shared_ptr<Fleur::ResourceHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
@@ -231,18 +234,20 @@ public:
     }
 
     template <typename T>
-    AssetHandle<T> MakeHandle(std::string_view name)
+    AssetID MakeHandle(std::string_view name)
     {
-        static uint32_t counter = 0;
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
-            auto pair = m_Images.emplace(counter, Fleur::Graphics::Image2D());
-            auto handle = AssetHandle<Fleur::Graphics::Image2D>();
-            handle.ID = pair.first->first;
-            counter++;
-            return handle;
+            AssetID ID = m_StaticID;
+            auto pair = m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name));
+            m_AssetToLoadID.push_back(ID);
+            m_StaticID++;
+
+            return ID;
         }
     }
+
+    AssetID LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size);
 
 private:
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> m_Models;
@@ -286,7 +291,9 @@ private:
     std::unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Shader>> m_ShaderMap;
     void load_all_shaders();
 
-    std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_Images;
+    std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_ImagesMap;
+    std::vector<uint32_t> m_AssetToLoadID;
+    static std::atomic<uint32_t> m_StaticID;
 };
 
 

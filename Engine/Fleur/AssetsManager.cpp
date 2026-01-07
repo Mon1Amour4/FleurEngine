@@ -27,6 +27,8 @@ using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;
 using CubemapImage = Fleur::Graphics::CubemapImage;
 
+std::atomic<uint32_t> Fleur::AssetsManager::m_StaticID = 0;
+
 Fleur::AssetsManager::AssetsManager()
     : m_ModelsCount(0)
     , m_Images2DCount(0)
@@ -388,12 +390,26 @@ Fleur::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned cha
     return handle;
 }
 
-CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height)
+AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
 {
-    std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Image2D>> handle{nullptr};
-    if (name.empty())
-        return handle;
+    assert(pData && size > 0);
 
+    AssetID ID = m_StaticID;
+    auto pair = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name));
+    m_AssetToLoadID.push_back(ID);
+    m_StaticID++;
+
+    int w, h, channels = 0;
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
+    unsigned char* imgData = stbi_load_from_memory(pData, static_cast<int>(size), &w, &h, &channels, 0);
+
+    auto img = &m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name, "", pData, w, h, channels, 1)).first->second;
+    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
+    return ID;
+}
+
+AssetID Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height)
+{
     uint32_t channels = Fleur::Graphics::Color::Channels(color);
     size_t size = width * height * channels;
 
@@ -405,10 +421,12 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromColor(std::string
     {
         std::memcpy(data + i * channels, &colorData, channels);
     }
-    auto img = m_Images2D.emplace(name, std::make_shared<Image2D>(name, "-", data, width, height, static_cast<uint16_t>(channels), static_cast<uint16_t>(1)))
-                   .first->second;
 
-    return std::make_shared<Fleur::ResourceHandle<Image2D>>(img, ELoadingSts::SUCCESS);
+    AssetID ID = m_StaticID;
+    auto pair = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1));
+    m_StaticID++;
+
+    return ID;
 }
 
 // CubemapImage:

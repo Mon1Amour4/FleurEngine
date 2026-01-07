@@ -108,6 +108,7 @@ public:
     Image2D();
     ~Image2D() = default;
 
+    Image2D(std::string_view name);
     Image2D(std::string_view name, std::string_view ext);
     Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
     Image2D(std::string_view name, std::string_view ext, int w, int h, uint16_t channels, uint16_t depth);
