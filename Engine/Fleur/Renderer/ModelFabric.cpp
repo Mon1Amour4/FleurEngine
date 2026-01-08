@@ -13,7 +13,6 @@ Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const
 
 Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool async)
 {
-    // auto renderer = Fleur::ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
     Fleur::Memory::FleurAllocator<Fleur::Graphics::Model> allocator;
@@ -85,7 +84,7 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
                     c = Color(*color, *(color + 1));
                 else
                     c = Color(*color);
-                assetsManager->LoadImage2DFromColor(materialName, c, 128, 128);
+                flMaterial.albedo = assetsManager->LoadImage2DFromColor(materialName, c, 128, 128);
 
                 ++solidTextureIdx;
             }
@@ -120,6 +119,7 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
         modelMesh.m_MeshVertexStart = model->m_Vertices.size();
         modelMesh.m_MeshIndexStart = model->m_Indices.size();
 
+        model->m_PrimitiveCount += cgltfMesh->primitives_count;
         for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
         {
             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];

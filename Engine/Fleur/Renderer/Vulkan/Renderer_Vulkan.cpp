@@ -13,9 +13,9 @@ vulkanBackend::~vulkanBackend()
 {
     delete pImpl;
 }
-void vulkanBackend::AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo)
+void vulkanBackend::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
-    pImpl->AddToDrawList(pInfo);
+    pImpl->AddToDrawList(pModelView);
 }
 void vulkanBackend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
@@ -1422,20 +1422,43 @@ std::array<VkVertexInputAttributeDescription, 3> vulkanBackend::vulkanBackendImp
     return attributeDescriptions;
 }
 
-void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo)
+void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
-    auto& draw = m_DrawList.emplace_back();
+    uint64_t globalIndexOffset = m_IndexBuffer.currentSizeBytes / m_IndexBuffer.strideSizeBytes;
+    uint64_t globalVertexOffset = m_VertexBuffer.currentSizeBytes / m_VertexBuffer.strideSizeBytes;
 
-    draw.indexCount = pInfo->indexCount;
-    draw.vertexOffset = m_VertexBuffer.currentSizeBytes / m_VertexBuffer.strideSizeBytes;
-    draw.indexOffset = m_IndexBuffer.currentSizeBytes / m_IndexBuffer.strideSizeBytes;
+    UploadDataToBuffer(&m_IndexBuffer, pModelView->indecies.pData, pModelView->indecies.count);
+    UploadDataToBuffer(&m_VertexBuffer, pModelView->vertecies.pData, pModelView->vertecies.count);
 
-    UploadDataToBuffer(&m_VertexBuffer, pInfo->pVertex, pInfo->vertexCount);
-    UploadDataToBuffer(&m_IndexBuffer, pInfo->pIndex, pInfo->indexCount);
+    auto material = reinterpret_cast<const Fleur::Graphics::SFLMaterialView*>(pModelView->materials.pData);
+    for (size_t i = 0; i < pModelView->meshes.count; i++)
+    {
+        auto& mesh = pModelView->meshes.pData[i];
+
+        auto& draw = m_DrawList.emplace_back();
+
+        draw.indexCount = mesh.indexCount;
+        draw.vertexCount = mesh.vertexCount;
+
+        draw.indexOffset = globalIndexOffset;
+        draw.vertexOffset = globalVertexOffset;
+
+
+        // Get Texture ID by CPU ID: material->albedoID
+        // Get Texture ID by CPU ID: material->normalID
+        const auto& material = pModelView->materials.pData[mesh.materialIdx];
+        SGPUMaterial gpuMaterial{};
+        // gpuMaterial.albedo = GetTextureFromID(material->albedoID);
+        // gpuMaterial.normal = GetTextureFromID(material->normalID);
+
+        globalIndexOffset += draw.indexCount;
+        //globalVertexOffset += draw.vertexCount;
+    }
 
     needToUpdateSecondaryCmdBuffer = true;
     m_PrimaryCmdBuffers.Invalidate();
 }
+
 
 void vulkanBackend::vulkanBackendImpl::SFLCmdBuffer::Invalidate()
 {

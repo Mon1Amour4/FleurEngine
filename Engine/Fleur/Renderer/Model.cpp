@@ -12,6 +12,7 @@ Fleur::Graphics::Model::Model(std::string_view modelName)
     , m_MeshCount(0)
     , m_ModelVertexCount(0)
     , m_ModelIndicesCount(0)
+    , m_PrimitiveCount(0)
 {
 }
 
@@ -24,6 +25,7 @@ Fleur::Graphics::Model::Model(Model&& other) noexcept
     , m_Vertices(std::move(other.m_Vertices))
     , m_Indices(std::move(other.m_Indices))
     , m_Materials(std::move(other.m_Materials))
+    , m_PrimitiveCount(other.m_PrimitiveCount)
 {
     other.m_MeshCount = 0;
     other.m_ModelVertexCount = 0;
@@ -38,10 +40,12 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
         m_ModelVertexCount = other.m_ModelVertexCount;
         m_Meshes = std::move(other.m_Meshes);
         m_ModelIndicesCount = other.m_ModelIndicesCount;
+        m_PrimitiveCount = other.m_PrimitiveCount;
 
         other.m_MeshCount = 0;
         other.m_ModelVertexCount = 0;
         other.m_ModelIndicesCount = 0;
+        other.m_PrimitiveCount = 0;
     }
     return *this;
 }

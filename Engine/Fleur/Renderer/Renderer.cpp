@@ -242,13 +242,44 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTe
 
 void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
 {
-    SFLDrawUploadInfo uploadInfo{};
-    uploadInfo.pVertex = model->GetVerticesData();
-    uploadInfo.vertexCount = model->GetVertexCount();
-    uploadInfo.pIndex = model->GetIndicesData();
-    uploadInfo.indexCount = model->GetIndicesCount();
+    Fleur::Graphics::SFLModelView modelView{};
+    modelView.indecies.pData = model->GetIndicesData();
+    modelView.indecies.count = model->GetIndicesCount();
+    modelView.vertecies.pData = model->GetVerticesData();
+    modelView.vertecies.count = model->GetVertexCount();
 
-    m_Backend->AddToDrawList(&uploadInfo);
+    std::vector<SFLMaterialView> materials;
+    materials.reserve(model->GetMaterialsCount());
+    for (size_t i = 0; i < model->GetMaterialsCount(); i++)
+    {
+        const auto& material = model->GetMaterialsData() + i;
+        materials.emplace_back(material->albedo, material->normal);
+    }
+    Fleur::Graphics::SFLMaterialViewInfo materialViewInfo{};
+    materialViewInfo.pData = materials.data();
+    materialViewInfo.count = materials.size();
+
+    modelView.materials = materialViewInfo;
+
+    std::vector<Fleur::Graphics::SFLMeshView> meshes;
+    meshes.reserve(model->GetMeshCount());
+    for (size_t i = 0; i < model->GetMeshCount(); i++)
+    {
+        const auto& mesh = model->GetMeshData() + i;
+        for (size_t i = 0; i < mesh->PrimitivesCount(); i++)
+        {
+            const auto& primitive = mesh->Primitives() + i;
+
+            auto& meshView = meshes.emplace_back();
+            meshView.indexCount = primitive->IndexCount();
+            meshView.vertexCount = primitive->VertexCount();
+            meshView.materialIdx = primitive->MaterialIdx();
+        }
+    }
+    modelView.meshes.pData = meshes.data();
+    modelView.meshes.count = meshes.size();
+
+    m_Backend->AddToDrawList(&modelView);
 
     /* return;
      switch (stage)
@@ -441,7 +472,7 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
     //    m_GizmoCmd->ShaderObject()->Set("model", model);
     //    m_GizmoCmd->ShaderObject()->Set("view", view);
 
-    //    const auto* meshes = draw_info.Model->GetMeshesPtr();
+    //    const auto* meshes = draw_info.Model->GetMeshData();
 
     //    uint32_t indexInnerOffsetBytes = 0;
     //    for (const auto& mesh : *meshes)
@@ -549,7 +580,7 @@ void Fleur::Graphics::Renderer::StaticGeometryPass() const
         m_StaticGeometryCmd->ShaderObject()->Set("view", m_Camera->GetView());
         m_StaticGeometryCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
 
-        const auto* meshes = draw_info.Model->GetMeshesPtr();
+        const auto* meshes = draw_info.Model->GetMeshData();
 
         uint32_t indexInnerOffsetBytes = 0;
         for (const auto& mesh : *meshes)

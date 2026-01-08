@@ -147,6 +147,15 @@ public:
     {
         return m_ModelIndicesCount;
     }
+    inline uint32_t GetMaterialsCount() const
+    {
+        return m_Materials.size();
+    }
+    inline uint32_t GetPrimitiveCount() const
+    {
+        return m_PrimitiveCount;
+    }
+
     [[nodiscard]] inline const Fleur::Graphics::SVertexData* GetVerticesData() const
     {
         return m_Vertices.data();
@@ -155,9 +164,13 @@ public:
     {
         return m_Indices.data();
     }
-    [[nodiscard]] const std::vector<Fleur::Graphics::Model::Mesh>* GetMeshesPtr() const
+    [[nodiscard]] const Fleur::Graphics::Model::Mesh* GetMeshData() const
     {
-        return &m_Meshes;
+        return m_Meshes.data();
+    }
+    [[nodiscard]] inline const Fleur::Graphics::Material* GetMaterialsData() const
+    {
+        return m_Materials.data();
     }
 
     const Material* GetMaterial(uint32_t idx) const;
@@ -168,6 +181,7 @@ public:
 private:
     std::string m_Name;
     uint32_t m_MeshCount;
+    uint32_t m_PrimitiveCount;
     uint32_t m_ModelVertexCount;
     uint32_t m_ModelIndicesCount;
     std::vector<Fleur::Graphics::SVertexData> m_Vertices;

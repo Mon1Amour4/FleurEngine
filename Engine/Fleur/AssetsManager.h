@@ -6,11 +6,12 @@
 #include "../External/tbb/include/oneapi/tbb/concurrent_unordered_map.h"
 #include "Renderer/Color.h"
 #include "Renderer/Shader.h"
+#include "Renderer/Image2D.h"
 #include "Services/ServiceInterfaces.hpp"
 
-#define SHARED_RES(Res) std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
-#define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::ResourceHandle<Fleur::Graphics::Res>>
-#define ASSET_HANDLE(Res) const std::shared_ptr<Fleur::ResourceHandle<Res>>
+#define SHARED_RES(Res) std::shared_ptr<Fleur::AsyncOperationHandle<Fleur::Graphics::Res>>
+#define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::AsyncOperationHandle<Fleur::Graphics::Res>>
+#define ASSET_HANDLE(Res) const std::shared_ptr<Fleur::AsyncOperationHandle<Res>>
 
 using AssetID = uint32_t;
 
@@ -23,18 +24,6 @@ class Model;
 
 namespace Fleur
 {
-
-template <typename T>
-class AssetHandle
-{
-    friend class AssetsManager;
-
-public:
-    AssetHandle() = default;
-
-private:
-    uint32_t ID;
-};
 
 enum EFailure
 {
@@ -51,19 +40,19 @@ enum ELoadingSts
 };
 
 template <typename T>
-class ResourceHandle
+class AsyncOperationHandle
 {
 public:
-    ResourceHandle(std::shared_ptr<T> resource, ELoadingSts status, std::optional<EFailure> failure = std::nullopt)
+    AsyncOperationHandle(std::shared_ptr<T> resource, ELoadingSts status, std::optional<EFailure> failure = std::nullopt)
         : m_Obj(resource)
         , m_Status(status)
         , m_Failure(failure) {};
 
-    ResourceHandle(std::shared_ptr<T> resource)
+    AsyncOperationHandle(std::shared_ptr<T> resource)
         : m_Obj(resource)
         , m_Status(m_Status) {};
-    ResourceHandle() = default;
-    ~ResourceHandle() = default;
+    AsyncOperationHandle() = default;
+    ~AsyncOperationHandle() = default;
 
     ELoadingSts Status()
     {
@@ -127,9 +116,9 @@ public:
     [[nodiscard]] AssetID LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
     template <class Res>
-    std::shared_ptr<Fleur::ResourceHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
+    std::shared_ptr<Fleur::AsyncOperationHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
     {
-        std::shared_ptr<Fleur::ResourceHandle<Res>> result{nullptr};
+        std::shared_ptr<Fleur::AsyncOperationHandle<Res>> result{nullptr};
         if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::Image2D>)
         {
             if (async)
@@ -152,7 +141,7 @@ public:
                 return load_cubemap_image(path, flipVertical);
         }
         FL_CORE_ASSERT(false, "");
-        return std::shared_ptr<Fleur::ResourceHandle<Res>>{};
+        return std::shared_ptr<Fleur::AsyncOperationHandle<Res>>{};
     }
 
     template <class Res>
@@ -239,8 +228,10 @@ public:
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
             AssetID ID = m_StaticID;
-            auto pair = m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name));
-            m_AssetToLoadID.push_back(ID);
+            auto& img = m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name)).first->second;
+
+            load_image_async(img);
+
             m_StaticID++;
 
             return ID;
@@ -276,12 +267,12 @@ private:
     uint16_t ImageChannels(std::string_view image2DExt);
 
     template <typename Map>
-    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<ResourceHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
+    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<AsyncOperationHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
     {
         auto it = map.find(key);
         if (it != map.end())
         {
-            handleOut = std::make_shared<ResourceHandle<typename Map::mapped_type::element_type>>(it->second);
+            handleOut = std::make_shared<AsyncOperationHandle<typename Map::mapped_type::element_type>>(it->second);
             handleOut->SetSuccess();
             return true;
         }
@@ -292,8 +283,8 @@ private:
     void load_all_shaders();
 
     std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_ImagesMap;
-    std::vector<uint32_t> m_AssetToLoadID;
     static std::atomic<uint32_t> m_StaticID;
+    void load_image_async(Fleur::Graphics::Image2D& img);
 };
 
 

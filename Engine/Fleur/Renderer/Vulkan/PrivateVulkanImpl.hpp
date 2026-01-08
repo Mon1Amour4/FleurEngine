@@ -105,11 +105,20 @@ struct vulkanBackend::vulkanBackendImpl
         }
     };
 
+    struct SGPUMaterial
+    {
+        // VkTexture* albedo;
+        // VkTexture* normal;
+    };
     struct DrawInfo
     {
         uint64_t indexCount = 0;
+        uint64_t vertexCount = 0;
+
         uint64_t indexOffset = 0;
         uint64_t vertexOffset = 0;
+
+        SGPUMaterial material;
     };
 
     struct SFLSwapchain
@@ -126,6 +135,8 @@ struct vulkanBackend::vulkanBackendImpl
         uint32_t framebuffersCount;
     };
 
+    // CPU ID to corresponding Vulkan Texture
+    // std::unordered_map<uint32_t, VkTexture> m_TextureMap;
 #pragma endregion
 
     vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize);
@@ -270,7 +281,7 @@ struct vulkanBackend::vulkanBackendImpl
 
 
     std::vector<DrawInfo> m_DrawList;
-    void AddToDrawList(Fleur::Graphics::SFLDrawUploadInfo* pInfo);
+    void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView);
     bool needToUpdateSecondaryCmdBuffer = false;
 
     VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
