@@ -2,60 +2,13 @@
 
 #include "../WindowPrimitives.hpp"
 #include "Graphics.hpp"
+#include "RenderViews.hpp"
 #include "glm/glm.hpp"
 
 namespace Fleur::Graphics
 {
 
 #pragma region Structs&Enums
-
-struct SFLImageView
-{
-    const char* pData = nullptr;
-    uint32_t w = 0;
-    uint32_t h = 0;
-    uint32_t layerCount = 0;
-};
-
-struct SFLMaterialView
-{
-    uint32_t albedoID;
-    uint32_t normalID;
-};
-struct SFLMaterialViewInfo
-{
-    SFLMaterialView* pData;
-    uint32_t count;
-};
-
-struct SFLMeshView
-{
-    uint64_t indexCount;
-    uint64_t vertexCount;
-
-    uint32_t materialIdx;
-};
-struct SFLMeshViewInfo
-{
-    SFLMeshView* pData;
-    uint32_t count;
-};
-
-struct SFLBufferView
-{
-    const void* pData;
-    uint64_t count;
-};
-
-struct SFLModelView
-{
-    SFLBufferView vertecies;
-    SFLBufferView indecies;
-
-    SFLMeshViewInfo meshes;
-
-    SFLMaterialViewInfo materials;
-};
 
 enum EFLInputAssemblyTopology
 {
@@ -113,6 +66,7 @@ struct IRenderer
     virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) = 0;
     virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) = 0;
     virtual void ResizeEvent(Fleur::SRect& rect) = 0;
+    virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
 };
 
 }  // namespace Fleur::Graphics

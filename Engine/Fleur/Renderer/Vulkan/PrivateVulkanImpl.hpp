@@ -288,4 +288,17 @@ struct vulkanBackend::vulkanBackendImpl
     std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
 
     uint32_t currentFrame = 0;
+
+    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView);
+    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
+                     VkImage& image, VkDeviceMemory& imageMemory);
+    struct Texture
+    {
+        const char* pData = nullptr;
+        uint32_t w = 0;
+        uint32_t h = 0;
+        uint32_t layerCount = 0;
+    };
+    std::unordered_map<uint32_t, Texture> m_TextureMap;
+    void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 };

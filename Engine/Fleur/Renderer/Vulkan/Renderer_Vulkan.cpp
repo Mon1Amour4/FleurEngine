@@ -21,6 +21,10 @@ void vulkanBackend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pImpl->update(pUbo);
 }
+void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
+{
+    pImpl->SubmitImageViews(pInfo);
+}
 void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 {
     pImpl->resize_event(rect);
@@ -1034,7 +1038,7 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
 
-     if (needToUpdateSecondaryCmdBuffer)
+    if (needToUpdateSecondaryCmdBuffer)
     {
         uint32_t prevFrame = (currentFrame + m_Swapchain.framebuffersCount - 1) % m_Swapchain.framebuffersCount;
         vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[prevFrame], VK_TRUE, UINT64_MAX);
@@ -1452,7 +1456,7 @@ void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelVi
         // gpuMaterial.normal = GetTextureFromID(material->normalID);
 
         globalIndexOffset += draw.indexCount;
-        //globalVertexOffset += draw.vertexCount;
+        // globalVertexOffset += draw.vertexCount;
     }
 
     needToUpdateSecondaryCmdBuffer = true;
@@ -1475,4 +1479,75 @@ bool vulkanBackend::vulkanBackendImpl::SFLCmdBuffer::AreValid()
             return false;
     }
     return true;
+}
+
+
+void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
+{
+    for (size_t i = 0; i < pInfo->count; i++)
+    {
+        auto imageView = pInfo->pData + i;
+        m_TextureMap.emplace(imageView->ID, Texture(imageView->pData, imageView->w, imageView->h, imageView->layerCount)).first->second;
+        CreateTextureImage(*imageView);
+    }
+}
+void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView)
+{
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    VkDeviceSize imageSize = imageView.w * imageView.h * 4;
+
+    void* data;
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, imageView.pData, static_cast<size_t>(imageSize));
+    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
+    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
+
+    VkImage textureImage;
+    VkDeviceMemory textureImageMemory;
+
+    createImage(imageView.w, imageView.h, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureImageMemory);
+}
+
+void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
+                                                   VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = tiling;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = usage;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    if (vkCreateImage(m_LogicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to create image!");
+        assert(true);
+    }
+
+    VkMemoryRequirements memRequirements;
+    vkGetImageMemoryRequirements(m_LogicalDevice, image, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+
+    if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to Allocate memory for image!");
+        assert(true);
+    }
+
+    vkBindImageMemory(m_LogicalDevice, image, imageMemory, 0);
 }

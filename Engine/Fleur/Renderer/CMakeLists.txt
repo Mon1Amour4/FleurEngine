@@ -7,6 +7,7 @@ SET(RENDERER_PRIVATE_INCLUDE_DIRECTORIES "")
 
 SET(PROJECT_HEADERS
     IRenderer.hpp
+    RenderViews.hpp
     # Buffer.h
     # CommandBuffer.h
     # CommandPool.h

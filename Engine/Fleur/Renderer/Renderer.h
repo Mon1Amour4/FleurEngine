@@ -102,6 +102,8 @@ public:
         return std::shared_ptr<Resource>{nullptr};
     }
 
+    void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
+
     void UpdateViewport(Fleur::SRect& rect);
 
 private:

@@ -5,8 +5,9 @@
 
 #include "../External/tbb/include/oneapi/tbb/concurrent_unordered_map.h"
 #include "Renderer/Color.h"
-#include "Renderer/Shader.h"
 #include "Renderer/Image2D.h"
+#include "Renderer/RenderViews.hpp"
+#include "Renderer/Shader.h"
 #include "Services/ServiceInterfaces.hpp"
 
 #define SHARED_RES(Res) std::shared_ptr<Fleur::AsyncOperationHandle<Fleur::Graphics::Res>>
@@ -95,7 +96,7 @@ private:
     std::optional<EFailure> m_Failure;
 };
 
-class AssetsManager : public Service<AssetsManager>
+class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
 public:
     friend class Application;
@@ -234,13 +235,19 @@ public:
 
             m_StaticID++;
 
+            m_ImagesToUpload.emplace_back(ID, (const char*)img.Data(), img.Width(), img.Height(), img.Layers());
+
             return ID;
         }
     }
 
     AssetID LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size);
 
+    void OnUpdate(float dtTime);
+
 private:
+    std::atomic<bool> needToUploadResources;
+
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> m_Models;
 
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Image2D>> m_Images2D;
@@ -267,7 +274,8 @@ private:
     uint16_t ImageChannels(std::string_view image2DExt);
 
     template <typename Map>
-    bool is_already_loaded(const Map& map, const std::string& key, std::shared_ptr<AsyncOperationHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
+    bool is_already_loaded(const Map& map, const std::string& key,
+                           std::shared_ptr<AsyncOperationHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
     {
         auto it = map.find(key);
         if (it != map.end())
@@ -283,6 +291,7 @@ private:
     void load_all_shaders();
 
     std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_ImagesMap;
+    std::vector<Fleur::Graphics::SFLImageView> m_ImagesToUpload;
     static std::atomic<uint32_t> m_StaticID;
     void load_image_async(Fleur::Graphics::Image2D& img);
 };

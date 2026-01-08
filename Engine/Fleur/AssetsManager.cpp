@@ -32,6 +32,7 @@ std::atomic<uint32_t> Fleur::AssetsManager::m_StaticID = 0;
 Fleur::AssetsManager::AssetsManager()
     : m_ModelsCount(0)
     , m_Images2DCount(0)
+    , needToUploadResources(false)
 {
     m_Models.reserve(10);
     m_Images2D.reserve(10);
@@ -91,6 +92,9 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
     FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), handle->Resource()->GetName());
 
     cgltf_free(data);
+
+    needToUploadResources = true;
+
     return handle;
 }
 CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view path)
@@ -158,6 +162,8 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view 
                 m_ModelsToLoadAsync.unsafe_erase(it);
             }
             cgltf_free(data);
+
+            needToUploadResources = true;
         },
         path, fileName, handle);
 
@@ -220,7 +226,8 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d_async(std::string_v
             return it->second;
     }
 
-    handle = m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::AsyncOperationHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
+    handle =
+        m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::AsyncOperationHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
@@ -317,7 +324,8 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::LoadImage2DFromMemoryAsync(std::
     if (it != m_Images2DToLoadAsync.end() && it->second->Status() != CORRUPTED)
         return it->second;
 
-    handle = m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::AsyncOperationHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
+    handle =
+        m_Images2DToLoadAsync.emplace(fileName, std::make_shared<Fleur::AsyncOperationHandle<Image2D>>(std::make_shared<Image2D>(fileName, ext))).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
     threadPool->Submit(
@@ -404,6 +412,8 @@ AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigne
 
     auto img = &m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name, "", pData, w, h, channels, 1)).first->second;
     FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
+
+    m_ImagesToUpload.emplace_back(ID, (const char*)img->Data(), img->Width(), img->Height(), img->Layers());
     return ID;
 }
 
@@ -460,7 +470,8 @@ CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image_async(st
     handle = m_CubemapImagesToLoadAsync.emplace(path, std::make_shared<Fleur::AsyncOperationHandle<CubemapImage>>()).first->second;
 
     threadPool->Submit(
-        [this](std::shared_ptr<Fleur::AsyncOperationHandle<Image2D>> imgHandle, std::shared_ptr<Fleur::AsyncOperationHandle<CubemapImage>> cubemapHandle, bool flipVertical)
+        [this](std::shared_ptr<Fleur::AsyncOperationHandle<Image2D>> imgHandle, std::shared_ptr<Fleur::AsyncOperationHandle<CubemapImage>> cubemapHandle,
+               bool flipVertical)
         {
             UNUSED(flipVertical);
 
@@ -553,6 +564,21 @@ void Fleur::AssetsManager::OnShutdown()
 {
 }
 
+void Fleur::AssetsManager::OnUpdate(float dtTime)
+{
+    if (needToUploadResources)
+    {
+        auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+
+        Fleur::Graphics::SFLImageViewInfo info{};
+        info.pData = m_ImagesToUpload.data();
+        info.count = m_ImagesToUpload.size();
+        renderer->SubmitImageViews(&info);
+
+        m_ImagesToUpload.clear();
+    }
+}
+
 
 //======================================================================
 // Shader
@@ -579,7 +605,8 @@ void Fleur::AssetsManager::load_image_async(Fleur::Graphics::Image2D& img)
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
-    threadPool->Submit([this](Fleur::Graphics::Image2D* image, bool flipVertical)
+    threadPool->Submit(
+        [this](Fleur::Graphics::Image2D* image, bool flipVertical)
         {
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -605,6 +632,5 @@ void Fleur::AssetsManager::load_image_async(Fleur::Graphics::Image2D& img)
 
             stbi_image_free(imgData);
         },
-        &img, false
-    );
+        &img, false);
 }

@@ -3,6 +3,7 @@
 #include <span>
 
 #include "FleurAllocator.hpp"
+#include "Renderer.h"
 
 // Backend
 #include "Vulkan/Renderer_Vulkan.h"
@@ -528,6 +529,11 @@ void Fleur::Graphics::Renderer::OnPostUpdate(float dtTime)
 void Fleur::Graphics::Renderer::OnFixedUpdate()
 {
     // TODO
+}
+
+void Fleur::Graphics::Renderer::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
+{
+    m_Backend->SubmitImageViews(pInfo);
 }
 
 void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)

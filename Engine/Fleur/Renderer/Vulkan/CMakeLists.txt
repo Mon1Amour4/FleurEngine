@@ -8,6 +8,7 @@ SET(PROJECT_HEADERS
     # IRenderer
     ../IRenderer.hpp
     ../Graphics.hpp
+    ../RenderViews.hpp
     # Vulkan
     PrivateVulkanImpl.hpp
     Renderer_Vulkan.h

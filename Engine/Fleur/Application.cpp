@@ -276,6 +276,7 @@ void Fleur::Application::Run()
             layer->OnUpdate(dtTime);
         }
 
+        assetsManager->OnUpdate(dtTime);
         renderer->OnUpdate(dtTime);
         renderer->Present();
         m_Window->SetMouseWheelScrollData(0, 0);
