@@ -121,6 +121,12 @@ struct vulkanBackend::vulkanBackendImpl
         SGPUMaterial material;
     };
 
+    struct SGPUTexture
+    {
+        VkImage image;
+        VkDeviceMemory memory;
+    };
+
     struct SFLSwapchain
     {
         VkSwapchainKHR swapchain;
@@ -289,16 +295,20 @@ struct vulkanBackend::vulkanBackendImpl
 
     uint32_t currentFrame = 0;
 
-    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView);
+    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory);
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
                      VkImage& image, VkDeviceMemory& imageMemory);
-    struct Texture
-    {
-        const char* pData = nullptr;
-        uint32_t w = 0;
-        uint32_t h = 0;
-        uint32_t layerCount = 0;
-    };
-    std::unordered_map<uint32_t, Texture> m_TextureMap;
+
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
+
+    VkCommandBuffer beginSingleTimeCommands();
+    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    VkImageView createTextureImageView(VkImage& image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format);
+    VkSampler createTextureSampler();
+    VkSampler m_ImageSampler;
+    std::unordered_map<uint32_t, SGPUTexture> m_TextureMap;
+    void UpdateDescriptorSets(VkDescriptorSet& descriptorSet, VkImageView& imageView, VkSampler& sampler);
 };
