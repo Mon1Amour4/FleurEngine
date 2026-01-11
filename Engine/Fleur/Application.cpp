@@ -187,18 +187,21 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto fileSystem = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
     fileSystem.value()->Init();
 
+    auto threadPool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
+    threadPool.value()->Init();
+
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
+
+    // const Fleur::AsyncOperation<Image2D>* handle = assetsManager.value()->LoadAsync<Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+
+    Fleur::Asset<Fleur::Graphics::Image2D> fallbackAsset = assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
 
     Fleur::Graphics::Image2D& fallbackImage = assetsManager.value()->CreateFallbackTexture(Color(255, 0, 255, 255));
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
-
-
-    auto threadPool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
-    threadPool.value()->Init();
 
 
     auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());

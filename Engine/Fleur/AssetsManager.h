@@ -14,7 +14,6 @@
 #define CONST_SHARED_RES(Res) const std::shared_ptr<Fleur::AsyncOperationHandle<Fleur::Graphics::Res>>
 #define ASSET_HANDLE(Res) const std::shared_ptr<Fleur::AsyncOperationHandle<Res>>
 
-using AssetID = uint32_t;
 
 namespace Fleur::Graphics
 {
@@ -38,6 +37,22 @@ enum ELoadingSts
     LOADING,
     CORRUPTED,
     SUCCESS
+};
+
+using AssetID = uint32_t;
+
+template <typename T>
+struct Asset
+{
+    AssetID ID;
+    T* obj;
+};
+
+template <typename T>
+struct AsyncOperation
+{
+    Asset<T> asset;
+    ELoadingSts status;
 };
 
 template <typename T>
@@ -252,6 +267,21 @@ public:
 
     void OnUpdate(float dtTime);
 
+    template <typename T>
+    const AsyncOperation<T>* LoadAsync(std::string_view path)
+    {
+        if (path.empty())
+        {
+            return nullptr;
+        }
+
+        return LoadAsyncImageTest(path);
+    }
+
+    Asset<Fleur::Graphics::Image2D> FromColor(std::string_view name, Fleur::Graphics::Color c);
+
+    const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* LoadAsyncImageTest(std::string_view path);
+
 private:
     std::atomic<bool> needToUploadResources;
 
@@ -301,6 +331,11 @@ private:
     std::vector<Fleur::Graphics::SFLImageView> m_ImagesToUpload;
     static std::atomic<uint32_t> m_StaticID;
     void load_image_async(Fleur::Graphics::Image2D& img);
+
+    //////////////////////////////////////////
+    std::unordered_map<AssetID, Fleur::Graphics::Image2D> m_TestMap;
+    std::unordered_map<AssetID, Fleur::AsyncOperation<Fleur::Graphics::Image2D>> m_TestASync;
+    std::atomic<AssetID> m_AssetIDCounter = 0;
 };
 
 

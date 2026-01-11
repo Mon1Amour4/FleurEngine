@@ -403,7 +403,7 @@ Fleur::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned cha
     return handle;
 }
 
-AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
+Fleur::AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
 {
     assert(pData && size > 0);
 
@@ -425,7 +425,7 @@ AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigne
     return ID;
 }
 
-AssetID Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height)
+Fleur::AssetID Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height)
 {
     uint32_t channels = Fleur::Graphics::Color::Channels(color);
     size_t size = width * height * channels;
@@ -679,4 +679,94 @@ void Fleur::AssetsManager::load_image_async(Fleur::Graphics::Image2D& img)
             stbi_image_free(imgData);
         },
         &img, false);
+}
+
+Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphics::Color color)
+{
+    using value_type = Fleur::Graphics::Image2D;
+
+    uint32_t width = 1;
+    uint32_t height = 1;
+    uint32_t channels = Fleur::Graphics::Color::Channels(color);
+
+    size_t size = width * height * channels;
+
+    uint32_t colorData = color.Data();
+
+    Fleur::Memory::FleurAllocator<unsigned char> alloc;
+    unsigned char* data = alloc.allocate(size);
+    for (size_t i = 0; i < width * height * channels; ++i)
+    {
+        std::memcpy(data + i, &colorData, channels);
+    }
+
+    AssetID ID = m_StaticID;
+    auto& img = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
+
+    alloc.deallocate(data, size);
+
+    m_StaticID++;
+
+    auto view = img.GetView();
+    view.ID = ID;
+
+    m_ImagesToUpload.emplace_back(view);
+
+    needToUploadResources = true;
+
+    return Fleur::Asset<value_type>{ID, &img};
+}
+
+const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* Fleur::AssetsManager::LoadAsyncImageTest(std::string_view path)
+{
+    using value_type = Fleur::Graphics::Image2D;
+
+    std::string fileName = std::filesystem::path(path).filename().stem().string();
+    std::string ext = std::filesystem::path(path).extension().string();
+
+    auto pair = m_TestMap.emplace(m_AssetIDCounter, value_type(fileName, ext)).first;
+    Fleur::Asset<value_type> asset{pair->first, &pair->second};
+    Fleur::AsyncOperation<value_type> op{std::move(asset), ELoadingSts::TO_BE_LOADED};
+
+    Fleur::AsyncOperation<value_type>* asyncOperation = &m_TestASync.emplace(pair->first, std::move(op)).first->second;
+
+    m_AssetIDCounter++;
+
+    auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+
+    threadPool->Submit(
+        [this](Fleur::AsyncOperation<value_type>* handle, bool flipVertical)
+        {
+            auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+            value_type* img = handle->asset.obj;
+
+            int w, h, channels = 0;
+            uint32_t desiredChannels = 4;
+            std::filesystem::path full_path = img->Name();
+            full_path.replace_extension(img->Ext());
+
+            auto res = fs->GetFullPathToFile(full_path.string());
+            if (!res)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                return;
+            }
+
+            stbi_set_flip_vertically_on_load_thread(static_cast<int>(flipVertical));
+            unsigned char* imgData = stbi_load(res.value().c_str(), &w, &h, &channels, STBI_rgb_alpha);
+
+            if (!imgData)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                return;
+            }
+            handle->status = ELoadingSts::SUCCESS;
+            Fleur::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(desiredChannels), 1, imgData};
+            img->PostCreate(settings);
+
+            stbi_image_free(imgData);
+        },
+        asyncOperation, false);
+
+    return asyncOperation;
 }
