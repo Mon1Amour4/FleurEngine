@@ -41,7 +41,7 @@ class FLEUR_API Renderer : public Service<Renderer>, public IUpdatable
 public:
     friend struct Service<Renderer>;
 
-    Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain);
+    Renderer(EGraphicsAPI api);
     ~Renderer();
 
     Renderer(const Renderer&) = delete;

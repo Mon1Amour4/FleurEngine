@@ -456,32 +456,6 @@ Fleur::AssetID Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name,
     return ID;
 }
 
-Fleur::Graphics::Image2D& Fleur::AssetsManager::CreateFallbackTexture(Fleur::Graphics::Color color)
-{
-    uint32_t width = 1;
-    uint32_t height = 1;
-
-    uint32_t channels = Fleur::Graphics::Color::Channels(color);
-    size_t size = width * height * channels;
-
-    uint32_t colorData = color.Data();
-
-    Fleur::Memory::FleurAllocator<unsigned char> alloc;
-    unsigned char* data = alloc.allocate(size);
-    for (size_t i = 0; i < width * height * channels; ++i)
-    {
-        std::memcpy(data + i, &colorData, channels);
-    }
-
-    AssetID ID = m_StaticID;
-    auto& img = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D("Fallback", "", data, width, height, channels, 1)).first->second;
-
-    alloc.deallocate(data, size);
-
-    m_StaticID++;
-
-    return img;
-}
 
 // CubemapImage:
 CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image(std::string_view path, bool flipVertical)
@@ -701,7 +675,8 @@ Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::stri
     }
 
     AssetID ID = m_StaticID;
-    auto& img = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
+    m_StringToIDMap.emplace(name, ID);
+    auto& img = m_TestMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
 
     alloc.deallocate(data, size);
 
@@ -724,6 +699,7 @@ const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* Fleur::AssetsManager::Loa
     std::string fileName = std::filesystem::path(path).filename().stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
 
+    m_StringToIDMap.emplace(fileName, m_AssetIDCounter);
     auto pair = m_TestMap.emplace(m_AssetIDCounter, value_type(fileName, ext)).first;
     Fleur::Asset<value_type> asset{pair->first, &pair->second};
     Fleur::AsyncOperation<value_type> op{std::move(asset), ELoadingSts::TO_BE_LOADED};

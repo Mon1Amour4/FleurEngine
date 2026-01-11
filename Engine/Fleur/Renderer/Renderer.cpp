@@ -10,13 +10,12 @@
 
 uint32_t Fleur::Graphics::Renderer::MAX_TEXTURES_COUNT = 0;
 
-Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api, std::unique_ptr<Fleur::IRendererToolchain> toolchain)
+Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api)
     : m_ShowWireframe(false)
     , m_Camera(nullptr)
     , m_CurrentShaderObj(nullptr)
     , m_IsVsync(true)
     , m_Renderer(api)
-    , m_Toolchain(std::move(toolchain))
     , m_Backend(nullptr)
 {
 }
@@ -217,9 +216,9 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Graphics::SFLFrame frame{};
     frame.pPass = &geometryPass;
 
-    auto& fallback = assetsManager.get()->GetFallback();
-    Fleur::Graphics::SFLImageView fallbackView = fallback.GetView();
-    fallbackView.ID = 0;
+    auto fallbackAsset = assetsManager->GetAsset<Fleur::Graphics::Image2D>("Fallback");
+    Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
+    fallbackView.ID = fallbackAsset.ID;
 
     Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
 

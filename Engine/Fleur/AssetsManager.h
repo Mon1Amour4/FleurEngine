@@ -131,8 +131,6 @@ public:
 
     [[nodiscard]] AssetID LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
-    Fleur::Graphics::Image2D& CreateFallbackTexture(Fleur::Graphics::Color C);
-
     template <class Res>
     std::shared_ptr<Fleur::AsyncOperationHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
     {
@@ -160,11 +158,6 @@ public:
         }
         FL_CORE_ASSERT(false, "");
         return std::shared_ptr<Fleur::AsyncOperationHandle<Res>>{};
-    }
-
-    Fleur::Graphics::Image2D& GetFallback()
-    {
-        return m_ImagesMap.find(0)->second;
     }
 
     template <class Res>
@@ -208,6 +201,21 @@ public:
         else
             FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
     }
+
+    template <typename T>
+    [[nodiscard]] Asset<T> GetAsset(std::string_view name)
+    {
+    }
+    template <>
+    [[nodiscard]] Asset<Fleur::Graphics::Image2D> GetAsset(std::string_view name)
+    {
+        auto pair = m_StringToIDMap.find(name.data());
+        if (auto search = m_StringToIDMap.find(name.data()); search != m_StringToIDMap.end())
+        {
+            return {search->second, &m_TestMap.find(search->second)->second};
+        }
+    }
+
 
     template <class Res>
     void Unload(std::string_view resourceName)
@@ -333,6 +341,7 @@ private:
     void load_image_async(Fleur::Graphics::Image2D& img);
 
     //////////////////////////////////////////
+    std::unordered_map<std::string, AssetID> m_StringToIDMap;
     std::unordered_map<AssetID, Fleur::Graphics::Image2D> m_TestMap;
     std::unordered_map<AssetID, Fleur::AsyncOperation<Fleur::Graphics::Image2D>> m_TestASync;
     std::atomic<AssetID> m_AssetIDCounter = 0;
