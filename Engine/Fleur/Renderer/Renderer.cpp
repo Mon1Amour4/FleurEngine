@@ -193,7 +193,8 @@ void Fleur::Graphics::Renderer::OnInit()
         RendererBackend_t* CreateRendererBackend = (RendererBackend_t*)GetProcAddress(backendLib, "CreateRendererBackend");
         IRenderer* backend = CreateRendererBackend();
     }*/
-    auto& application = Fleur::Application::instance();
+    Fleur::Application& application = Fleur::Application::instance();
+
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
     auto pVertexShader = assetsManager->Get<Shader>("vertex").lock().get();
@@ -216,7 +217,13 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Graphics::SFLFrame frame{};
     frame.pPass = &geometryPass;
 
-    m_Backend = new vulkanBackend(&frame, application.GetWindow().GetNativeHandle(), application.GetWindow().GetFramebufferSize());
+    auto& fallback = assetsManager.get()->GetFallback();
+    Fleur::Graphics::SFLImageView fallbackView = fallback.GetView();
+    fallbackView.ID = 0;
+
+    Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
+
+    m_Backend = new vulkanBackend(frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -534,6 +541,11 @@ void Fleur::Graphics::Renderer::OnFixedUpdate()
 void Fleur::Graphics::Renderer::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     m_Backend->SubmitImageViews(pInfo);
+}
+
+void Fleur::Graphics::Renderer::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
+{
+    m_Backend->CreateFallbackTexture(view);
 }
 
 void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)

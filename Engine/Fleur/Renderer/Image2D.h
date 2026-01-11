@@ -2,7 +2,7 @@
 #include <flpch.h>
 
 #include "Bitmap.hpp"
-
+#include "Renderer/RenderViews.hpp"
 namespace Fleur::Graphics
 {
 class Color;
@@ -125,6 +125,8 @@ public:
 
     Image2D FromEquirectangularToCross() const;
     CubemapImage FromCrossToCubemap() const;
+
+    Fleur::Graphics::SFLImageView GetView() const;
 
 private:
     Bitmap<BitmapFormat_UnsignedByte> m_Bitmap;

@@ -190,9 +190,12 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
+    Fleur::Graphics::Image2D& fallbackImage = assetsManager.value()->CreateFallbackTexture(Color(255, 0, 255, 255));
+
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI, std::make_unique<PostLoadToolchain>());
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
+
 
     auto threadPool = ServiceLocator::instance().Register<Fleur::ThreadPool>();
     threadPool.value()->Init();

@@ -21,12 +21,12 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 //    .offset   = offsetof(Vertex, pos)
 //  }
 layout(location = 0) in vec3 inPosition;
-layout(location = 1) in vec2 inTextCoord;
+layout(location = 1) in vec2 inTexCoord;
 layout(location = 2) in vec3 inNormal;
 
-layout(location = 0) out vec2 textCoord;
+layout(location = 0) out vec2 fragTexCoord;
 
 void main() {
     gl_Position = ubo.proj * ubo.view * ubo.model * vec4(inPosition, 1.0);
-    textCoord = inTextCoord;
+    fragTexCoord = inTexCoord;
 }

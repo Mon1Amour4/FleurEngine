@@ -5,8 +5,8 @@
 #include "PrivateVulkanImpl.hpp"
 
 
-vulkanBackend::vulkanBackend(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect framebufferSize)
-    : pImpl(new vulkanBackendImpl(pFrame, pNativeHandle, framebufferSize))
+vulkanBackend::vulkanBackend(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
+    : pImpl(new vulkanBackendImpl(pFrame, pNativeHandle, framebufferSize, fallback))
 {
 }
 vulkanBackend::~vulkanBackend()
@@ -25,6 +25,10 @@ void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->SubmitImageViews(pInfo);
 }
+void vulkanBackend::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
+{
+    pImpl->CreateFallbackTexture(view);
+}
 void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 {
     pImpl->resize_event(rect);
@@ -33,7 +37,8 @@ void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
-vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize)
+vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
+                                                    Fleur::Graphics::SFLImageView& fallback)
     : m_LogicalDevice(VK_NULL_HANDLE)
 {
 #if defined(FL_CONF_DEBUG)
@@ -41,32 +46,34 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame* p
 #else
     enableValidationLayers = false;
 #endif
-
     m_VulkanInstance = createInstance();
     setupDebugMessenger();
     createSurface(pNativeHandle);
     pickPhysicalDevice();
     createLogicalDevice();
     initializeVma();
+
     createSwapChain(framebufferSize);
     createImageViews();
     CreateGeometryRenderPass();
     createDescriptorSetLayout();
 
-    CreateGeometryPipeline(pFrame->pPass->pVertexShaderInfo, pFrame->pPass->pFragmentShaderInfo, pFrame->pPass->inputAssemblyTopology);
+    CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
 
     createFramebuffers();
     createCommandPool();
 
+    m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
+
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
 
-    if (pFrame->pPass->vertexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
+    if (pFrame.pPass->vertexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
         vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
 
-    if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
+    if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
         indexInputDescriptorSize = sizeof(uint32_t);
-    else if (pFrame->pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
+    else if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
         indexInputDescriptorSize = sizeof(uint16_t);
 
     CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_VertexBuffer, 1024u * 1024ul * 512ul, vertexInputDescriptorSize);
@@ -74,11 +81,15 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame* p
 
     createUniformBuffers();
     createDescriptorPool();
+
+    CreateFallbackTexture(fallback);
+    m_ImageSampler = createTextureSampler();
+
     createDescriptorSets();
 
     m_GeometrySecondaryCmdBuffer = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 
-    m_ImageSampler = createTextureSampler();
+
     createCommandBuffers();
     UpdateGeometrySecondaryCmdBuffer();
     InitGeometryPrimaryCmdBuffers();
@@ -629,13 +640,19 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
+    // PushConstant
+    VkPushConstantRange pushConstant{};
+    pushConstant.offset = 0;
+    pushConstant.size = sizeof(uint32_t);
+    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
     // VkPipelineLayout
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;             // Optional
-    pipelineLayoutInfo.pSetLayouts = &m_GeometryDSL;   // Optional
-    pipelineLayoutInfo.pushConstantRangeCount = 0;     // Optional
-    pipelineLayoutInfo.pPushConstantRanges = nullptr;  // Optional
+    pipelineLayoutInfo.setLayoutCount = 1;            // Optional
+    pipelineLayoutInfo.pSetLayouts = &m_GeometryDSL;  // Optional
+    pipelineLayoutInfo.pushConstantRangeCount = 1;
+    pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
 
     if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &m_GeometryPipelineLayout) != VK_SUCCESS)
     {
@@ -689,7 +706,7 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     rasterizer.depthClampEnable = VK_FALSE;
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_LINE;
+    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
@@ -895,101 +912,6 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
         m_PrimaryCmdBuffers.validation[i] = true;
     }
 }
-void vulkanBackend::vulkanBackendImpl::UpdateGeometryPrimaryBuffer(uint32_t bufferIdx)
-{
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;                   // Optional
-    beginInfo.pInheritanceInfo = nullptr;  // Optional
-
-    if (vkBeginCommandBuffer(m_PrimaryCmdBuffers.buffers[bufferIdx], &beginInfo) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to begin recording command buffer!")
-        assert(false);
-    }
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_GeometryRenderPass;
-    renderPassInfo.framebuffer = m_Swapchain.framebuffers[bufferIdx];
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = m_Swapchain.extent;
-
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
-
-    vkCmdBeginRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx], &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-    vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[bufferIdx], 1, &m_GeometrySecondaryCmdBuffer);
-    vkCmdEndRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx]);
-
-    if (vkEndCommandBuffer(m_PrimaryCmdBuffers.buffers[bufferIdx]) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to record command buffer!")
-        assert(false);
-    }
-}
-
-void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
-{
-    vkResetCommandBuffer(m_GeometrySecondaryCmdBuffer, 0);
-
-    VkCommandBufferInheritanceInfo inheritanceInfo{};
-    inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritanceInfo.pNext = NULL;
-    inheritanceInfo.renderPass = m_GeometryRenderPass;
-    inheritanceInfo.subpass = 0;
-    inheritanceInfo.framebuffer = VK_NULL_HANDLE;
-
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    beginInfo.pInheritanceInfo = &inheritanceInfo;
-
-    if (vkBeginCommandBuffer(m_GeometrySecondaryCmdBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to begin recording command for secondary cmd buffer!")
-        assert(false);
-    }
-    vkCmdBindPipeline(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline);
-
-    VkDeviceSize offsets[] = {0};
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_Swapchain.extent.width);
-    viewport.height = static_cast<float>(m_Swapchain.extent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(m_GeometrySecondaryCmdBuffer, 0, 1, &viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_Swapchain.extent;
-    vkCmdSetScissor(m_GeometrySecondaryCmdBuffer, 0, 1, &scissor);
-
-
-    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffer, 0, 1, &m_VertexBuffer.buffer, offsets);
-    if (m_IndexBuffer.strideSizeBytes == 4)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-    else if (m_IndexBuffer.strideSizeBytes == 2)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
-
-    vkCmdBindDescriptorSets(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame], 0,
-                            nullptr);
-    for (const auto& draw : m_DrawList)
-    {
-        vkCmdDrawIndexed(m_GeometrySecondaryCmdBuffer, draw.indexCount, 1, draw.indexOffset, draw.vertexOffset, 0);
-    }
-
-    if (vkEndCommandBuffer(m_GeometrySecondaryCmdBuffer) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to record command to secondary cmd buffer!")
-        assert(false);
-    }
-}
 
 void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 {
@@ -1016,81 +938,6 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
     }
 }
 
-
-void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
-{
-    // Fence: CPU awaits signal from GPU here
-    vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
-
-    if (needToUpdateSecondaryCmdBuffer)
-    {
-        uint32_t prevFrame = (currentFrame + m_Swapchain.framebuffersCount - 1) % m_Swapchain.framebuffersCount;
-        vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[prevFrame], VK_TRUE, UINT64_MAX);
-        UpdateGeometrySecondaryCmdBuffer();
-        if (!m_PrimaryCmdBuffers.validation[currentFrame])
-            UpdateGeometryPrimaryBuffer(currentFrame);
-
-        if (m_PrimaryCmdBuffers.AreValid())
-            needToUpdateSecondaryCmdBuffer = false;
-    }
-
-    uint32_t imageIndex;
-    VkResult isSwapchainValid{};
-    isSwapchainValid =
-        vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain.swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
-    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR || framebufferResized)
-    {
-        framebufferResized = false;
-        recreateSwapChain();
-    }
-    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
-    {
-        DBG_PRINTM("Failed to present swap chain image!")
-        assert(false);
-    }
-    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
-
-    updateUniformBuffer(currentFrame, pUbo);
-
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &m_PrimaryCmdBuffers.buffers[currentFrame];
-
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to submit draw command buffer!")
-        assert(false);
-    }
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-    presentInfo.pResults = nullptr;  // Optional
-
-    VkSwapchainKHR swapChains[] = {m_Swapchain.swapchain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
-
-    vkQueuePresentKHR(presentQueue, &presentInfo);
-
-    currentFrame = (currentFrame + 1) % m_Swapchain.framebuffersCount;
-    uint32_t prev = (currentFrame - 1) % m_Swapchain.framebuffersCount;
-}
 
 //======================================================================
 // Events
@@ -1226,44 +1073,17 @@ uint32_t vulkanBackend::vulkanBackendImpl::findMemoryType(uint32_t typeFilter, V
 
 
 //======================================================================
-// VkDescriptorSetLayoutBinding
-void vulkanBackend::vulkanBackendImpl::createDescriptorSetLayout()
-{
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    ;
-    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional
-
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.binding = 1;
-    samplerLayoutBinding.descriptorCount = 128;
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = bindings.size();
-    layoutInfo.pBindings = bindings.data();
-
-    if (vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &m_GeometryDSL) != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to create descriptor set layout!!")
-        assert(false);
-    }
-}
-
+// VkDescriptor
 void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain.framebuffersCount);
+
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = 128;
+
+    // Sum of all descriptros count from all descriptor sets
+    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain.framebuffersCount;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -1277,7 +1097,35 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
         assert(false);
     }
 }
+void vulkanBackend::vulkanBackendImpl::createDescriptorSetLayout()
+{
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional
 
+    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
+    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    samplerLayoutBinding.binding = 1;
+    // Max num of descriptors in this current descriptor set
+    samplerLayoutBinding.descriptorCount = MAX_TEXTURES;
+    samplerLayoutBinding.pImmutableSamplers = nullptr;
+
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+    VkDescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    layoutInfo.bindingCount = bindings.size();
+    layoutInfo.pBindings = bindings.data();
+
+    if (vkCreateDescriptorSetLayout(m_LogicalDevice, &layoutInfo, nullptr, &m_GeometryDSL) != VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to create descriptor set layout!!")
+        assert(false);
+    }
+}
 void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 {
     std::vector<VkDescriptorSetLayout> layouts(m_Swapchain.framebuffersCount, m_GeometryDSL);
@@ -1285,7 +1133,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = static_cast<uint32_t>(m_Swapchain.framebuffersCount);
+    allocInfo.descriptorSetCount = layouts.size();
     allocInfo.pSetLayouts = layouts.data();
 
     descriptorSets.resize(m_Swapchain.framebuffersCount);
@@ -1295,42 +1143,48 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
         assert(true);
     }
 
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    for (size_t i = 0; i < descriptorSets.size(); i++)
     {
-        //VkDescriptorImageInfo imageInfo{};
-        //imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        //imageInfo.imageView = m_TextureMap.;
-        //imageInfo.sampler = textureSampler;
-
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = uniformBuffers[i];
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+        std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].dstSet = descriptorSets[i];
         descriptorWrites[0].dstBinding = 0;
         descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].descriptorCount = 1;
         descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        //descriptorWrites[1].pImageInfo = &imageInfo;
-
         vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+
+        auto& fallback = m_TextureMap[0];
+        VkDescriptorImageInfo imageSamplerInfo{};
+        imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageSamplerInfo.imageView = fallback.view;
+        imageSamplerInfo.sampler = m_ImageSampler;
+
+        std::array<VkWriteDescriptorSet, MAX_TEXTURES> descriptorImageWrites{};
+        for (size_t j = 0; j < descriptorImageWrites.size(); j++)
+        {
+            descriptorImageWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorImageWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorImageWrites[j].dstSet = descriptorSets[i];
+            descriptorImageWrites[j].dstBinding = 1;
+            descriptorImageWrites[j].dstArrayElement = j;
+            descriptorImageWrites[j].descriptorCount = 1;
+            descriptorImageWrites[j].pImageInfo = &imageSamplerInfo;
+        }
+        vkUpdateDescriptorSets(m_LogicalDevice, descriptorImageWrites.size(), descriptorImageWrites.data(), 0, nullptr);
     }
 }
 
 
 //======================================================================
-// IndexBuffer
+// UniformBuffers
 void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 {
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
@@ -1347,7 +1201,6 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
         vkMapMemory(m_LogicalDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
     }
 }
-
 void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
@@ -1372,7 +1225,6 @@ void vulkanBackend::vulkanBackendImpl::initializeVma()
         assert(true);
     }
 }
-
 void vulkanBackend::vulkanBackendImpl::freeVma()
 {
     vmaDestroyAllocator(m_Allocator);
@@ -1433,22 +1285,50 @@ void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelVi
         draw.indexOffset = globalIndexOffset;
         draw.vertexOffset = globalVertexOffset;
 
-
-        // Get Texture ID by CPU ID: material->albedoID
-        // Get Texture ID by CPU ID: material->normalID
-        const auto& material = pModelView->materials.pData[mesh.materialIdx];
-        SGPUMaterial gpuMaterial{};
-        // gpuMaterial.albedo = GetTextureFromID(material->albedoID);
-        // gpuMaterial.normal = GetTextureFromID(material->normalID);
+        draw.material.albedo = pModelView->materials.pData[mesh.materialIdx].albedoID;
 
         globalIndexOffset += draw.indexCount;
-        // globalVertexOffset += draw.vertexCount;
     }
 
     needToUpdateSecondaryCmdBuffer = true;
     m_PrimaryCmdBuffers.Invalidate();
 }
+void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
+{
+    for (size_t i = 0; i < pInfo->count; i++)
+    {
+        auto imageView = pInfo->pData + i;
+        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, SGPUTexture()).first->second;
 
+        VkFormat format{};
+        switch (imageView->channels)
+        {
+        case 1:
+            format = VK_FORMAT_R8_UNORM;
+            break;
+        case 3:
+            format = VK_FORMAT_R8G8B8A8_SRGB;
+            break;
+        case 4:
+            format = VK_FORMAT_R8G8B8A8_SRGB;
+            break;
+        }
+
+        CreateTextureImage(*imageView, gpuTexture.image, gpuTexture.memory, format);
+        gpuTexture.view = createTextureImageView(gpuTexture.image, format);
+
+        for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+        {
+            if (i == currentFrame)
+            {
+                UpdateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.view, m_ImageSampler);
+                continue;
+            }
+
+            m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.view);
+        }
+    }
+}
 
 void vulkanBackend::vulkanBackendImpl::SFLCmdBuffer::Invalidate()
 {
@@ -1468,17 +1348,6 @@ bool vulkanBackend::vulkanBackendImpl::SFLCmdBuffer::AreValid()
 }
 
 
-void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
-{
-    for (size_t i = 0; i < pInfo->count; i++)
-    {
-        auto imageView = pInfo->pData + i;
-        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, SGPUTexture()).first->second;
-
-        CreateTextureImage(*imageView, gpuTexture.image, gpuTexture.memory);
-        createTextureImageView(gpuTexture.image, VK_FORMAT_R8G8B8A8_SRGB);
-    }
-}
 VkCommandBuffer vulkanBackend::vulkanBackendImpl::beginSingleTimeCommands()
 {
     VkCommandBufferAllocateInfo allocInfo{};
@@ -1577,29 +1446,31 @@ void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImag
 
     endSingleTimeCommands(commandBuffer);
 }
-void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory)
+void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory,
+                                                          VkFormat format)
 {
     VkBuffer stagingBuffer;
     VkDeviceMemory stagingBufferMemory;
-    VkDeviceSize imageSize = imageView.w * imageView.h * 4;
+    VkDeviceSize bufferImageSize = imageView.w * imageView.h * GetChannelsNumFromFormat(format);
+    VkDeviceSize mapImageSize = imageView.w * imageView.h * imageView.channels;
 
-    createBuffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-        stagingBufferMemory);
+    createBuffer(bufferImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
+                 stagingBufferMemory);
 
     void* data;
-    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, imageSize, 0, &data);
-    memcpy(data, imageView.pData, static_cast<size_t>(imageSize));
+    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, mapImageSize, 0, &data);
+    memcpy(data, imageView.pData, static_cast<size_t>(mapImageSize));
     vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
 
 
-    createImage(imageView.w, imageView.h, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+    createImage(imageView.w, imageView.h, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
-    transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
     copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(imageView.w), static_cast<uint32_t>(imageView.h));
 
-    transitionImageLayout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
     vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
     vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
@@ -1648,7 +1519,7 @@ void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t heig
 
 VkImageView vulkanBackend::vulkanBackendImpl::createTextureImageView(VkImage& image, VkFormat format)
 {
-    return createImageView(image, VK_FORMAT_R8G8B8A8_SRGB);
+    return createImageView(image, format);
 }
 VkImageView vulkanBackend::vulkanBackendImpl::createImageView(VkImage image, VkFormat format)
 {
@@ -1706,37 +1577,236 @@ VkSampler vulkanBackend::vulkanBackendImpl::createTextureSampler()
     return sampler;
 }
 
-void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& descriptorSet, VkImageView& imageView, VkSampler& sampler)
+uint32_t vulkanBackend::vulkanBackendImpl::GetChannelsNumFromFormat(VkFormat format)
 {
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    switch (format)
     {
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = imageView;
-        imageInfo.sampler = sampler;
-
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
-
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = descriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
-
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = descriptorSets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
-
-        vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    case VK_FORMAT_R8G8B8A8_SRGB:
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return 4;
+    case VK_FORMAT_R8_UNORM:
+        return 1;
+    default:
+        assert(false);
+        break;
     }
+}
+
+void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
+{
+    VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
+
+    auto& gpuTexture = m_TextureMap.emplace().first->second;
+    CreateTextureImage(view, gpuTexture.image, gpuTexture.memory, format);
+    gpuTexture.view = createTextureImageView(gpuTexture.image, format);
+    /*CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
+    m_FallbackTexture.view = createTextureImageView(m_FallbackTexture.image, format);*/
+}
+
+void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler)
+{
+    VkDescriptorImageInfo imageInfo{};
+    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageInfo.imageView = imageView;
+    imageInfo.sampler = sampler;
+
+    std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+
+    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites[0].dstSet = set;
+    descriptorWrites[0].dstBinding = 1;
+    descriptorWrites[0].dstArrayElement = idx;
+    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites[0].descriptorCount = 1;
+    descriptorWrites[0].pImageInfo = &imageInfo;
+
+    vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+}
+
+void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
+{
+    vkResetCommandBuffer(m_GeometrySecondaryCmdBuffer, 0);
+
+    VkCommandBufferInheritanceInfo inheritanceInfo{};
+    inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritanceInfo.pNext = NULL;
+    inheritanceInfo.renderPass = m_GeometryRenderPass;
+    inheritanceInfo.subpass = 0;
+    inheritanceInfo.framebuffer = VK_NULL_HANDLE;
+
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+    beginInfo.pInheritanceInfo = &inheritanceInfo;
+
+    if (vkBeginCommandBuffer(m_GeometrySecondaryCmdBuffer, &beginInfo) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to begin recording command for secondary cmd buffer!")
+        assert(false);
+    }
+    vkCmdBindPipeline(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline);
+
+    VkDeviceSize offsets[] = {0};
+
+    VkViewport viewport{};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = static_cast<float>(m_Swapchain.extent.width);
+    viewport.height = static_cast<float>(m_Swapchain.extent.height);
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+    vkCmdSetViewport(m_GeometrySecondaryCmdBuffer, 0, 1, &viewport);
+
+    VkRect2D scissor{};
+    scissor.offset = {0, 0};
+    scissor.extent = m_Swapchain.extent;
+    vkCmdSetScissor(m_GeometrySecondaryCmdBuffer, 0, 1, &scissor);
+
+
+    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffer, 0, 1, &m_VertexBuffer.buffer, offsets);
+    if (m_IndexBuffer.strideSizeBytes == 4)
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+    else if (m_IndexBuffer.strideSizeBytes == 2)
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+
+    vkCmdBindDescriptorSets(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame], 0,
+                            nullptr);
+    struct SFLPushConstant
+    {
+        uint32_t albedoIdx;
+    };
+
+    for (const auto& draw : m_DrawList)
+    {
+        SFLPushConstant pc{draw.material.albedo};
+
+        vkCmdPushConstants(m_GeometrySecondaryCmdBuffer, m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SFLPushConstant), &pc);
+        vkCmdDrawIndexed(m_GeometrySecondaryCmdBuffer, draw.indexCount, 1, draw.indexOffset, draw.vertexOffset, 0);
+    }
+
+    if (vkEndCommandBuffer(m_GeometrySecondaryCmdBuffer) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to record command to secondary cmd buffer!")
+        assert(false);
+    }
+}
+void vulkanBackend::vulkanBackendImpl::UpdateGeometryPrimaryBuffer(uint32_t bufferIdx)
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = 0;                   // Optional
+    beginInfo.pInheritanceInfo = nullptr;  // Optional
+
+    if (vkBeginCommandBuffer(m_PrimaryCmdBuffers.buffers[bufferIdx], &beginInfo) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to begin recording command buffer!")
+        assert(false);
+    }
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_GeometryRenderPass;
+    renderPassInfo.framebuffer = m_Swapchain.framebuffers[bufferIdx];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = m_Swapchain.extent;
+
+    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    vkCmdBeginRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx], &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+    vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[bufferIdx], 1, &m_GeometrySecondaryCmdBuffer);
+    vkCmdEndRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx]);
+
+    if (vkEndCommandBuffer(m_PrimaryCmdBuffers.buffers[bufferIdx]) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to record command buffer!")
+        assert(false);
+    }
+}
+
+void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
+{
+    // Fence: CPU awaits signal from GPU here
+    vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
+
+    if (!m_DescriptorSetImageViews[currentFrame].empty())
+    {
+        for (size_t i = 0; i < m_DescriptorSetImageViews[currentFrame].size(); i++)
+        {
+            UpdateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx, m_DescriptorSetImageViews[currentFrame][i].view,
+                                 m_ImageSampler);
+        }
+        m_DescriptorSetImageViews[currentFrame].clear();
+    }
+    if (needToUpdateSecondaryCmdBuffer)
+    {
+        uint32_t prevFrame = (currentFrame + m_Swapchain.framebuffersCount - 1) % m_Swapchain.framebuffersCount;
+        vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[prevFrame], VK_TRUE, UINT64_MAX);
+        UpdateGeometrySecondaryCmdBuffer();
+        if (!m_PrimaryCmdBuffers.validation[currentFrame])
+            UpdateGeometryPrimaryBuffer(currentFrame);
+
+        if (m_PrimaryCmdBuffers.AreValid())
+            needToUpdateSecondaryCmdBuffer = false;
+    }
+
+
+    uint32_t imageIndex;
+    VkResult isSwapchainValid{};
+    isSwapchainValid =
+        vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain.swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR || framebufferResized)
+    {
+        framebufferResized = false;
+        recreateSwapChain();
+    }
+    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
+    {
+        DBG_PRINTM("Failed to present swap chain image!")
+        assert(false);
+    }
+    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
+
+    updateUniformBuffer(currentFrame, pUbo);
+
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_PrimaryCmdBuffers.buffers[currentFrame];
+
+    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to submit draw command buffer!")
+        assert(false);
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.pResults = nullptr;  // Optional
+
+    VkSwapchainKHR swapChains[] = {m_Swapchain.swapchain};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(presentQueue, &presentInfo);
+
+    currentFrame = (currentFrame + 1) % m_Swapchain.framebuffersCount;
+    uint32_t prev = (currentFrame - 1) % m_Swapchain.framebuffersCount;
 }

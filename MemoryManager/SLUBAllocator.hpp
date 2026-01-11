@@ -577,7 +577,7 @@ struct SLUBAllocator
     }
 
     template <class T>
-    void deallocate(void* ptr, uint32_t slotSize, uint32_t count)
+    void deallocate(void* ptr, uint32_t slotSize)
     {
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
 

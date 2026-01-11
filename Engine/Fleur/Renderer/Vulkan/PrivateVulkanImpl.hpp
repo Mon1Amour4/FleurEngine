@@ -37,6 +37,8 @@
 
 #define VULKAN_VERSION VK_API_VERSION_1_4
 
+constexpr uint32_t MAX_TEXTURES = 128;
+
 #pragma endregion
 
 
@@ -107,8 +109,8 @@ struct vulkanBackend::vulkanBackendImpl
 
     struct SGPUMaterial
     {
-        // VkTexture* albedo;
-        // VkTexture* normal;
+        uint32_t albedo;
+        uint32_t normal;
     };
     struct DrawInfo
     {
@@ -124,6 +126,7 @@ struct vulkanBackend::vulkanBackendImpl
     struct SGPUTexture
     {
         VkImage image;
+        VkImageView view;
         VkDeviceMemory memory;
     };
 
@@ -145,7 +148,7 @@ struct vulkanBackend::vulkanBackendImpl
     // std::unordered_map<uint32_t, VkTexture> m_TextureMap;
 #pragma endregion
 
-    vulkanBackendImpl(Fleur::Graphics::SFLFrame* pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize);
+    vulkanBackendImpl(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~vulkanBackendImpl();
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
@@ -295,7 +298,7 @@ struct vulkanBackend::vulkanBackendImpl
 
     uint32_t currentFrame = 0;
 
-    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory);
+    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory, VkFormat format);
     void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
                      VkImage& image, VkDeviceMemory& imageMemory);
 
@@ -310,5 +313,17 @@ struct vulkanBackend::vulkanBackendImpl
     VkSampler createTextureSampler();
     VkSampler m_ImageSampler;
     std::unordered_map<uint32_t, SGPUTexture> m_TextureMap;
-    void UpdateDescriptorSets(VkDescriptorSet& descriptorSet, VkImageView& imageView, VkSampler& sampler);
+    void UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler);
+
+    uint32_t GetChannelsNumFromFormat(VkFormat);
+
+    struct SFLDescriptorSetImage
+    {
+        uint32_t idx;
+        VkImageView view;
+    };
+    std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViews;
+
+    SGPUTexture m_FallbackTexture;
+    void CreateFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 };

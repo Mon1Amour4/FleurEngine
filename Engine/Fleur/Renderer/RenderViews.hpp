@@ -10,6 +10,7 @@ struct SFLImageView
     uint32_t w = 0;
     uint32_t h = 0;
     uint32_t layerCount = 0;
+    uint32_t channels;
 };
 struct SFLImageViewInfo
 {

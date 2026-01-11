@@ -116,6 +116,8 @@ public:
 
     [[nodiscard]] AssetID LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
 
+    Fleur::Graphics::Image2D& CreateFallbackTexture(Fleur::Graphics::Color C);
+
     template <class Res>
     std::shared_ptr<Fleur::AsyncOperationHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
     {
@@ -143,6 +145,11 @@ public:
         }
         FL_CORE_ASSERT(false, "");
         return std::shared_ptr<Fleur::AsyncOperationHandle<Res>>{};
+    }
+
+    Fleur::Graphics::Image2D& GetFallback()
+    {
+        return m_ImagesMap.find(0)->second;
     }
 
     template <class Res>
@@ -235,7 +242,7 @@ public:
 
             m_StaticID++;
 
-            m_ImagesToUpload.emplace_back(ID, (const char*)img.Data(), img.Width(), img.Height(), img.Layers());
+            m_ImagesToUpload.emplace_back(ID, (const char*)img.Data(), img.Width(), img.Height(), img.Layers(), img.Channels());
 
             return ID;
         }

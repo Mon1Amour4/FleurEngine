@@ -413,3 +413,8 @@ void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
 
     m_IsCreated = true;
 }
+
+Fleur::Graphics::SFLImageView Fleur::Graphics::Image2D::GetView() const
+{
+    return {0, (const char*)m_Bitmap.Data(), m_Width, m_Height, m_Layers, m_Channels};
+}

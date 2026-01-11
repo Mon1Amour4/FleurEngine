@@ -226,13 +226,18 @@ public:
 
         assert(sizeof(T) * count <= std::numeric_limits<uint32_t>::max());
 
-        uint32_t slotSize = AlignTo(sizeof(T) * count, 8);
+        size_t size = sizeof(T) * count;
 
-        if (slotSize <= SMALL_SIZE)
+        if (size <= SMALL_SIZE)
         {
-            slubAlloc->deallocate<T>(ptr, slotSize, count);
+            if (size < m_MinSlotSize)
+                size = m_MinSlotSize;
+            else
+                size = AlignTo(sizeof(T) * count, 8);
+
+            slubAlloc->deallocate<T>(ptr, size);
         }
-        else if (slotSize > SMALL_SIZE && slotSize < MEDIUN_SIZE)
+        else if (size > SMALL_SIZE && size < MEDIUN_SIZE)
         {
             tlsfAlloc->deallocate<T>(ptr, count);
         }

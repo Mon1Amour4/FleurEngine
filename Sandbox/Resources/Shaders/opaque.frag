@@ -1,9 +1,18 @@
 #version 450
 
-layout(location = 0) in vec2 textCoord;
+#define MAX_TEXTURES 128
 
+layout(location = 0) in vec2 fragTexCoord;
 layout(location = 0) out vec4 outColor;
 
+layout(binding = 1) uniform sampler2D texSampler[MAX_TEXTURES];
+
+layout(push_constant) uniform PushConsts
+{
+    uint materialIndex;
+} pc;
+
+
 void main() {
-    outColor = vec4(0.5, 0.5, 0.5, 1.0);
+    outColor = texture(texSampler[pc.materialIndex], fragTexCoord);
 }
