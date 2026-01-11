@@ -4,6 +4,7 @@
 
 #include "FleurAllocator.hpp"
 #include "Material.h"
+#include "Model.h"
 
 //======================================================================
 // Model
@@ -105,6 +106,10 @@ Fleur::Graphics::Model* Fleur::Graphics::Model::QuadModel(Fleur::Graphics::Mater
     Fleur::Graphics::MeshBuilder builder = quadModel->CreateSubmesh("QuadMesh");
     builder.AddPrimitive(Model::Mesh::Primitive::PrimitiveShape::Quad).Commit();
     return quadModel;
+}
+
+void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo& info)
+{
 }
 
 //======================================================================

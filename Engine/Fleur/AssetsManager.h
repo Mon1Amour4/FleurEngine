@@ -25,6 +25,8 @@ class Model;
 namespace Fleur
 {
 
+#pragma region Structs&Enums
+
 enum EFailure
 {
     WRONG_PATH,
@@ -111,6 +113,8 @@ private:
     std::optional<EFailure> m_Failure;
 };
 
+#pragma endregion
+
 class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
 public:
@@ -122,229 +126,101 @@ public:
 
     void OnShutdown();
     void OnInit();
-
-    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemory(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
-    [[nodiscard]] CONST_SHARED_RES(Image2D) LoadImage2DFromMemoryAsync(std::string_view name, bool flipVertical, unsigned char* data, size_t sizeBytes);
-
-    [[nodiscard]] CONST_SHARED_RES(Image2D)
-        LoadImage2DFromRawData(std::string_view name, unsigned char* data, uint16_t channels, uint32_t width, uint32_t height);
-
-    [[nodiscard]] AssetID LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height);
-
-    template <class Res>
-    std::shared_ptr<Fleur::AsyncOperationHandle<Res>> Load(std::string_view path, bool flipVertical = false, bool async = true)
-    {
-        std::shared_ptr<Fleur::AsyncOperationHandle<Res>> result{nullptr};
-        if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::Image2D>)
-        {
-            if (async)
-                return load_image2d_async(path, flipVertical);
-            else
-                return load_image2d(path, flipVertical);
-        }
-        else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::Model>)
-        {
-            if (async)
-                return load_model_async(path);
-            else
-                return load_model(path);
-        }
-        else if constexpr (std::is_same_v<std::remove_cv_t<Res>, Fleur::Graphics::CubemapImage>)
-        {
-            if (async)
-                return load_cubemap_image_async(path, flipVertical);
-            else
-                return load_cubemap_image(path, flipVertical);
-        }
-        FL_CORE_ASSERT(false, "");
-        return std::shared_ptr<Fleur::AsyncOperationHandle<Res>>{};
-    }
-
-    template <class Res>
-    [[nodiscard]] std::weak_ptr<Res> Get(std::string_view name)
-    {
-        if (name.empty())
-            return std::weak_ptr<Res>{};
-
-        if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Model>>::value)
-        {
-            auto it = m_Models.find(name.data());
-            if (it != m_Models.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
-        }
-        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Image2D>>::value)
-        {
-            auto it = m_Images2D.find(name.data());
-            if (it != m_Images2D.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
-        }
-        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::CubemapImage>>::value)
-        {
-            auto it = m_CubemapImages.find(name.data());
-            if (it != m_CubemapImages.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
-        }
-        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Shader>>::value)
-        {
-            auto it = m_ShaderMap.find(name.data());
-            if (it != m_ShaderMap.end())
-                return std::weak_ptr<Res>(it->second);
-            else
-                return std::weak_ptr<Res>{};
-        }
-        else
-            FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type")
-    }
-
-    template <typename T>
-    [[nodiscard]] Asset<T> GetAsset(std::string_view name)
-    {
-    }
-    template <>
-    [[nodiscard]] Asset<Fleur::Graphics::Image2D> GetAsset(std::string_view name)
-    {
-        auto pair = m_StringToIDMap.find(name.data());
-        if (auto search = m_StringToIDMap.find(name.data()); search != m_StringToIDMap.end())
-        {
-            return {search->second, &m_TestMap.find(search->second)->second};
-        }
-    }
-
-
-    template <class Res>
-    void Unload(std::string_view resourceName)
-    {
-        if (resourceName.empty())
-            return;
-
-        std::string name = std::filesystem::path(resourceName).stem().string();
-
-        if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Model>>::value)
-        {
-            auto it = m_Models.find(name);
-            if (it != m_Models.end())
-            {
-                FL_CORE_INFO("[Assets manager] Model: {0} has been erased", it->first);
-                std::mutex mtx;
-                std::lock_guard<std::mutex> lock(mtx);
-                m_Models.unsafe_erase(it);
-            }
-            --m_ModelsCount;
-        }
-        else if constexpr (std::is_same<std::remove_cv_t<Res>, std::remove_cv_t<Fleur::Graphics::Image2D>>::value)
-        {
-            auto it = m_Images2D.find(name);
-            if (it != m_Images2D.end())
-            {
-                FL_CORE_INFO("[Assets manager] Image2D: {0} has been erased", it->first);
-                std::mutex mtx;
-                std::lock_guard<std::mutex> lock(mtx);
-                m_Images2D.unsafe_erase(it);
-            }
-            --m_Images2DCount;
-        }
-        else
-            FL_CORE_ASSERT(nullptr, "[Assets manager] wront graphics resource type");
-    }
-
-    template <typename T>
-    AssetID MakeHandle(std::string_view name)
-    {
-        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
-        {
-            AssetID ID = m_StaticID;
-            auto& img = m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name)).first->second;
-
-            load_image_async(img);
-
-            m_StaticID++;
-
-            m_ImagesToUpload.emplace_back(ID, (const char*)img.Data(), img.Width(), img.Height(), img.Layers(), img.Channels());
-
-            return ID;
-        }
-    }
-
-    AssetID LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size);
-
     void OnUpdate(float dtTime);
 
+    // Load
     template <typename T>
     const AsyncOperation<T>* LoadAsync(std::string_view path)
     {
         if (path.empty())
-        {
             return nullptr;
-        }
 
-        return LoadAsyncImageTest(path);
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+            return load_async_image2D(path);
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
+            return load_async_model(path);
+
+        return nullptr;
     }
 
-    Asset<Fleur::Graphics::Image2D> FromColor(std::string_view name, Fleur::Graphics::Color c);
+    template <typename T>
+    const Asset<T> Load(std::string_view path)
+    {
+        if (path.empty())
+            return nullptr;
 
-    const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* LoadAsyncImageTest(std::string_view path);
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+            return load_async_image2D(path);
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
+            return LoadModelAsync(path);
+
+        return nullptr;
+    }
+
+    // Image2D
+
+    Asset<Fleur::Graphics::Image2D> FromColor(std::string_view name, Fleur::Graphics::Color c);
+    AssetID LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size);
+
+
+    // Get
+    template <typename T>
+    [[nodiscard]] Asset<T> GetAsset(std::string_view name)
+    {
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            auto pair = m_StringToIDMap.find(name.data());
+            if (auto search = m_StringToIDMap.find(name.data()); search != m_StringToIDMap.end())
+            {
+                return {search->second, &m_Image2DMap.find(search->second)->second};
+            }
+        }
+        return {0, nullptr};
+    }
+
 
 private:
+    // Image2D
+    const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* load_async_image2D(std::string_view path);
+    Asset<Fleur::Graphics::Image2D> load_image2d(std::string_view path, bool flipVertical);
+    // Model
+    const Fleur::AsyncOperation<Fleur::Graphics::Model>* load_async_model(std::string_view path);
+
     std::atomic<bool> needToUploadResources;
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Model>> m_Models;
+    //[[nodiscard]] CONST_SHARED_RES(Model) load_model(std::string_view path);
+    //[[nodiscard]] CONST_SHARED_RES(Model) load_model_async(std::string_view path);
 
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Image2D>> m_Images2D;
-    tbb::concurrent_unordered_map<std::string, std::shared_ptr<Fleur::Graphics::CubemapImage>> m_CubemapImages;
+    //[[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flipVertical);
+    //[[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flipVertical);
 
-    //  TODO: What to do with corrupted models?
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Model)> m_ModelsToLoadAsync;
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(Image2D)> m_Images2DToLoadAsync;
-    tbb::concurrent_unordered_map<std::string, CONST_SHARED_RES(CubemapImage)> m_CubemapImagesToLoadAsync;
+    //[[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flipVertical);
+    //[[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flipVertical);
 
-    [[nodiscard]] CONST_SHARED_RES(Model) load_model(std::string_view path);
-    [[nodiscard]] CONST_SHARED_RES(Model) load_model_async(std::string_view path);
 
-    [[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d(std::string_view path, bool flipVertical);
-    [[nodiscard]] CONST_SHARED_RES(Image2D) load_image2d_async(std::string_view path, bool flipVertical);
-
-    [[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image(std::string_view path, bool flipVertical);
-    [[nodiscard]] CONST_SHARED_RES(CubemapImage) load_cubemap_image_async(std::string_view path, bool flipVertical);
-
-    std::atomic<uint32_t> m_ModelsCount;
-    std::atomic<uint32_t> m_Images2DCount;
     std::atomic<uint32_t> m_CubemapImagesCount;
 
     uint16_t ImageChannels(std::string_view image2DExt);
 
-    template <typename Map>
-    bool is_already_loaded(const Map& map, const std::string& key,
-                           std::shared_ptr<AsyncOperationHandle<typename Map::mapped_type::element_type>>& OUT handleOut)
-    {
-        auto it = map.find(key);
-        if (it != map.end())
-        {
-            handleOut = std::make_shared<AsyncOperationHandle<typename Map::mapped_type::element_type>>(it->second);
-            handleOut->SetSuccess();
-            return true;
-        }
-        return false;
-    }
 
     std::unordered_map<std::string, std::shared_ptr<Fleur::Graphics::Shader>> m_ShaderMap;
     void load_all_shaders();
 
-    std::unordered_map<uint32_t, Fleur::Graphics::Image2D> m_ImagesMap;
     std::vector<Fleur::Graphics::SFLImageView> m_ImagesToUpload;
-    static std::atomic<uint32_t> m_StaticID;
-    void load_image_async(Fleur::Graphics::Image2D& img);
 
-    //////////////////////////////////////////
-    std::unordered_map<std::string, AssetID> m_StringToIDMap;
-    std::unordered_map<AssetID, Fleur::Graphics::Image2D> m_TestMap;
-    std::unordered_map<AssetID, Fleur::AsyncOperation<Fleur::Graphics::Image2D>> m_TestASync;
     std::atomic<AssetID> m_AssetIDCounter = 0;
+    std::unordered_map<std::string, AssetID> m_StringToIDMap;
+
+    std::unordered_map<AssetID, Fleur::Graphics::Image2D> m_Image2DMap;
+    std::unordered_map<AssetID, Fleur::Graphics::Model> m_ModelMap;
+
+    std::unordered_map<AssetID, Fleur::AsyncOperation<Fleur::Graphics::Image2D>> m_Image2DAsyncOperationsMap;
+    std::unordered_map<AssetID, Fleur::AsyncOperation<Fleur::Graphics::Model>> m_ModelAsyncOperationsMap;
+
+    std::atomic<uint32_t> m_Images2DCount;
+    std::atomic<uint32_t> m_ModelsCount;
+
+    void AddImageToUpload(Fleur::Graphics::SFLImageView imageView);
 };
 
 

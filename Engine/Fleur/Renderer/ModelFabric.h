@@ -13,7 +13,8 @@ public:
     ModelFabricBase() = default;
     virtual ~ModelFabricBase() = default;
 
-    virtual Model* ProcessModel(bool async = true) = 0;
+    // virtual Model* ProcessModel(bool async = true) = 0;
+    virtual Model::SFLPostCreateInfo ProcessData(bool async = true) = 0;
 };
 
 class CGLTFModelFabric : public ModelFabricBase
@@ -22,13 +23,15 @@ public:
     CGLTFModelFabric(std::string_view name, const cgltf_data* const data);
     virtual ~CGLTFModelFabric() override = default;
 
-    virtual Model* ProcessModel(bool async = true) override;
+    // virtual Model* ProcessModel(bool async = true) override;
+    virtual Model::SFLPostCreateInfo ProcessData(bool async = true) override;
 
 private:
     const cgltf_data* const m_Data;
     std::string_view m_Name;
 
-    Model::Mesh::Primitive process_primitive(Model* model, cgltf_primitive& cgltfPrimitive, uint32_t maxIdx);
+    Model::Mesh::Primitive process_primitive(std::vector<Fleur::Graphics::SVertexData>& vertices, std::vector<uint32_t>& indices,
+                                             cgltf_primitive& cgltfPrimitive, uint32_t maxIdx);
 };
 
 }  // namespace Fleur::Graphics

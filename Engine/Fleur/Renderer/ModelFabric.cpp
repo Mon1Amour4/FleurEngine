@@ -1,6 +1,5 @@
 #include "ModelFabric.h"
 
-#include "FleurAllocator.hpp"
 #include "Services/ServiceLocator.h"
 
 //======================================================================
@@ -11,21 +10,17 @@ Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const
 {
 }
 
-Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool async)
+Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::ProcessData(bool async)
 {
+    Fleur::Graphics::Model::SFLPostCreateInfo info{};
+
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-    Fleur::Memory::FleurAllocator<Fleur::Graphics::Model> allocator;
-    Model* model = allocator.construct_at(m_Name);
-
-    model->m_MeshCount = static_cast<uint32_t>(m_Data->meshes_count);
-
-    model->m_Meshes.reserve(model->m_MeshCount);
-    model->m_Materials.reserve(m_Data->materials_count);
+    info.meshes.reserve(m_Data->meshes_count);
+    info.materials.reserve(m_Data->materials_count);
 
     int textureIdx = MAXINT;
-    // std::map<uint32_t, const Texture*> loaded_textures;
-    for (size_t i = 0; i < model->m_Materials.capacity(); i++)
+    for (size_t i = 0; i < info.materials.capacity(); i++)
     {
         uint32_t solidTextureIdx = 0;
 
@@ -58,7 +53,7 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
                 else if (baseColorTexture->image->uri)
                 {
                     // Texture somewhere in folder
-                    flMaterial.albedo = assetsManager->MakeHandle<Fleur::Graphics::Image2D>(baseColorTexture->image->uri);
+                    flMaterial.albedo = assetsManager->LoadAsync<Fleur::Graphics::Image2D>(baseColorTexture->image->uri)->asset.ID;
                 }
             }
             else
@@ -84,22 +79,18 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
                     c = Color(*color, *(color + 1));
                 else
                     c = Color(*color);
-                flMaterial.albedo = assetsManager->LoadImage2DFromColor(materialName, c, 128, 128);
+
+                flMaterial.albedo = assetsManager->FromColor(materialName, c).ID;
 
                 ++solidTextureIdx;
             }
 
-            //    // TODO think about passing raw pointer or shared ptr to material
-            // ShaderComponentContext ctx{};
-            // ctx.albedo_text.second = texture.get();
-            // auto material = Material::CreateMaterial(ctx);
-            model->m_Materials.push_back(std::move(flMaterial));
-            //    loaded_textures.emplace(textureIdx, texture.get());
+            info.materials.push_back(std::move(flMaterial));
         }
     }
 
 
-    for (size_t i = 0; i < model->m_MeshCount; i++)
+    for (size_t i = 0; i < info.meshes.size(); i++)
     {
         auto cgltfMesh = (m_Data->meshes + i);
         for (size_t j = 0; j < cgltfMesh->primitives_count; j++)
@@ -109,36 +100,40 @@ Fleur::Graphics::Model* Fleur::Graphics::CGLTFModelFabric::ProcessModel(bool asy
             {
                 auto attrib = primitive.attributes[k];
                 if (attrib.type == cgltf_attribute_type_position)
-                    model->m_ModelVertexCount += static_cast<uint32_t>(attrib.data->count);
+                    info.modelVertexCount += static_cast<uint32_t>(attrib.data->count);
             }
-            model->m_ModelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
+            info.modelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
         }
-        Model::Mesh& modelMesh = model->m_Meshes.emplace_back();
+        // Model::Mesh& modelMesh = model->m_Meshes.emplace_back();
+        Model::Mesh& modelMesh = info.meshes.emplace_back();
         modelMesh.m_Primitives.reserve(cgltfMesh->primitives_count);
         modelMesh.m_MeshName = cgltfMesh->name;
-        modelMesh.m_MeshVertexStart = model->m_Vertices.size();
-        modelMesh.m_MeshIndexStart = model->m_Indices.size();
+        modelMesh.m_MeshVertexStart = info.m_Vertices.size();
+        modelMesh.m_MeshIndexStart = info.m_Indices.size();
 
-        model->m_PrimitiveCount += cgltfMesh->primitives_count;
+        info.primitiveCount += cgltfMesh->primitives_count;
         for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
         {
             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
-            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(process_primitive(model, cgltfPrimitive, materialIdx));
+            Model::Mesh::Primitive& meshPrimitive =
+                modelMesh.m_Primitives.emplace_back(process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx));
 
             modelMesh.m_MeshVertexCount += meshPrimitive.VertexCount();
             modelMesh.m_MeshIndicesCount += meshPrimitive.IndexCount();
         }
-        modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(model->m_Vertices.size());
-        modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(model->m_Indices.size());
+        modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
+        modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
     }
-    model->m_Vertices.reserve(model->m_ModelVertexCount);
-    model->m_Indices.reserve(model->m_ModelIndicesCount);
 
-    return model;
+    info.m_Vertices.reserve(info.modelVertexCount);
+    info.m_Indices.reserve(info.modelIndicesCount);
+
+    return info;
 }
 
-Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(Fleur::Graphics::Model* model, cgltf_primitive& cgltfPrimitive,
+Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(std::vector<Fleur::Graphics::SVertexData>& vertices,
+                                                                                             std::vector<uint32_t>& indices, cgltf_primitive& cgltfPrimitive,
                                                                                              uint32_t maxIdx)
 {
     Fleur::Graphics::Model::Mesh::Primitive meshPrimitive = Fleur::Graphics::Model::Mesh::Primitive();
@@ -153,8 +148,8 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             meshPrimitive.m_PrimitiveVertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
         }
     }
-    meshPrimitive.m_PrimitiveVertexStart = static_cast<uint32_t>(model->m_Vertices.size());
-    meshPrimitive.m_PrimitiveIndexStart = static_cast<uint32_t>(model->m_Indices.size());
+    meshPrimitive.m_PrimitiveVertexStart = static_cast<uint32_t>(vertices.size());
+    meshPrimitive.m_PrimitiveIndexStart = static_cast<uint32_t>(indices.size());
     const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
 
     const uint8_t* indexGlobalBuffer = static_cast<const uint8_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
@@ -197,7 +192,7 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
         uint32_t vi = readIndex(j);
         if (map.contains(vi))
         {
-            model->m_Indices.push_back(map[vi]);
+            indices.push_back(map[vi]);
             continue;
         }
         SVertexData v{};
@@ -220,13 +215,13 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             v.TexCoord.y = textcoords[vi * 2 + 1];
         }
 
-        model->m_Vertices.push_back(v);
-        uint32_t newIndex = static_cast<uint32_t>(model->m_Vertices.size() - 1);
+        vertices.push_back(v);
+        uint32_t newIndex = static_cast<uint32_t>(vertices.size() - 1);
         map[vi] = newIndex;
-        model->m_Indices.push_back(newIndex);
+        indices.push_back(newIndex);
     }
-    meshPrimitive.m_PrimitiveVertexEnd = static_cast<uint32_t>(model->m_Vertices.size()) - 1;
-    meshPrimitive.m_PrimitiveIndexEnd = static_cast<uint32_t>(model->m_Indices.size()) - 1;
+    meshPrimitive.m_PrimitiveVertexEnd = static_cast<uint32_t>(vertices.size()) - 1;
+    meshPrimitive.m_PrimitiveIndexEnd = static_cast<uint32_t>(indices.size()) - 1;
 
     return meshPrimitive;
 }

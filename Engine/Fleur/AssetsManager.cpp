@@ -27,7 +27,6 @@ using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;
 using CubemapImage = Fleur::Graphics::CubemapImage;
 
-std::atomic<uint32_t> Fleur::AssetsManager::m_StaticID = 0;
 
 Fleur::AssetsManager::AssetsManager()
     : m_ModelsCount(0)
@@ -52,9 +51,9 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
         return handle;
 
     std::string fileName = std::filesystem::path(path).stem().string();
-    bool loaded = is_already_loaded(m_Models, fileName, handle);
-    if (loaded)
-        return handle;
+    // bool loaded = is_already_loaded(m_Models, fileName, handle);
+    // if (loaded)
+    //     return handle;
 
     auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -86,86 +85,14 @@ CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model(std::string_view path)
     Fleur::Graphics::Model* model = fabric.ProcessModel();
     handle->SetSuccess();
     handle->SetResource(std::make_shared<Model>(std::move(*model)));
-    m_Models.emplace(std::move(fileName), handle->Resource());
+    // m_Models.emplace(std::move(fileName), handle->Resource());
     ++m_ModelsCount;
 
-    FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), handle->Resource()->GetName());
+    // FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), handle->Resource()->GetName());
 
     cgltf_free(data);
 
     needToUploadResources = true;
-
-    return handle;
-}
-CONST_SHARED_RES(Model) Fleur::AssetsManager::load_model_async(std::string_view path)
-{
-    SHARED_RES(Model) handle{nullptr};
-    if (path.empty())
-        return handle;
-
-    std::string fileName = std::filesystem::path(path).stem().string();
-    bool loaded = is_already_loaded(m_Models, fileName, handle);
-    if (loaded)
-        return handle;
-    {
-        const auto it = m_ModelsToLoadAsync.find(fileName);
-        if (it != m_ModelsToLoadAsync.end() && it->second->Status() != CORRUPTED)
-            return it->second;
-    }
-
-    handle = m_ModelsToLoadAsync.emplace(fileName, std::make_shared<Fleur::AsyncOperationHandle<Model>>(nullptr)).first->second;
-
-    auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
-
-    threadPool->Submit(
-        [this](std::string_view path, std::string_view fileName, std::shared_ptr<Fleur::AsyncOperationHandle<Model>> handle)
-        {
-            handle->SetStatus(ELoadingSts::LOADING);
-
-            auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-
-            auto res = fileSystem->GetFullPathToFile(path);
-            if (!res)
-            {
-                handle->SetCorrupted(WRONG_PATH);
-                return;
-            }
-
-            cgltf_options options = {};
-            cgltf_data* data = NULL;
-            cgltf_result result = cgltf_parse_file(&options, res->c_str(), &data);
-            if (result != cgltf_result_success)
-            {
-                handle->SetCorrupted(NO_DATA);
-                return;
-            }
-            result = cgltf_load_buffers(&options, data, res->c_str());
-            if (result != cgltf_result_success)
-            {
-                handle->SetCorrupted(NO_DATA);
-                return;
-            }
-
-            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(fileName, data);
-            Fleur::Graphics::Model* model = fabric.ProcessModel();
-            handle->SetSuccess();
-            handle->SetResource(std::make_shared<Model>(std::move(*model)));
-            m_Models.emplace(fileName, handle->Resource());
-            FL_CORE_INFO("[AssetsManager] Model[{0}] was added: name: {1}, ", m_Models.size(), fileName);
-            ++m_ModelsCount;
-
-            auto it = m_ModelsToLoadAsync.find(fileName.data());
-            if (it != m_ModelsToLoadAsync.end())
-            {
-                std::mutex mtx;
-                std::lock_guard<std::mutex> lock(mtx);
-                m_ModelsToLoadAsync.unsafe_erase(it);
-            }
-            cgltf_free(data);
-
-            needToUploadResources = true;
-        },
-        path, fileName, handle);
 
     return handle;
 }
@@ -180,9 +107,9 @@ CONST_SHARED_RES(Image2D) Fleur::AssetsManager::load_image2d(std::string_view pa
     std::string fileName = std::filesystem::path(path).stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
 
-    bool loaded = is_already_loaded(m_Images2D, fileName, handle);
+    /*bool loaded = is_already_loaded(m_Images2D, fileName, handle);
     if (loaded)
-        return handle;
+        return handle;*/
 
     auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -403,59 +330,6 @@ Fleur::AssetsManager::LoadImage2DFromRawData(std::string_view name, unsigned cha
     return handle;
 }
 
-Fleur::AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
-{
-    assert(pData && size > 0);
-
-    AssetID ID = m_StaticID;
-    auto pair = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name));
-    m_StaticID++;
-
-    int w, h, channels = 0;
-    uint32_t desiredChannels = 4;
-    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
-    unsigned char* imgData = stbi_load_from_memory(pData, static_cast<int>(size), &w, &h, &channels, STBI_rgb_alpha);
-
-    auto img = &m_ImagesMap.emplace(m_StaticID, Fleur::Graphics::Image2D(name, "", imgData, w, h, desiredChannels, 1)).first->second;
-    FL_CORE_INFO("[AssetsManager] Image[{0}] was added: name: {1}, width: {2}, height: {3}", ++m_Images2DCount, img->Name(), img->Width(), img->Height());
-
-    auto view = img->GetView();
-    view.ID = ID;
-    m_ImagesToUpload.push_back(view);
-    return ID;
-}
-
-Fleur::AssetID Fleur::AssetsManager::LoadImage2DFromColor(std::string_view name, Fleur::Graphics::Color color, uint32_t width, uint32_t height)
-{
-    uint32_t channels = Fleur::Graphics::Color::Channels(color);
-    size_t size = width * height * channels;
-
-    uint32_t colorData = color.Data();
-
-    Fleur::Memory::FleurAllocator<unsigned char> alloc;
-    unsigned char* data = alloc.allocate(size);
-    for (size_t i = 0; i < width * height * channels; ++i)
-    {
-        std::memcpy(data + i, &colorData, channels);
-    }
-
-    AssetID ID = m_StaticID;
-    auto& img = m_ImagesMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
-
-    alloc.deallocate(data, size);
-
-    m_StaticID++;
-
-    auto view = img.GetView();
-    view.ID = ID;
-
-    m_ImagesToUpload.emplace_back(view);
-
-    needToUploadResources = true;
-
-    return ID;
-}
-
 
 // CubemapImage:
 CONST_SHARED_RES(CubemapImage) Fleur::AssetsManager::load_cubemap_image(std::string_view path, bool flipVertical)
@@ -582,7 +456,6 @@ void Fleur::AssetsManager::OnInit()
 void Fleur::AssetsManager::OnShutdown()
 {
 }
-
 void Fleur::AssetsManager::OnUpdate(float dtTime)
 {
     if (needToUploadResources)
@@ -616,48 +489,109 @@ void Fleur::AssetsManager::load_all_shaders()
     }
 }
 
-
-void Fleur::AssetsManager::load_image_async(Fleur::Graphics::Image2D& img)
+//======================================================================
+// Image2D
+const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* Fleur::AssetsManager::load_async_image2D(std::string_view path)
 {
-    if (img.Name().empty())
-        return;
+    using value_type = Fleur::Graphics::Image2D;
+    AssetID ID = m_AssetIDCounter++;
+
+    std::string fileName = std::filesystem::path(path).filename().stem().string();
+    std::string ext = std::filesystem::path(path).extension().string();
+
+    m_StringToIDMap.emplace(fileName, ID);
+    auto pair = m_Image2DMap.emplace(ID, value_type(fileName, ext)).first;
+    Fleur::Asset<value_type> asset{pair->first, &pair->second};
+    Fleur::AsyncOperation<value_type> op{std::move(asset), ELoadingSts::TO_BE_LOADED};
+
+    Fleur::AsyncOperation<value_type>* asyncOperation = &m_Image2DAsyncOperationsMap.emplace(pair->first, std::move(op)).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](Fleur::Graphics::Image2D* image, bool flipVertical)
+        [this](Fleur::AsyncOperation<value_type>* handle, bool flipVertical)
         {
+            value_type* image2D = handle->asset.obj;
+
+            handle->status = ELoadingSts::LOADING;
+
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            int w, h, channels = 0;
-            uint32_t desiredChannels = 4;
-            std::filesystem::path full_path = image->Name();
-            full_path.replace_extension(image->Ext());
+            std::filesystem::path full_path = image2D->Name();
+            full_path.replace_extension(image2D->Ext());
 
             auto res = fs->GetFullPathToFile(full_path.string());
             if (!res)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
                 return;
+            }
 
             stbi_set_flip_vertically_on_load_thread(static_cast<int>(flipVertical));
-            unsigned char* imgData = stbi_load(res.value().c_str(), &w, &h, &channels, STBI_rgb_alpha);
+
+            int width = 0;
+            int height = 0;
+            int channels = 0;
+            uint32_t desiredChannels = 4;
+
+            unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
 
             if (!imgData)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
                 return;
+            }
+            handle->status = ELoadingSts::SUCCESS;
+            Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+            image2D->PostCreate(settings);
 
-            Fleur::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(desiredChannels), 1, imgData};
-            image->PostCreate(settings);
+            FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", handle->asset.ID, image2D->Name(), image2D->Width(), image2D->Height());
 
-            FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", image->Name());
-            ++m_Images2DCount;
+            Fleur::Graphics::SFLImageView imageView = image2D->GetView();
+            imageView.ID = handle->asset.ID;
+
+            AddImageToUpload(imageView);
 
             stbi_image_free(imgData);
         },
-        &img, false);
-}
+        asyncOperation, false);
 
+    return asyncOperation;
+}
+Fleur::AssetID Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
+{
+    assert(pData && size > 0);
+
+    using value_type = Fleur::Graphics::Image2D;
+
+    AssetID ID = m_AssetIDCounter++;
+
+    m_StringToIDMap.emplace(name, ID);
+    value_type* image2D = &m_Image2DMap.emplace(ID, value_type(name, "")).first->second;
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    int desiredChannels = 4;
+
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
+    unsigned char* imgData = stbi_load_from_memory(pData, static_cast<int>(size), &width, &height, &channels, STBI_rgb_alpha);
+
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
+    image2D->PostCreate(info);
+
+    FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", ID, image2D->Name(), image2D->Width(), image2D->Height());
+
+    Fleur::Graphics::SFLImageView imageView = image2D->GetView();
+    imageView.ID = ID;
+    AddImageToUpload(imageView);
+
+    return ID;
+}
 Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphics::Color color)
 {
     using value_type = Fleur::Graphics::Image2D;
+    AssetID ID = m_AssetIDCounter++;
 
     uint32_t width = 1;
     uint32_t height = 1;
@@ -674,75 +608,87 @@ Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::stri
         std::memcpy(data + i, &colorData, channels);
     }
 
-    AssetID ID = m_StaticID;
     m_StringToIDMap.emplace(name, ID);
-    auto& img = m_TestMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
+    value_type* image2D = &m_Image2DMap.emplace(ID, Fleur::Graphics::Image2D(name, "", data, width, height, channels, 1)).first->second;
 
     alloc.deallocate(data, size);
 
-    m_StaticID++;
+    Fleur::Graphics::SFLImageView imageView = image2D->GetView();
+    imageView.ID = ID;
+    AddImageToUpload(imageView);
 
-    auto view = img.GetView();
-    view.ID = ID;
+    FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", ID, image2D->Name(), image2D->Width(), image2D->Height());
 
-    m_ImagesToUpload.emplace_back(view);
-
+    return Fleur::Asset<value_type>{ID, image2D};
+}
+void Fleur::AssetsManager::AddImageToUpload(Fleur::Graphics::SFLImageView imageView)
+{
+    m_ImagesToUpload.push_back(imageView);
     needToUploadResources = true;
-
-    return Fleur::Asset<value_type>{ID, &img};
 }
 
-const Fleur::AsyncOperation<Fleur::Graphics::Image2D>* Fleur::AssetsManager::LoadAsyncImageTest(std::string_view path)
+
+//======================================================================
+// Model
+const Fleur::AsyncOperation<Fleur::Graphics::Model>* Fleur::AssetsManager::load_async_model(std::string_view path)
 {
-    using value_type = Fleur::Graphics::Image2D;
+    using value_type = Fleur::Graphics::Model;
 
     std::string fileName = std::filesystem::path(path).filename().stem().string();
-    std::string ext = std::filesystem::path(path).extension().string();
 
-    m_StringToIDMap.emplace(fileName, m_AssetIDCounter);
-    auto pair = m_TestMap.emplace(m_AssetIDCounter, value_type(fileName, ext)).first;
-    Fleur::Asset<value_type> asset{pair->first, &pair->second};
+    AssetID ID = m_AssetIDCounter++;
+    m_StringToIDMap.emplace(fileName, ID);
+
+    auto pair = m_ModelMap.emplace(ID, value_type(fileName)).first;
+    Fleur::Asset<value_type> asset{ID, nullptr};
     Fleur::AsyncOperation<value_type> op{std::move(asset), ELoadingSts::TO_BE_LOADED};
 
-    Fleur::AsyncOperation<value_type>* asyncOperation = &m_TestASync.emplace(pair->first, std::move(op)).first->second;
-
-    m_AssetIDCounter++;
+    Fleur::AsyncOperation<value_type>* asyncOperation = &m_ModelAsyncOperationsMap.emplace(ID, std::move(op)).first->second;
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](Fleur::AsyncOperation<value_type>* handle, bool flipVertical)
+        [this](Fleur::AsyncOperation<value_type>* handle, std::string_view path)
         {
-            auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-            value_type* img = handle->asset.obj;
+            handle->status = ELoadingSts::LOADING;
 
-            int w, h, channels = 0;
-            uint32_t desiredChannels = 4;
-            std::filesystem::path full_path = img->Name();
-            full_path.replace_extension(img->Ext());
+            auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            auto res = fs->GetFullPathToFile(full_path.string());
+            auto res = fileSystem->GetFullPathToFile(path);
             if (!res)
             {
                 handle->status = ELoadingSts::CORRUPTED;
-                return;
+                handle->asset.obj = nullptr;
+                return handle;
             }
 
-            stbi_set_flip_vertically_on_load_thread(static_cast<int>(flipVertical));
-            unsigned char* imgData = stbi_load(res.value().c_str(), &w, &h, &channels, STBI_rgb_alpha);
-
-            if (!imgData)
+            cgltf_options options = {};
+            cgltf_data* data = NULL;
+            cgltf_result result = cgltf_parse_file(&options, res->c_str(), &data);
+            if (result != cgltf_result_success)
             {
                 handle->status = ELoadingSts::CORRUPTED;
-                return;
+                handle->asset.obj = nullptr;
+                return handle;
             }
-            handle->status = ELoadingSts::SUCCESS;
-            Fleur::Graphics::ImagePostCreation settings{static_cast<uint32_t>(w), static_cast<uint32_t>(h), static_cast<uint16_t>(desiredChannels), 1, imgData};
-            img->PostCreate(settings);
+            result = cgltf_load_buffers(&options, data, res->c_str());
+            if (result != cgltf_result_success)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                handle->asset.obj = nullptr;
+                return handle;
+            }
 
-            stbi_image_free(imgData);
+            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(handle->asset.obj->GetName(), data);
+            Fleur::Graphics::Model::SFLPostCreateInfo info = fabric.ProcessData();
+
+            handle->asset.obj->PostCreate(info);
+
+            FL_CORE_INFO("[AssetsManager] Image was added: name: {0}, ", handle->asset.obj->GetName());
+
+            cgltf_free(data);
         },
-        asyncOperation, false);
+        asyncOperation, path);
 
     return asyncOperation;
 }

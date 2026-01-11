@@ -178,6 +178,18 @@ public:
     MeshBuilder CreateSubmesh(std::string_view meshName);
     static Model* QuadModel(Fleur::Graphics::Material&& material);
 
+    struct SFLPostCreateInfo
+    {
+        std::vector<Fleur::Graphics::Model::Mesh> meshes;
+        std::vector<Fleur::Graphics::Material> materials;
+        std::vector<Fleur::Graphics::SVertexData> m_Vertices;
+        std::vector<uint32_t> m_Indices;
+        uint32_t modelVertexCount;
+        uint32_t modelIndicesCount;
+        uint32_t primitiveCount;
+    };
+    void PostCreate(SFLPostCreateInfo& info);
+
 private:
     std::string m_Name;
     uint32_t m_MeshCount;
