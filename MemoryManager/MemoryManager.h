@@ -177,7 +177,11 @@ public:
 
         if (size <= SMALL_SIZE)
         {
-            size = AlignTo(sizeof(T) * count, 8);
+            if (size < m_MinSlotSize)
+                size = m_MinSlotSize;
+            else
+                size = AlignTo(sizeof(T) * count, 8);
+
             ptr = slubAlloc->allocate<T, Align>(size, count);
         }
         else if (size > SMALL_SIZE && size < MEDIUN_SIZE)
