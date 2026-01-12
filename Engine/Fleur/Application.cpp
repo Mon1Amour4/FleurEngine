@@ -203,27 +203,27 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     renderer.value()->SetVSync(settings.Vsync);
 
 
-    auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
+    //auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
-    assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
-    auto sponza = assetsManager.value()->Get<Model>("Sponza");
-    glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-    glm::mat4 R = glm::mat4(1.f);
-    glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    glm::mat4 M = T * R * S;
-    renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
+    //assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
+    //auto sponza = assetsManager.value()->Get<Model>("Sponza");
+    //glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+    //glm::mat4 R = glm::mat4(1.f);
+    //glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    //glm::mat4 M = T * R * S;
+    //renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
 
-    assetsManager.value()->Load<Model>("gizmo.glb");
-    assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+    //assetsManager.value()->Load<Model>("gizmo.glb");
+    //assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
-    assetsManager.value()->Load<CubemapImage>("skybox.jpg");
-    assetsManager.value()->Load<Image2D>("left.jpg");
-    assetsManager.value()->Load<Image2D>("front.jpg");
-    assetsManager.value()->Load<Image2D>("right.jpg");
-    assetsManager.value()->Load<Image2D>("back.jpg");
-    assetsManager.value()->Load<Image2D>("bottom.jpg");
-    assetsManager.value()->Load<Image2D>("top.jpg");
-    assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
+    //assetsManager.value()->Load<CubemapImage>("skybox.jpg");
+    //assetsManager.value()->Load<Image2D>("left.jpg");
+    //assetsManager.value()->Load<Image2D>("front.jpg");
+    //assetsManager.value()->Load<Image2D>("right.jpg");
+    //assetsManager.value()->Load<Image2D>("back.jpg");
+    //assetsManager.value()->Load<Image2D>("bottom.jpg");
+    //assetsManager.value()->Load<Image2D>("top.jpg");
+    //assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
     m_IsInitialized = true;
     m_IsRunning = true;

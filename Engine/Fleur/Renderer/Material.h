@@ -7,11 +7,10 @@
 namespace Fleur::Graphics
 {
 
-
 struct Material
 {
-    AssetID albedo;
-    AssetID normal;
+    uint32_t albedo;
+    uint32_t normal;
 };
 
 // class TextureBase;

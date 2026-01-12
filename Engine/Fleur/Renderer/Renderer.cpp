@@ -27,32 +27,33 @@ Fleur::Graphics::Renderer::~Renderer()
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view path)
 {
-    if (path.empty())
-        return GetLoadedTexture("fallback");
+    // if (path.empty())
+    //     return GetLoadedTexture("fallback");
 
-    // Try to find first across loaded textures:
-    std::string name = std::filesystem::path(path.data()).stem().string();
-    auto it = m_Textures.find(name);
-    if (it != m_Textures.end())
-        return it->second;
+    //// Try to find first across loaded textures:
+    // std::string name = std::filesystem::path(path.data()).stem().string();
+    // auto it = m_Textures.find(name);
+    // if (it != m_Textures.end())
+    //     return it->second;
 
-    // If not, load Image and then create new texture:
-    std::shared_ptr<Fleur::Graphics::Image2D> image{nullptr};
-    auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
-    auto existingImg = assetsManager->Get<Fleur::Graphics::Image2D>(name);
-    if (!existingImg.expired())
-        image = existingImg.lock();
-    else
-    {
-        image = assetsManager->Load<Fleur::Graphics::Image2D>(path)->Resource();
-        if (!image.get())
-        {
-            return GetLoadedTexture("fallback");
-        }
-    }
+    //// If not, load Image and then create new texture:
+    // std::shared_ptr<Fleur::Graphics::Image2D> image{nullptr};
+    // auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
+    // auto existingImg = assetsManager->Get<Fleur::Graphics::Image2D>(name);
+    // if (!existingImg.expired())
+    //     image = existingImg.lock();
+    // else
+    //{
+    //     image = assetsManager->Load<Fleur::Graphics::Image2D>(path)->Resource();
+    //     if (!image.get())
+    //     {
+    //         return GetLoadedTexture("fallback");
+    //     }
+    // }
 
-    auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
-    return m_Textures.emplace(image->Name(), texture).first->second;
+    // auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
+    // return m_Textures.emplace(image->Name(), texture).first->second;
+    return std::shared_ptr<Fleur::Graphics::Texture>();
 }
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view name, Color color, int width, int height)
@@ -196,12 +197,12 @@ void Fleur::Graphics::Renderer::OnInit()
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-    auto pVertexShader = assetsManager->Get<Shader>("vertex").lock().get();
+    auto pVertexShader = assetsManager->Get<Shader>("vertex").obj;
     Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
     vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
     vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
 
-    auto pFragmentShader = assetsManager->Get<Shader>("opaque").lock().get();
+    auto pFragmentShader = assetsManager->Get<Shader>("opaque").obj;
     Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
     fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
     fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
@@ -216,7 +217,7 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Graphics::SFLFrame frame{};
     frame.pPass = &geometryPass;
 
-    auto fallbackAsset = assetsManager->GetAsset<Fleur::Graphics::Image2D>("Fallback");
+    auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("Fallback");
     Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
     fallbackView.ID = fallbackAsset.ID;
 
