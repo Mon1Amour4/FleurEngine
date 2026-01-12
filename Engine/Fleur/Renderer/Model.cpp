@@ -110,6 +110,17 @@ Fleur::Graphics::Model* Fleur::Graphics::Model::QuadModel(Fleur::Graphics::Mater
 
 void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo& info)
 {
+    m_Vertices = std::move(info.m_Vertices);
+    m_Indices = std::move(info.m_Indices);
+    m_Materials = std::move(info.materials);
+
+    m_Meshes = std::move(info.meshes);
+    m_MeshCount = m_Meshes.size();
+
+    m_ModelVertexCount = info.modelVertexCount;
+    m_ModelIndicesCount = info.modelIndicesCount;
+
+    m_PrimitiveCount = info.primitiveCount;
 }
 
 //======================================================================

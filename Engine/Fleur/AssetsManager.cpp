@@ -22,11 +22,18 @@
 #include "FileSystem/FileSystem.h"
 #include "Services/ServiceLocator.h"
 
-using Model = Fleur::Graphics::Model;
-using Texture = Fleur::Graphics::Texture;
-using Image2D = Fleur::Graphics::Image2D;
-using CubemapImage = Fleur::Graphics::CubemapImage;
+using ImageType = Fleur::Graphics::Image2D;
+using ShaderType = Fleur::Graphics::Shader;
+using ModelType = Fleur::Graphics::Model;
 
+using ImageRecord = Fleur::AssetRecord<Fleur::Graphics::Image2D>;
+using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
+
+using ImageAsset = Fleur::Asset<ImageType>;
+using ModelAsset = Fleur::Asset<ModelType>;
+
+using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
+using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
 
 Fleur::AssetsManager::AssetsManager()
 {
@@ -63,16 +70,21 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
 //======================================================================
 // Image2D
-std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(std::string_view path, Fleur::AssetID id)
+ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, Fleur::AssetID id)
 {
-    using ImageType = Fleur::Graphics::Image2D;
-    using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
-    using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
-
     std::string fileName = std::filesystem::path(path).filename().stem().string();
     std::string ext = std::filesystem::path(path).extension().string();
 
-    Asset<ImageType> image2dAsset = Add(fileName, id);
+    ImageRecord record = Add(fileName, id);
+    if (record.alreadyExist)
+    {
+        ImageAsyncOpShared operation = std::make_shared<ImageAsyncOp>();
+        operation->status = Fleur::ELoadingSts::SUCCESS;
+        operation->asset = ImageAsset{record.asset.ID, record.asset.obj};
+        return operation;
+    };
+
+    ImageAsset image2dAsset = record.asset;
 
     ImageAsyncOpShared sharedOP = std::make_shared<ImageAsyncOp>(image2dAsset, ELoadingSts::TO_BE_LOADED);
 
@@ -122,30 +134,96 @@ std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCac
 
             stbi_image_free(imgData);
 
-            FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+            FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+
             handle->status = ELoadingSts::SUCCESS;
         },
         sharedOP, false);
 
     return sharedOP;
 }
-Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path, Fleur::AssetID id)
+
+ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::AssetID id)
 {
+    std::string fileName = std::filesystem::path(path).filename().stem().string();
+    std::string ext = std::filesystem::path(path).extension().string();
+
+    ImageRecord image2dRecord = Add(fileName, id);
+    if (image2dRecord.alreadyExist)
+        return image2dRecord.asset;
+
+    ImageAsset image2dAsset = image2dRecord.asset;
+    ImageType* imagePtr = image2dRecord.asset.obj;
+
+    auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+
+    auto res = fs->GetFullPathToFile(path);
+    if (!res)
+        return ImageAsset({0, nullptr});
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    uint32_t desiredChannels = 4;
+
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
+    unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (!imgData)
+    {
+        FL_CORE_ERROR("Can't load an image: {0} {1}", fileName, stbi_failure_reason());
+        return ImageAsset({0, nullptr});
+    }
+
+    Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+    imagePtr->PostCreate(settings);
+
+    Fleur::Graphics::SFLImageView imageView = imagePtr->GetView();
+    imageView.ID = image2dAsset.ID;
+
+    // AddImageToUpload(imageView);
+
+    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+
+    stbi_image_free(imgData);
+
+    return image2dAsset;
 }
-    Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::Add(std::string_view name, AssetID id)
+ImageRecord Fleur::AssetCache<ImageType>::Add(std::string_view name, AssetID id)
 {
+    ImageRecord record = Exist(name);
+    if (record.alreadyExist)
+        return record;
+
     stringMap.emplace(name, id);
-    Fleur::Graphics::Image2D* image2D = &map.emplace(Fleur::Graphics::Image2D(name, "")).first->second;
+    Fleur::Graphics::Image2D* image2DPtr = &map.emplace(id, Fleur::Graphics::Image2D(name, "")).first->second;
     m_size++;
 
-    return {id, image2D};
+    return {true, false, {id, image2DPtr}};
 }
-Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphics::Color color)
+ImageRecord Fleur::AssetCache<ImageType>::Exist(std::string_view name)
+{
+    Fleur::AssetRecord<ImageType> record{false, false, {0, nullptr}};
+
+    if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
+    {
+        record.registered = true;
+        record.alreadyExist = true;
+        record.asset.ID = stringMap[name.data()];
+        record.asset.obj = &map[record.asset.ID];
+    }
+
+    return record;
+}
+ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphics::Color color)
 {
     using value_type = Fleur::Graphics::Image2D;
     AssetID id = m_GlobalId++;
 
-    Asset<value_type> image2dAsset = m_Image2DCache.Add(name, id);
+    ImageRecord image2dRecord = m_Image2DCache.Add(name, id);
+    if (image2dRecord.alreadyExist)
+        return image2dRecord.asset;
+
+    ImageAsset image2dAsset = image2dRecord.asset;
 
     uint32_t width = 1;
     uint32_t height = 1;
@@ -169,20 +247,24 @@ Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::FromColor(std::stri
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    //AddImageToUpload(imageView);
+    // AddImageToUpload(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
 
     return image2dAsset;
 }
-Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
+ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsigned char* pData, size_t size)
 {
     assert(pData && size > 0);
 
     using value_type = Fleur::Graphics::Image2D;
     AssetID id = m_GlobalId++;
 
-    Asset<value_type> image2dAsset = m_Image2DCache.Add(name, id);
+    ImageRecord image2dRecord = m_Image2DCache.Add(name, id);
+    if (image2dRecord.alreadyExist)
+        return image2dRecord.asset;
+
+    ImageAsset image2dAsset = image2dRecord.asset;
 
     int width = 0;
     int height = 0;
@@ -198,16 +280,95 @@ Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetsManager::LoadImageFromMemory
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    //AddImageToUpload(imageView);
+    // AddImageToUpload(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image ({1}, {2}, {3}, {4}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
+
+    return image2dAsset;
+}
+ImageAsset Fleur::AssetCache<ImageType>::Get(std::string_view name)
+{
+    return Exist(name).asset;
+}
+ImageAsset Fleur::AssetCache<ImageType>::Get(Fleur::AssetID id)
+{
+    ImageAsset image2dAsset{0, nullptr};
+    if (auto rec = map.find(id); rec != map.end())
+    {
+        image2dAsset.ID = id;
+        image2dAsset.obj = &rec->second;
+    }
 
     return image2dAsset;
 }
 
+//======================================================================
+// Model
+ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::AssetID id)
+{
+    if (path.empty())
+        return ModelAsset{0, nullptr};
 
+    std::string fileName = std::filesystem::path(path).stem().string();
 
+    ModelRecord modelRecord = Add(fileName, id);
+    if (modelRecord.alreadyExist)
+        return modelRecord.asset;
 
+    ModelAsset modelAsset = modelRecord.asset;
+    ModelType* modelPtr = modelRecord.asset.obj;
+
+    auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+    auto res = fileSystem->GetFullPathToFile(path);
+    if (!res)
+        return ModelAsset{0, nullptr};
+
+    cgltf_options options = {};
+    cgltf_data* data = NULL;
+    cgltf_result result = cgltf_parse_file(&options, res->c_str(), &data);
+    if (result != cgltf_result_success)
+        return ModelAsset{0, nullptr};
+
+    result = cgltf_load_buffers(&options, data, res->c_str());
+    if (result != cgltf_result_success)
+        return ModelAsset{0, nullptr};
+
+    Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(fileName, data);
+    Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
+    modelPtr->PostCreate(createInfo);
+
+    cgltf_free(data);
+
+    FL_CORE_INFO("[AssetsManager] Model ({0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
+
+    return modelAsset;
+}
+ModelRecord Fleur::AssetCache<ModelType>::Add(std::string_view name, Fleur::AssetID id)
+{
+    ModelRecord record = Exist(name);
+    if (record.registered)
+        return record;
+
+    stringMap.emplace(name, id);
+    Fleur::Graphics::Model* modelPtr = &map.emplace(id, Fleur::Graphics::Model(name)).first->second;
+    m_size++;
+
+    return {true, false, {id, modelPtr}};
+}
+ModelRecord Fleur::AssetCache<ModelType>::Exist(std::string_view name)
+{
+    Fleur::AssetRecord<ModelType> record{false, false, {0, nullptr}};
+
+    if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
+    {
+        record.registered = true;
+        record.alreadyExist = true;
+        record.asset.ID = stringMap[name.data()];
+        record.asset.obj = &map[record.asset.ID];
+    }
+
+    return record;
+}
 
 //======================================================================
 // Shader
@@ -220,10 +381,11 @@ void Fleur::AssetsManager::load_all_shaders()
 
     for (const auto& path : paths)
     {
+        AssetID id = m_GlobalId++;
         auto vec = fileSystem->ReadFileBinary(path);
-        m_ShaderMap.emplace(fileSystem->GetFileNameWithoutExtFromPath(path), Fleur::Graphics::Shader(vec.data(), vec.size()));
+        auto name = fileSystem->GetFileNameWithoutExtFromPath(path);
+
+        m_ShaderMapString.emplace(std::move(name), id);
+        m_ShaderMap.emplace(id, ShaderType(vec.data(), vec.size()));
     }
 }
-
-
-

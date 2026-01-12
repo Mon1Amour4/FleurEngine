@@ -193,37 +193,41 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
+    Asset<Fleur::Graphics::Image2D> imageAsset = assetsManager->get()->Load<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+    Asset<Fleur::Graphics::Image2D> imageAsset2 = assetsManager->get()->Get<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+    Asset<Fleur::Graphics::Model> modelAsset = assetsManager->get()->Load<Fleur::Graphics::Model>("Sponza/Sponza.glb");
+
     // const Fleur::AsyncOperation<Image2D>* handle = assetsManager.value()->LoadAsync<Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
 
-    Fleur::Asset<Fleur::Graphics::Image2D> fallbackAsset = assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
-    auto fallbackAsset2 = assetsManager.value()->GetAsset<Fleur::Graphics::Image2D>("Fallback");
+    /*Fleur::Asset<Fleur::Graphics::Image2D> fallbackAsset = assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
+    auto fallbackAsset2 = assetsManager.value()->GetAsset<Fleur::Graphics::Image2D>("Fallback");*/
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
 
 
-    //auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
+    // auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
-    //assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
-    //auto sponza = assetsManager.value()->Get<Model>("Sponza");
-    //glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-    //glm::mat4 R = glm::mat4(1.f);
-    //glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    //glm::mat4 M = T * R * S;
-    //renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
+    // assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
+    // auto sponza = assetsManager.value()->Get<Model>("Sponza");
+    // glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+    // glm::mat4 R = glm::mat4(1.f);
+    // glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    // glm::mat4 M = T * R * S;
+    // renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
 
-    //assetsManager.value()->Load<Model>("gizmo.glb");
-    //assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
+    // assetsManager.value()->Load<Model>("gizmo.glb");
+    // assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
 
-    //assetsManager.value()->Load<CubemapImage>("skybox.jpg");
-    //assetsManager.value()->Load<Image2D>("left.jpg");
-    //assetsManager.value()->Load<Image2D>("front.jpg");
-    //assetsManager.value()->Load<Image2D>("right.jpg");
-    //assetsManager.value()->Load<Image2D>("back.jpg");
-    //assetsManager.value()->Load<Image2D>("bottom.jpg");
-    //assetsManager.value()->Load<Image2D>("top.jpg");
-    //assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
+    // assetsManager.value()->Load<CubemapImage>("skybox.jpg");
+    // assetsManager.value()->Load<Image2D>("left.jpg");
+    // assetsManager.value()->Load<Image2D>("front.jpg");
+    // assetsManager.value()->Load<Image2D>("right.jpg");
+    // assetsManager.value()->Load<Image2D>("back.jpg");
+    // assetsManager.value()->Load<Image2D>("bottom.jpg");
+    // assetsManager.value()->Load<Image2D>("top.jpg");
+    // assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
     m_IsInitialized = true;
     m_IsRunning = true;

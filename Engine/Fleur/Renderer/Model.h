@@ -1,12 +1,12 @@
 #pragma once
 
 #include "Graphics.hpp"
-#include "Material.h"
+// #include "Material.h"
 
 namespace Fleur::Graphics
 {
 struct SVertexData;
-// class Material;
+class Material;
 
 class FLEUR_API Model
 {
@@ -124,6 +124,7 @@ public:
         uint32_t m_MeshIndicesCount;
     };
 
+    Model() = default;
     Model(std::string_view modelName);
 
     ~Model() = default;

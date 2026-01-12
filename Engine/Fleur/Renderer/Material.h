@@ -1,7 +1,6 @@
 #pragma once
 
-#include "AssetsManager.h"
-#include "Image2D.h"
+#include "AssetTypes.hpp"
 #include "ShaderObject.h"
 
 namespace Fleur::Graphics
@@ -9,8 +8,8 @@ namespace Fleur::Graphics
 
 struct Material
 {
-    uint32_t albedo;
-    uint32_t normal;
+    Fleur::AssetID albedo;
+    Fleur::AssetID normal;
 };
 
 // class TextureBase;

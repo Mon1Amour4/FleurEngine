@@ -6,6 +6,7 @@ namespace Fleur::Graphics
 class Shader
 {
 public:
+    Shader() = default;
     Shader(const char* shaderCode, size_t size);
 
     ~Shader() = default;

@@ -3,6 +3,7 @@
 
 #include "Bitmap.hpp"
 #include "Renderer/RenderViews.hpp"
+
 namespace Fleur::Graphics
 {
 class Color;

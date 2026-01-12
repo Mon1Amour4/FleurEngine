@@ -48,7 +48,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                     auto imageBuffer = baseColorTexture->image->buffer_view;
                     unsigned char* imageData = reinterpret_cast<unsigned char*>(imageBuffer->buffer->data) + imageBuffer->offset;
 
-                    flMaterial.albedo = assetsManager->LoadImageFromMemory(textureName, imageData, static_cast<uint32_t>(imageBuffer->size));
+                    flMaterial.albedo = assetsManager->LoadImageFromMemory(textureName, imageData, static_cast<uint32_t>(imageBuffer->size)).ID;
                 }
                 else if (baseColorTexture->image->uri)
                 {
@@ -90,7 +90,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     }
 
 
-    for (size_t i = 0; i < info.meshes.size(); i++)
+    for (size_t i = 0; i < info.meshes.capacity(); i++)
     {
         auto cgltfMesh = (m_Data->meshes + i);
         for (size_t j = 0; j < cgltfMesh->primitives_count; j++)
