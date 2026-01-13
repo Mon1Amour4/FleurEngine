@@ -119,7 +119,7 @@ std::optional<std::string> Fleur::FS::FileSystem::GetFullPathToFile(std::string_
             outName = filePath.lexically_normal().string();
         }
     }
-    else if (extension.compare(".obj") == 0)
+    else if (extension.compare(".obj") == 0 || extension.compare(".glb") == 0)
     {
         std::filesystem::path filePath = d->m_ResourcePath / std::filesystem::path(d->m_ModelsPath) / fileName;
         if (std::filesystem::exists(filePath))
