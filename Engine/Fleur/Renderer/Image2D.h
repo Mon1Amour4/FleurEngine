@@ -33,11 +33,6 @@ public:
     {
         return m_Name;
     }
-    inline std::string_view Ext() const
-    {
-        return m_Extension;
-    }
-
     virtual uint32_t Width() const
     {
         return m_Width;
@@ -89,10 +84,10 @@ protected:
         , m_Layers(1)
         , m_SizeBytes(0)
         , m_IsCreated(false) {};
-    ImageBase(std::string_view name, std::string_view ext, uint16_t layers);
-    ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint16_t layers);
+    ImageBase(std::string_view name, uint16_t layers);
+    ImageBase(std::string_view name, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint16_t layers);
 
-    std::string m_Name, m_Extension;
+    std::string m_Name;
 
     uint32_t m_Width, m_Height;
 
@@ -110,9 +105,8 @@ public:
     ~Image2D() = default;
 
     Image2D(std::string_view name);
-    Image2D(std::string_view name, std::string_view ext);
-    Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
-    Image2D(std::string_view name, std::string_view ext, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, int w, int h, uint16_t channels, uint16_t depth);
 
     Image2D& operator=(const Image2D& other) = delete;
     Image2D(const Image2D& other) = delete;
@@ -132,7 +126,7 @@ public:
 private:
     Bitmap<BitmapFormat_UnsignedByte> m_Bitmap;
 
-    Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& IN bitmap, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& IN bitmap, int w, int h, uint16_t channels, uint16_t depth);
 };
 
 
@@ -149,8 +143,8 @@ public:
         Back = 5     // -Z
     };
 
-    CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& faces);
-    CubemapImage(std::string_view name, std::string_view ext);
+    CubemapImage(std::string_view name, std::array<Image2D, 6>&& faces);
+    CubemapImage(std::string_view name);
 
     CubemapImage& operator=(const Image2D& other) = delete;
     CubemapImage(const CubemapImage& other) = delete;

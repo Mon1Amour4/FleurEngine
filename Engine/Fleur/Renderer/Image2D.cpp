@@ -5,9 +5,8 @@
 #include "Services/ServiceLocator.h"
 
 // ImageBase
-Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint16_t layers)
+Fleur::Graphics::ImageBase::ImageBase(std::string_view name, uint16_t layers)
     : m_Name(name)
-    , m_Extension(ext)
     , m_Width(0)
     , m_Height(0)
     , m_Channels(0)
@@ -17,10 +16,8 @@ Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ex
     , m_IsCreated(false)
 {
 }
-Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ext, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth,
-                                      uint16_t layers)
+Fleur::Graphics::ImageBase::ImageBase(std::string_view name, uint32_t width, uint32_t height, uint16_t channels, uint16_t depth, uint16_t layers)
     : m_Name(name)
-    , m_Extension(ext)
     , m_Width(width)
     , m_Height(height)
     , m_Channels(channels)
@@ -33,7 +30,6 @@ Fleur::Graphics::ImageBase::ImageBase(std::string_view name, std::string_view ex
 
 Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
     : m_Name(std::move(other.m_Name))
-    , m_Extension(std::move(other.m_Extension))
     , m_Width(other.m_Width)
     , m_Height(other.m_Height)
     , m_Channels(other.m_Channels)
@@ -55,7 +51,6 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
     if (this != &other)
     {
         m_Name = std::move(other.m_Name);
-        m_Extension = std::move(other.m_Extension);
         m_Width = other.m_Width;
         m_Height = other.m_Height;
         m_Channels = other.m_Channels;
@@ -81,28 +76,23 @@ Fleur::Graphics::Image2D::Image2D()
 {
 }
 Fleur::Graphics::Image2D::Image2D(std::string_view name)
-    : ImageBase(name, "", 1)
+    : ImageBase(name, 1)
 {
 }
-Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext)
-    : ImageBase(name, ext, 1)
+Fleur::Graphics::Image2D::Image2D(std::string_view name, int w, int h, uint16_t channels, uint16_t depth)
+    : ImageBase(name, w, h, channels, depth, 1)
 {
 }
-Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, int w, int h, uint16_t channels, uint16_t depth)
-    : ImageBase(name, ext, w, h, channels, depth, 1)
-{
-}
-Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
-    : ImageBase(name, ext, w, h, channels, depth, 1)
+Fleur::Graphics::Image2D::Image2D(std::string_view name, unsigned char* data, int w, int h, uint16_t channels, uint16_t depth)
+    : ImageBase(name, w, h, channels, depth, 1)
     , m_Bitmap(w, h, channels)
 {
     FL_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
     memcpy(m_Bitmap.Data(), data, m_Bitmap.GetSizeBytes());
     m_IsCreated = true;
 }
-Fleur::Graphics::Image2D::Image2D(std::string_view name, std::string_view ext, Bitmap<BitmapFormat_UnsignedByte>&& IN inBitmap, int w, int h, uint16_t channels,
-                                  uint16_t depth)
-    : ImageBase(name, ext, w, h, channels, depth, 1)
+Fleur::Graphics::Image2D::Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& IN inBitmap, int w, int h, uint16_t channels, uint16_t depth)
+    : ImageBase(name, w, h, channels, depth, 1)
     , m_Bitmap(std::move(inBitmap))
 {
     m_IsCreated = true;
@@ -117,7 +107,6 @@ Fleur::Graphics::Image2D& Fleur::Graphics::Image2D::operator=(Fleur::Graphics::I
         m_Height = other.m_Height;
         m_IsCreated = other.m_IsCreated;
         m_Name = std::move(other.m_Name);
-        m_Extension = std::move(other.m_Extension);
         m_Channels = other.m_Channels;
         m_Depth = other.m_Depth;
         m_Layers = other.m_Layers;
@@ -140,7 +129,6 @@ Fleur::Graphics::Image2D::Image2D(Fleur::Graphics::Image2D&& other) noexcept
     m_Height = other.m_Height;
     m_IsCreated = other.m_IsCreated;
     m_Name = std::move(other.m_Name);
-    m_Extension = std::move(other.m_Extension);
     m_Channels = other.m_Channels;
     m_Depth = other.m_Depth;
     m_Layers = other.m_Layers;
@@ -306,7 +294,7 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
             }
         }
     }
-    return Image2D(m_Name + "_cross_layout", m_Extension, reinterpret_cast<unsigned char*>(outBitmap.Data()), faceSize * 4, faceSize * 3, m_Channels, m_Depth);
+    return Image2D(m_Name + "_cross_layout", reinterpret_cast<unsigned char*>(outBitmap.Data()), faceSize * 4, faceSize * 3, m_Channels, m_Depth);
 }
 
 Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() const
@@ -316,7 +304,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
     std::array<Image2D, 6> outFaces;
     for (int i = 0; i < 6; i++)
     {
-        outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), m_Extension, faceSize, faceSize, m_Channels, m_Depth);
+        outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), faceSize, faceSize, m_Channels, m_Depth);
     }
 
     auto uploadFace = [&](uint32_t startX, uint32_t startY, uint32_t outFace)
@@ -341,19 +329,19 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
     uploadFace(faceSize, faceSize, 4);      // +Z (front)
     uploadFace(faceSize * 3, faceSize, 5);  // -Z (back)
 
-    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", m_Extension, std::move(outFaces));
+    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", std::move(outFaces));
 }
 
 
 // CubemapImage:
-Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext, std::array<Image2D, 6>&& IN inFaces)
-    : ImageBase(name, ext, inFaces[0].Width(), inFaces[0].Width(), inFaces[0].Channels(), inFaces[0].Depth(), 6)
+Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::array<Image2D, 6>&& IN inFaces)
+    : ImageBase(name, inFaces[0].Width(), inFaces[0].Width(), inFaces[0].Channels(), inFaces[0].Depth(), 6)
 
 {
     m_Faces = std::move(inFaces);
 }
-Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::string_view ext)
-    : ImageBase(name, ext, 6)
+Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name)
+    : ImageBase(name, 6)
 {
 }
 

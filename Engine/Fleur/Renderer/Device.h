@@ -39,10 +39,10 @@ public:
 
     [[nodiscard]] virtual std::unique_ptr<Surface> CreateSurface(const void* window) = 0;
 
-    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext, ETextureFormat format, unsigned char* buffer,
-                                                                 uint32_t width, uint32_t height) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, ETextureFormat format, unsigned char* buffer, uint32_t width,
+                                                                 uint32_t height) const = 0;
 
-    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name, std::string_view ext) const = 0;
+    [[nodiscard]] virtual std::shared_ptr<Texture> CreateTexture(std::string_view name) const = 0;
 
     [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const CubemapImage* equirectangular) const = 0;
     [[nodiscard]] virtual std::shared_ptr<Texture> CreateCubemap(const Image2D* cubemapImage) const = 0;

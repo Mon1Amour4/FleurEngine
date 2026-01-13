@@ -28,7 +28,7 @@ public:
     std::shared_ptr<Fleur::Graphics::Texture> LoadTexture(std::shared_ptr<Fleur::Graphics::Image2D> img, const Fleur::Graphics::Device* device) override
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        return m_Pairs.emplace_back(std::make_pair(img, device->CreateTexture(img->Name(), img->Ext()))).second;
+        return m_Pairs.emplace_back(std::make_pair(img, device->CreateTexture(img->Name()))).second;
     }
 
     void Update() override
