@@ -339,7 +339,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](ModelAsyncOpShared handle)
+        [this](ModelAsyncOpShared handle, std::string_view path)
         {
             handle->status = ELoadingSts::LOADING;
 
@@ -349,7 +349,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             std::filesystem::path fullPath = modelPtr->GetName();
 
-            auto res = fs->GetFullPathToFile(fullPath.string());
+            auto res = fs->GetFullPathToFile(path);
             if (!res)
             {
                 handle->status = ELoadingSts::CORRUPTED;
@@ -378,11 +378,11 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             cgltf_free(data);
 
-            FL_CORE_INFO("[AssetsManager] Model ({0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
+            FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
 
             handle->status = ELoadingSts::SUCCESS;
         },
-        asyncOperation);
+        asyncOperation, path);
 
     return asyncOperation;
 }
