@@ -33,7 +33,10 @@ using ImageAsset = Fleur::Asset<ImageType>;
 using ModelAsset = Fleur::Asset<ModelType>;
 
 using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
+using ModelAsyncOp = Fleur::AsyncOperation<ModelType>;
+
 using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
+using ModelAsyncOpShared = std::shared_ptr<ModelAsyncOp>;
 
 Fleur::AssetsManager::AssetsManager()
 {
@@ -193,34 +196,6 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::Asse
 
     return image2dAsset;
 }
-ImageRecord Fleur::AssetCache<ImageType>::Add(std::string_view name, AssetID id)
-{
-    std::lock_guard<std::mutex> lc(mutex);
-
-    ImageRecord record = Exist(name);
-    if (record.alreadyExist)
-        return record;
-
-    stringMap.emplace(name, id);
-    Fleur::Graphics::Image2D* image2DPtr = &map.emplace(id, Fleur::Graphics::Image2D(name, "")).first->second;
-    m_size++;
-
-    return {true, false, {id, image2DPtr}};
-}
-ImageRecord Fleur::AssetCache<ImageType>::Exist(std::string_view name)
-{
-    Fleur::AssetRecord<ImageType> record{false, false, {0, nullptr}};
-
-    if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
-    {
-        record.registered = true;
-        record.alreadyExist = true;
-        record.asset.ID = stringMap[name.data()];
-        record.asset.obj = &map[record.asset.ID];
-    }
-
-    return record;
-}
 ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphics::Color color)
 {
     using value_type = Fleur::Graphics::Image2D;
@@ -293,105 +268,7 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
 
     return image2dAsset;
 }
-ImageAsset Fleur::AssetCache<ImageType>::Get(std::string_view name)
-{
-    std::lock_guard<std::mutex> lc(mutex);
-    return Exist(name).asset;
-}
-ImageAsset Fleur::AssetCache<ImageType>::Get(Fleur::AssetID id)
-{
-    ImageAsset image2dAsset{0, nullptr};
-    std::lock_guard<std::mutex> lc(mutex);
-    if (auto rec = map.find(id); rec != map.end())
-    {
-        image2dAsset.ID = id;
-        image2dAsset.obj = &rec->second;
-    }
 
-    return image2dAsset;
-}
-void Fleur::AssetCache<ImageType>::Release(std::string_view name)
-{
-    std::lock_guard<std::mutex> lc(mutex);
-    if (auto record = stringMap.find(name.data()); record != stringMap.end())
-    {
-        AssetID id = record->second;
-        if (auto operation = asyncMap.find(id); operation != asyncMap.end())
-        {
-            asyncOperationsToRelease.push_back(operation->second);
-            return;
-        }
-        stringMap.erase(name.data());
-        map.erase(id);
-    }
-}
-void Fleur::AssetCache<ImageType>::Release(Fleur::AssetID id)
-{
-    std::lock_guard<std::mutex> lc(mutex);
-    if (auto operation = asyncMap.find(id); operation != asyncMap.end())
-    {
-        asyncOperationsToRelease.push_back(operation->second);
-        return;
-    }
-    if (auto image = map.find(id); image != map.end())
-    {
-        std::string name = image->second.Name().data();
-        map.erase(id);
-        stringMap.erase(name);
-    }
-}
-void Fleur::AssetCache<ImageType>::RemoveBrokenAsyncAsset(AssetID id)
-{
-    if (auto record = map.find(id); record != map.end())
-    {
-        std::string name = record->second.Name().data();
-        asyncMap.erase(id);
-        stringMap.erase(name);
-        map.erase(id);
-    }
-}
-void Fleur::AssetCache<ImageType>::Tick()
-{
-    std::lock_guard<std::mutex> lc(mutex);
-    for (auto it = asyncOperationsToRelease.begin(); it != asyncOperationsToRelease.end();)
-    {
-        if (it->get()->status == ELoadingSts::READY_TO_TERMINATE || it->get()->status == ELoadingSts::SUCCESS)
-        {
-            AssetID id = it->get()->asset.ID;
-            std::string name = it->get()->asset.obj->Name().data();
-            asyncMap.erase(id);
-            stringMap.erase(name);
-            map.erase(id);
-            it = asyncOperationsToRelease.erase(it);
-
-            FL_CORE_INFO("[AssetsManager] Image ({0}, {1}) has been released", id, name);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-
-    for (auto it = asyncMap.begin(); it != asyncMap.end();)
-    {
-        if (it->second->status == ELoadingSts::CORRUPTED)
-        {
-            AssetID id = it->second->asset.ID;
-            std::string name = it->second->asset.obj->Name().data();
-            it = asyncMap.erase(it);
-            stringMap.erase(name);
-            map.erase(id);
-        }
-        else if (it->second->status == ELoadingSts::SUCCESS)
-        {
-            it = asyncMap.erase(it);
-        }
-        else
-        {
-            ++it;
-        }
-    }
-}
 
 //======================================================================
 // Model
@@ -434,31 +311,78 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::Asse
 
     return modelAsset;
 }
-ModelRecord Fleur::AssetCache<ModelType>::Add(std::string_view name, Fleur::AssetID id)
+ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, Fleur::AssetID id)
 {
-    ModelRecord record = Exist(name);
-    if (record.registered)
-        return record;
+    std::string fileName = std::filesystem::path(path).filename().string();
 
-    stringMap.emplace(name, id);
-    Fleur::Graphics::Model* modelPtr = &map.emplace(id, Fleur::Graphics::Model(name)).first->second;
-    m_size++;
-
-    return {true, false, {id, modelPtr}};
-}
-ModelRecord Fleur::AssetCache<ModelType>::Exist(std::string_view name)
-{
-    Fleur::AssetRecord<ModelType> record{false, false, {0, nullptr}};
-
-    if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
+    ModelRecord record = Add(fileName, id);
+    if (record.alreadyExist)
     {
-        record.registered = true;
-        record.alreadyExist = true;
-        record.asset.ID = stringMap[name.data()];
-        record.asset.obj = &map[record.asset.ID];
-    }
+        if (auto operation = asyncMap.find(record.asset.ID); operation != asyncMap.end())
+        {
+            // In progress
+            return operation->second;
+        }
+        else
+        {
+            // Done
+            return {std::make_shared<ModelAsyncOp>(record.asset, ELoadingSts::SUCCESS)};
+        }
+    };
 
-    return record;
+    ModelAsset modelAsset = record.asset;
+
+    ModelAsyncOpShared asyncOperation = asyncMap.emplace(id, std::make_shared<ModelAsyncOp>(modelAsset, ELoadingSts::TO_BE_LOADED)).first->second;
+
+    auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+
+    threadPool->Submit(
+        [this](ModelAsyncOpShared handle)
+        {
+            handle->status = ELoadingSts::LOADING;
+
+            ModelType* modelPtr = handle->asset.obj;
+
+            auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+
+            std::filesystem::path fullPath = modelPtr->GetName();
+
+            auto res = fs->GetFullPathToFile(fullPath.string());
+            if (!res)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                return;
+            }
+
+            cgltf_options options = {};
+            cgltf_data* data = NULL;
+            cgltf_result result = cgltf_parse_file(&options, res->c_str(), &data);
+            if (result != cgltf_result_success)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                return;
+            }
+
+            result = cgltf_load_buffers(&options, data, res->c_str());
+            if (result != cgltf_result_success)
+            {
+                handle->status = ELoadingSts::CORRUPTED;
+                return;
+            }
+
+            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->GetName(), data);
+            Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
+            modelPtr->PostCreate(createInfo);
+
+            cgltf_free(data);
+
+            FL_CORE_INFO("[AssetsManager] Model ({0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
+
+            handle->status = ELoadingSts::SUCCESS;
+        },
+        asyncOperation);
+
+    return asyncOperation;
 }
 
 //======================================================================
