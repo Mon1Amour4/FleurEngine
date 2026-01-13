@@ -195,6 +195,8 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::Asse
 }
 ImageRecord Fleur::AssetCache<ImageType>::Add(std::string_view name, AssetID id)
 {
+    std::lock_guard<std::mutex> lc(mutex);
+
     ImageRecord record = Exist(name);
     if (record.alreadyExist)
         return record;
@@ -209,7 +211,6 @@ ImageRecord Fleur::AssetCache<ImageType>::Exist(std::string_view name)
 {
     Fleur::AssetRecord<ImageType> record{false, false, {0, nullptr}};
 
-    std::lock_guard<std::mutex> lc(mutex);
     if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
     {
         record.registered = true;
@@ -294,6 +295,7 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
 }
 ImageAsset Fleur::AssetCache<ImageType>::Get(std::string_view name)
 {
+    std::lock_guard<std::mutex> lc(mutex);
     return Exist(name).asset;
 }
 ImageAsset Fleur::AssetCache<ImageType>::Get(Fleur::AssetID id)
@@ -347,7 +349,6 @@ void Fleur::AssetCache<ImageType>::RemoveBrokenAsyncAsset(AssetID id)
         stringMap.erase(name);
         map.erase(id);
     }
-
 }
 void Fleur::AssetCache<ImageType>::Tick()
 {
@@ -389,7 +390,6 @@ void Fleur::AssetCache<ImageType>::Tick()
         {
             ++it;
         }
-    
     }
 }
 
