@@ -15,7 +15,7 @@ namespace Fleur
 class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
 public:
-    friend class Application;
+    //friend class Application;
     friend struct Service<AssetsManager>;
 
     AssetsManager();
@@ -29,8 +29,8 @@ public:
     template <typename T>
     std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path)
     {
-        // if (path.empty())
-        //     return nullptr;
+        if (path.empty())
+            return std::shared_ptr<AsyncOperation<T>>(nullptr);
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
             return m_Image2DCache.LoadAsync(path, m_GlobalId++);
@@ -69,6 +69,43 @@ public:
 
         return Asset<T>({0, nullptr});
     }
+
+    template <typename T>
+    Asset<T> Get(AssetID id)
+    {
+        if (id == 0)
+            return Asset<T>({0, nullptr});
+
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
+        {
+            /*AssetID id = m_ShaderMapString[name.data()];
+            return Fleur::Asset<T>{id, &m_ShaderMap[id]};*/
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            return m_Image2DCache.Get(id);
+        }
+
+        return Asset<T>({0, nullptr});
+    }
+
+    template<typename T>
+    void Release(std::string_view name)
+    {
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            return m_Image2DCache.Release(name);
+        }
+    }
+
+    template<typename T>
+    void Release(AssetID id)
+    {
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            return m_Image2DCache.Release(id);
+        }
+    } 
 
 private:
     std::atomic<uint32_t> m_GlobalId = 1;

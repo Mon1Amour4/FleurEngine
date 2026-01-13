@@ -13,7 +13,8 @@ enum ELoadingSts
     TO_BE_LOADED,
     LOADING,
     CORRUPTED,
-    SUCCESS
+    SUCCESS,
+    READY_TO_TERMINATE
 };
 
 template <typename T>
@@ -38,6 +39,12 @@ struct AssetRecord
     Asset<T> asset;
 };
 
+struct FinishedAsset
+{
+    AssetID id;
+    const char* name;
+};
+
 template <typename T>
 class AssetCache
 {
@@ -48,13 +55,18 @@ public:
     AssetRecord<T> Exist(std::string_view name) {};
     Asset<T> Get(std::string_view name) {};
     Asset<T> Get(AssetID id) {};
-
-    // Release
+    void Release(std::string_view){};
+    void Release(AssetID id) {};
+    void RemoveBrokenAsyncAsset(AssetID id) {};
+    void Tick() {};
 
 private:
+    std::list<std::shared_ptr<Fleur::AsyncOperation<T>>> asyncOperationsToRelease;
+    std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncMap;
     std::unordered_map<std::string, AssetID> stringMap;
     std::unordered_map<AssetID, T> map;
     std::atomic<uint32_t> m_size;
+    std::mutex mutex;
 };
 
 template <>
@@ -69,12 +81,18 @@ public:
     AssetRecord<type> Exist(std::string_view name);
     Asset<type> Get(std::string_view name);
     Asset<type> Get(AssetID id);
-    // Release
+    void Release(std::string_view);
+    void Release(AssetID id);
+    void RemoveBrokenAsyncAsset(AssetID id);
+    void Tick();
 
 private:
+    std::list<std::shared_ptr<Fleur::AsyncOperation<type>>> asyncOperationsToRelease;
+    std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<type>>> asyncMap;
     std::unordered_map<std::string, AssetID> stringMap;
     std::unordered_map<AssetID, type> map;
     std::atomic<uint32_t> m_size;
+    std::mutex mutex;
 };
 
 // Model
@@ -92,8 +110,11 @@ public:
     // Release
 
 private:
+    std::list<AssetID> asyncOperationsToRelease;
+    std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<type>>> asyncMap;
     std::unordered_map<std::string, AssetID> stringMap;
     std::unordered_map<AssetID, type> map;
     std::atomic<uint32_t> m_size;
+    std::mutex mutex;
 };
 }  // namespace Fleur

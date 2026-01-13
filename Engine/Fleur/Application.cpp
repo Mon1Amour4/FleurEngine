@@ -193,8 +193,12 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
-    Asset<Fleur::Graphics::Image2D> imageAsset = assetsManager->get()->Load<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
-    Asset<Fleur::Graphics::Image2D> imageAsset2 = assetsManager->get()->Get<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+    std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> imageAsset = assetsManager->get()->LoadAsync<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+    assetsManager->get()->Release<Fleur::Graphics::Image2D>(imageAsset.get()->asset.ID);
+    size_t counter = 0;
+   
+    std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> imageAsset11 = assetsManager->get()->LoadAsync<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
+
     Asset<Fleur::Graphics::Model> modelAsset = assetsManager->get()->Load<Fleur::Graphics::Model>("Sponza/Sponza.glb");
 
     // const Fleur::AsyncOperation<Image2D>* handle = assetsManager.value()->LoadAsync<Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
