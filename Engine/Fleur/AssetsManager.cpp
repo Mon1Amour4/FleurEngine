@@ -143,7 +143,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
             // AddImageToUpload(imageView);
 
 
-            FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+            FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
 
             handle->status = ELoadingSts::SUCCESS;
         },
@@ -190,7 +190,7 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::Asse
 
     // AddImageToUpload(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
 
     stbi_image_free(imgData);
 
@@ -231,7 +231,8 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
     imageView.ID = id;
     // AddImageToUpload(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
+                 image2dAsset.obj->Height());
 
     return image2dAsset;
 }
@@ -264,7 +265,8 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
     imageView.ID = id;
     // AddImageToUpload(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image ({0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(), image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
+                 image2dAsset.obj->Height());
 
     return image2dAsset;
 }
@@ -307,7 +309,7 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::Asse
 
     cgltf_free(data);
 
-    FL_CORE_INFO("[AssetsManager] Model ({0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
+    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
 
     return modelAsset;
 }
