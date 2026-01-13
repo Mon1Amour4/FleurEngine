@@ -193,22 +193,8 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
-    std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> imageAsset =
-        assetsManager->get()->LoadAsync<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
-    std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> imageAsset2 =
-        assetsManager->get()->LoadAsync<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
-    assetsManager->get()->Release<Fleur::Graphics::Image2D>(imageAsset.get()->asset.ID);
-
-
-    std::shared_ptr<Fleur::AsyncOperation<Fleur::Graphics::Image2D>> imageAsset11 =
-        assetsManager->get()->LoadAsync<Fleur::Graphics::Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
-
-    Asset<Fleur::Graphics::Model> modelAsset = assetsManager->get()->Load<Fleur::Graphics::Model>("Sponza/Sponza.glb");
-
-    // const Fleur::AsyncOperation<Image2D>* handle = assetsManager.value()->LoadAsync<Image2D>("WaterCoolerMaterial_OcclusionRoughnessMetallic.png");
-
-    /*Fleur::Asset<Fleur::Graphics::Image2D> fallbackAsset = assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
-    auto fallbackAsset2 = assetsManager.value()->GetAsset<Fleur::Graphics::Image2D>("Fallback");*/
+    assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
+    auto modelAsset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb");
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();

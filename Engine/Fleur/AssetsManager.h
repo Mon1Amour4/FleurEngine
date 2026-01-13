@@ -282,6 +282,9 @@ private:
 
     Fleur::AssetCache<Fleur::Graphics::Image2D> m_Image2DCache;
     Fleur::AssetCache<Fleur::Graphics::Model> m_ModelCache;
+
+    void AddImageToUpload(Fleur::Graphics::SFLImageView view);
+    std::vector<Fleur::Graphics::SFLImageView> m_ImagesToUpload;
 };
 
 

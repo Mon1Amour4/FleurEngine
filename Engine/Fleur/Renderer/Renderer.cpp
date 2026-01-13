@@ -182,17 +182,6 @@ void Fleur::Graphics::Renderer::OnInit()
     //    // clang-format on
     //    m_CopyFBOCmd->UpdateBufferSubData<float>(Buffer::Vertex, std::span(quadVertices, 30));
 
-    /*HMODULE backendLib = LoadLibraryA("Renderer_Vulkan_Backend");
-    if (!backendLib)
-    {
-        std::cout << "Renderer_Vulkan_Backend invalid handle";
-        DWORD error = GetLastError();
-    }
-    else
-    {
-        RendererBackend_t* CreateRendererBackend = (RendererBackend_t*)GetProcAddress(backendLib, "CreateRendererBackend");
-        IRenderer* backend = CreateRendererBackend();
-    }*/
     Fleur::Application& application = Fleur::Application::instance();
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
@@ -217,13 +206,13 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Graphics::SFLFrame frame{};
     frame.pPass = &geometryPass;
 
-    //auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("Fallback");
-    //Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
-    //fallbackView.ID = fallbackAsset.ID;
+    auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("Fallback");
+    Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
+    fallbackView.ID = fallbackAsset.ID;
 
-    //Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
+    Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
 
-    //m_Backend = new vulkanBackend(frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+    m_Backend = new vulkanBackend(frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -553,7 +542,7 @@ void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
     // m_GizmoFBO->Bind();
     // uint32_t flags = m_GizmoFBO->Flags();
     // m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
-   // m_Backend->ResizeEvent(rect);
+    m_Backend->ResizeEvent(rect);
 }
 
 Fleur::Graphics::SVertexData::SVertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)

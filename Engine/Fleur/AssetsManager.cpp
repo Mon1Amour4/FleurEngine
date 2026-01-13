@@ -59,7 +59,7 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 {
     m_Image2DCache.Tick();
 
-    /*if (needToUploadResources)
+    if (!m_ImagesToUpload.empty())
     {
         auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
 
@@ -69,7 +69,7 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
         renderer->SubmitImageViews(&info);
 
         m_ImagesToUpload.clear();
-    }*/
+    }
 }
 
 
@@ -139,9 +139,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             Fleur::Graphics::SFLImageView imageView = imagePtr->GetView();
             imageView.ID = handle->asset.ID;
-
-            // AddImageToUpload(imageView);
-
+            AddImageToUpload(imageView);
 
             FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
 
@@ -188,7 +186,7 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::Asse
     Fleur::Graphics::SFLImageView imageView = imagePtr->GetView();
     imageView.ID = image2dAsset.ID;
 
-    // AddImageToUpload(imageView);
+    AddImageToUpload(imageView);
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
 
@@ -229,7 +227,7 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    // AddImageToUpload(imageView);
+    AddImageToUpload(imageView);
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
                  image2dAsset.obj->Height());
@@ -263,7 +261,7 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    // AddImageToUpload(imageView);
+    AddImageToUpload(imageView);
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
                  image2dAsset.obj->Height());
@@ -405,4 +403,9 @@ void Fleur::AssetsManager::load_all_shaders()
         m_ShaderMapString.emplace(std::move(name), id);
         m_ShaderMap.emplace(id, ShaderType(vec.data(), vec.size()));
     }
+}
+
+void Fleur::AssetsManager::AddImageToUpload(Fleur::Graphics::SFLImageView view)
+{
+    m_ImagesToUpload.push_back(view);
 }
