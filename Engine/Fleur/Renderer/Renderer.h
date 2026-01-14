@@ -103,7 +103,6 @@ public:
     }
 
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
-    void CreateFallbackTexture(Fleur::Graphics::SFLImageView& view);
     void UpdateViewport(Fleur::SRect& rect);
 
 private:

@@ -25,10 +25,7 @@ void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->SubmitImageViews(pInfo);
 }
-void vulkanBackend::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
-{
-    pImpl->CreateFallbackTexture(view);
-}
+
 void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 {
     pImpl->resize_event(rect);
@@ -1599,8 +1596,8 @@ void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SF
     auto& gpuTexture = m_TextureMap.emplace().first->second;
     CreateTextureImage(view, gpuTexture.image, gpuTexture.memory, format);
     gpuTexture.view = createTextureImageView(gpuTexture.image, format);
-    /*CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
-    m_FallbackTexture.view = createTextureImageView(m_FallbackTexture.image, format);*/
+    CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
+    m_FallbackTexture.view = createTextureImageView(m_FallbackTexture.image, format);
 }
 
 void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler)

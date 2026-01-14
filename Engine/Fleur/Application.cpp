@@ -14,6 +14,16 @@ using Model = Fleur::Graphics::Model;
 using Renderer = Fleur::Graphics::Renderer;
 using Color = Fleur::Graphics::Color;
 
+void Call(Fleur::Graphics::Model* model)
+{
+    glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+    glm::mat4 R = glm::mat4(1.f);
+    glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+    glm::mat4 M = T * R * S;
+
+    auto renderer = Fleur::ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+    renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, model, M);
+}
 
 template <>
 Fleur::Application& Fleur::singleton<Fleur::Application>::instance()
@@ -194,22 +204,15 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     assetsManager.value()->OnInit();
 
     assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
-    auto modelAsset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb");
+
+    auto sponzasset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb", Call);
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
 
 
-    // auto resource = renderer.value()->CreateGraphicsResource<Texture>(assetsManager.value()->Load<Image2D>("fallback.png")->Resource());
 
-    // assetsManager.value()->Load<Model>("Sponza/Sponza.glb", false, false);
-    // auto sponza = assetsManager.value()->Get<Model>("Sponza");
-    // glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-    // glm::mat4 R = glm::mat4(1.f);
-    // glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    // glm::mat4 M = T * R * S;
-    // renderer.value()->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponza.lock().get(), M);
 
     // assetsManager.value()->Load<Model>("gizmo.glb");
     // assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");

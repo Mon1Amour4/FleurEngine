@@ -67,7 +67,6 @@ struct IRenderer
     virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) = 0;
     virtual void ResizeEvent(Fleur::SRect& rect) = 0;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
-    virtual void CreateFallbackTexture(Fleur::Graphics::SFLImageView& view) = 0;
 };
 
 }  // namespace Fleur::Graphics

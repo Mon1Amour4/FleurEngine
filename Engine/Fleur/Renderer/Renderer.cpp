@@ -532,11 +532,6 @@ void Fleur::Graphics::Renderer::SubmitImageViews(Fleur::Graphics::SFLImageViewIn
     m_Backend->SubmitImageViews(pInfo);
 }
 
-void Fleur::Graphics::Renderer::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
-{
-    m_Backend->CreateFallbackTexture(view);
-}
-
 void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
 {
     // m_GizmoFBO->Bind();

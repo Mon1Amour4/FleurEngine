@@ -15,7 +15,6 @@ struct vulkanBackend : public Fleur::Graphics::IRenderer
     virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) override;
     virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) override;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) override;
-    virtual void CreateFallbackTexture(Fleur::Graphics::SFLImageView& view) override;
 
     vulkanBackend(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
 
