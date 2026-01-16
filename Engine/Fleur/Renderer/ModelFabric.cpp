@@ -53,7 +53,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                 else if (baseColorTexture->image->uri)
                 {
                     // Texture somewhere in folder
-                    flMaterial.albedo = assetsManager->LoadAsync<Fleur::Graphics::Image2D>(baseColorTexture->image->uri, nullptr)->asset.ID;
+                    flMaterial.albedo = assetsManager->LoadAsync<Fleur::Graphics::Image2D>(baseColorTexture->image->uri)->asset.ID;
                 }
             }
             else
