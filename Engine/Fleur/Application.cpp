@@ -205,13 +205,11 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
 
-    auto sponzasset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb", Call);
+    auto sponzasset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb");
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
-
-
 
 
     // assetsManager.value()->Load<Model>("gizmo.glb");

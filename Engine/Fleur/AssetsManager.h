@@ -23,7 +23,7 @@ class AssetCache
 
 public:
     Fleur::Asset<T> Load(std::string_view path, AssetID id) {};
-    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, AssetID id, Callback callback) {};
+    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, AssetID id) {};
     AssetRecord<T> Add(std::string_view name, AssetID id)
     {
         std::lock_guard<std::mutex> lc(mutex);
@@ -114,7 +114,8 @@ public:
         std::lock_guard<std::mutex> lc(mutex);
         for (auto it = asyncOperationsToRelease.begin(); it != asyncOperationsToRelease.end();)
         {
-            if (it->get()->status == ELoadingSts::READY_TO_TERMINATE || it->get()->status == ELoadingSts::SUCCESS || it->get()->status == ELoadingSts::CORRUPTED)
+            if (it->get()->status == ELoadingSts::READY_TO_TERMINATE || it->get()->status == ELoadingSts::SUCCESS ||
+                it->get()->status == ELoadingSts::CORRUPTED)
             {
                 AssetID id = it->get()->asset.ID;
                 std::string name = it->get()->asset.obj->Name().data();
@@ -196,15 +197,15 @@ public:
 
     // Load
     template <typename T>
-    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, Callback callback)
+    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path)
     {
         if (path.empty())
             return std::shared_ptr<AsyncOperation<T>>(nullptr);
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
-            return m_Image2DCache.LoadAsync(path, m_GlobalId++, callback);
+            return m_Image2DCache.LoadAsync(path, m_GlobalId++);
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
-            return m_ModelCache.LoadAsync(path, m_GlobalId++, callback);
+            return m_ModelCache.LoadAsync(path, m_GlobalId++);
     }
 
     template <typename T>
@@ -331,10 +332,10 @@ private:
 template <>
 Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path, AssetID id);
 template <>
-std::shared_ptr<AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(std::string_view path, AssetID id, Callback callback);
+std::shared_ptr<AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(std::string_view path, AssetID id);
 template <>
 Fleur::Asset<Fleur::Graphics::Model> Fleur::AssetCache<Fleur::Graphics::Model>::Load(std::string_view path, AssetID id);
 template <>
-std::shared_ptr<AsyncOperation<Fleur::Graphics::Model>> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAsync(std::string_view path, AssetID id, Callback callback);
+std::shared_ptr<AsyncOperation<Fleur::Graphics::Model>> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAsync(std::string_view path, AssetID id);
 
 }  // namespace Fleur

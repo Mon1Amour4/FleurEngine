@@ -92,7 +92,7 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
 //======================================================================
 // Image2D
-ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, Fleur::AssetID id, Fleur::Callback callback)
+ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, Fleur::AssetID id)
 {
     std::string fileName = std::filesystem::path(path).filename().string();
 
@@ -118,7 +118,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](ImageAsyncOpShared handle, bool flipVertical, Fleur::Callback callback)
+        [this](ImageAsyncOpShared handle, bool flipVertical)
         {
             handle->status = ELoadingSts::LOADING;
 
@@ -158,7 +158,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             handle->status = ELoadingSts::SUCCESS;
         },
-        asyncOperation, false, callback);
+        asyncOperation, false);
 
     return asyncOperation;
 }
@@ -328,7 +328,7 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::Asse
 
     return modelAsset;
 }
-ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, Fleur::AssetID id, Callback callback)
+ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, Fleur::AssetID id)
 {
     std::string fileName = std::filesystem::path(path).filename().string();
 
@@ -350,11 +350,11 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
     ModelAsset modelAsset = record.asset;
 
     ModelAsyncOpShared asyncOperation = asyncMap.emplace(id, std::make_shared<ModelAsyncOp>(modelAsset, ELoadingSts::TO_BE_LOADED)).first->second;
-    
+
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](ModelAsyncOpShared handle, std::string_view path, Fleur::Callback callback)
+        [this](ModelAsyncOpShared handle, std::string_view path)
         {
             handle->status = ELoadingSts::LOADING;
 
@@ -394,16 +394,13 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
             // load async images
             // fabric.release
 
-            cgltf_free(data); // move to release
+            cgltf_free(data);  // move to release
 
             FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
 
             handle->status = ELoadingSts::SUCCESS;
-            
-            if (callback)
-                (*callback)(modelPtr);
         },
-        asyncOperation, path, callback);
+        asyncOperation, path);
 
     return asyncOperation;
 }
