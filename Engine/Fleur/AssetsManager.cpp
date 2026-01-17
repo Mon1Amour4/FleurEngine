@@ -471,6 +471,7 @@ void Fleur::AssetsManager::PollMessages()
                 glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
                 glm::mat4 M = T * R * S;
                 renderer->DrawModel(Fleur::Graphics::STATIC_GEOMETRY, (Fleur::Graphics::Model*)message.pResource, M);
+                m_ModelCache.RemoveFromAsyncOperations(message.ID);
                 break;
             }
             }
@@ -493,6 +494,7 @@ void Fleur::AssetsManager::PollMessages()
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
                 m_ImagesToUpload.images.push_back(view);
+                m_Image2DCache.RemoveFromAsyncOperations(message.ID);
                 break;
             }
             }

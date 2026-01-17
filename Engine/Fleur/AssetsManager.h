@@ -143,6 +143,10 @@ public:
             asyncOperationsToRelease.erase(id);
         }
     };
+    void RemoveFromAsyncOperations(AssetID id)
+    {
+        asyncMap.erase(id);
+    }
 
 private:
     std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncOperationsToRelease;
