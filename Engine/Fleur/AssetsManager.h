@@ -108,6 +108,7 @@ public:
             if (auto operation = asyncMap.find(id); operation != asyncMap.end())
             {
                 asyncOperationsToRelease.emplace(operation->first, operation->second);
+                operation->second->status.SetStatus(Fleur::ELoadingSts::LOADING_STATUS_TO_TERMINATE);
                 return;
             }
             stringMap.erase(name.data());
@@ -120,6 +121,7 @@ public:
         if (auto operation = asyncMap.find(id); operation != asyncMap.end())
         {
             asyncOperationsToRelease.emplace(operation->first, operation->second);
+            operation->second->status.SetStatus(Fleur::ELoadingSts::LOADING_STATUS_TO_TERMINATE);
             return;
         }
         if (auto object = map.find(id); object != map.end())
@@ -131,6 +133,7 @@ public:
     };
     void RemoveBrokenAsyncAsset(AssetID id)
     {
+        std::lock_guard<std::mutex> lc(mutex);
         if (auto record = map.find(id); record != map.end())
         {
             std::string name = record->second.Name().data();
@@ -305,7 +308,6 @@ private:
         {
             return (framesSinceLastUpload > 5 && images.size() > 0) || images.size() > 10;
         };
-        std::mutex mx;
     };
     ImagesUpload m_ImagesToUpload;
 

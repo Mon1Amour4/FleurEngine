@@ -111,9 +111,20 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
     threadPool->Submit(
         [this](ImageAsyncOpShared handle, bool flipVertical, AssetLoadCallback callback)
         {
-            handle->status = ELoadingSts::LOADING;
+            if (!handle->status.SetStatus(ELoadingSts::LOADING))
+            {
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
+                return;
+            }
 
             ImageType* imagePtr = handle->asset.obj;
+
+            callback.result.pResource = imagePtr;
+            callback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
+            callback.result.ID = handle->asset.ID;
+
+            callback.result.loadingStatus = handle->status.GetStatus();
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -122,7 +133,9 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
             auto res = fs->GetFullPathToFile(fullPath.string());
             if (!res)
             {
-                handle->status = ELoadingSts::CORRUPTED;
+                handle->status.SetStatus(ELoadingSts::CORRUPTED);
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
                 return;
             }
 
@@ -136,7 +149,9 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             if (!imgData)
             {
-                handle->status = ELoadingSts::CORRUPTED;
+                handle->status.SetStatus(ELoadingSts::CORRUPTED);
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
                 return;
             }
 
@@ -147,12 +162,8 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
 
-            handle->status = ELoadingSts::SUCCESS;
-
-            callback.result.pResource = imagePtr;
-            callback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
-            callback.result.ID = handle->asset.ID;
-            callback.result.loadingStatus = handle->status;
+            handle->status.SetStatus(ELoadingSts::SUCCESS);
+            callback.result.loadingStatus = handle->status.GetStatus();
             callback.operator()();
         },
         asyncOperation, false, onLoaded);
@@ -233,7 +244,6 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
     {
-        std::lock_guard<std::mutex> lc(m_ImagesToUpload.mx);
         m_ImagesToUpload.images.push_back(imageView);
     }
 
@@ -270,7 +280,6 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
     {
-        std::lock_guard<std::mutex> lc(m_ImagesToUpload.mx);
         m_ImagesToUpload.images.push_back(imageView);
     }
 
@@ -353,9 +362,13 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
     threadPool->Submit(
         [this](ModelAsyncOpShared handle, std::string_view path, AssetLoadCallback callback)
         {
-            handle->status = ELoadingSts::LOADING;
+            handle->status.SetStatus(ELoadingSts::LOADING);
 
             ModelType* modelPtr = handle->asset.obj;
+
+            callback.result.pResource = modelPtr;
+            callback.result.type = EVENT_TYPE_MODEL_LOADED;
+            callback.result.ID = handle->asset.ID;
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -364,7 +377,9 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
             auto res = fs->GetFullPathToFile(path);
             if (!res)
             {
-                handle->status = ELoadingSts::CORRUPTED;
+                handle->status.SetStatus(ELoadingSts::CORRUPTED);
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
                 return;
             }
 
@@ -373,14 +388,18 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
             cgltf_result result = cgltf_parse_file(&options, res->c_str(), &data);
             if (result != cgltf_result_success)
             {
-                handle->status = ELoadingSts::CORRUPTED;
+                handle->status.SetStatus(ELoadingSts::CORRUPTED);
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
                 return;
             }
 
             result = cgltf_load_buffers(&options, data, res->c_str());
             if (result != cgltf_result_success)
             {
-                handle->status = ELoadingSts::CORRUPTED;
+                handle->status.SetStatus(ELoadingSts::CORRUPTED);
+                callback.result.loadingStatus = handle->status.GetStatus();
+                callback.operator()();
                 return;
             }
 
@@ -395,12 +414,9 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->Name());
 
-            handle->status = ELoadingSts::SUCCESS;
+            handle->status.SetStatus(ELoadingSts::SUCCESS);
 
-            callback.result.pResource = modelPtr;
-            callback.result.type = EVENT_TYPE_MODEL_LOADED;
-            callback.result.ID = handle->asset.ID;
-            callback.result.loadingStatus = handle->status;
+            callback.result.loadingStatus = handle->status.GetStatus();
             callback.operator()();
         },
         asyncOperation, path, onLoaded);
@@ -442,7 +458,7 @@ void Fleur::AssetsManager::PollMessages()
             switch (message.loadingStatus)
             {
             case CORRUPTED:
-            case READY_TO_TERMINATE:
+            case LOADING_STATUS_TO_TERMINATE:
             {
                 m_ModelCache.RemoveBrokenAsyncAsset(message.ID);
                 break;
@@ -465,7 +481,7 @@ void Fleur::AssetsManager::PollMessages()
             switch (message.loadingStatus)
             {
             case CORRUPTED:
-            case READY_TO_TERMINATE:
+            case LOADING_STATUS_TO_TERMINATE:
             {
                 m_Image2DCache.RemoveBrokenAsyncAsset(message.ID);
                 break;

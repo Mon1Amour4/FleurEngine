@@ -14,9 +14,35 @@ enum ELoadingSts
     LOADING,
     CORRUPTED,
     SUCCESS,
-    READY_TO_TERMINATE,
+    LOADING_STATUS_TO_TERMINATE,
     LOADING_STATUS_MAX_VALUE
 };
+
+class FLAsyncLoadStatus
+{
+public:
+    FLAsyncLoadStatus() = default;
+    FLAsyncLoadStatus(ELoadingSts status)
+        : currentStatus(status) {};
+
+    bool SetStatus(Fleur::ELoadingSts status)
+    {
+        if (currentStatus == LOADING_STATUS_TO_TERMINATE || (currentStatus == LOADING_STATUS_TO_TERMINATE && status == !CORRUPTED))
+            return false;
+
+        currentStatus = status;
+        return true;
+    }
+
+    inline ELoadingSts GetStatus() const
+    {
+        return currentStatus;
+    }
+
+private:
+    ELoadingSts currentStatus;
+};
+
 
 template <typename T>
 struct Asset
@@ -29,7 +55,7 @@ template <typename T>
 struct AsyncOperation
 {
     Asset<T> asset;
-    ELoadingSts status;
+    FLAsyncLoadStatus status;
 };
 
 template <typename T>
