@@ -57,16 +57,7 @@ void Fleur::AssetsManager::OnShutdown()
 }
 void Fleur::AssetsManager::OnUpdate(float dtTime)
 {
-    std::lock_guard<std::mutex> lc(m_ImagesToUpload.mx);
-    auto finishedAsyncImages = m_Image2DCache.CollectFinishedAsync();
-    for (const auto& it = finishedAsyncImages.begin(); it != finishedAsyncImages.end();)
-    {
-        Fleur::Graphics::SFLImageView view = it->obj->GetView();
-        view.ID = it->ID;
-        m_ImagesToUpload.images.push_back(view);
-    }
-
-    m_Image2DCache.Tick();
+    PollMessages();
 
     bool imagesWereUploaded = false;
 
@@ -92,8 +83,7 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
 //======================================================================
 // Image2D
-ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, AssetID id, Fleur::AssetsManager* instance,
-                                                           void (Fleur::AssetsManager::*onLoaded)(Fleur::Graphics::Image2D*))
+ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, AssetID id, AssetLoadCallback onLoaded)
 {
     std::string fileName = std::filesystem::path(path).filename().string();
 
@@ -119,7 +109,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](ImageAsyncOpShared handle, bool flipVertical, Fleur::AssetsManager* instance, void (Fleur::AssetsManager::*callback)(Fleur::Graphics::Image2D*))
+        [this](ImageAsyncOpShared handle, bool flipVertical, AssetLoadCallback callback)
         {
             handle->status = ELoadingSts::LOADING;
 
@@ -159,9 +149,13 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             handle->status = ELoadingSts::SUCCESS;
 
-            (instance->*callback)(imagePtr);
+            callback.result.pResource = imagePtr;
+            callback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
+            callback.result.ID = handle->asset.ID;
+            callback.result.loadingStatus = handle->status;
+            callback.operator()();
         },
-        asyncOperation, false, instance, onLoaded);
+        asyncOperation, false, onLoaded);
 
     return asyncOperation;
 }
@@ -327,12 +321,11 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::Asse
 
     cgltf_free(data);
 
-    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
+    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->Name());
 
     return modelAsset;
 }
-ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, AssetID id, Fleur::AssetsManager* instance,
-                                                           void (Fleur::AssetsManager::*onLoaded)(Fleur::Graphics::Model*))
+ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, AssetID id, AssetLoadCallback onLoaded)
 {
     std::string fileName = std::filesystem::path(path).filename().string();
 
@@ -358,8 +351,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](ModelAsyncOpShared handle, std::string_view path, Fleur::AssetsManager* instance,
-               void (Fleur::AssetsManager::*callback)(Fleur::Graphics::Model*))
+        [this](ModelAsyncOpShared handle, std::string_view path, AssetLoadCallback callback)
         {
             handle->status = ELoadingSts::LOADING;
 
@@ -367,7 +359,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            std::filesystem::path fullPath = modelPtr->GetName();
+            std::filesystem::path fullPath = modelPtr->Name();
 
             auto res = fs->GetFullPathToFile(path);
             if (!res)
@@ -392,7 +384,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
                 return;
             }
 
-            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->GetName(), data);
+            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->Name(), data);
             // fabric.load
             Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
             modelPtr->PostCreate(createInfo);
@@ -401,13 +393,17 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             cgltf_free(data);  // move to release
 
-            FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
+            FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->Name());
 
             handle->status = ELoadingSts::SUCCESS;
 
-            (instance->*callback)(modelPtr);
+            callback.result.pResource = modelPtr;
+            callback.result.type = EVENT_TYPE_MODEL_LOADED;
+            callback.result.ID = handle->asset.ID;
+            callback.result.loadingStatus = handle->status;
+            callback.operator()();
         },
-        asyncOperation, path, instance, onLoaded);
+        asyncOperation, path, onLoaded);
 
     return asyncOperation;
 }
@@ -429,5 +425,64 @@ void Fleur::AssetsManager::load_all_shaders()
 
         m_ShaderMapString.emplace(std::move(name), id);
         m_ShaderMap.emplace(id, ShaderType(vec.data(), vec.size()));
+    }
+}
+
+void Fleur::AssetsManager::PollMessages()
+{
+    std::lock_guard<std::mutex> lc(m_MessageMutex);
+
+    while (!m_MessageQueue.empty())
+    {
+        const auto& message = m_MessageQueue.front();
+        switch (message.type)
+        {
+        case EVENT_TYPE_MODEL_LOADED:
+        {
+            switch (message.loadingStatus)
+            {
+            case CORRUPTED:
+            case READY_TO_TERMINATE:
+            {
+                m_ModelCache.RemoveBrokenAsyncAsset(message.ID);
+                break;
+            }
+            case SUCCESS:
+            {
+                auto renderer = Fleur::ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+                glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
+                glm::mat4 R = glm::mat4(1.f);
+                glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
+                glm::mat4 M = T * R * S;
+                renderer->DrawModel(Fleur::Graphics::STATIC_GEOMETRY, (Fleur::Graphics::Model*)message.pResource, M);
+                break;
+            }
+            }
+            break;
+        }
+        case EVENT_TYPE_IMAGE2D_LOADED:
+        {
+            switch (message.loadingStatus)
+            {
+            case CORRUPTED:
+            case READY_TO_TERMINATE:
+            {
+                m_Image2DCache.RemoveBrokenAsyncAsset(message.ID);
+                break;
+            }
+            case SUCCESS:
+            {
+                const Fleur::Graphics::Image2D* loadedImage = reinterpret_cast<const Fleur::Graphics::Image2D*>(message.pResource);
+
+                Fleur::Graphics::SFLImageView view = loadedImage->GetView();
+                view.ID = message.ID;
+                m_ImagesToUpload.images.push_back(view);
+                break;
+            }
+            }
+        }
+        }
+
+        m_MessageQueue.pop_front();
     }
 }

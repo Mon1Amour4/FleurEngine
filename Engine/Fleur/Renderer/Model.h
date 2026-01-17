@@ -132,7 +132,7 @@ public:
     Model(Model&& other) noexcept;
     Model& operator=(Model&& other) noexcept;
 
-    inline std::string_view GetName() const
+    inline std::string_view Name() const
     {
         return m_Name;
     }

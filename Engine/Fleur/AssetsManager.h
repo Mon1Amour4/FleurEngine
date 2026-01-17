@@ -11,7 +11,37 @@
 
 namespace Fleur
 {
+
 class AssetsManager;
+
+enum AssetEventType
+{
+    EVENT_TYPE_MODEL_LOADED,
+    EVENT_TYPE_IMAGE2D_LOADED,
+    EVENT_TYPE_MAX_VALUE,
+};
+struct AssetLoadResult
+{
+    AssetEventType type = EVENT_TYPE_MAX_VALUE;
+    const void* pResource = nullptr;
+    AssetID ID = 0;
+    ELoadingSts loadingStatus = LOADING_STATUS_MAX_VALUE;
+};
+
+struct AssetLoadCallback
+{
+    using CallbackFn = void (Fleur::AssetsManager::*)(AssetLoadResult);
+
+    AssetLoadResult result;
+    Fleur::AssetsManager* manager = nullptr;
+
+    inline void operator()()
+    {
+        (manager->*callback)(result);
+    }
+
+    CallbackFn callback = nullptr;
+};
 
 template <typename T>
 class AssetCache
@@ -23,8 +53,7 @@ class AssetCache
 
 public:
     Fleur::Asset<T> Load(std::string_view path, AssetID id) {};
-    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, AssetID id, Fleur::AssetsManager* instance,
-                                                 void (Fleur::AssetsManager::*callback)(T*)) {};
+    std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, AssetID id, AssetLoadCallback callback) {};
     AssetRecord<T> Add(std::string_view name, AssetID id)
     {
         std::lock_guard<std::mutex> lc(mutex);
@@ -78,7 +107,7 @@ public:
             AssetID id = record->second;
             if (auto operation = asyncMap.find(id); operation != asyncMap.end())
             {
-                asyncOperationsToRelease.push_back(operation->second);
+                asyncOperationsToRelease.emplace(operation->first, operation->second);
                 return;
             }
             stringMap.erase(name.data());
@@ -90,7 +119,7 @@ public:
         std::lock_guard<std::mutex> lc(mutex);
         if (auto operation = asyncMap.find(id); operation != asyncMap.end())
         {
-            asyncOperationsToRelease.push_back(operation->second);
+            asyncOperationsToRelease.emplace(operation->first, operation->second);
             return;
         }
         if (auto object = map.find(id); object != map.end())
@@ -108,98 +137,18 @@ public:
             asyncMap.erase(id);
             stringMap.erase(name);
             map.erase(id);
+            asyncOperationsToRelease.erase(id);
         }
     };
-    void Tick()
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        for (auto it = asyncOperationsToRelease.begin(); it != asyncOperationsToRelease.end();)
-        {
-            if (it->get()->status == ELoadingSts::READY_TO_TERMINATE || it->get()->status == ELoadingSts::SUCCESS ||
-                it->get()->status == ELoadingSts::CORRUPTED)
-            {
-                AssetID id = it->get()->asset.ID;
-                std::string name = it->get()->asset.obj->Name().data();
-                asyncMap.erase(id);
-                stringMap.erase(name);
-                map.erase(id);
-                it = asyncOperationsToRelease.erase(it);
-
-                FL_CORE_INFO("[AssetsManager] Asset ({0}, {1}) has been released", id, name);
-            }
-            else
-            {
-                ++it;
-            }
-        }
-
-        for (auto it = asyncMap.begin(); it != asyncMap.end();)
-        {
-            if (it->second->status == ELoadingSts::CORRUPTED)
-            {
-                AssetID id = it->second->asset.ID;
-                std::string name = it->second->asset.obj->Name().data();
-                it = asyncMap.erase(it);
-                stringMap.erase(name);
-                map.erase(id);
-            }
-            else if (it->second->status == ELoadingSts::SUCCESS)
-            {
-                it = asyncMap.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
-        }
-    };
-
-    std::vector<Asset<T>> CollectFinishedAsync()
-    {
-        std::vector<Asset<T>> vec;
-        std::lock_guard<std::mutex> lc(mutex);
-        for (auto it = asyncMap.begin(); it != asyncMap.end();)
-        {
-            if (it->second->status == ELoadingSts::SUCCESS)
-            {
-                vec.emplace_back(it->second->asset);
-                it = asyncMap.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
-        }
-
-        return std::move(vec);
-    }
 
 private:
-    std::list<std::shared_ptr<Fleur::AsyncOperation<T>>> asyncOperationsToRelease;
+    std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncOperationsToRelease;
     std::unordered_map<AssetID, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncMap;
     std::unordered_map<std::string, AssetID> stringMap;
     std::unordered_map<AssetID, T> map;
     std::atomic<uint32_t> m_size;
     std::mutex mutex;
 };
-
-
-using ImageType = Fleur::Graphics::Image2D;
-using ShaderType = Fleur::Graphics::Shader;
-using ModelType = Fleur::Graphics::Model;
-
-using ImageRecord = Fleur::AssetRecord<Fleur::Graphics::Image2D>;
-using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
-
-using ImageAsset = Fleur::Asset<ImageType>;
-using ModelAsset = Fleur::Asset<ModelType>;
-
-using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
-using ModelAsyncOp = Fleur::AsyncOperation<ModelType>;
-
-using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
-using ModelAsyncOpShared = std::shared_ptr<ModelAsyncOp>;
-
 
 class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
@@ -221,10 +170,18 @@ public:
         if (path.empty())
             return std::shared_ptr<AsyncOperation<T>>(nullptr);
 
+        AssetLoadCallback callback{};
+        callback.manager = this;
+        callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
-            return m_Image2DCache.LoadAsync(path, m_GlobalId++, this, &Fleur::AssetsManager::OnImage2DLoadedCallback);
+        {
+            return m_Image2DCache.LoadAsync(path, m_GlobalId++, callback);
+        }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
-            return m_ModelCache.LoadAsync(path, m_GlobalId++, this, &Fleur::AssetsManager::OnModelLoadedCallback);
+        {
+            return m_ModelCache.LoadAsync(path, m_GlobalId++, callback);
+        }
     }
 
     template <typename T>
@@ -322,13 +279,10 @@ public:
         }
     }
 
-    void OnModelLoadedCallback(Fleur::Graphics::Model* model)
+    void OnAssetLoaded(AssetLoadResult info)
     {
-        auto name = model->GetName();
-    }
-    void OnImage2DLoadedCallback(Fleur::Graphics::Image2D* image2d)
-    {
-        auto name = image2d->Name();
+        std::lock_guard<std::mutex> lc(m_MessageMutex);
+        m_MessageQueue.push_back(info);
     }
 
 private:
@@ -354,17 +308,21 @@ private:
         std::mutex mx;
     };
     ImagesUpload m_ImagesToUpload;
+
+    std::mutex m_MessageMutex;
+    std::deque<AssetLoadResult> m_MessageQueue;
+    void PollMessages();
 };
 
 template <>
 Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path, AssetID id);
 template <>
-std::shared_ptr<AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(
-    std::string_view path, AssetID id, Fleur::AssetsManager* instance, void (Fleur::AssetsManager::*callback)(Fleur::Graphics::Image2D* onLoaded));
+std::shared_ptr<AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(std::string_view path, AssetID id,
+                                                                                                                 AssetLoadCallback callback);
 template <>
 Fleur::Asset<Fleur::Graphics::Model> Fleur::AssetCache<Fleur::Graphics::Model>::Load(std::string_view path, AssetID id);
 template <>
-std::shared_ptr<AsyncOperation<Fleur::Graphics::Model>> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAsync(
-    std::string_view path, AssetID id, Fleur::AssetsManager* instance, void (Fleur::AssetsManager::*callback)(Fleur::Graphics::Model*));
+std::shared_ptr<AsyncOperation<Fleur::Graphics::Model>> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAsync(std::string_view path, AssetID id,
+                                                                                                             AssetLoadCallback callback);
 
 }  // namespace Fleur

@@ -14,7 +14,8 @@ enum ELoadingSts
     LOADING,
     CORRUPTED,
     SUCCESS,
-    READY_TO_TERMINATE
+    READY_TO_TERMINATE,
+    LOADING_STATUS_MAX_VALUE
 };
 
 template <typename T>
