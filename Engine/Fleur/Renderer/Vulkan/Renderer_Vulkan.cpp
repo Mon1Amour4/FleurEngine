@@ -61,6 +61,9 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& p
     createCommandPool();
 
     m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
+    m_GeometrySecondaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
+    m_PrimaryCmdBuffers.buffers.resize(m_Swapchain.framebuffersCount);
+    m_PrimaryCmdBuffers.validation.resize(m_Swapchain.framebuffersCount);
 
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
@@ -84,11 +87,19 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& p
 
     createDescriptorSets();
 
-    m_GeometrySecondaryCmdBuffer = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    for (size_t i = 0; i < m_GeometrySecondaryCmdBuffers.size(); i++)
+    {
+        m_GeometrySecondaryCmdBuffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+    }
 
-
-    createCommandBuffers();
-    UpdateGeometrySecondaryCmdBuffer();
+    for (size_t i = 0; i < m_PrimaryCmdBuffers.buffers.size(); i++)
+    {
+        m_PrimaryCmdBuffers.buffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+    }
+    for (size_t i = 0; i < m_GeometrySecondaryCmdBuffers.size(); i++)
+    {
+        UpdateGeometrySecondaryCmdBuffer(i);
+    }
     InitGeometryPrimaryCmdBuffers();
     createSyncObjects();
 }
@@ -838,9 +849,6 @@ void vulkanBackend::vulkanBackendImpl::createCommandPool()
 // VkCommandBuffer
 void vulkanBackend::vulkanBackendImpl::createCommandBuffers()
 {
-    m_PrimaryCmdBuffers.buffers.resize(m_Swapchain.framebuffersCount);
-    m_PrimaryCmdBuffers.validation.resize(m_Swapchain.framebuffersCount);
-
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = commandPool;
@@ -898,7 +906,7 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
         renderPassInfo.pClearValues = &clearColor;
 
         vkCmdBeginRenderPass(m_PrimaryCmdBuffers.buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-        vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[i], 1, &m_GeometrySecondaryCmdBuffer);
+        vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[i], 1, &m_GeometrySecondaryCmdBuffers[i]);
         vkCmdEndRenderPass(m_PrimaryCmdBuffers.buffers[i]);
 
         if (vkEndCommandBuffer(m_PrimaryCmdBuffers.buffers[i]) != VK_SUCCESS)
@@ -1620,9 +1628,9 @@ void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set
     vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
-void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
+void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t idx)
 {
-    vkResetCommandBuffer(m_GeometrySecondaryCmdBuffer, 0);
+    vkResetCommandBuffer(m_GeometrySecondaryCmdBuffers[idx], 0);
 
     VkCommandBufferInheritanceInfo inheritanceInfo{};
     inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
@@ -1637,12 +1645,12 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
     beginInfo.pInheritanceInfo = &inheritanceInfo;
 
-    if (vkBeginCommandBuffer(m_GeometrySecondaryCmdBuffer, &beginInfo) != VK_SUCCESS)
+    if (vkBeginCommandBuffer(m_GeometrySecondaryCmdBuffers[idx], &beginInfo) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to begin recording command for secondary cmd buffer!")
         assert(false);
     }
-    vkCmdBindPipeline(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline);
+    vkCmdBindPipeline(m_GeometrySecondaryCmdBuffers[idx], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline);
 
     VkDeviceSize offsets[] = {0};
 
@@ -1653,22 +1661,22 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
     viewport.height = static_cast<float>(m_Swapchain.extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(m_GeometrySecondaryCmdBuffer, 0, 1, &viewport);
+    vkCmdSetViewport(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = m_Swapchain.extent;
-    vkCmdSetScissor(m_GeometrySecondaryCmdBuffer, 0, 1, &scissor);
+    vkCmdSetScissor(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &scissor);
 
 
-    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffer, 0, 1, &m_VertexBuffer.buffer, offsets);
+    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &m_VertexBuffer.buffer, offsets);
     if (m_IndexBuffer.strideSizeBytes == 4)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
     else if (m_IndexBuffer.strideSizeBytes == 2)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffer, m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
 
-    vkCmdBindDescriptorSets(m_GeometrySecondaryCmdBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame], 0,
-                            nullptr);
+    vkCmdBindDescriptorSets(m_GeometrySecondaryCmdBuffers[idx], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame],
+                            0, nullptr);
     struct SFLPushConstant
     {
         uint32_t albedoIdx;
@@ -1678,11 +1686,11 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer()
     {
         SFLPushConstant pc{draw.material.albedo};
 
-        vkCmdPushConstants(m_GeometrySecondaryCmdBuffer, m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SFLPushConstant), &pc);
-        vkCmdDrawIndexed(m_GeometrySecondaryCmdBuffer, draw.indexCount, 1, draw.indexOffset, draw.vertexOffset, 0);
+        vkCmdPushConstants(m_GeometrySecondaryCmdBuffers[idx], m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SFLPushConstant), &pc);
+        vkCmdDrawIndexed(m_GeometrySecondaryCmdBuffers[idx], draw.indexCount, 1, draw.indexOffset, draw.vertexOffset, 0);
     }
 
-    if (vkEndCommandBuffer(m_GeometrySecondaryCmdBuffer) != VK_SUCCESS)
+    if (vkEndCommandBuffer(m_GeometrySecondaryCmdBuffers[idx]) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to record command to secondary cmd buffer!")
         assert(false);
@@ -1713,7 +1721,7 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometryPrimaryBuffer(uint32_t buff
     renderPassInfo.pClearValues = &clearColor;
 
     vkCmdBeginRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx], &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-    vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[bufferIdx], 1, &m_GeometrySecondaryCmdBuffer);
+    vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[bufferIdx], 1, &m_GeometrySecondaryCmdBuffers[bufferIdx]);
     vkCmdEndRenderPass(m_PrimaryCmdBuffers.buffers[bufferIdx]);
 
     if (vkEndCommandBuffer(m_PrimaryCmdBuffers.buffers[bufferIdx]) != VK_SUCCESS)
@@ -1742,7 +1750,7 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     {
         uint32_t prevFrame = (currentFrame + m_Swapchain.framebuffersCount - 1) % m_Swapchain.framebuffersCount;
         vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[prevFrame], VK_TRUE, UINT64_MAX);
-        UpdateGeometrySecondaryCmdBuffer();
+        UpdateGeometrySecondaryCmdBuffer(currentFrame);
         if (!m_PrimaryCmdBuffers.validation[currentFrame])
             UpdateGeometryPrimaryBuffer(currentFrame);
 

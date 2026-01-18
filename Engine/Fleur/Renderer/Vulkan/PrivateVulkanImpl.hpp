@@ -244,12 +244,12 @@ struct vulkanBackend::vulkanBackendImpl
         bool AreValid();
     };
     SFLCmdBuffer m_PrimaryCmdBuffers;
-    VkCommandBuffer m_GeometrySecondaryCmdBuffer;
+    std::vector<VkCommandBuffer> m_GeometrySecondaryCmdBuffers;
     void createCommandBuffers();
     VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
     void InitGeometryPrimaryCmdBuffers();
     void UpdateGeometryPrimaryBuffer(uint32_t bufferIdx);
-    void UpdateGeometrySecondaryCmdBuffer();
+    void UpdateGeometrySecondaryCmdBuffer(uint32_t idx);
 
     // Synchronization
     std::vector<VkSemaphore> imageAvailableSemaphores;
