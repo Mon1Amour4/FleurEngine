@@ -57,8 +57,9 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& p
 
     CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
 
-    createFramebuffers();
     createCommandPool();
+    m_Depth = CreateDepthBuffer(m_PhysicalDevice.vkPhysicalDevice);
+    createFramebuffers();
 
     m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
     m_GeometrySecondaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
@@ -340,13 +341,13 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
     {
         if (isDeviceSuitable(physicalDevices[i]))
         {
-            m_SPhysicalDevice.vkPhysicalDevice = physicalDevices[i];
-            m_SPhysicalDevice.capabilities = querySwapChainSupport(physicalDevices[i]);
+            m_PhysicalDevice.vkPhysicalDevice = physicalDevices[i];
+            m_PhysicalDevice.capabilities = querySwapChainSupport(physicalDevices[i]);
             break;
         }
     }
 
-    if (m_SPhysicalDevice.vkPhysicalDevice == VK_NULL_HANDLE)
+    if (m_PhysicalDevice.vkPhysicalDevice == VK_NULL_HANDLE)
     {
         DBG_PRINTM("Failed to find a suitable GPU!")
         assert(false);
@@ -429,7 +430,7 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
     deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    if (vkCreateDevice(m_SPhysicalDevice.vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
+    if (vkCreateDevice(m_PhysicalDevice.vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create logical device!");
         assert(true);
@@ -443,14 +444,14 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 // VkSwapchainKHR
 void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebufferSize)
 {
-    uint32_t imageCount = m_SPhysicalDevice.capabilities.capabilities.minImageCount + 1;
-    imageCount = std::clamp(imageCount, m_SPhysicalDevice.capabilities.capabilities.minImageCount, m_SPhysicalDevice.capabilities.capabilities.maxImageCount);
+    uint32_t imageCount = m_PhysicalDevice.capabilities.capabilities.minImageCount + 1;
+    imageCount = std::clamp(imageCount, m_PhysicalDevice.capabilities.capabilities.minImageCount, m_PhysicalDevice.capabilities.capabilities.maxImageCount);
 
     m_Swapchain.framebuffersCount = imageCount;
 
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(m_SPhysicalDevice.capabilities.formats);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(m_SPhysicalDevice.capabilities.presentModes);
-    VkExtent2D extent = chooseSwapExtent(m_SPhysicalDevice.capabilities.capabilities, framebufferSize);
+    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(m_PhysicalDevice.capabilities.formats);
+    VkPresentModeKHR presentMode = chooseSwapPresentMode(m_PhysicalDevice.capabilities.presentModes);
+    VkExtent2D extent = chooseSwapExtent(m_PhysicalDevice.capabilities.capabilities, framebufferSize);
 
 
     VkSwapchainCreateInfoKHR createInfo{};
@@ -468,7 +469,7 @@ void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebuffer
     createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
     createInfo.queueFamilyIndexCount = 1;
     createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    createInfo.preTransform = m_SPhysicalDevice.capabilities.capabilities.currentTransform;
+    createInfo.preTransform = m_PhysicalDevice.capabilities.capabilities.currentTransform;
     createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
@@ -572,7 +573,7 @@ void vulkanBackend::vulkanBackendImpl::createImageViews()
 
     for (size_t i = 0; i < m_Swapchain.imageViews.size(); i++)
     {
-        m_Swapchain.imageViews[i] = createImageView(m_Swapchain.images[i], m_Swapchain.imageFormat);
+        m_Swapchain.imageViews[i] = createImageView(m_Swapchain.images[i], m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
     }
 }
 
@@ -581,6 +582,20 @@ void vulkanBackend::vulkanBackendImpl::createImageViews()
 // VkRenderPass
 void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 {
+    VkAttachmentDescription depthAttachment{};
+    depthAttachment.format = FindDepthFormat(m_PhysicalDevice.vkPhysicalDevice);
+    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+    VkAttachmentReference depthAttachmentRef{};
+    depthAttachmentRef.attachment = 1;
+    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
     VkAttachmentDescription colorAttachment{};
     colorAttachment.format = m_Swapchain.imageFormat;
     colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -599,23 +614,27 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
+    subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = 1;
-    renderPassInfo.pAttachments = &colorAttachment;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
+    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.srcAccessMask = 0;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+    VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.dependencyCount = 1;
     renderPassInfo.pDependencies = &dependency;
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = attachments.size();
+    renderPassInfo.pAttachments = attachments.data();
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
 
     if (vkCreateRenderPass(m_LogicalDevice, &renderPassInfo, nullptr, &m_GeometryRenderPass) != VK_SUCCESS)
     {
@@ -751,6 +770,18 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
+    VkPipelineDepthStencilStateCreateInfo depthStencil{};
+    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthWriteEnable = VK_TRUE;
+    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
+    depthStencil.depthBoundsTestEnable = VK_FALSE;
+    depthStencil.minDepthBounds = 0.0f;  // Optional
+    depthStencil.maxDepthBounds = 1.0f;  // Optional
+    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.front = {};  // Optional
+    depthStencil.back = {};   // Optional
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = 2;
@@ -763,6 +794,7 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     pipelineInfo.pDepthStencilState = nullptr;  // Optional
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.layout = m_GeometryPipelineLayout;
     pipelineInfo.renderPass = m_GeometryRenderPass;
     pipelineInfo.subpass = 0;
@@ -808,13 +840,13 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
 
     for (size_t i = 0; i < m_Swapchain.imageViews.size(); i++)
     {
-        VkImageView attachments[] = {m_Swapchain.imageViews[i]};
+        std::array<VkImageView, 2> attachments = {m_Swapchain.imageViews[i], m_Depth.depthImageView};
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = m_GeometryRenderPass;
-        framebufferInfo.attachmentCount = 1;
-        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.attachmentCount = attachments.size();
+        framebufferInfo.pAttachments = attachments.data();
         framebufferInfo.width = m_Swapchain.extent.width;
         framebufferInfo.height = m_Swapchain.extent.height;
         framebufferInfo.layers = 1;
@@ -901,9 +933,12 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
         renderPassInfo.renderArea.offset = {0, 0};
         renderPassInfo.renderArea.extent = m_Swapchain.extent;
 
-        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
+        std::array<VkClearValue, 2> clearValues{};
+        clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+        clearValues[1].depthStencil = {1.0f, 0};
+
+        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+        renderPassInfo.pClearValues = clearValues.data();
 
         vkCmdBeginRenderPass(m_PrimaryCmdBuffers.buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
         vkCmdExecuteCommands(m_PrimaryCmdBuffers.buffers[i], 1, &m_GeometrySecondaryCmdBuffers[i]);
@@ -1064,7 +1099,7 @@ void vulkanBackend::vulkanBackendImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer d
 uint32_t vulkanBackend::vulkanBackendImpl::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
     VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_SPhysicalDevice.vkPhysicalDevice, &memProperties);
+    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice.vkPhysicalDevice, &memProperties);
 
     for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
     {
@@ -1220,7 +1255,7 @@ void vulkanBackend::vulkanBackendImpl::initializeVma()
 {
     VmaAllocatorCreateInfo allocCreateInfo{};
     allocCreateInfo.instance = m_VulkanInstance;
-    allocCreateInfo.physicalDevice = m_SPhysicalDevice.vkPhysicalDevice;
+    allocCreateInfo.physicalDevice = m_PhysicalDevice.vkPhysicalDevice;
     allocCreateInfo.device = m_LogicalDevice;
     allocCreateInfo.vulkanApiVersion = VULKAN_VERSION;
 
@@ -1421,9 +1456,17 @@ void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFo
         sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
     }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        barrier.srcAccessMask = 0;
+        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    }
     else
     {
-        throw std::invalid_argument("unsupported layout transition!");
+        assert(false);
     }
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
@@ -1524,16 +1567,16 @@ void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t heig
 
 VkImageView vulkanBackend::vulkanBackendImpl::createTextureImageView(VkImage& image, VkFormat format)
 {
-    return createImageView(image, format);
+    return createImageView(image, format, VK_IMAGE_ASPECT_COLOR_BIT);
 }
-VkImageView vulkanBackend::vulkanBackendImpl::createImageView(VkImage image, VkFormat format)
+VkImageView vulkanBackend::vulkanBackendImpl::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = image;
     viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = format;
-    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.aspectMask = aspectFlags;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = 1;
     viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -1560,7 +1603,7 @@ VkSampler vulkanBackend::vulkanBackendImpl::createTextureSampler()
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
     VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(m_SPhysicalDevice.vkPhysicalDevice, &properties);
+    vkGetPhysicalDeviceProperties(m_PhysicalDevice.vkPhysicalDevice, &properties);
 
     samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -1730,6 +1773,56 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometryPrimaryBuffer(uint32_t buff
         assert(false);
     }
 }
+
+
+//======================================================================
+// Depth
+vulkanBackend::vulkanBackendImpl::Depth vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(VkPhysicalDevice device)
+{
+    Depth depth{};
+    VkFormat depthFormat = FindDepthFormat(device);
+    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth.depthImage, depth.depthImageMemory);
+    depth.depthImageView = createImageView(depth.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    transitionImageLayout(depth.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+
+    return depth;
+}
+
+VkFormat vulkanBackend::vulkanBackendImpl::FindDepthFormat(VkPhysicalDevice device)
+{
+    VkFormat format = FindSupportedFormat(device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
+                                          VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    /*if (!HasStencilComponent(format))
+        assert(false);*/
+    return format;
+}
+VkFormat vulkanBackend::vulkanBackendImpl::FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling,
+                                                               VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(device, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
+            return format;
+        }
+
+        assert(false);
+    }
+}
+bool vulkanBackend::vulkanBackendImpl::HasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
 
 void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {

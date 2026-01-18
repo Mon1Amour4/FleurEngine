@@ -12,6 +12,8 @@
 #include "vk_mem_alloc.h"
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+
 #include <vulkan/vulkan.h>
 
 #include <algorithm>
@@ -182,7 +184,7 @@ struct vulkanBackend::vulkanBackendImpl
 
     // Physical\Logical device
     VkDevice m_LogicalDevice;
-    SLogicalDevice m_SPhysicalDevice;
+    SLogicalDevice m_PhysicalDevice;
     void pickPhysicalDevice();
     bool isDeviceSuitable(VkPhysicalDevice& m_LogicalDevice);
 
@@ -309,7 +311,7 @@ struct vulkanBackend::vulkanBackendImpl
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
-    VkImageView createImageView(VkImage image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     VkSampler createTextureSampler();
     VkSampler m_ImageSampler;
     std::unordered_map<uint32_t, SGPUTexture> m_TextureMap;
@@ -326,4 +328,19 @@ struct vulkanBackend::vulkanBackendImpl
 
     SGPUTexture m_FallbackTexture;
     void CreateFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
+
+
+    // Depth
+    struct Depth
+    {
+        Depth() = default;
+        VkImage depthImage;
+        VkDeviceMemory depthImageMemory;
+        VkImageView depthImageView;
+    };
+    VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+    VkFormat FindDepthFormat(VkPhysicalDevice device);
+    bool HasStencilComponent(VkFormat format);
+    vulkanBackend::vulkanBackendImpl::Depth CreateDepthBuffer(VkPhysicalDevice device);
+    Depth m_Depth;
 };
