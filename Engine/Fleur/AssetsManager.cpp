@@ -65,6 +65,8 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
     {
         auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
 
+        std::lock_guard<std::mutex> lc(m_ImagesToUpload.mx);
+
         Fleur::Graphics::SFLImageViewInfo info{};
         info.pData = m_ImagesToUpload.images.data();
         info.count = m_ImagesToUpload.images.size();
@@ -72,7 +74,9 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
         imagesWereUploaded = true;
         m_ImagesToUpload.framesSinceLastUpload = 0;
-        m_ImagesToUpload.images.clear();
+
+        m_ImagesToUpload.Clear();
+
     }
 
 
@@ -231,9 +235,9 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
 
     Fleur::Memory::FleurAllocator<unsigned char> alloc;
     unsigned char* pData = alloc.allocate(size);
-    for (size_t i = 0; i < width * height * channels; ++i)
+    for (size_t i = 0; i < size; i += channels)
     {
-        std::memcpy(pData + i, &colorData, channels);
+        std::memcpy(pData + i, &colorData + i, channels);
     }
 
     Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
@@ -243,9 +247,9 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    {
-        m_ImagesToUpload.images.push_back(imageView);
-    }
+    
+    m_ImagesToUpload.Add(imageView);
+    
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
                  image2dAsset.obj->Height());
@@ -279,9 +283,7 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    {
-        m_ImagesToUpload.images.push_back(imageView);
-    }
+    m_ImagesToUpload.Add(imageView);
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
                  image2dAsset.obj->Height());

@@ -212,7 +212,9 @@ void Fleur::Graphics::Renderer::OnInit()
 
     Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
 
-    m_Backend = new vulkanBackend(frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+    bool vulkanValidation = true;
+
+    m_Backend = new vulkanBackend(vulkanValidation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()

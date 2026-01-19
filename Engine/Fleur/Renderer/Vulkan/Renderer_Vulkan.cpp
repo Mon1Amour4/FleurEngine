@@ -5,8 +5,9 @@
 #include "PrivateVulkanImpl.hpp"
 
 
-vulkanBackend::vulkanBackend(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
-    : pImpl(new vulkanBackendImpl(pFrame, pNativeHandle, framebufferSize, fallback))
+vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
+                             Fleur::Graphics::SFLImageView& fallback)
+    : pImpl(new vulkanBackendImpl(enableValidation, pFrame, pNativeHandle, framebufferSize, fallback))
 {
 }
 vulkanBackend::~vulkanBackend()
@@ -34,15 +35,12 @@ void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 
 //======================================================================
 // vulkanBackend::vulkanBackendImpl
-vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
-                                                    Fleur::Graphics::SFLImageView& fallback)
+vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle,
+                                                    Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
     : m_LogicalDevice(VK_NULL_HANDLE)
 {
-#if defined(FL_CONF_DEBUG)
-    enableValidationLayers = true;
-#else
-    enableValidationLayers = false;
-#endif
+    m_Capabilities = new VkCapabilities(enableValidation);
+
     m_VulkanInstance = createInstance();
     setupDebugMessenger();
     createSurface(pNativeHandle);
@@ -106,6 +104,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(Fleur::Graphics::SFLFrame& p
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
+    delete m_Capabilities;
+
     vkDeviceWaitIdle(m_LogicalDevice);
 
     // Swapchain-dependent
@@ -142,7 +142,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDestroyDevice(m_LogicalDevice, nullptr);
 
-    if (enableValidationLayers)
+    if (m_Capabilities->ValidationEnabled())
         DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
 
     vkDestroySurfaceKHR(m_VulkanInstance, surface, nullptr);
@@ -167,9 +167,10 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     createInfo.pApplicationInfo = &appInfo;
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    if (enableValidationLayers)
+    
+    if (m_Capabilities->ValidationEnabled())
     {
-        enableValidationLayersSupport(createInfo);
+        m_Capabilities->EnableValidationLayersSupport(createInfo);
 
         populateDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
@@ -178,11 +179,7 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     {
         createInfo.enabledLayerCount = 0;
     }
-
-#if defined(FLEUR_PLATFORM_WIN)
-    instanceExtensions.emplace_back("VK_KHR_win32_surface");
-#endif
-    enableExtensions(createInfo);
+    m_Capabilities->EnableExtensions(createInfo);
 
     if (vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance) != VK_SUCCESS)
     {
@@ -190,56 +187,6 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     }
 
     return m_VulkanInstance;
-}
-void vulkanBackend::vulkanBackendImpl::enableValidationLayersSupport(VkInstanceCreateInfo& createInfo)
-{
-    uint32_t availableLayerCount;
-    vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(availableLayerCount);
-    vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
-    DBG_PRINTM("Vulkan available validation layers:");
-    for (size_t i = 0; i < availableLayerCount; i++)
-    {
-        DBG_PRINT("", '\t' << availableLayers[i].layerName << "  spec_v: " << availableLayers[i].specVersion
-                           << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description);
-    }
-
-    createInfo.enabledLayerCount = validationLayers.size();
-    createInfo.ppEnabledLayerNames = validationLayers.data();
-}
-void vulkanBackend::vulkanBackendImpl::enableExtensions(VkInstanceCreateInfo& createInfo)
-{
-    uint32_t extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> props(extensionCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props.data());
-
-    DBG_PRINTM("Vulkan available extensions:");
-    for (size_t i = 0; i < extensionCount; i++)
-    {
-        DBG_PRINT("", '\t' << props[i].extensionName << " v:" << props[i].specVersion);
-    }
-
-    createInfo.enabledExtensionCount = instanceExtensions.size();
-    createInfo.ppEnabledExtensionNames = instanceExtensions.data();
-}
-bool vulkanBackend::vulkanBackendImpl::checkDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice)
-{
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableDeviceExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, availableDeviceExtensions.data());
-
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-    for (auto& ext : availableDeviceExtensions)
-    {
-        requiredExtensions.erase(ext.extensionName);
-    }
-
-    return requiredExtensions.empty();
 }
 
 void vulkanBackend::vulkanBackendImpl::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
@@ -367,7 +314,7 @@ bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice& logica
     vkGetPhysicalDeviceProperties(logicalDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(logicalDevice, &deviceFeatures);
 
-    isDeviceExtensionsSupported = checkDeviceExtensionSupport(logicalDevice);
+    isDeviceExtensionsSupported = m_Capabilities->CheckDeviceExtensionSupport(logicalDevice);
     if (isDeviceExtensionsSupported)
     {
         SSwapchainSupport swapchainSupport = querySwapChainSupport(logicalDevice);
@@ -375,9 +322,9 @@ bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice& logica
     }
     return (isQueueFamiliesSupported && isDeviceExtensionsSupported && isSwapchainDetailsSupported);
 }
-vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice m_LogicalDevice)
+SUniqueFamilyQueue vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysicalDevice m_LogicalDevice)
 {
-    vulkanBackend::vulkanBackendImpl::SUniqueFamilyQueue indices{};
+    SUniqueFamilyQueue indices{};
     uint32_t queueFamilyCount = 0;
 
     // Device features 2
@@ -427,8 +374,8 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     deviceCreateInfo.pQueueCreateInfos = &uniqueFamilyQueueCreateInfo;
     deviceCreateInfo.queueCreateInfoCount = 1;            // Unique QueueFamilies count
     deviceCreateInfo.pEnabledFeatures = &deviceFeatures;  // Pointer to array of Unique QueueFamilies
-    deviceCreateInfo.enabledExtensionCount = deviceExtensions.size();
-    deviceCreateInfo.ppEnabledExtensionNames = deviceExtensions.data();
+    deviceCreateInfo.ppEnabledExtensionNames = m_Capabilities->DeviceExtensionsData();
+    deviceCreateInfo.enabledExtensionCount = m_Capabilities->DeviceExtensionsCount();
 
     if (vkCreateDevice(m_PhysicalDevice.vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
     {
@@ -493,7 +440,7 @@ void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebuffer
     m_Swapchain.imageFormat = surfaceFormat.format;
     m_Swapchain.extent = extent;
 }
-vulkanBackend::vulkanBackendImpl::SSwapchainSupport vulkanBackend::vulkanBackendImpl::querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice)
+SSwapchainSupport vulkanBackend::vulkanBackendImpl::querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice)
 {
     SSwapchainSupport details;
 
@@ -1644,7 +1591,7 @@ void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SF
 {
     VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
 
-    auto& gpuTexture = m_TextureMap.emplace().first->second;
+    auto& gpuTexture = m_TextureMap.emplace(view.ID, SGPUTexture()).first->second;
     CreateTextureImage(view, gpuTexture.image, gpuTexture.memory, format);
     gpuTexture.view = createTextureImageView(gpuTexture.image, format);
     CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
@@ -1728,6 +1675,8 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pc{draw.material.albedo};
+        if (pc.albedoIdx == 3)
+            __debugbreak();
 
         vkCmdPushConstants(m_GeometrySecondaryCmdBuffers[idx], m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(SFLPushConstant), &pc);
         vkCmdDrawIndexed(m_GeometrySecondaryCmdBuffers[idx], draw.indexCount, 1, draw.indexOffset, draw.vertexOffset, 0);

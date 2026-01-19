@@ -312,6 +312,16 @@ private:
         {
             return (framesSinceLastUpload > 5 && images.size() > 0) || images.size() > 10;
         };
+        void Add(Fleur::Graphics::SFLImageView view)
+        {
+            std::lock_guard<std::mutex> lc(mx);
+            images.push_back(view);
+        }
+        void Clear()
+        {
+            images.clear();
+        }
+        std::mutex mx;
     };
     ImagesUpload m_ImagesToUpload;
 

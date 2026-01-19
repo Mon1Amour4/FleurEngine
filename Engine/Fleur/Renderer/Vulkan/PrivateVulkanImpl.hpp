@@ -26,6 +26,8 @@
 #include <set>
 #include <vector>
 
+#include "VkCapabilities.h"
+
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -43,6 +45,86 @@ constexpr uint32_t MAX_TEXTURES = 128;
 
 #pragma endregion
 
+#pragma region Structs
+
+struct SSwapchainSupport
+{
+    VkSurfaceCapabilitiesKHR capabilities;
+    std::vector<VkSurfaceFormatKHR> formats;
+    std::vector<VkPresentModeKHR> presentModes;
+
+    inline bool isSwapchainSuitable()
+    {
+        return (!formats.empty() && !presentModes.empty());
+    }
+};
+
+struct SFLBuffer
+{
+    uint64_t sizeBytes = 0;
+    uint64_t currentSizeBytes = 0;
+    uint32_t strideSizeBytes = 0;
+    VkBuffer buffer;
+    VmaAllocation allocation;
+};
+
+struct SLogicalDevice
+{
+    VkPhysicalDevice vkPhysicalDevice;
+    SSwapchainSupport capabilities;
+};
+
+struct SUniqueFamilyQueue
+{
+    int familyIndex{-1};
+    uint32_t availableQueueCount{0};
+
+    bool swapchainSupport{false};
+
+    inline bool is_valid()
+    {
+        return (familyIndex != -1 && availableQueueCount > 0);
+    }
+};
+
+struct SGPUMaterial
+{
+    uint32_t albedo;
+    uint32_t normal;
+};
+struct DrawInfo
+{
+    uint64_t indexCount = 0;
+    uint64_t vertexCount = 0;
+
+    uint64_t indexOffset = 0;
+    uint64_t vertexOffset = 0;
+
+    SGPUMaterial material;
+};
+
+struct SGPUTexture
+{
+    VkImage image;
+    VkImageView view;
+    VkDeviceMemory memory;
+};
+
+struct SFLSwapchain
+{
+    VkSwapchainKHR swapchain;
+    VkFormat imageFormat;
+    VkExtent2D extent;
+
+    // VkFramebuffer + VkRenderPass defines the render target
+    std::vector<VkImage> images;              // Raw GPU data
+    std::vector<VkImageView> imageViews;      // Describes how to interpret that Raw GPU data
+    std::vector<VkFramebuffer> framebuffers;  // Relates to single RenderPass, defines which VkImageView is to be which attachment.
+
+    uint32_t framebuffersCount;
+};
+
+#pragma endregion
 
 //======================================================================
 // Static functions
@@ -64,117 +146,23 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-
 struct vulkanBackend::vulkanBackendImpl
 {
-#pragma region Structs
 
-    struct SSwapchainSupport
-    {
-        VkSurfaceCapabilitiesKHR capabilities;
-        std::vector<VkSurfaceFormatKHR> formats;
-        std::vector<VkPresentModeKHR> presentModes;
-
-        inline bool isSwapchainSuitable()
-        {
-            return (!formats.empty() && !presentModes.empty());
-        }
-    };
-
-    struct SFLBuffer
-    {
-        uint64_t sizeBytes = 0;
-        uint64_t currentSizeBytes = 0;
-        uint32_t strideSizeBytes = 0;
-        VkBuffer buffer;
-        VmaAllocation allocation;
-    };
-
-    struct SLogicalDevice
-    {
-        VkPhysicalDevice vkPhysicalDevice;
-        SSwapchainSupport capabilities;
-    };
-
-    struct SUniqueFamilyQueue
-    {
-        int familyIndex{-1};
-        uint32_t availableQueueCount{0};
-
-        bool swapchainSupport{false};
-
-        inline bool is_valid()
-        {
-            return (familyIndex != -1 && availableQueueCount > 0);
-        }
-    };
-
-    struct SGPUMaterial
-    {
-        uint32_t albedo;
-        uint32_t normal;
-    };
-    struct DrawInfo
-    {
-        uint64_t indexCount = 0;
-        uint64_t vertexCount = 0;
-
-        uint64_t indexOffset = 0;
-        uint64_t vertexOffset = 0;
-
-        SGPUMaterial material;
-    };
-
-    struct SGPUTexture
-    {
-        VkImage image;
-        VkImageView view;
-        VkDeviceMemory memory;
-    };
-
-    struct SFLSwapchain
-    {
-        VkSwapchainKHR swapchain;
-        VkFormat imageFormat;
-        VkExtent2D extent;
-
-        // VkFramebuffer + VkRenderPass defines the render target
-        std::vector<VkImage> images;              // Raw GPU data
-        std::vector<VkImageView> imageViews;      // Describes how to interpret that Raw GPU data
-        std::vector<VkFramebuffer> framebuffers;  // Relates to single RenderPass, defines which VkImageView is to be which attachment.
-
-        uint32_t framebuffersCount;
-    };
-
-    // CPU ID to corresponding Vulkan Texture
-    // std::unordered_map<uint32_t, VkTexture> m_TextureMap;
-#pragma endregion
-
-    vulkanBackendImpl(Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
+    vulkanBackendImpl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
+                      Fleur::Graphics::SFLImageView& fallback);
     ~vulkanBackendImpl();
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
     void resize_event(Fleur::SRect& rect);
 
-    // Extensions
-    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
-    std::vector<const char*> instanceExtensions = {"VK_EXT_debug_utils", "VK_KHR_surface"};
 
     // Instance
     VkInstance m_VulkanInstance;
     VkInstance createInstance();
 
-    // Validation Layers
-    void enableValidationLayersSupport(VkInstanceCreateInfo& createinfo);
-
-    // Extensions
-    void enableExtensions(VkInstanceCreateInfo& createinfo);
-    bool checkDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice);
-
-    // Debug messages
-    bool enableValidationLayers;
-    std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
-
+    VkCapabilities* m_Capabilities;
+    
     VkDebugUtilsMessengerEXT debugMessenger;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
