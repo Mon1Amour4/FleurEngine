@@ -1070,7 +1070,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 
         vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
-        auto& fallback = m_TextureMap[0];
+        auto& fallback = m_TextureMap[m_FallbackTextureIdx];
         VkDescriptorImageInfo imageSamplerInfo{};
         imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         imageSamplerInfo.imageView = fallback.view;
@@ -1516,6 +1516,7 @@ void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SF
     gpuTexture.view = createTextureImageView(gpuTexture.image, format);
     CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
     m_FallbackTexture.view = createTextureImageView(m_FallbackTexture.image, format);
+    m_FallbackTextureIdx = view.ID;
 }
 
 void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler)

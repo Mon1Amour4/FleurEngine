@@ -285,8 +285,10 @@ struct vulkanBackend::vulkanBackendImpl
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     VkSampler createTextureSampler();
+
     VkSampler m_ImageSampler;
     std::unordered_map<uint32_t, SGPUTexture> m_TextureMap;
+    uint32_t m_FallbackTextureIdx;
     void UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler);
 
     uint32_t GetChannelsNumFromFormat(VkFormat);
