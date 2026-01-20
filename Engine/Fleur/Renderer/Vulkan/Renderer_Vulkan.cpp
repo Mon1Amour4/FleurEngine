@@ -179,7 +179,7 @@ VkInstance vulkanBackend::vulkanBackendImpl::createInstance()
     createInfo.pApplicationInfo = &appInfo;
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    
+
     if (m_Capabilities->ValidationEnabled())
     {
         m_Capabilities->EnableValidationLayersSupport(createInfo);
@@ -1104,7 +1104,8 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
     {
         uniformBuffers[i] = FVkBuffer(m_Allocator);
         uniformBuffers[i].Init(m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
-        uniformBuffers[i].Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        uniformBuffers[i].Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice,
+                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
         uniformBuffers[i].Map(m_LogicalDevice);
     }
 }
@@ -1112,7 +1113,7 @@ void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage
 {
     pUbo->proj[1][1] *= -1;
     pUbo->model = glm::mat4(1.0f);
-    memcpy(uniformBuffers[currentFrame].Buffer(), pUbo, sizeof(*pUbo));
+    memcpy(uniformBuffers[currentFrame].MappedMemory(), pUbo, sizeof(*pUbo));
 }
 
 
@@ -1364,8 +1365,7 @@ void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImag
 void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory,
                                                           VkFormat format)
 {
-
-    //VkDeviceMemory stagingBufferMemory;
+    // VkDeviceMemory stagingBufferMemory;
     VkDeviceSize bufferImageSize = imageView.w * imageView.h * GetChannelsNumFromFormat(format);
     VkDeviceSize mapImageSize = imageView.w * imageView.h * imageView.channels;
 

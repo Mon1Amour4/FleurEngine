@@ -1,6 +1,7 @@
 #pragma once
 
-#include<vulkan/vulkan.h>
+#include <vulkan/vulkan.h>
+
 #include "vk_mem_alloc.h"
 
 class FVkBuffer
@@ -27,7 +28,7 @@ public:
     inline uint32_t StrideBytes() const
     {
         return m_StrideSizeBytes;
-    } 
+    }
     inline VkBuffer& Buffer()
     {
         return m_VkBuffer;
@@ -40,11 +41,15 @@ public:
     {
         return m_VkMemory;
     }
+    inline void* MappedMemory() const
+    {
+        return m_MappedMemory;
+    }
 
     void* Map(VkDevice device);
     void Unmap(VkDevice device);
 
-    private:
+private:
     uint64_t m_SizeBytes;
     uint64_t m_CurrentSizeBytes;
     uint32_t m_StrideSizeBytes;
