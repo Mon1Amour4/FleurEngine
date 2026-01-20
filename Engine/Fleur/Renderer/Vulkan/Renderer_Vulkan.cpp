@@ -3,6 +3,8 @@
 // I've hidden vulkanBackendImpl declaration into .hpp file
 
 #include "PrivateVulkanImpl.hpp"
+#include "VkBuffer.h"
+#include "VkHelper.hpp"
 
 
 vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
@@ -48,6 +50,9 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     createLogicalDevice();
     initializeVma();
 
+    m_VertexBuffer = new FVkBuffer(m_Allocator);
+    m_IndexBuffer = new FVkBuffer(m_Allocator);
+
     createSwapChain(framebufferSize);
     createImageViews();
     CreateGeometryRenderPass();
@@ -75,8 +80,12 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     else if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
         indexInputDescriptorSize = sizeof(uint16_t);
 
-    CreateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_VertexBuffer, 1024u * 1024ul * 512ul, vertexInputDescriptorSize);
-    CreateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, &m_IndexBuffer, 1024u * 1024ul * 256ul, indexInputDescriptorSize);
+    m_VertexBuffer->Init(m_LogicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul,
+                         vertexInputDescriptorSize);
+    m_VertexBuffer->Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    m_IndexBuffer->Init(m_LogicalDevice, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul, indexInputDescriptorSize);
+    m_IndexBuffer->Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     createUniformBuffers();
     createDescriptorPool();
@@ -105,6 +114,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
     delete m_Capabilities;
+    delete m_VertexBuffer;
+    delete m_IndexBuffer;
 
     vkDeviceWaitIdle(m_LogicalDevice);
 
@@ -113,8 +124,9 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
     {
-        vkDestroyBuffer(m_LogicalDevice, uniformBuffers[i], nullptr);
-        vkFreeMemory(m_LogicalDevice, uniformBuffersMemory[i], nullptr);
+        // TODO
+        /*vkDestroyBuffer(m_LogicalDevice, uniformBuffers[i], nullptr);
+        vkFreeMemory(m_LogicalDevice, uniformBuffersMemory[i], nullptr);*/
     }
 
     vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool, nullptr);
@@ -136,8 +148,8 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
 
-    vmaDestroyBuffer(m_Allocator, m_VertexBuffer.buffer, m_VertexBuffer.allocation);
-    vmaDestroyBuffer(m_Allocator, m_IndexBuffer.buffer, m_IndexBuffer.allocation);
+    vmaDestroyBuffer(m_Allocator, m_VertexBuffer->Buffer(), m_VertexBuffer->Allocation());
+    vmaDestroyBuffer(m_Allocator, m_IndexBuffer->Buffer(), m_IndexBuffer->Allocation());
     freeVma();
 
     vkDestroyDevice(m_LogicalDevice, nullptr);
@@ -968,96 +980,6 @@ void vulkanBackend::vulkanBackendImpl::recreateSwapChain()
     createFramebuffers();
 }
 
-void vulkanBackend::vulkanBackendImpl::createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer,
-                                                    VkDeviceMemory& bufferMemory)
-{
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = size;
-    bufferInfo.usage = usage;
-    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateBuffer(m_LogicalDevice, &bufferInfo, nullptr, &buffer) != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to create buffer!!")
-        assert(false);
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetBufferMemoryRequirements(m_LogicalDevice, buffer, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to allocate buffer memory!!")
-        assert(false);
-    }
-
-    vkBindBufferMemory(m_LogicalDevice, buffer, bufferMemory, 0);
-}
-
-
-//======================================================================
-// Buffer
-void vulkanBackend::vulkanBackendImpl::CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
-{
-    pBuffer->sizeBytes = sizeBytes;
-    pBuffer->strideSizeBytes = strideSize;
-
-    VkBufferCreateInfo bufferInfo = {VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufferInfo.size = sizeBytes;
-    bufferInfo.usage = usage;
-
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-
-    if (vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &pBuffer->buffer, &pBuffer->allocation, nullptr) != VK_SUCCESS)
-    {
-        assert(false);
-    }
-}
-void vulkanBackend::vulkanBackendImpl::UploadDataToBuffer(SFLBuffer* pBuffer, const void* pData, uint64_t count)
-{
-    uint64_t oldOffset = pBuffer->currentSizeBytes;
-    pBuffer->currentSizeBytes += count * pBuffer->strideSizeBytes;
-
-    if (vmaCopyMemoryToAllocation(m_Allocator, pData, pBuffer->allocation, oldOffset, pBuffer->strideSizeBytes * count) != VK_SUCCESS)
-    {
-        assert(false);
-    }
-}
-void vulkanBackend::vulkanBackendImpl::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size)
-{
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    VkBufferCopy copyRegion{};
-    copyRegion.srcOffset = 0;  // Optional
-    copyRegion.dstOffset = 0;  // Optional
-    copyRegion.size = size;
-    vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-    endSingleTimeCommands(commandBuffer);
-}
-uint32_t vulkanBackend::vulkanBackendImpl::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
-{
-    VkPhysicalDeviceMemoryProperties memProperties;
-    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice.vkPhysicalDevice, &memProperties);
-
-    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++)
-    {
-        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties)
-        {
-            return i;
-        }
-    }
-    assert(false);
-}
-
 
 //======================================================================
 // VkDescriptor
@@ -1133,7 +1055,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
     for (size_t i = 0; i < descriptorSets.size(); i++)
     {
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.buffer = uniformBuffers[i].Buffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
@@ -1177,22 +1099,20 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
     uniformBuffers.resize(m_Swapchain.framebuffersCount);
-    uniformBuffersMemory.resize(m_Swapchain.framebuffersCount);
-    uniformBuffersMapped.resize(m_Swapchain.framebuffersCount);
 
     for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
     {
-        createBuffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     uniformBuffers[i], uniformBuffersMemory[i]);
-
-        vkMapMemory(m_LogicalDevice, uniformBuffersMemory[i], 0, bufferSize, 0, &uniformBuffersMapped[i]);
+        uniformBuffers[i] = FVkBuffer(m_Allocator);
+        uniformBuffers[i].Init(m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
+        uniformBuffers[i].Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+        uniformBuffers[i].Map(m_LogicalDevice);
     }
 }
 void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
     pUbo->model = glm::mat4(1.0f);
-    memcpy(uniformBuffersMapped[currentImage], pUbo, sizeof(*pUbo));
+    memcpy(uniformBuffers[currentFrame].Buffer(), pUbo, sizeof(*pUbo));
 }
 
 
@@ -1253,11 +1173,11 @@ std::array<VkVertexInputAttributeDescription, 3> vulkanBackend::vulkanBackendImp
 
 void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
-    uint64_t globalIndexOffset = m_IndexBuffer.currentSizeBytes / m_IndexBuffer.strideSizeBytes;
-    uint64_t globalVertexOffset = m_VertexBuffer.currentSizeBytes / m_VertexBuffer.strideSizeBytes;
+    uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
+    uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
 
-    UploadDataToBuffer(&m_IndexBuffer, pModelView->indecies.pData, pModelView->indecies.count);
-    UploadDataToBuffer(&m_VertexBuffer, pModelView->vertecies.pData, pModelView->vertecies.count);
+    m_IndexBuffer->UploadDataToBuffer(pModelView->indecies.pData, pModelView->indecies.count);
+    m_VertexBuffer->UploadDataToBuffer(pModelView->vertecies.pData, pModelView->vertecies.count);
 
     auto material = reinterpret_cast<const Fleur::Graphics::SFLMaterialView*>(pModelView->materials.pData);
     for (size_t i = 0; i < pModelView->meshes.count; i++)
@@ -1444,31 +1364,30 @@ void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImag
 void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory,
                                                           VkFormat format)
 {
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMemory;
+
+    //VkDeviceMemory stagingBufferMemory;
     VkDeviceSize bufferImageSize = imageView.w * imageView.h * GetChannelsNumFromFormat(format);
     VkDeviceSize mapImageSize = imageView.w * imageView.h * imageView.channels;
 
-    createBuffer(bufferImageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer,
-                 stagingBufferMemory);
+    FVkBuffer stagingBuffer = FVkBuffer(m_Allocator);
+    stagingBuffer.Init(m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
+    stagingBuffer.Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-    void* data;
-    vkMapMemory(m_LogicalDevice, stagingBufferMemory, 0, mapImageSize, 0, &data);
+    void* data = stagingBuffer.Map(m_LogicalDevice);
     memcpy(data, imageView.pData, static_cast<size_t>(mapImageSize));
-    vkUnmapMemory(m_LogicalDevice, stagingBufferMemory);
-
+    stagingBuffer.Unmap(m_LogicalDevice);
 
     createImage(imageView.w, imageView.h, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
     transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-    copyBufferToImage(stagingBuffer, image, static_cast<uint32_t>(imageView.w), static_cast<uint32_t>(imageView.h));
+    copyBufferToImage(stagingBuffer.Buffer(), image, static_cast<uint32_t>(imageView.w), static_cast<uint32_t>(imageView.h));
 
     transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-    vkDestroyBuffer(m_LogicalDevice, stagingBuffer, nullptr);
-    vkFreeMemory(m_LogicalDevice, stagingBufferMemory, nullptr);
+    vkDestroyBuffer(m_LogicalDevice, stagingBuffer.Buffer(), nullptr);
+    vkFreeMemory(m_LogicalDevice, stagingBuffer.Memory(), nullptr);
 }
 
 void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -1501,7 +1420,7 @@ void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t heig
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties);
+    allocInfo.memoryTypeIndex = FindMemoryType(m_PhysicalDevice.vkPhysicalDevice, memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
     {
@@ -1659,11 +1578,11 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     vkCmdSetScissor(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &scissor);
 
 
-    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &m_VertexBuffer.buffer, offsets);
-    if (m_IndexBuffer.strideSizeBytes == 4)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-    else if (m_IndexBuffer.strideSizeBytes == 2)
-        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer.buffer, 0, VK_INDEX_TYPE_UINT16);
+    vkCmdBindVertexBuffers(m_GeometrySecondaryCmdBuffers[idx], 0, 1, &m_VertexBuffer->Buffer(), offsets);
+    if (m_IndexBuffer->StrideBytes() == 4)
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer->Buffer(), 0, VK_INDEX_TYPE_UINT32);
+    else if (m_IndexBuffer->StrideBytes() == 2)
+        vkCmdBindIndexBuffer(m_GeometrySecondaryCmdBuffers[idx], m_IndexBuffer->Buffer(), 0, VK_INDEX_TYPE_UINT16);
 
     vkCmdBindDescriptorSets(m_GeometrySecondaryCmdBuffers[idx], VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipelineLayout, 0, 1, &descriptorSets[currentFrame],
                             0, nullptr);

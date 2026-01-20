@@ -27,7 +27,7 @@
 #include <vector>
 
 #include "VkCapabilities.h"
-
+#include "VkBuffer.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -57,15 +57,6 @@ struct SSwapchainSupport
     {
         return (!formats.empty() && !presentModes.empty());
     }
-};
-
-struct SFLBuffer
-{
-    uint64_t sizeBytes = 0;
-    uint64_t currentSizeBytes = 0;
-    uint32_t strideSizeBytes = 0;
-    VkBuffer buffer;
-    VmaAllocation allocation;
 };
 
 struct SLogicalDevice
@@ -198,7 +189,6 @@ struct vulkanBackend::vulkanBackendImpl
 
     void cleanupSwapChain();
     void recreateSwapChain();
-    void createBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VkMemoryPropertyFlags properties, VkBuffer& buffer, VkDeviceMemory& bufferMemory);
 
 
     SSwapchainSupport querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice);
@@ -248,17 +238,14 @@ struct vulkanBackend::vulkanBackendImpl
     bool framebufferResized = false;
     void createSyncObjects();
 
-    std::vector<VkBuffer> uniformBuffers;
-    std::vector<VkDeviceMemory> uniformBuffersMemory;
-    std::vector<void*> uniformBuffersMapped;
+    std::vector<FVkBuffer> uniformBuffers;
+    //std::vector<VkDeviceMemory> uniformBuffersMemory;
+    //std::vector<void*> uniformBuffersMapped;
 
     VkMemoryRequirements memRequirements;
 
-    void CreateBuffer(VkBufferUsageFlags usage, SFLBuffer* pBuffer, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
     void createUniformBuffers();
     void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
-    void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
-    uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
     void createDescriptorSetLayout();
 
@@ -273,10 +260,8 @@ struct vulkanBackend::vulkanBackendImpl
     void initializeVma();
     void freeVma();
 
-    SFLBuffer m_VertexBuffer;
-    SFLBuffer m_IndexBuffer;
-
-    void UploadDataToBuffer(SFLBuffer* pBuffer, const void* pData, uint64_t count);
+    FVkBuffer* m_VertexBuffer;
+    FVkBuffer* m_IndexBuffer;
 
 
     std::vector<DrawInfo> m_DrawList;
