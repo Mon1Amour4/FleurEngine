@@ -1289,7 +1289,8 @@ void vulkanBackend::vulkanBackendImpl::endSingleTimeCommands(VkCommandBuffer com
 
     vkFreeCommandBuffers(m_LogicalDevice, commandPool, 1, &commandBuffer);
 }
-void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout)
+void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                             VkImageAspectFlags aspectMask)
 {
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
@@ -1300,7 +1301,7 @@ void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFo
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    barrier.subresourceRange.aspectMask = aspectMask;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -1380,11 +1381,11 @@ void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLIm
     createImage(imageView.w, imageView.h, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
-    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     copyBufferToImage(stagingBuffer.Buffer(), image, static_cast<uint32_t>(imageView.w), static_cast<uint32_t>(imageView.h));
 
-    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
     vkDestroyBuffer(m_LogicalDevice, stagingBuffer.Buffer(), nullptr);
     vkFreeMemory(m_LogicalDevice, stagingBuffer.Memory(), nullptr);
@@ -1653,7 +1654,8 @@ vulkanBackend::vulkanBackendImpl::Depth vulkanBackend::vulkanBackendImpl::Create
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth.depthImage, depth.depthImageMemory);
     depth.depthImageView = createImageView(depth.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-    transitionImageLayout(depth.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    transitionImageLayout(depth.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                          VK_IMAGE_ASPECT_DEPTH_BIT);
 
     return depth;
 }

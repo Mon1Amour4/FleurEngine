@@ -26,8 +26,8 @@
 #include <set>
 #include <vector>
 
-#include "VkCapabilities.h"
 #include "VkBuffer.h"
+#include "VkCapabilities.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -139,7 +139,6 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 
 struct vulkanBackend::vulkanBackendImpl
 {
-
     vulkanBackendImpl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
                       Fleur::Graphics::SFLImageView& fallback);
     ~vulkanBackendImpl();
@@ -153,7 +152,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkInstance createInstance();
 
     VkCapabilities* m_Capabilities;
-    
+
     VkDebugUtilsMessengerEXT debugMessenger;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
@@ -239,8 +238,8 @@ struct vulkanBackend::vulkanBackendImpl
     void createSyncObjects();
 
     std::vector<FVkBuffer> uniformBuffers;
-    //std::vector<VkDeviceMemory> uniformBuffersMemory;
-    //std::vector<void*> uniformBuffersMapped;
+    // std::vector<VkDeviceMemory> uniformBuffersMemory;
+    // std::vector<void*> uniformBuffersMapped;
 
     VkMemoryRequirements memRequirements;
 
@@ -281,7 +280,7 @@ struct vulkanBackend::vulkanBackendImpl
 
     VkCommandBuffer beginSingleTimeCommands();
     void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout);
+    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
