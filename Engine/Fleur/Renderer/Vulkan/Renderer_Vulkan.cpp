@@ -50,8 +50,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     createLogicalDevice();
     initializeVma();
 
-    m_VertexBuffer = new FVkBuffer(m_Allocator);
-    m_IndexBuffer = new FVkBuffer(m_Allocator);
+    m_VertexBuffer = new FVkBuffer();
+    m_IndexBuffer = new FVkBuffer();
 
     createSwapChain(framebufferSize);
     createImageViews();
@@ -80,12 +80,11 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     else if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
         indexInputDescriptorSize = sizeof(uint16_t);
 
-    m_VertexBuffer->Init(m_LogicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul,
+    m_VertexBuffer->Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul,
                          vertexInputDescriptorSize);
-    m_VertexBuffer->Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    m_IndexBuffer->Init(m_LogicalDevice, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul, indexInputDescriptorSize);
-    m_IndexBuffer->Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    m_IndexBuffer->Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul,
+                        indexInputDescriptorSize);
 
     createUniformBuffers();
     createDescriptorPool();
@@ -1102,11 +1101,8 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 
     for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
     {
-        uniformBuffers[i] = FVkBuffer(m_Allocator);
-        uniformBuffers[i].Init(m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
-        uniformBuffers[i].Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice,
-                                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-        uniformBuffers[i].Map(m_LogicalDevice);
+        uniformBuffers[i].Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
+        uniformBuffers[i].Map();
     }
 }
 void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
@@ -1366,29 +1362,24 @@ void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImag
 void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory,
                                                           VkFormat format)
 {
-    // VkDeviceMemory stagingBufferMemory;
     VkDeviceSize bufferImageSize = imageView.w * imageView.h * GetChannelsNumFromFormat(format);
     VkDeviceSize mapImageSize = imageView.w * imageView.h * imageView.channels;
 
-    FVkBuffer stagingBuffer = FVkBuffer(m_Allocator);
-    stagingBuffer.Init(m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
-    stagingBuffer.Allocate(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    FVkBuffer stagingBuffer{};
+    stagingBuffer.Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
 
-    void* data = stagingBuffer.Map(m_LogicalDevice);
+    void* data = stagingBuffer.Map();
     memcpy(data, imageView.pData, static_cast<size_t>(mapImageSize));
-    stagingBuffer.Unmap(m_LogicalDevice);
+    stagingBuffer.Unmap();
 
     createImage(imageView.w, imageView.h, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
     transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 
-    copyBufferToImage(stagingBuffer.Buffer(), image, static_cast<uint32_t>(imageView.w), static_cast<uint32_t>(imageView.h));
+    copyBufferToImage(stagingBuffer.Buffer(), image, imageView.w, imageView.h);
 
     transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    vkDestroyBuffer(m_LogicalDevice, stagingBuffer.Buffer(), nullptr);
-    vkFreeMemory(m_LogicalDevice, stagingBuffer.Memory(), nullptr);
 }
 
 void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -1630,7 +1621,7 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometryPrimaryBuffer(uint32_t buff
     renderPassInfo.renderArea.extent = m_Swapchain.extent;
 
     std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {0.f, 0.f, 0.f, 0.f};
+    clearValues[0].color = {0.f, 0.f, 0.f, 1.f};
     clearValues[1].depthStencil.depth = 1.f;
     clearValues[1].depthStencil.stencil = 1.f;
 
