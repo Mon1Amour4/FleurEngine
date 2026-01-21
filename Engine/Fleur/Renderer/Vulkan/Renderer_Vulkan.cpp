@@ -3,7 +3,7 @@
 // I've hidden vulkanBackendImpl declaration into .hpp file
 
 #include "PrivateVulkanImpl.hpp"
-#include "VkBuffer.h"
+#include "FVkBuffer.h"
 #include "VkHelper.hpp"
 
 
@@ -41,7 +41,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
                                                     Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
     : m_LogicalDevice(VK_NULL_HANDLE)
 {
-    m_Capabilities = new VkCapabilities(enableValidation);
+    m_Capabilities = new FVkCapabilities(enableValidation);
 
     m_VulkanInstance = createInstance();
     setupDebugMessenger();
@@ -60,7 +60,9 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
 
-    createCommandPool();
+    m_CommandPool = new FVkCommandPool();
+    m_CommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
+
     m_Depth = CreateDepthBuffer(m_PhysicalDevice.vkPhysicalDevice);
     createFramebuffers();
 
@@ -124,7 +126,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
     {
         // TODO
-        /*vkDestroyBuffer(m_LogicalDevice, uniformBuffers[i], nullptr);
+        /*vkDestroyBuffer(m_LogicalDevice, m_UniformBuffers[i], nullptr);
         vkFreeMemory(m_LogicalDevice, uniformBuffersMemory[i], nullptr);*/
     }
 
@@ -145,7 +147,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDestroySampler(m_LogicalDevice, m_ImageSampler, nullptr);
 
-    vkDestroyCommandPool(m_LogicalDevice, commandPool, nullptr);
+    delete m_CommandPool;
 
     vmaDestroyBuffer(m_Allocator, m_VertexBuffer->Buffer(), m_VertexBuffer->Allocation());
     vmaDestroyBuffer(m_Allocator, m_IndexBuffer->Buffer(), m_IndexBuffer->Allocation());
@@ -819,29 +821,12 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
 
 
 //======================================================================
-// VkCommandPool
-void vulkanBackend::vulkanBackendImpl::createCommandPool()
-{
-    VkCommandPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    poolInfo.queueFamilyIndex = m_GraphicsQueueFamily.familyIndex;
-
-    if (vkCreateCommandPool(m_LogicalDevice, &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create command pool!")
-        assert(false);
-    }
-}
-
-
-//======================================================================
 // VkCommandBuffer
 void vulkanBackend::vulkanBackendImpl::createCommandBuffers()
 {
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = m_CommandPool->Pool();
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = (uint32_t)m_PrimaryCmdBuffers.buffers.size();
 
@@ -857,7 +842,7 @@ VkCommandBuffer vulkanBackend::vulkanBackendImpl::CreateCmdBuffer(VkCommandBuffe
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = m_CommandPool->Pool();
     allocInfo.level = level;
     allocInfo.commandBufferCount = 1;
 
@@ -1054,7 +1039,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
     for (size_t i = 0; i < descriptorSets.size(); i++)
     {
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = uniformBuffers[i].Buffer();
+        bufferInfo.buffer = m_UniformBuffers[i].Buffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
@@ -1097,19 +1082,19 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 {
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-    uniformBuffers.resize(m_Swapchain.framebuffersCount);
+    m_UniformBuffers.resize(m_Swapchain.framebuffersCount);
 
     for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
     {
-        uniformBuffers[i].Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
-        uniformBuffers[i].Map();
+        m_UniformBuffers[i].Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
+        m_UniformBuffers[i].Map();
     }
 }
 void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
     pUbo->model = glm::mat4(1.0f);
-    memcpy(uniformBuffers[currentFrame].MappedMemory(), pUbo, sizeof(*pUbo));
+    memcpy(m_UniformBuffers[currentFrame].MappedMemory(), pUbo, sizeof(*pUbo));
 }
 
 
@@ -1257,7 +1242,7 @@ VkCommandBuffer vulkanBackend::vulkanBackendImpl::beginSingleTimeCommands()
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = commandPool;
+    allocInfo.commandPool = m_CommandPool->Pool();
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
@@ -1283,7 +1268,7 @@ void vulkanBackend::vulkanBackendImpl::endSingleTimeCommands(VkCommandBuffer com
     vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(graphicsQueue);
 
-    vkFreeCommandBuffers(m_LogicalDevice, commandPool, 1, &commandBuffer);
+    vkFreeCommandBuffers(m_LogicalDevice, m_CommandPool->Pool(), 1, &commandBuffer);
 }
 void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                                              VkImageAspectFlags aspectMask)

@@ -3,10 +3,10 @@
 #include <vulkan/vulkan.h>
 #include <vector>
 
-class VkCapabilities
+class FVkCapabilities
 {
 public:
-    VkCapabilities(bool enableValidation);
+    FVkCapabilities(bool enableValidation);
     void EnableValidationLayersSupport(VkInstanceCreateInfo& createinfo);
     void EnableExtensions(VkInstanceCreateInfo& createinfo);
     bool CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice);

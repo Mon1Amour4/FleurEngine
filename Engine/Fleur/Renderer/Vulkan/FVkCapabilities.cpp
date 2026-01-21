@@ -1,8 +1,8 @@
-#include "VkCapabilities.h"
+#include "FVkCapabilities.h"
 #include <string>
 #include <set>
 
-VkCapabilities::VkCapabilities(bool enableValidation)
+FVkCapabilities::FVkCapabilities(bool enableValidation)
     : enableValidationLayers(enableValidation)
 {
 #if defined(FLEUR_PLATFORM_WIN) 
@@ -10,7 +10,7 @@ VkCapabilities::VkCapabilities(bool enableValidation)
 #endif
 }
 
-void VkCapabilities::EnableValidationLayersSupport(VkInstanceCreateInfo& createinfo)
+void FVkCapabilities::EnableValidationLayersSupport(VkInstanceCreateInfo& createinfo)
 {
     uint32_t availableLayerCount;
     vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
@@ -28,7 +28,7 @@ void VkCapabilities::EnableValidationLayersSupport(VkInstanceCreateInfo& createi
     createinfo.ppEnabledLayerNames = validationLayers.data();
 }
 
-void VkCapabilities::EnableExtensions(VkInstanceCreateInfo& createinfo)
+void FVkCapabilities::EnableExtensions(VkInstanceCreateInfo& createinfo)
 {
     uint32_t extensionCount = 0;
     vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
@@ -46,7 +46,7 @@ void VkCapabilities::EnableExtensions(VkInstanceCreateInfo& createinfo)
     createinfo.ppEnabledExtensionNames = instanceExtensions.data();
 }
 
-bool VkCapabilities::CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice)
+bool FVkCapabilities::CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice)
 {
     uint32_t extensionCount;
     vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, nullptr);

@@ -26,8 +26,9 @@
 #include <set>
 #include <vector>
 
-#include "VkBuffer.h"
-#include "VkCapabilities.h"
+#include "FVkBuffer.h"
+#include "FVkCapabilities.h"
+#include "FVkCmdBuffer.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -151,7 +152,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkInstance m_VulkanInstance;
     VkInstance createInstance();
 
-    VkCapabilities* m_Capabilities;
+    FVkCapabilities* m_Capabilities;
 
     VkDebugUtilsMessengerEXT debugMessenger;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
@@ -211,8 +212,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkShaderModule CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
     // CommandPool
-    VkCommandPool commandPool;
-    void createCommandPool();
+    FVkCommandPool* m_CommandPool;
 
     // CommandBuffer
     struct SFLCmdBuffer
@@ -237,9 +237,7 @@ struct vulkanBackend::vulkanBackendImpl
     bool framebufferResized = false;
     void createSyncObjects();
 
-    std::vector<FVkBuffer> uniformBuffers;
-    // std::vector<VkDeviceMemory> uniformBuffersMemory;
-    // std::vector<void*> uniformBuffersMapped;
+    std::vector<FVkBuffer> m_UniformBuffers;
 
     VkMemoryRequirements memRequirements;
 

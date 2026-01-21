@@ -12,9 +12,10 @@ SET(PROJECT_HEADERS
     # Vulkan
     PrivateVulkanImpl.hpp
     Renderer_Vulkan.h
-    VkDevice.h
-    VkBuffer.h
-    VkCapabilities.h
+    FVkDevice.h
+    FVkBuffer.h
+    FVkCapabilities.h
+    FVkCmdBuffer.h
     VkHelper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
@@ -22,9 +23,10 @@ SET(PROJECT_HEADERS
 SET(PROJECT_SOURCES
     # Vulkan
     Renderer_Vulkan.cpp
-    VkDevice.cpp
-    VkCapabilities.cpp
-    VkBuffer.cpp
+    FVkDevice.cpp
+    FVkCapabilities.cpp
+    FVkBuffer.cpp
+    FVkCmdBuffer.cpp
 )
 
 LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../)
