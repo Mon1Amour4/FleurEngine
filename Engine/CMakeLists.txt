@@ -52,6 +52,10 @@ SET(ENGINE_HEADERS
     # Primitives
     Fleur/WindowPrimitives.hpp
     Fleur/AssetTypes.hpp
+    # Ecs
+    Fleur/Ecs/EntityId.h
+    Fleur/Ecs/Entity.h
+    Fleur/Ecs/EntityManager.h
 )
 
 SET(ENGINE_SOURCES
@@ -73,6 +77,9 @@ SET(ENGINE_SOURCES
     External/stb_image/stb_image.cpp
     # Implementation Files
     Fleur/Console.cpp
+    # Ecs
+    Fleur/Ecs/Entity.cpp
+    Fleur/Ecs/EntityManager.cpp
 )
 
 # === Engine Configuration ===
