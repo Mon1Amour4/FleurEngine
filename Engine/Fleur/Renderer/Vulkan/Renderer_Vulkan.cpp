@@ -2,10 +2,12 @@
 // This entire .cpp file was so big so it was pain in the ass to navigate throughout
 // I've hidden vulkanBackendImpl declaration into .hpp file
 
+// clang-format off
 #include "PrivateVulkanImpl.hpp"
-#include "FVkBuffer.h"
 #include "VkHelper.hpp"
-
+#include "FVkBuffer.h"
+#include "FVkCommand.h"
+// clang-format on
 
 vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
                              Fleur::Graphics::SFLImageView& fallback)
@@ -60,16 +62,19 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
 
-    m_CommandPool = new FVkCommandPool();
-    m_CommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
+    m_GeometryCommandPool = new FVkCommandPool();
+    m_GeometryCommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
 
     m_Depth = CreateDepthBuffer(m_PhysicalDevice.vkPhysicalDevice);
     createFramebuffers();
 
+    m_GeometryCommandPool->AddCommandBuffer(VK_COMMAND_BUFFER_LEVEL_PRIMARY, m_Swapchain.framebuffersCount);
+    m_GeometryCommandPool->AddCommandBuffer(VK_COMMAND_BUFFER_LEVEL_SECONDARY, m_Swapchain.framebuffersCount);
+
     m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
-    m_GeometrySecondaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
-    m_PrimaryCmdBuffers.buffers.resize(m_Swapchain.framebuffersCount);
-    m_PrimaryCmdBuffers.validation.resize(m_Swapchain.framebuffersCount);
+    // m_GeometrySecondaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
+    // m_PrimaryCmdBuffers.buffers.resize(m_Swapchain.framebuffersCount);
+    // m_PrimaryCmdBuffers.validation.resize(m_Swapchain.framebuffersCount);
 
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
@@ -96,15 +101,15 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     createDescriptorSets();
 
-    for (size_t i = 0; i < m_GeometrySecondaryCmdBuffers.size(); i++)
-    {
-        m_GeometrySecondaryCmdBuffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-    }
+    /* for (size_t i = 0; i < m_GeometrySecondaryCmdBuffers.size(); i++)
+     {
+         m_GeometrySecondaryCmdBuffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+     }*/
 
-    for (size_t i = 0; i < m_PrimaryCmdBuffers.buffers.size(); i++)
-    {
-        m_PrimaryCmdBuffers.buffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    }
+    /* for (size_t i = 0; i < m_PrimaryCmdBuffers.buffers.size(); i++)
+     {
+         m_PrimaryCmdBuffers.buffers[i] = CreateCmdBuffer(VkCommandBufferLevel::VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+     }*/
     for (size_t i = 0; i < m_GeometrySecondaryCmdBuffers.size(); i++)
     {
         UpdateGeometrySecondaryCmdBuffer(i);
@@ -147,7 +152,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDestroySampler(m_LogicalDevice, m_ImageSampler, nullptr);
 
-    delete m_CommandPool;
+    delete m_GeometryCommandPool;
 
     vmaDestroyBuffer(m_Allocator, m_VertexBuffer->Buffer(), m_VertexBuffer->Allocation());
     vmaDestroyBuffer(m_Allocator, m_IndexBuffer->Buffer(), m_IndexBuffer->Allocation());
@@ -819,41 +824,6 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
     }
 }
 
-
-//======================================================================
-// VkCommandBuffer
-void vulkanBackend::vulkanBackendImpl::createCommandBuffers()
-{
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_CommandPool->Pool();
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandBufferCount = (uint32_t)m_PrimaryCmdBuffers.buffers.size();
-
-    if (vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, m_PrimaryCmdBuffers.buffers.data()) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create command buffers!")
-        assert(false);
-    }
-}
-VkCommandBuffer vulkanBackend::vulkanBackendImpl::CreateCmdBuffer(VkCommandBufferLevel level)
-{
-    VkCommandBuffer cmdBuffer{};
-
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.commandPool = m_CommandPool->Pool();
-    allocInfo.level = level;
-    allocInfo.commandBufferCount = 1;
-
-    if (vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &cmdBuffer) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create command buffer!")
-        assert(false);
-    }
-
-    return cmdBuffer;
-}
 void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
 {
     for (size_t i = 0; i < m_PrimaryCmdBuffers.buffers.size(); i++)
@@ -1242,7 +1212,7 @@ VkCommandBuffer vulkanBackend::vulkanBackendImpl::beginSingleTimeCommands()
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_CommandPool->Pool();
+    allocInfo.commandPool = m_GeometryCommandPool->Pool();
     allocInfo.commandBufferCount = 1;
 
     VkCommandBuffer commandBuffer;
@@ -1268,7 +1238,7 @@ void vulkanBackend::vulkanBackendImpl::endSingleTimeCommands(VkCommandBuffer com
     vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
     vkQueueWaitIdle(graphicsQueue);
 
-    vkFreeCommandBuffers(m_LogicalDevice, m_CommandPool->Pool(), 1, &commandBuffer);
+    vkFreeCommandBuffers(m_LogicalDevice, m_GeometryCommandPool->Pool(), 1, &commandBuffer);
 }
 void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                                              VkImageAspectFlags aspectMask)

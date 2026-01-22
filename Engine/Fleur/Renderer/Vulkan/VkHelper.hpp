@@ -1,4 +1,5 @@
 #pragma once
+
 #include <vulkan/vulkan.h>
 
 static uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)

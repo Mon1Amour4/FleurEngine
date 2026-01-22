@@ -28,7 +28,7 @@
 
 #include "FVkBuffer.h"
 #include "FVkCapabilities.h"
-#include "FVkCmdBuffer.h"
+#include "FVkCommand.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -212,7 +212,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkShaderModule CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
     // CommandPool
-    FVkCommandPool* m_CommandPool;
+    FVkCommandPool* m_GeometryCommandPool;
 
     // CommandBuffer
     struct SFLCmdBuffer
@@ -222,10 +222,11 @@ struct vulkanBackend::vulkanBackendImpl
         void Invalidate();
         bool AreValid();
     };
-    SFLCmdBuffer m_PrimaryCmdBuffers;
-    std::vector<VkCommandBuffer> m_GeometrySecondaryCmdBuffers;
-    void createCommandBuffers();
-    VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
+
+    // SFLCmdBuffer m_PrimaryCmdBuffers;
+    // std::vector<VkCommandBuffer> m_GeometrySecondaryCmdBuffers;
+    //  void createCommandBuffers();
+    //  VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
     void InitGeometryPrimaryCmdBuffers();
     void UpdateGeometryPrimaryBuffer(uint32_t bufferIdx);
     void UpdateGeometrySecondaryCmdBuffer(uint32_t idx);

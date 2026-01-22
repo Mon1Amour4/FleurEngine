@@ -2,14 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-class FVkCmdBuffer
-{
-public:
-
-
-private:
-
-};
+#include <vector>
 
 class FVkCommandPool
 {
@@ -20,12 +13,18 @@ public:
 
     inline VkCommandPool Pool() const
     {
-        return m_CmdPool;
+        return m_CommandPool;
     }
 
+    int AddCommandBuffer(VkCommandBufferLevel level, uint32_t count);
+    VkCommandBuffer GetCommandBuffer(VkCommandBufferLevel level, uint32_t idx);
+
 private:
-    VkCommandPool m_CmdPool;
+    VkCommandPool m_CommandPool;
     VkDevice m_Device;
     VkCommandPoolCreateFlagBits m_Usage;
     int m_QueueFamilyIndex;
+
+    std::vector<VkCommandBuffer> m_PrimaryCommandBuffers;
+    std::vector<VkCommandBuffer> m_SecondaryCommandBuffers;
 };
