@@ -212,7 +212,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkShaderModule CreateShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
     // CommandPool
-    FVkCommandPool* m_GeometryCommandPool;
+    FVkCommandPool* m_GraphicsCommandPool;
 
     // CommandBuffer
     struct SFLCmdBuffer
@@ -223,6 +223,7 @@ struct vulkanBackend::vulkanBackendImpl
         bool AreValid();
     };
 
+    std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
     // SFLCmdBuffer m_PrimaryCmdBuffers;
     // std::vector<VkCommandBuffer> m_GeometrySecondaryCmdBuffers;
     //  void createCommandBuffers();
@@ -316,4 +317,6 @@ struct vulkanBackend::vulkanBackendImpl
     bool HasStencilComponent(VkFormat format);
     vulkanBackend::vulkanBackendImpl::Depth CreateDepthBuffer(VkPhysicalDevice device);
     Depth m_Depth;
+
+
 };
