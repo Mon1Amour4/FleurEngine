@@ -841,8 +841,7 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
         renderPassInfo.pClearValues = clearValues.data();
 
         buffer.BeginRenderPass(renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-
-        buffer.ExecuteSecondaryCommandBuffer(m_PrimaryCmdBuffers[currentFrame].CommandBuffer());
+        buffer.ExecuteSecondaryCommandBuffer(m_SecondaryCmdBuffers[i].CommandBuffer());
         buffer.EndRenderPass();
 
         buffer.End();
