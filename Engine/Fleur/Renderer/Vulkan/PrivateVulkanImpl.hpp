@@ -226,7 +226,7 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<FVkCommandBuffer> m_PrimaryCmdBuffers;
     std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
     std::vector<bool> m_SecondaryCmdValidation;
-    void InitGeometryPrimaryCmdBuffers();
+    void InitGeometryPrimaryCmdBuffers(uint32_t idx);
     void UpdateGeometrySecondaryCmdBuffer(uint32_t idx);
 
     // Synchronization

@@ -106,9 +106,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     {
         m_SecondaryCmdBuffers[i].Init(m_LogicalDevice, m_GraphicsCommandPool->Pool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
         UpdateGeometrySecondaryCmdBuffer(i);
+        InitGeometryPrimaryCmdBuffers(i);
     }
-    InitGeometryPrimaryCmdBuffers();
-
 
     createSyncObjects();
 }
@@ -819,33 +818,32 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
     }
 }
 
-void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers()
+void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers(uint32_t idx)
 {
-    for (size_t i = 0; i < m_PrimaryCmdBuffers.size(); i++)
-    {
-        auto& buffer = m_PrimaryCmdBuffers[i];
-        buffer.Begin(m_GeometryRenderPass);
+    auto& buffer = m_PrimaryCmdBuffers[idx];
 
-        VkRenderPassBeginInfo renderPassInfo{};
-        renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-        renderPassInfo.renderPass = m_GeometryRenderPass;
-        renderPassInfo.framebuffer = m_Swapchain.framebuffers[i];
-        renderPassInfo.renderArea.offset = {0, 0};
-        renderPassInfo.renderArea.extent = m_Swapchain.extent;
+    buffer.Reset();
+    buffer.Begin(m_GeometryRenderPass);
 
-        std::array<VkClearValue, 2> clearValues{};
-        clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-        clearValues[1].depthStencil = {1.0f, 0};
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_GeometryRenderPass;
+    renderPassInfo.framebuffer = m_Swapchain.framebuffers[idx];
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = m_Swapchain.extent;
 
-        renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-        renderPassInfo.pClearValues = clearValues.data();
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
 
-        buffer.BeginRenderPass(renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-        buffer.ExecuteSecondaryCommandBuffer(m_SecondaryCmdBuffers[i].CommandBuffer());
-        buffer.EndRenderPass();
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
 
-        buffer.End();
-    }
+    buffer.BeginRenderPass(renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
+    buffer.ExecuteSecondaryCommandBuffer(m_SecondaryCmdBuffers[idx].CommandBuffer());
+    buffer.EndRenderPass();
+
+    buffer.End();
 }
 
 void vulkanBackend::vulkanBackendImpl::createSyncObjects()
@@ -1131,8 +1129,14 @@ void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelVi
         globalIndexOffset += draw.indexCount;
     }
 
-    for (size_t i = 0; i < m_SecondaryCmdValidation.size(); i++)
+    for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
     {
+        if (vkGetFenceStatus(m_LogicalDevice, inFlightFences[i]) == VK_SUCCESS)
+        {
+            UpdateGeometrySecondaryCmdBuffer(i);
+            InitGeometryPrimaryCmdBuffers(i);
+            continue;
+        }
         m_SecondaryCmdValidation[i] = false;
     }
 }
@@ -1473,9 +1477,10 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
 {
     m_SecondaryCmdValidation[idx] = true;
 
-    m_SecondaryCmdBuffers[idx].Reset();
-    m_SecondaryCmdBuffers[idx].Begin(m_GeometryRenderPass);
-    m_SecondaryCmdBuffers[idx].BindPipeline(m_GeometryPipeline);
+    auto& buffer = m_SecondaryCmdBuffers[idx];
+    buffer.Reset();
+    buffer.Begin(m_GeometryRenderPass);
+    buffer.BindPipeline(m_GeometryPipeline);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -1484,29 +1489,29 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     viewport.height = static_cast<float>(m_Swapchain.extent.height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
-    m_SecondaryCmdBuffers[idx].SetViewport(viewport);
+    buffer.SetViewport(viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
     scissor.extent = m_Swapchain.extent;
-    m_SecondaryCmdBuffers[idx].SetScissors(scissor);
+    buffer.SetScissors(scissor);
 
-    m_SecondaryCmdBuffers[idx].BindVertexBuffer(&m_VertexBuffer->Buffer());
+    buffer.BindVertexBuffer(&m_VertexBuffer->Buffer());
     if (m_IndexBuffer->StrideBytes() == 4)
-        m_SecondaryCmdBuffers[idx].BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT32);
+        buffer.BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT32);
     else if (m_IndexBuffer->StrideBytes() == 2)
-        m_SecondaryCmdBuffers[idx].BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT16);
+        buffer.BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT16);
 
-    m_SecondaryCmdBuffers[idx].BindDescriptorSet(m_GeometryPipelineLayout, &descriptorSets[idx]);
+    buffer.BindDescriptorSet(m_GeometryPipelineLayout, &descriptorSets[idx]);
 
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pc{draw.material.albedo};
-        m_SecondaryCmdBuffers[idx].PushConstant(m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, pc);
-        m_SecondaryCmdBuffers[idx].DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+        buffer.PushConstant(m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, pc);
+        buffer.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
 
-    m_SecondaryCmdBuffers[idx].End();
+    buffer.End();
 }
 
 //======================================================================
@@ -1581,6 +1586,7 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     if (!m_SecondaryCmdValidation[currentFrame])
     {
         UpdateGeometrySecondaryCmdBuffer(currentFrame);
+        InitGeometryPrimaryCmdBuffers(currentFrame);
     }
 
 
@@ -1598,7 +1604,6 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
         DBG_PRINTM("Failed to present swap chain image!")
         assert(false);
     }
-    vkResetFences(m_LogicalDevice, 1, &inFlightFences[currentFrame]);
 
     updateUniformBuffer(currentFrame, pUbo);
 
