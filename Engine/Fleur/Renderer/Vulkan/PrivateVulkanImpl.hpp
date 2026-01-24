@@ -26,9 +26,11 @@
 #include <set>
 #include <vector>
 
+#include "VkHelper.hpp"
 #include "FVkBuffer.h"
 #include "FVkCapabilities.h"
 #include "FVkCommand.h"
+#include "FVkPipeline.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -198,10 +200,9 @@ struct vulkanBackend::vulkanBackendImpl
     void createSwapChain(Fleur::SRect& framebufferSize);
 
     // GeometryPipeline
-    VkPipeline m_GeometryPipeline;
-    VkPipelineLayout m_GeometryPipelineLayout;
     VkDescriptorSetLayout m_GeometryDSL;
-    void CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+    FVkPipeline* m_GeometryPipeline;
+    FVkPipeline* CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                 Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
 
     // Renderpass
@@ -313,4 +314,6 @@ struct vulkanBackend::vulkanBackendImpl
     bool HasStencilComponent(VkFormat format);
     vulkanBackend::vulkanBackendImpl::Depth CreateDepthBuffer(VkPhysicalDevice device);
     Depth m_Depth;
+
+    SFLVertexInput* m_GeometryVertexInput;
 };

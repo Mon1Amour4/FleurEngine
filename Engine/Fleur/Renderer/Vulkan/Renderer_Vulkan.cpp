@@ -4,9 +4,9 @@
 
 // clang-format off
 #include "PrivateVulkanImpl.hpp"
-#include "VkHelper.hpp"
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
+#include "FVkPipeline.h"
 // clang-format on
 
 vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
@@ -55,12 +55,17 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
 
+    m_GeometryVertexInput = new SFLVertexInput();
+    m_GeometryVertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Position));
+    m_GeometryVertexInput->RegisterAttribute(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, TexCoord));
+    m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
+
     createSwapChain(framebufferSize);
     createImageViews();
     CreateGeometryRenderPass();
     createDescriptorSetLayout();
 
-    CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
+    m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
 
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
@@ -116,6 +121,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     delete m_Capabilities;
     delete m_VertexBuffer;
     delete m_IndexBuffer;
+    delete m_GeometryVertexInput;
 
     vkDeviceWaitIdle(m_LogicalDevice);
 
@@ -132,8 +138,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     vkDestroyDescriptorPool(m_LogicalDevice, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(m_LogicalDevice, m_GeometryDSL, nullptr);
 
-    vkDestroyPipeline(m_LogicalDevice, m_GeometryPipeline, nullptr);
-    vkDestroyPipelineLayout(m_LogicalDevice, m_GeometryPipelineLayout, nullptr);
+    delete m_GeometryPipeline;
 
     vkDestroyRenderPass(m_LogicalDevice, m_GeometryRenderPass, nullptr);
     // Sync
@@ -605,62 +610,20 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 
 //======================================================================
 // VkPipeline
-void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                                               Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology)
 {
-    VkShaderModule vertShaderModule = CreateShaderModule(pVertexInfo);
-    VkShaderModule fragShaderModule = CreateShaderModule(pFragmentInfo);
+    VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
+    VkShaderModule vertexFragmentModule = CreateShaderModule(pFragmentInfo);
 
-    // Shaders
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertShaderModule;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragShaderModule;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
-
-    // PushConstant
-    VkPushConstantRange pushConstant{};
-    pushConstant.offset = 0;
-    pushConstant.size = sizeof(uint32_t);
-    pushConstant.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-
-    // VkPipelineLayout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 1;            // Optional
-    pipelineLayoutInfo.pSetLayouts = &m_GeometryDSL;  // Optional
-    pipelineLayoutInfo.pushConstantRangeCount = 1;
-    pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
-
-    if (vkCreatePipelineLayout(m_LogicalDevice, &pipelineLayoutInfo, nullptr, &m_GeometryPipelineLayout) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create pipeline layout!")
-        assert(false);
-    }
-
-    auto bindingDescription = GetVertexDataBindingDescriptor();
-    auto attributeDescriptions = GetVertexDataAttributeDescriptions();
-
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-    vertexInputInfo.pVertexAttributeDescriptions = vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    if (pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST)
-        inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
+    SFPipelineCreationInfo pipelineInfo{};
+    pipelineInfo.device = m_LogicalDevice;
+    pipelineInfo.renderPass = m_GeometryRenderPass;
+    pipelineInfo.descriptorSetLayout = m_GeometryDSL;
+    pipelineInfo.fragmentShader = vertexFragmentModule;
+    pipelineInfo.vertexShader = vertexShaderModule;
+    pipelineInfo.pushConstantSize = sizeof(uint32_t);
+    pipelineInfo.vertexInput = m_GeometryVertexInput;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -669,105 +632,19 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::S
     viewport.height = (float)m_Swapchain.extent.height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
+    pipelineInfo.viewport = &viewport;
+    pipelineInfo.extent = m_Swapchain.extent;
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_Swapchain.extent;
+    if (pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST)
+        pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    VkPipelineViewportStateCreateInfo viewportState{};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-    viewportState.viewportCount = 1;
-    viewportState.scissorCount = 1;
+    FVkPipeline* geometryPipeline = new FVkPipeline();
+    geometryPipeline->Init(&pipelineInfo);
 
-    VkPipelineMultisampleStateCreateInfo multisampling{};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.0f;           // Optional
-    multisampling.pSampleMask = nullptr;             // Optional
-    multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
-    multisampling.alphaToOneEnable = VK_FALSE;       // Optional
-
-    VkPipelineRasterizationStateCreateInfo rasterizer{};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;  // Optional
-    rasterizer.depthBiasClamp = 0.0f;           // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;     // Optional
-
-    VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;              // Optional
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;              // Optional
-
-    VkPipelineColorBlendStateCreateInfo colorBlending{};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
-    colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;  // Optional
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
-    colorBlending.blendConstants[0] = 0.0f;  // Optional
-    colorBlending.blendConstants[1] = 0.0f;  // Optional
-    colorBlending.blendConstants[2] = 0.0f;  // Optional
-    colorBlending.blendConstants[3] = 0.0f;  // Optional
-
-    std::vector<VkDynamicState> dynamicStates = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
-
-    VkPipelineDynamicStateCreateInfo dynamicState{};
-    dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-    dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
-    dynamicState.pDynamicStates = dynamicStates.data();
-
-    VkPipelineDepthStencilStateCreateInfo depthStencil{};
-    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
-    depthStencil.depthTestEnable = VK_TRUE;
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS;
-    depthStencil.depthBoundsTestEnable = VK_FALSE;
-    depthStencil.minDepthBounds = 0.0f;  // Optional
-    depthStencil.maxDepthBounds = 1.0f;  // Optional
-    depthStencil.stencilTestEnable = VK_FALSE;
-    depthStencil.front = {};  // Optional
-    depthStencil.back = {};   // Optional
-
-    VkGraphicsPipelineCreateInfo pipelineInfo{};
-    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
-    pipelineInfo.pInputAssemblyState = &inputAssembly;
-    pipelineInfo.pViewportState = &viewportState;
-    pipelineInfo.pRasterizationState = &rasterizer;
-    pipelineInfo.pMultisampleState = &multisampling;
-    pipelineInfo.pDepthStencilState = nullptr;  // Optional
-    pipelineInfo.pColorBlendState = &colorBlending;
-    pipelineInfo.pDynamicState = &dynamicState;
-    pipelineInfo.pDepthStencilState = &depthStencil;
-    pipelineInfo.layout = m_GeometryPipelineLayout;
-    pipelineInfo.renderPass = m_GeometryRenderPass;
-    pipelineInfo.subpass = 0;
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
-    pipelineInfo.basePipelineIndex = -1;               // Optional
-
-    if (vkCreateGraphicsPipelines(m_LogicalDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_GeometryPipeline) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create graphics pipeline!")
-        assert(false);
-    }
-
-    vkDestroyShaderModule(m_LogicalDevice, fragShaderModule, nullptr);
-    vkDestroyShaderModule(m_LogicalDevice, vertShaderModule, nullptr);
+    vkDestroyShaderModule(m_LogicalDevice, vertexShaderModule, nullptr);
+    vkDestroyShaderModule(m_LogicalDevice, vertexFragmentModule, nullptr);
+    
+    return geometryPipeline;
 }
 
 
@@ -1069,39 +946,6 @@ void vulkanBackend::vulkanBackendImpl::freeVma()
     vmaDestroyAllocator(m_Allocator);
 }
 
-
-//======================================================================
-// VertexDescriptors
-VkVertexInputBindingDescription vulkanBackend::vulkanBackendImpl::GetVertexDataBindingDescriptor()
-{
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = sizeof(Fleur::Graphics::SVertexData);
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-}
-std::array<VkVertexInputAttributeDescription, 3> vulkanBackend::vulkanBackendImpl::GetVertexDataAttributeDescriptions()
-{
-    std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
-
-    attributeDescriptions[0].binding = 0;
-    attributeDescriptions[0].location = 0;
-    attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[0].offset = offsetof(Fleur::Graphics::SVertexData, Position);
-
-    attributeDescriptions[1].binding = 0;
-    attributeDescriptions[1].location = 1;
-    attributeDescriptions[1].format = VK_FORMAT_R32G32_SFLOAT;
-    attributeDescriptions[1].offset = offsetof(Fleur::Graphics::SVertexData, TexCoord);
-
-    attributeDescriptions[2].binding = 0;
-    attributeDescriptions[2].location = 2;
-    attributeDescriptions[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-    attributeDescriptions[2].offset = offsetof(Fleur::Graphics::SVertexData, Normal);
-
-    return attributeDescriptions;
-}
 
 void vulkanBackend::vulkanBackendImpl::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
@@ -1480,7 +1324,7 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     auto& buffer = m_SecondaryCmdBuffers[idx];
     buffer.Reset();
     buffer.Begin(m_GeometryRenderPass);
-    buffer.BindPipeline(m_GeometryPipeline);
+    buffer.BindPipeline(m_GeometryPipeline->Pipeline());
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -1502,12 +1346,12 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     else if (m_IndexBuffer->StrideBytes() == 2)
         buffer.BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT16);
 
-    buffer.BindDescriptorSet(m_GeometryPipelineLayout, &descriptorSets[idx]);
+    buffer.BindDescriptorSet(m_GeometryPipeline->PipelineLayout(), &descriptorSets[idx]);
 
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pc{draw.material.albedo};
-        buffer.PushConstant(m_GeometryPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, pc);
+        buffer.PushConstant(m_GeometryPipeline->PipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pc);
         buffer.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
 
@@ -1581,7 +1425,6 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
         }
         m_DescriptorSetImageViews[currentFrame].clear();
     }
-    // vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[prevFrame], VK_TRUE, UINT64_MAX);
 
     if (!m_SecondaryCmdValidation[currentFrame])
     {
