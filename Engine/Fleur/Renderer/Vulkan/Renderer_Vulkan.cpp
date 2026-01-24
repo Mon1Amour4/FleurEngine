@@ -2,12 +2,7 @@
 // This entire .cpp file was so big so it was pain in the ass to navigate throughout
 // I've hidden vulkanBackendImpl declaration into .hpp file
 
-// clang-format off
 #include "PrivateVulkanImpl.hpp"
-#include "FVkBuffer.h"
-#include "FVkCommand.h"
-#include "FVkPipeline.h"
-// clang-format on
 
 vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
                              Fleur::Graphics::SFLImageView& fallback)
@@ -51,6 +46,12 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     pickPhysicalDevice();
     createLogicalDevice();
     initializeVma();
+
+    m_Multisampler = new FVkMultisampler();
+
+    SFMultisamplerBuffersInfo multisampling{true, true};
+    m_Multisampler->Init(m_PhysicalDevice.vkPhysicalDevice, &multisampling);
+    m_Multisampler->Enable(8);
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
@@ -122,6 +123,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     delete m_VertexBuffer;
     delete m_IndexBuffer;
     delete m_GeometryVertexInput;
+    delete m_Multisampler;
 
     vkDeviceWaitIdle(m_LogicalDevice);
 

@@ -31,6 +31,7 @@
 #include "FVkCapabilities.h"
 #include "FVkCommand.h"
 #include "FVkPipeline.h"
+#include "FVkMultisampler.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -316,4 +317,5 @@ struct vulkanBackend::vulkanBackendImpl
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
+    FVkMultisampler* m_Multisampler;
 };

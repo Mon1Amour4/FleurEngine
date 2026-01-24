@@ -17,6 +17,7 @@ SET(PROJECT_HEADERS
     FVkCapabilities.h
     FVkCommand.h
     FVkPipeline.h
+    FVkMultisampler.h
     VkHelper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
@@ -29,6 +30,7 @@ SET(PROJECT_SOURCES
     FVkBuffer.cpp
     FVkCommand.cpp
     FVkPipeline.cpp
+    FVkMultisampler.cpp
 )
 
 LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../)
