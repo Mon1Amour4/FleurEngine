@@ -20,6 +20,7 @@ public:
     {
         return m_CommandPool;
     }
+
 private:
     VkCommandPool m_CommandPool;
     VkDevice m_Device;
@@ -44,6 +45,10 @@ public:
     void End();
 
     void BindPipeline(VkPipeline pipeline);
+    void BeginRenderPass(VkRenderPassBeginInfo info, VkSubpassContents content);
+    void EndRenderPass();
+    void ExecuteSecondaryCommandBuffer(VkCommandBuffer* secondary);
+
     void SetViewport(VkViewport viewport);
     void SetScissors(VkRect2D scissors);
     void BindVertexBuffer(VkBuffer* buffer);
@@ -51,14 +56,17 @@ public:
     void BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet);
     void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
-    void Bi
 
-    private:
+    inline VkCommandBuffer* CommandBuffer()
+    {
+        return &m_CommandBuffer;
+    }
+
+private:
     VkDevice m_Device;
     VkCommandBufferLevel m_Level;
     VkCommandPool m_CommandPool;
     VkCommandBuffer m_CommandBuffer;
 
     bool m_Valid;
-
 };

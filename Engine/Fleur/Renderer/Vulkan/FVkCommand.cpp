@@ -1,7 +1,8 @@
-#include "vk_mem_alloc.h"
+#include "FVkCommand.h"
+
 #include <cassert>
 
-#include "FVkCommand.h"
+#include "vk_mem_alloc.h"
 //======================================================================
 // CommandPool
 FVkCommandPool::FVkCommandPool()
@@ -54,8 +55,8 @@ void FVkCommandBuffer::Init(VkDevice device, VkCommandPool pool, VkCommandBuffer
 {
     m_Device = device;
     m_CommandPool = pool;
+    m_Level = level;
 
-    
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = pool;
@@ -106,6 +107,21 @@ void FVkCommandBuffer::End()
 void FVkCommandBuffer::BindPipeline(VkPipeline pipeline)
 {
     vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
+}
+
+void FVkCommandBuffer::BeginRenderPass(VkRenderPassBeginInfo info, VkSubpassContents content)
+{
+    vkCmdBeginRenderPass(m_CommandBuffer, &info, content);
+}
+
+void FVkCommandBuffer::EndRenderPass()
+{
+    vkCmdEndRenderPass(m_CommandBuffer);
+}
+
+void FVkCommandBuffer::ExecuteSecondaryCommandBuffer(VkCommandBuffer* secondary)
+{
+    vkCmdExecuteCommands(m_CommandBuffer, 1, secondary);
 }
 
 void FVkCommandBuffer::SetViewport(VkViewport viewport)

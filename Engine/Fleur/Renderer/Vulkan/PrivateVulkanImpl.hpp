@@ -223,13 +223,10 @@ struct vulkanBackend::vulkanBackendImpl
         bool AreValid();
     };
 
+    std::vector<FVkCommandBuffer> m_PrimaryCmdBuffers;
     std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
-    // SFLCmdBuffer m_PrimaryCmdBuffers;
-    // std::vector<VkCommandBuffer> m_GeometrySecondaryCmdBuffers;
-    //  void createCommandBuffers();
-    //  VkCommandBuffer CreateCmdBuffer(VkCommandBufferLevel level);
+    std::vector<bool> m_SecondaryCmdValidation;
     void InitGeometryPrimaryCmdBuffers();
-    void UpdateGeometryPrimaryBuffer(uint32_t bufferIdx);
     void UpdateGeometrySecondaryCmdBuffer(uint32_t idx);
 
     // Synchronization
@@ -265,7 +262,6 @@ struct vulkanBackend::vulkanBackendImpl
 
     std::vector<DrawInfo> m_DrawList;
     void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView);
-    bool needToUpdateSecondaryCmdBuffer = false;
 
     VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
     std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
@@ -317,6 +313,4 @@ struct vulkanBackend::vulkanBackendImpl
     bool HasStencilComponent(VkFormat format);
     vulkanBackend::vulkanBackendImpl::Depth CreateDepthBuffer(VkPhysicalDevice device);
     Depth m_Depth;
-
-
 };

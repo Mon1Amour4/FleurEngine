@@ -188,7 +188,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
     m_GraphicsAPI = settings.Renderer;
 
-    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 5ULL));
+    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 2ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Fleur::Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
