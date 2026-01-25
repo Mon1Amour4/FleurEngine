@@ -26,12 +26,12 @@
 #include <set>
 #include <vector>
 
-#include "VkHelper.hpp"
 #include "FVkBuffer.h"
 #include "FVkCapabilities.h"
 #include "FVkCommand.h"
-#include "FVkPipeline.h"
 #include "FVkMultisampler.h"
+#include "FVkPipeline.h"
+#include "VkHelper.hpp"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -204,7 +204,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkDescriptorSetLayout m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
+                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
 
     // Renderpass
     VkRenderPass m_GeometryRenderPass;
@@ -271,8 +271,8 @@ struct vulkanBackend::vulkanBackendImpl
     uint32_t currentFrame = 0;
 
     void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory, VkFormat format);
-    void createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-                     VkImage& image, VkDeviceMemory& imageMemory);
+    void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
+                     VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
 
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 

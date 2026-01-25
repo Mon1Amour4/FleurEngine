@@ -51,7 +51,12 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     SFMultisamplerBuffersInfo multisampling{true, true};
     m_Multisampler->Init(m_PhysicalDevice.vkPhysicalDevice, &multisampling);
-    m_Multisampler->Enable(8);
+
+    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_8_BIT, m_Swapchain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *m_Multisampler->GetImage(),
+                *m_Multisampler->GetImageMemory());
+    *m_Multisampler->GetImageView() = createImageView(*m_Multisampler->GetImage(), m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    *m_Multisampler->Enable(8);
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
@@ -612,8 +617,9 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 
 //======================================================================
 // VkPipeline
-FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                                              Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology)
+FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo,
+                                                                      Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+                                                                      Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology)
 {
     VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
     VkShaderModule vertexFragmentModule = CreateShaderModule(pFragmentInfo);
@@ -645,7 +651,7 @@ FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Gra
 
     vkDestroyShaderModule(m_LogicalDevice, vertexShaderModule, nullptr);
     vkDestroyShaderModule(m_LogicalDevice, vertexFragmentModule, nullptr);
-    
+
     return geometryPipeline;
 }
 
@@ -1171,8 +1177,9 @@ void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLIm
     transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
-void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-                                                   VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory)
+void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format,
+                                                   VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
+                                                   VkDeviceMemory& imageMemory)
 {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1180,13 +1187,13 @@ void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t heig
     imageInfo.extent.width = width;
     imageInfo.extent.height = height;
     imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
+    imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 1;
     imageInfo.format = format;
     imageInfo.tiling = tiling;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = usage;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = numSamples;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     if (vkCreateImage(m_LogicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS)

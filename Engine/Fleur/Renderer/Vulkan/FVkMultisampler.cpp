@@ -1,10 +1,13 @@
-#include <cassert>
-
 #include "FVkMultisampler.h"
+
+#include <cassert>
 
 FVkMultisampler::FVkMultisampler()
     : m_MSAASamples(VK_SAMPLE_COUNT_1_BIT)
     , m_Device(nullptr)
+{
+}
+FVkMultisampler::~FVkMultisampler()
 {
 }
 
@@ -24,7 +27,7 @@ VkSampleCountFlagBits FVkMultisampler::getMaxUsableSampleCount(SFMultisamplerBuf
     VkPhysicalDeviceProperties physicalDeviceProperties;
     vkGetPhysicalDeviceProperties(m_Device, &physicalDeviceProperties);
 
-   VkSampleCountFlags counts = 0;
+    VkSampleCountFlags counts = 0;
     if (bufferFlags->color && bufferFlags->depth)
         counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
     else if (bufferFlags->color)

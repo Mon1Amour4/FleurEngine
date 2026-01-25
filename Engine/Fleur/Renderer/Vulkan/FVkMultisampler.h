@@ -18,9 +18,26 @@ public:
 
     void Enable(uint8_t level);
 
-private: 
+    inline VkImage* GetImage()
+    {
+        return &m_ColorImage;
+    }
+    inline VkDeviceMemory* GetImageMemory()
+    {
+        return &m_ColorImageMemory;
+    }
+    inline VkImageView* GetImageView()
+    {
+        return &m_ColorImageView;
+    }
+
+private:
     VkPhysicalDevice m_Device;
     VkSampleCountFlagBits m_MSAASamples;
+
+    VkImage m_ColorImage;
+    VkDeviceMemory m_ColorImageMemory;
+    VkImageView m_ColorImageView;
 
     VkSampleCountFlagBits getMaxUsableSampleCount(SFMultisamplerBuffersInfo* bufferFlags);
 };
