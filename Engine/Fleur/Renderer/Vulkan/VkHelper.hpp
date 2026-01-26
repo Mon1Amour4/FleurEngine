@@ -58,6 +58,84 @@ static void FindBarrierAccessMask(  VkImageLayout oldLayout,
 }
 // clang-format onn
 
+static uint32_t GetChannelsNumFromFormat(VkFormat format)
+{
+    switch (format)
+    {
+    case VK_FORMAT_R8G8B8A8_SRGB:
+    case VK_FORMAT_R8G8B8A8_UNORM:
+        return 4;
+    case VK_FORMAT_R8_UNORM:
+        return 1;
+    default:
+        assert(false);
+        break;
+    }
+}
+
+static VkFormat GetVkFormat(uint32_t channels)
+{
+    VkFormat format{};
+        switch (channels)
+        {
+        case 1:
+            format = VK_FORMAT_R8_UNORM;
+            break;
+        case 3:
+            format = VK_FORMAT_R8G8B8A8_SRGB;
+            break;
+        case 4:
+            format = VK_FORMAT_R8G8B8A8_SRGB;
+            break;
+        }
+        return format;
+}
+
+static VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling,
+                                                               VkFormatFeatureFlags features)
+{
+    for (VkFormat format : candidates)
+    {
+        VkFormatProperties props;
+        vkGetPhysicalDeviceFormatProperties(device, format, &props);
+
+        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
+        {
+            return format;
+        }
+        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
+        {
+            return format;
+        }
+
+        assert(false);
+    }
+}
+static VkFormat FindDepthFormat(VkPhysicalDevice device)
+{
+    VkFormat format = FindSupportedFormat(device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
+                                          VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+    return format;
+}
+
+static VkImageAspectFlags GetDepthAspect(VkFormat format)
+{
+    switch (format)
+    {
+        case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        case VK_FORMAT_D24_UNORM_S8_UINT:
+            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+
+        case VK_FORMAT_D32_SFLOAT:
+        case VK_FORMAT_D16_UNORM:
+            return VK_IMAGE_ASPECT_DEPTH_BIT;
+
+        default:
+            assert(false && "Invalid depth format");
+            return 0;
+    }
+}
+
 class SFLVertexInput
 {
 public:

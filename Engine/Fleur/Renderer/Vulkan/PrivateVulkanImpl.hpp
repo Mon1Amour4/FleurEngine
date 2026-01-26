@@ -270,10 +270,6 @@ struct vulkanBackend::vulkanBackendImpl
 
     uint32_t currentFrame = 0;
 
-    void CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory, VkFormat format);
-    void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling,
-                     VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image, VkDeviceMemory& imageMemory);
-
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
     VkCommandBuffer beginSingleTimeCommands();
@@ -285,11 +281,9 @@ struct vulkanBackend::vulkanBackendImpl
     VkSampler createTextureSampler();
 
     VkSampler m_ImageSampler;
-    std::unordered_map<uint32_t, SGPUTexture> m_TextureMap;
+    std::unordered_map<uint32_t, FVkTexture> m_TextureMap;
     uint32_t m_FallbackTextureIdx;
-    void UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler);
-
-    uint32_t GetChannelsNumFromFormat(VkFormat);
+    void UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
     struct SFLDescriptorSetImage
     {
@@ -298,7 +292,7 @@ struct vulkanBackend::vulkanBackendImpl
     };
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViews;
 
-    SGPUTexture m_FallbackTexture;
+    FVkTexture* m_FallbackTexture;
     void CreateFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
 
@@ -306,16 +300,16 @@ struct vulkanBackend::vulkanBackendImpl
     struct Depth
     {
         Depth() = default;
-        VkImage depthImage;
-        VkDeviceMemory depthImageMemory;
-        VkImageView depthImageView;
+        FVkTexture depthTexture;
     };
-    VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
-    VkFormat FindDepthFormat(VkPhysicalDevice device);
     bool HasStencilComponent(VkFormat format);
-    vulkanBackend::vulkanBackendImpl::Depth CreateDepthBuffer(VkPhysicalDevice device);
+    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device);
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
+
+    void CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels, VkFormat format, VkImageAspectFlags aspect);
+
+    void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format);
 };

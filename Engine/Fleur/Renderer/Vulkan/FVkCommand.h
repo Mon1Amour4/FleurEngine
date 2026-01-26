@@ -54,7 +54,7 @@ public:
     void BindVertexBuffer(VkBuffer* buffer);
     void BindIndexBuffer(VkBuffer* buffer, VkIndexType indextype);
     void BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet);
-    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant);
+    void PushConstant(VkPipelineLayout pipelineLayout, VkImageAspectFlags shaderStage, SFLPushConstant constant);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
 
     inline VkCommandBuffer* CommandBuffer()

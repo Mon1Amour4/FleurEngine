@@ -75,7 +75,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
 
-    m_Depth = CreateDepthBuffer(m_PhysicalDevice.vkPhysicalDevice);
+    CreateDepthBuffer(m_Depth, m_PhysicalDevice.vkPhysicalDevice);
     createFramebuffers();
 
     m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
@@ -128,6 +128,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     delete m_IndexBuffer;
     delete m_GeometryVertexInput;
     delete m_Multisampler;
+    delete m_FallbackTexture;
 
     vkDeviceWaitIdle(m_LogicalDevice);
 
@@ -683,7 +684,7 @@ void vulkanBackend::vulkanBackendImpl::createFramebuffers()
 
     for (size_t i = 0; i < m_Swapchain.imageViews.size(); i++)
     {
-        std::array<VkImageView, 2> attachments = {m_Swapchain.imageViews[i], m_Depth.depthImageView};
+        std::array<VkImageView, 2> attachments = {m_Swapchain.imageViews[i], m_Depth.depthTexture.GetImageView()};
 
         VkFramebufferCreateInfo framebufferInfo{};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
@@ -888,10 +889,9 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 
         vkUpdateDescriptorSets(m_LogicalDevice, descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 
-        auto& fallback = m_TextureMap[m_FallbackTextureIdx];
         VkDescriptorImageInfo imageSamplerInfo{};
         imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageSamplerInfo.imageView = fallback.view;
+        imageSamplerInfo.imageView = m_FallbackTexture->GetImageView();
         imageSamplerInfo.sampler = m_ImageSampler;
 
         std::array<VkWriteDescriptorSet, MAX_TEXTURES> descriptorImageWrites{};
@@ -996,34 +996,20 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
     for (size_t i = 0; i < pInfo->count; i++)
     {
         auto imageView = pInfo->pData + i;
-        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, SGPUTexture()).first->second;
+        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
 
-        VkFormat format{};
-        switch (imageView->channels)
-        {
-        case 1:
-            format = VK_FORMAT_R8_UNORM;
-            break;
-        case 3:
-            format = VK_FORMAT_R8G8B8A8_SRGB;
-            break;
-        case 4:
-            format = VK_FORMAT_R8G8B8A8_SRGB;
-            break;
-        }
-
-        CreateTextureImage(*imageView, gpuTexture.image, gpuTexture.memory, format);
-        gpuTexture.view = createTextureImageView(gpuTexture.image, format);
+        CreateTexture(gpuTexture, imageView->pData, imageView->w, imageView->h, imageView->channels, GetVkFormat(imageView->channels),
+                      VK_IMAGE_ASPECT_COLOR_BIT);
 
         for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
         {
             if (i == currentFrame)
             {
-                UpdateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.view, m_ImageSampler);
+                UpdateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
                 continue;
             }
 
-            m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.view);
+            m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
         }
     }
 }
@@ -1127,69 +1113,6 @@ void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImag
 
     endSingleTimeCommands(commandBuffer);
 }
-void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLImageView& imageView, VkImage& image, VkDeviceMemory& imageMemory,
-                                                          VkFormat format)
-{
-    VkDeviceSize bufferImageSize = imageView.w * imageView.h * GetChannelsNumFromFormat(format);
-    VkDeviceSize mapImageSize = imageView.w * imageView.h * imageView.channels;
-
-    FVkBuffer stagingBuffer{};
-    stagingBuffer.Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
-
-    stagingBuffer.MemCopy(imageView.pData, static_cast<size_t>(mapImageSize));
-
-    createImage(imageView.w, imageView.h, 1, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
-
-    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
-    singleTimeCmdBuffer.TransitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), image, imageView.w, imageView.h);
-    singleTimeCmdBuffer.TransitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                              VK_IMAGE_ASPECT_COLOR_BIT);
-    singleTimeCmdBuffer.Submit(graphicsQueue);
-}
-
-void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format,
-                                                   VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImage& image,
-                                                   VkDeviceMemory& imageMemory)
-{
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = mipLevels;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = tiling;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    imageInfo.usage = usage;
-    imageInfo.samples = numSamples;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-    if (vkCreateImage(m_LogicalDevice, &imageInfo, nullptr, &image) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create image!");
-        assert(true);
-    }
-
-    VkMemoryRequirements memRequirements;
-    vkGetImageMemoryRequirements(m_LogicalDevice, image, &memRequirements);
-
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(m_PhysicalDevice.vkPhysicalDevice, memRequirements.memoryTypeBits, properties);
-
-    if (vkAllocateMemory(m_LogicalDevice, &allocInfo, nullptr, &imageMemory) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to Allocate memory for image!");
-        assert(true);
-    }
-
-    vkBindImageMemory(m_LogicalDevice, image, imageMemory, 0);
-}
 
 VkImageView vulkanBackend::vulkanBackendImpl::createTextureImageView(VkImage& image, VkFormat format)
 {
@@ -1251,34 +1174,17 @@ VkSampler vulkanBackend::vulkanBackendImpl::createTextureSampler()
     return sampler;
 }
 
-uint32_t vulkanBackend::vulkanBackendImpl::GetChannelsNumFromFormat(VkFormat format)
-{
-    switch (format)
-    {
-    case VK_FORMAT_R8G8B8A8_SRGB:
-    case VK_FORMAT_R8G8B8A8_UNORM:
-        return 4;
-    case VK_FORMAT_R8_UNORM:
-        return 1;
-    default:
-        assert(false);
-        break;
-    }
-}
 
 void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SFLImageView& view)
 {
     VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
 
-    auto& gpuTexture = m_TextureMap.emplace(view.ID, SGPUTexture()).first->second;
-    CreateTextureImage(view, gpuTexture.image, gpuTexture.memory, format);
-    gpuTexture.view = createTextureImageView(gpuTexture.image, format);
-    CreateTextureImage(view, m_FallbackTexture.image, m_FallbackTexture.memory, format);
-    m_FallbackTexture.view = createTextureImageView(m_FallbackTexture.image, format);
+    m_FallbackTexture = new FVkTexture();
+    CreateTexture(*m_FallbackTexture, view.pData, view.w, view.h, view.channels, format, VK_IMAGE_ASPECT_COLOR_BIT);
     m_FallbackTextureIdx = view.ID;
 }
 
-void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView& imageView, VkSampler& sampler)
+void vulkanBackend::vulkanBackendImpl::UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
 {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1341,53 +1247,15 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
 
 //======================================================================
 // Depth
-vulkanBackend::vulkanBackendImpl::Depth vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(VkPhysicalDevice device)
+void vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device)
 {
-    Depth depth{};
-    VkFormat depthFormat = FindDepthFormat(device);
-    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_1_BIT, depthFormat, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth.depthImage, depth.depthImageMemory);
-    depth.depthImageView = createImageView(depth.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    transitionImageLayout(depth.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                          VK_IMAGE_ASPECT_DEPTH_BIT);
-
-    return depth;
+    CreateDepthTexture(depthBuffer.depthTexture, m_Swapchain.extent.width, m_Swapchain.extent.height, FindDepthFormat(device));
 }
 
-VkFormat vulkanBackend::vulkanBackendImpl::FindDepthFormat(VkPhysicalDevice device)
-{
-    VkFormat format = FindSupportedFormat(device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
-                                          VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
-    /*if (!HasStencilComponent(format))
-        assert(false);*/
-    return format;
-}
-VkFormat vulkanBackend::vulkanBackendImpl::FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling,
-                                                               VkFormatFeatureFlags features)
-{
-    for (VkFormat format : candidates)
-    {
-        VkFormatProperties props;
-        vkGetPhysicalDeviceFormatProperties(device, format, &props);
-
-        if (tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & features) == features)
-        {
-            return format;
-        }
-        else if (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & features) == features)
-        {
-            return format;
-        }
-
-        assert(false);
-    }
-}
 bool vulkanBackend::vulkanBackendImpl::HasStencilComponent(VkFormat format)
 {
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
-
 
 void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
@@ -1468,4 +1336,67 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     vkQueuePresentKHR(presentQueue, &presentInfo);
 
     currentFrame = (currentFrame + 1) % m_Swapchain.framebuffersCount;
+}
+
+void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels,
+                                                     VkFormat format, VkImageAspectFlags aspect)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkImage vkImage = texture.CreateImage(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
+
+    VkDeviceSize bufferImageSize = width * height * GetChannelsNumFromFormat(format);
+    VkDeviceSize mapImageSize = width * height * channels;
+
+    FVkBuffer stagingBuffer{};
+    stagingBuffer.Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
+
+    stagingBuffer.MemCopy(pData, static_cast<size_t>(mapImageSize));
+
+    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
+    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect);
+    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
+    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect);
+    singleTimeCmdBuffer.Submit(graphicsQueue);
+    texture.CreateImaveView();
+}
+
+void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format)
+{
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 1;
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkImage vkImage =
+        texture.CreateImage(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(format));
+    texture.CreateImaveView();
+
+    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
+    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                              GetDepthAspect(format));
+    singleTimeCmdBuffer.Submit(graphicsQueue);
 }
