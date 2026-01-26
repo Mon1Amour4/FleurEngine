@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+
 #include <vector>
 
 static uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
@@ -17,6 +18,45 @@ static uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkM
     }
     assert(false);
 }
+
+// clang-format off
+static void FindBarrierAccessMask(  VkImageLayout oldLayout, 
+                                    VkImageLayout newLayout, 
+                                    VkAccessFlags& srcAccessMask, // VkImageMemoryBarrier
+                                    VkAccessFlags& dstAccessMask, // VkImageMemoryBarrier
+                                    VkPipelineStageFlags& sourceStage, 
+                                    VkPipelineStageFlags& destinationStage)
+{
+    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    {
+        srcAccessMask = 0;
+        dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
+    {
+        srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        srcAccessMask = 0;
+        dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+    }
+    else
+    {
+        assert(false);
+    }
+}
+// clang-format onn
 
 class SFLVertexInput
 {

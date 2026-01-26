@@ -49,14 +49,13 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     m_Multisampler = new FVkMultisampler();
 
-    SFMultisamplerBuffersInfo multisampling{true, true};
-    m_Multisampler->Init(m_PhysicalDevice.vkPhysicalDevice, &multisampling);
+    // SFMultisamplerBuffersInfo multisampling{true, true};
+    // m_Multisampler->Init(m_PhysicalDevice.vkPhysicalDevice, &multisampling);
 
-    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_8_BIT, m_Swapchain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *m_Multisampler->GetImage(),
-                *m_Multisampler->GetImageMemory());
-    *m_Multisampler->GetImageView() = createImageView(*m_Multisampler->GetImage(), m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-    *m_Multisampler->Enable(8);
+    // createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_8_BIT, m_Swapchain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
+    //             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *m_Multisampler->GetImage(),
+    //             *m_Multisampler->GetImageMemory());
+    //*m_Multisampler->GetImageView() = createImageView(*m_Multisampler->GetImage(), m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
@@ -1083,6 +1082,7 @@ void vulkanBackend::vulkanBackendImpl::endSingleTimeCommands(VkCommandBuffer com
 void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                                              VkImageAspectFlags aspectMask)
 {
+    // FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
     VkCommandBuffer commandBuffer = beginSingleTimeCommands();
 
     VkImageMemoryBarrier barrier{};
@@ -1100,34 +1100,7 @@ void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFo
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
-    if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
-    {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-    }
-    else if (oldLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL)
-    {
-        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-        barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-        sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-    }
-    else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-    {
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    }
-    else
-    {
-        assert(false);
-    }
+    FindBarrierAccessMask(oldLayout, newLayout, barrier.srcAccessMask, barrier.dstAccessMask, sourceStage, destinationStage);
 
     vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
@@ -1163,18 +1136,17 @@ void vulkanBackend::vulkanBackendImpl::CreateTextureImage(Fleur::Graphics::SFLIm
     FVkBuffer stagingBuffer{};
     stagingBuffer.Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
 
-    void* data = stagingBuffer.Map();
-    memcpy(data, imageView.pData, static_cast<size_t>(mapImageSize));
-    stagingBuffer.Unmap();
+    stagingBuffer.MemCopy(imageView.pData, static_cast<size_t>(mapImageSize));
 
-    createImage(imageView.w, imageView.h, format, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
+    createImage(imageView.w, imageView.h, 1, VK_SAMPLE_COUNT_1_BIT, format, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
 
-    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
-
-    copyBufferToImage(stagingBuffer.Buffer(), image, imageView.w, imageView.h);
-
-    transitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
+    singleTimeCmdBuffer.TransitionImageLayout(image, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT);
+    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), image, imageView.w, imageView.h);
+    singleTimeCmdBuffer.TransitionImageLayout(image, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                              VK_IMAGE_ASPECT_COLOR_BIT);
+    singleTimeCmdBuffer.Submit(graphicsQueue);
 }
 
 void vulkanBackend::vulkanBackendImpl::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format,
@@ -1373,8 +1345,8 @@ vulkanBackend::vulkanBackendImpl::Depth vulkanBackend::vulkanBackendImpl::Create
 {
     Depth depth{};
     VkFormat depthFormat = FindDepthFormat(device);
-    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, depthFormat, VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth.depthImage, depth.depthImageMemory);
+    createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_1_BIT, depthFormat, VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, depth.depthImage, depth.depthImageMemory);
     depth.depthImageView = createImageView(depth.depthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
 
     transitionImageLayout(depth.depthImage, depthFormat, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,

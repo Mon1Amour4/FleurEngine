@@ -4,6 +4,10 @@
 
 #include "vk_mem_alloc.h"
 
+class FVkStagingBuffer
+{
+};
+
 class FVkBuffer
 {
 public:
@@ -12,7 +16,8 @@ public:
 
     void Init(VmaAllocator allocator, VkDevice device, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
 
-    void CopyTo(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer);
+    void CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer);
+    void MemCopy(const void* src, size_t size);
     void UploadDataToBuffer(const void* pData, uint64_t count);
 
     inline uint64_t Size() const
@@ -35,10 +40,7 @@ public:
     {
         return m_Allocation;
     }
-    // inline VkDeviceMemory Memory() const
-    //{
-    //     return m_VkMemory;
-    // }
+
     inline void* MappedMemory() const
     {
         return m_MappedMemory;

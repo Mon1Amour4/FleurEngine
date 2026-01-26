@@ -19,9 +19,6 @@ FVkBuffer::FVkBuffer()
 }
 FVkBuffer::~FVkBuffer()
 {
-    if (m_MappedMemory)
-        Unmap();
-
     vmaDestroyBuffer(m_Allocator, m_VkBuffer, m_Allocation);
 }
 
@@ -46,17 +43,20 @@ void FVkBuffer::Init(VmaAllocator allocator, VkDevice device, VkBufferUsageFlags
     }
 }
 
-void FVkBuffer::CopyTo(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer)
+void FVkBuffer::CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer)
 {
-    // VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
     VkBufferCopy copyRegion{};
     copyRegion.srcOffset = 0;  // Optional
     copyRegion.dstOffset = 0;  // Optional
     copyRegion.size = size;
     vkCmdCopyBuffer(*cmdBuffer, m_VkBuffer, *dstBuffer, 1, &copyRegion);
+}
 
-    // endSingleTimeCommands(commandBuffer);
+void FVkBuffer::MemCopy(const void* src, size_t size)
+{
+    vmaMapMemory(m_Allocator, m_Allocation, &m_MappedMemory);
+    memcpy(m_MappedMemory, src, size);
+    vmaUnmapMemory(m_Allocator, m_Allocation);
 }
 
 void FVkBuffer::UploadDataToBuffer(const void* pData, uint64_t count)

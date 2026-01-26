@@ -2,6 +2,7 @@
 
 #include <cassert>
 
+#include "VkHelper.hpp"
 #include "vk_mem_alloc.h"
 //======================================================================
 // CommandPool
@@ -158,4 +159,95 @@ void FVkCommandBuffer::PushConstant(VkPipelineLayout pipelineLayout, VkShaderSta
 void FVkCommandBuffer::DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset)
 {
     vkCmdDrawIndexed(m_CommandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+}
+
+
+//======================================================================
+// FVkSingleTimeCommandBuffer
+FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkCommandPool pool)
+    : m_Device(device)
+    , m_CommandPool(pool)
+{
+    VkFenceCreateInfo fenceInfo{};
+    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
+
+    if (vkCreateFence(m_Device, &fenceInfo, nullptr, &m_Fence) != VK_SUCCESS)
+        assert(false);
+    vkResetFences(m_Device, 1, &m_Fence);
+
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_CommandPool;
+    allocInfo.commandBufferCount = 1;
+
+    vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
+}
+
+FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
+{
+    vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT64_MAX);
+    vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &m_CommandBuffer);
+    vkDestroyFence(m_Device, m_Fence, nullptr);
+}
+
+void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
+                                                       VkImageAspectFlags aspectMask)
+{
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange.aspectMask = aspectMask;
+    barrier.subresourceRange.baseMipLevel = 0;
+    barrier.subresourceRange.levelCount = 1;
+    barrier.subresourceRange.baseArrayLayer = 0;
+    barrier.subresourceRange.layerCount = 1;
+
+    VkPipelineStageFlags sourceStage;
+    VkPipelineStageFlags destinationStage;
+
+    FindBarrierAccessMask(oldLayout, newLayout, barrier.srcAccessMask, barrier.dstAccessMask, sourceStage, destinationStage);
+
+    vkCmdPipelineBarrier(m_CommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+
+void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+{
+    VkBufferImageCopy region{};
+    region.bufferOffset = 0;
+    region.bufferRowLength = 0;
+    region.bufferImageHeight = 0;
+
+    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    region.imageSubresource.mipLevel = 0;
+    region.imageSubresource.baseArrayLayer = 0;
+    region.imageSubresource.layerCount = 1;
+
+    region.imageOffset = {0, 0, 0};
+    region.imageExtent = {width, height, 1};
+
+    vkCmdCopyBufferToImage(m_CommandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)
+{
+    vkEndCommandBuffer(m_CommandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &m_CommandBuffer;
+
+    vkQueueSubmit(queue, 1, &submitInfo, m_Fence);
 }

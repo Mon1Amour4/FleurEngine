@@ -70,3 +70,20 @@ private:
 
     bool m_Valid;
 };
+
+class FVkSingleTimeCommandBuffer
+{
+public:
+    FVkSingleTimeCommandBuffer(VkDevice device, VkCommandPool pool);
+    ~FVkSingleTimeCommandBuffer();
+
+    void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
+    void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
+    void Submit(VkQueue queue);
+
+private:
+    VkDevice m_Device;
+    VkCommandPool m_CommandPool;
+    VkCommandBuffer m_CommandBuffer;
+    VkFence m_Fence;
+};
