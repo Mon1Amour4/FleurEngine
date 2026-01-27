@@ -3,50 +3,48 @@
 #include <algorithm>
 #include <memory>
 
-#include "Fleur/Concepts.hpp"
-
-#include "Fleur/Ecs/AbstractComponent.h"
+#include "Fleur/Ecs/SimpleComponent.h"
 
 namespace Fleur::ECS
 {
 
 template <typename T>
-AbstractComponent<T>::AbstractComponent() noexcept
+SimpleComponent<T>::SimpleComponent() noexcept
     : m_Sparse()
     , m_Dense()
     , m_DenseEntities()
     , m_Size( 0 )
 {
-    std::fill(m_Sparse.begin(), m_Sparse.end(), AbstractComponent<T>::INVALID_INDEX);
+    std::fill(m_Sparse.begin(), m_Sparse.end(), SimpleComponent<T>::INVALID_INDEX);
 }
 
 template <typename T>
-inline AbstractComponent<T>::size_type AbstractComponent<T>::Size() const noexcept
+inline SimpleComponent<T>::size_type SimpleComponent<T>::Size() const noexcept
 {
     return m_Size;
 }
 
 template <typename T>
-inline bool AbstractComponent<T>::HasEntity(EntityId id) const noexcept
+inline bool SimpleComponent<T>::HasEntity(EntityId id) const noexcept
 {
-    return m_Sparse[ id ] != AbstractComponent<T>::INVALID_INDEX;
+    return m_Sparse[ id ] != SimpleComponent<T>::INVALID_INDEX;
 }
 
 template <typename T>
-inline AbstractComponent<T>::ptr_type AbstractComponent<T>::ptr(index_type idx) noexcept
+inline SimpleComponent<T>::ptr_type SimpleComponent<T>::ptr(index_type idx) noexcept
 {
     return std::launder( reinterpret_cast<ptr_type>(m_Dense[idx].data) );
 }
 
 template <typename T>
-inline AbstractComponent<T>::cptr_type AbstractComponent<T>::ptr(index_type idx) const noexcept
+inline SimpleComponent<T>::cptr_type SimpleComponent<T>::ptr(index_type idx) const noexcept
 {
     return std::launder(reinterpret_cast<cptr_type>(m_Dense[idx].data));
 }
 
 template<typename T>
 template<typename... Args>
-inline void AbstractComponent<T>::AddEntity(EntityId id, Args&&... args)
+inline void SimpleComponent<T>::AddEntity(EntityId id, Args&&... args)
 {
     assert(m_Size < EntityManager::MAX_ENTITIES); 
     assert(!HasEntity(id));
@@ -62,7 +60,7 @@ inline void AbstractComponent<T>::AddEntity(EntityId id, Args&&... args)
 }
 
 template <typename T>
-inline void AbstractComponent<T>::RemoveEntity(EntityId id)
+inline void SimpleComponent<T>::RemoveEntity(EntityId id)
 {
     assert(m_Sparse[id] != INVALID_INDEX);
 
@@ -79,7 +77,7 @@ inline void AbstractComponent<T>::RemoveEntity(EntityId id)
         m_Sparse[moved] = idx;
     }
 
-    m_Sparse[id] = AbstractComponent<T>::INVALID_INDEX;
+    m_Sparse[id] = SimpleComponent<T>::INVALID_INDEX;
 
     --m_Size;
 
@@ -87,14 +85,14 @@ inline void AbstractComponent<T>::RemoveEntity(EntityId id)
 }
 
 template <typename T>
-inline AbstractComponent<T>::ref_type AbstractComponent<T>::Get(EntityId id)
+inline SimpleComponent<T>::ref_type SimpleComponent<T>::Get(EntityId id)
 {
     assert(m_Sparse[id] != INVALID_INDEX);
     return *ptr(m_Sparse[id]);
 }
 
 template <typename T>
-inline AbstractComponent<T>::cref_type AbstractComponent<T>::Get(EntityId id) const
+inline SimpleComponent<T>::cref_type SimpleComponent<T>::Get(EntityId id) const
 {
     assert(m_Sparse[id] != INVALID_INDEX);
     return *ptr(m_Sparse[id]);

@@ -13,7 +13,7 @@ namespace Fleur::ECS
 {
 
 template<typename T>
-class AbstractComponent
+class SimpleComponent
 {
 public:
     using value_type = std::remove_cvref_t<T>;
@@ -26,10 +26,10 @@ public:
 
     static constexpr uint32_t INVALID_INDEX = std::numeric_limits<uint32_t>::max();
 
-    AbstractComponent() noexcept;
-    ~AbstractComponent() = default;
+    SimpleComponent() noexcept;
+    ~SimpleComponent() = default;
 
-    FLEUR_NON_COPYABLE(AbstractComponent)
+    FLEUR_NON_COPYABLE(SimpleComponent)
 
     size_type Size() const noexcept;
 
@@ -60,4 +60,4 @@ private:
 
 }  // namespace Fleur::ECS
 
-#include "Fleur/Ecs/AbstractComponent.hpp"
+#include "Fleur/Ecs/SimpleComponent.hpp"
