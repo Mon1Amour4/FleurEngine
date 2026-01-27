@@ -13,7 +13,6 @@ public:
 
     void OnInitImpl()
     {
-        m_LastEntityId = 1;
     }
 
     void OnShutdownImpl()
@@ -77,5 +76,7 @@ EntityId EntityManager::GetLastEntityId() const noexcept
 {
     return d->GetLastEntityIdImpl();
 }
+
+std::atomic<EntityId> EntityManager::EntityManagerImpl::m_LastEntityId = 0;
 
 } // namespace Fleur::ECS
