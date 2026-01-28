@@ -3,7 +3,6 @@
 #include <cassert>
 
 #include "IRenderer.hpp"
-#include "Renderer_Vulkan.h"
 
 struct vulkanBackend : public Fleur::Graphics::IRenderer
 {

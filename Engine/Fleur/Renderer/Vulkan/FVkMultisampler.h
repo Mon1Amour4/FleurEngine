@@ -2,11 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-struct SFMultisamplerBuffersInfo
-{
-    bool color;
-    bool depth;
-};
+#include "FVkTexture.h"
 
 class FVkMultisampler
 {
@@ -14,30 +10,23 @@ public:
     FVkMultisampler();
     ~FVkMultisampler();
 
-    void Init(VkPhysicalDevice device, SFMultisamplerBuffersInfo* buffersInfo);
+    void Init(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format);
 
-    void Enable(uint8_t level);
-
-    inline VkImage* GetImage()
+    inline VkSampleCountFlagBits GetSamplesCount()
     {
-        return &m_ColorImage;
+        return m_MSAASamples;
     }
-    inline VkDeviceMemory* GetImageMemory()
+    inline FVkTexture* GetTexture()
     {
-        return &m_ColorImageMemory;
-    }
-    inline VkImageView* GetImageView()
-    {
-        return &m_ColorImageView;
+        return &m_Texture;
     }
 
 private:
-    VkPhysicalDevice m_Device;
+    VkDevice m_Device;
+    VkPhysicalDevice m_PhysicalDevice;
     VkSampleCountFlagBits m_MSAASamples;
 
-    VkImage m_ColorImage;
-    VkDeviceMemory m_ColorImageMemory;
-    VkImageView m_ColorImageView;
+    FVkTexture m_Texture;
 
-    VkSampleCountFlagBits getMaxUsableSampleCount(SFMultisamplerBuffersInfo* bufferFlags);
+    VkSampleCountFlagBits getMaxUsableSampleCount(bool depth);
 };

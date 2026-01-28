@@ -42,20 +42,15 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     m_VulkanInstance = createInstance();
     setupDebugMessenger();
-    createSurface(pNativeHandle);
+
+    m_Swapchain = new FVkSwapchain();
+    m_Swapchain->CreateSurface(m_VulkanInstance, pNativeHandle);
+
     pickPhysicalDevice();
     createLogicalDevice();
     initializeVma();
-
-    m_Multisampler = new FVkMultisampler();
-
-    // SFMultisamplerBuffersInfo multisampling{true, true};
-    // m_Multisampler->Init(m_PhysicalDevice.vkPhysicalDevice, &multisampling);
-
-    // createImage(m_Swapchain.extent.width, m_Swapchain.extent.height, 1, VK_SAMPLE_COUNT_8_BIT, m_Swapchain.imageFormat, VK_IMAGE_TILING_OPTIMAL,
-    //             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, *m_Multisampler->GetImage(),
-    //             *m_Multisampler->GetImageMemory());
-    //*m_Multisampler->GetImageView() = createImageView(*m_Multisampler->GetImage(), m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_Swapchain->CreateSwapchain(m_LogicalDevice, m_PhysicalDevice, {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height},
+                      m_GraphicsQueueFamily.familyIndex);
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
@@ -65,22 +60,26 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GeometryVertexInput->RegisterAttribute(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, TexCoord));
     m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
 
-    createSwapChain(framebufferSize);
-    createImageViews();
+    m_Multisampler = new FVkMultisampler();
+    m_Multisampler->Init(m_LogicalDevice, m_PhysicalDevice, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height,
+                         m_Swapchain->GetImageFormat());
+
     CreateGeometryRenderPass();
+
     createDescriptorSetLayout();
 
-    m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology);
+    m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology, m_Multisampler->GetSamplesCount());
 
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_LogicalDevice, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_GraphicsQueueFamily.familyIndex);
 
-    CreateDepthBuffer(m_Depth, m_PhysicalDevice.vkPhysicalDevice);
-    createFramebuffers();
+    CreateDepthBuffer(m_Depth, m_PhysicalDevice, m_Multisampler->GetSamplesCount());
 
-    m_DescriptorSetImageViews.resize(m_Swapchain.framebuffersCount);
-    m_PrimaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
-    m_SecondaryCmdBuffers.resize(m_Swapchain.framebuffersCount);
+    m_Swapchain->CreateFrameBuffers(m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(), m_Depth.depthTexture.GetImageView());
+
+    m_DescriptorSetImageViews.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    m_PrimaryCmdBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    m_SecondaryCmdBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
     m_SecondaryCmdValidation.resize(m_SecondaryCmdBuffers.size());
 
     uint32_t vertexInputDescriptorSize = 0;
@@ -132,10 +131,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDeviceWaitIdle(m_LogicalDevice);
 
-    // Swapchain-dependent
-    cleanupSwapChain();
-
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
     {
         // TODO
         /*vkDestroyBuffer(m_LogicalDevice, m_UniformBuffers[i], nullptr);
@@ -149,7 +145,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     vkDestroyRenderPass(m_LogicalDevice, m_GeometryRenderPass, nullptr);
     // Sync
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
     {
         vkDestroySemaphore(m_LogicalDevice, renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(m_LogicalDevice, imageAvailableSemaphores[i], nullptr);
@@ -169,7 +165,7 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
     if (m_Capabilities->ValidationEnabled())
         DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
 
-    vkDestroySurfaceKHR(m_VulkanInstance, surface, nullptr);
+    vkDestroySurfaceKHR(m_VulkanInstance, m_Swapchain->GetSurface(), nullptr);
     vkDestroyInstance(m_VulkanInstance, nullptr);
 }
 
@@ -257,24 +253,6 @@ void vulkanBackend::vulkanBackendImpl::DestroyDebugUtilsMessengerEXT(VkInstance 
     }
 }
 
-//======================================================================
-// VkSurfaceKHR
-void vulkanBackend::vulkanBackendImpl::createSurface(void* pNativeHandle)
-{
-#if defined(FLEUR_PLATFORM_WIN)
-    VkWin32SurfaceCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = reinterpret_cast<HWND>(pNativeHandle);
-    createInfo.hinstance = GetModuleHandle(nullptr);
-
-    if (vkCreateWin32SurfaceKHR(m_VulkanInstance, &createInfo, nullptr, &surface) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create window surface!")
-        assert(false);
-    }
-#endif
-}
-
 
 //======================================================================
 // VkPhysicalDevice
@@ -312,37 +290,35 @@ void vulkanBackend::vulkanBackendImpl::pickPhysicalDevice()
     {
         if (isDeviceSuitable(physicalDevices[i]))
         {
-            m_PhysicalDevice.vkPhysicalDevice = physicalDevices[i];
-            m_PhysicalDevice.capabilities = querySwapChainSupport(physicalDevices[i]);
+            m_PhysicalDevice = physicalDevices[i];
             break;
         }
     }
 
-    if (m_PhysicalDevice.vkPhysicalDevice == VK_NULL_HANDLE)
+    if (m_PhysicalDevice == VK_NULL_HANDLE)
     {
         DBG_PRINTM("Failed to find a suitable GPU!")
         assert(false);
     }
 }
-bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice& logicalDevice)
+bool vulkanBackend::vulkanBackendImpl::isDeviceSuitable(VkPhysicalDevice& physicalDevice)
 {
     bool isQueueFamiliesSupported = false;
     bool isDeviceExtensionsSupported = false;
     bool isSwapchainDetailsSupported = false;
 
-    m_GraphicsQueueFamily = findQueueFamilies(logicalDevice);
+    m_GraphicsQueueFamily = findQueueFamilies(physicalDevice);
     isQueueFamiliesSupported = m_GraphicsQueueFamily.is_valid();
 
     VkPhysicalDeviceProperties deviceProperties;
     VkPhysicalDeviceFeatures deviceFeatures;
-    vkGetPhysicalDeviceProperties(logicalDevice, &deviceProperties);
-    vkGetPhysicalDeviceFeatures(logicalDevice, &deviceFeatures);
+    vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+    vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-    isDeviceExtensionsSupported = m_Capabilities->CheckDeviceExtensionSupport(logicalDevice);
+    isDeviceExtensionsSupported = m_Capabilities->CheckDeviceExtensionSupport(physicalDevice);
     if (isDeviceExtensionsSupported)
     {
-        SSwapchainSupport swapchainSupport = querySwapChainSupport(logicalDevice);
-        isSwapchainDetailsSupported = swapchainSupport.isSwapchainSuitable();
+        isSwapchainDetailsSupported = m_Swapchain->SwapchainPresentationSupport(physicalDevice);
     }
     return (isQueueFamiliesSupported && isDeviceExtensionsSupported && isSwapchainDetailsSupported);
 }
@@ -368,7 +344,7 @@ SUniqueFamilyQueue vulkanBackend::vulkanBackendImpl::findQueueFamilies(VkPhysica
             indices.familyIndex = i;
 
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(m_LogicalDevice, i, surface, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(m_LogicalDevice, i, m_Swapchain->GetSurface(), &presentSupport);
             if (presentSupport)
             {
                 indices.swapchainSupport = true;
@@ -401,7 +377,7 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
     deviceCreateInfo.ppEnabledExtensionNames = m_Capabilities->DeviceExtensionsData();
     deviceCreateInfo.enabledExtensionCount = m_Capabilities->DeviceExtensionsCount();
 
-    if (vkCreateDevice(m_PhysicalDevice.vkPhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
+    if (vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_LogicalDevice) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to create logical device!");
         assert(true);
@@ -412,150 +388,12 @@ void vulkanBackend::vulkanBackendImpl::createLogicalDevice()
 
 
 //======================================================================
-// VkSwapchainKHR
-void vulkanBackend::vulkanBackendImpl::createSwapChain(Fleur::SRect& framebufferSize)
-{
-    uint32_t imageCount = m_PhysicalDevice.capabilities.capabilities.minImageCount + 1;
-    imageCount = std::clamp(imageCount, m_PhysicalDevice.capabilities.capabilities.minImageCount, m_PhysicalDevice.capabilities.capabilities.maxImageCount);
-
-    m_Swapchain.framebuffersCount = imageCount;
-
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(m_PhysicalDevice.capabilities.formats);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(m_PhysicalDevice.capabilities.presentModes);
-    VkExtent2D extent = chooseSwapExtent(m_PhysicalDevice.capabilities.capabilities, framebufferSize);
-
-
-    VkSwapchainCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = surface;
-    createInfo.minImageCount = imageCount;
-    createInfo.imageFormat = surfaceFormat.format;
-    createInfo.imageColorSpace = surfaceFormat.colorSpace;
-    createInfo.imageExtent = extent;
-    createInfo.imageArrayLayers = 1;
-    createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-    uint32_t queueFamilyIndices[] = {m_GraphicsQueueFamily.familyIndex};
-
-    createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    createInfo.queueFamilyIndexCount = 1;
-    createInfo.pQueueFamilyIndices = queueFamilyIndices;
-    createInfo.preTransform = m_PhysicalDevice.capabilities.capabilities.currentTransform;
-    createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-    createInfo.presentMode = presentMode;
-    createInfo.clipped = VK_TRUE;
-    createInfo.oldSwapchain = VK_NULL_HANDLE;
-
-    if (vkCreateSwapchainKHR(m_LogicalDevice, &createInfo, nullptr, &m_Swapchain.swapchain) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create swap chain!!")
-        assert(false);
-    }
-
-    uint32_t realSwapchainImagesCount = 0;
-    vkGetSwapchainImagesKHR(m_LogicalDevice, m_Swapchain.swapchain, &realSwapchainImagesCount, nullptr);
-
-    assert(realSwapchainImagesCount == imageCount);
-
-    m_Swapchain.images.resize(realSwapchainImagesCount);
-    m_Swapchain.imageViews.resize(realSwapchainImagesCount);
-    vkGetSwapchainImagesKHR(m_LogicalDevice, m_Swapchain.swapchain, &realSwapchainImagesCount, m_Swapchain.images.data());
-
-    m_Swapchain.imageFormat = surfaceFormat.format;
-    m_Swapchain.extent = extent;
-}
-SSwapchainSupport vulkanBackend::vulkanBackendImpl::querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice)
-{
-    SSwapchainSupport details;
-
-    // Basic surface capabilities
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vkPhysicalDevice, surface, &details.capabilities);
-
-    // Supported surface formats
-    uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(vkPhysicalDevice, surface, &formatCount, nullptr);
-
-    if (formatCount != 0)
-    {
-        details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(vkPhysicalDevice, surface, &formatCount, details.formats.data());
-    }
-
-    // Supported present modes
-    uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(vkPhysicalDevice, surface, &presentModeCount, nullptr);
-
-    if (presentModeCount != 0)
-    {
-        details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(vkPhysicalDevice, surface, &presentModeCount, details.presentModes.data());
-    }
-
-
-    return details;
-}
-VkSurfaceFormatKHR vulkanBackend::vulkanBackendImpl::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)
-{
-    for (const auto& availableFormat : availableFormats)
-    {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-        {
-            return availableFormat;
-        }
-    }
-
-    return availableFormats[0];
-}
-VkPresentModeKHR vulkanBackend::vulkanBackendImpl::chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes)
-{
-    for (const auto& availablePresentMode : availablePresentModes)
-    {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-        {
-            return availablePresentMode;
-        }
-    }
-
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-VkExtent2D vulkanBackend::vulkanBackendImpl::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Fleur::SRect& framebufferSize)
-{
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-    {
-        return capabilities.currentExtent;
-    }
-    else
-    {
-        VkExtent2D actualExtent = {framebufferSize.width, framebufferSize.height};
-        std::cout << "\nFramebuffer size: " << framebufferSize.width << " , " << framebufferSize.height << "\n";
-        actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-        actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
-
-        return actualExtent;
-    }
-}
-
-
-//======================================================================
-// VkImageView
-void vulkanBackend::vulkanBackendImpl::createImageViews()
-{
-    m_Swapchain.imageViews.resize(m_Swapchain.imageViews.size());
-
-    for (size_t i = 0; i < m_Swapchain.imageViews.size(); i++)
-    {
-        m_Swapchain.imageViews[i] = createImageView(m_Swapchain.images[i], m_Swapchain.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
-    }
-}
-
-
-//======================================================================
 // VkRenderPass
 void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 {
     VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = FindDepthFormat(m_PhysicalDevice.vkPhysicalDevice);
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    depthAttachment.format = FindDepthFormat(m_PhysicalDevice);
+    depthAttachment.samples = m_Multisampler->GetSamplesCount();
     depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
@@ -568,14 +406,28 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
     depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = m_Swapchain.imageFormat;
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.format = m_Swapchain->GetImageFormat();
+    colorAttachment.samples = m_Multisampler->GetSamplesCount();
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
     colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
     colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;  // Not VK_IMAGE_LAYOUT_PRESENT_SRC_KHR cause of multisampling
+
+    VkAttachmentDescription colorAttachmentResolve{};
+    colorAttachmentResolve.format = m_Swapchain->GetImageFormat();
+    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentResolveRef{};
+    colorAttachmentResolveRef.attachment = 2;
+    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkAttachmentReference colorAttachmentRef{};
     colorAttachmentRef.attachment = 0;
@@ -586,16 +438,17 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
-    std::array<VkAttachmentDescription, 2> attachments = {colorAttachment, depthAttachment};
+    subpass.pResolveAttachments = &colorAttachmentResolveRef;
 
     VkSubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     dependency.dstSubpass = 0;
     dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+     std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.dependencyCount = 1;
@@ -619,7 +472,7 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 // VkPipeline
 FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo,
                                                                       Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                                                      Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology)
+                                                                      Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
 {
     VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
     VkShaderModule vertexFragmentModule = CreateShaderModule(pFragmentInfo);
@@ -632,16 +485,17 @@ FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Gra
     pipelineInfo.vertexShader = vertexShaderModule;
     pipelineInfo.pushConstantSize = sizeof(uint32_t);
     pipelineInfo.vertexInput = m_GeometryVertexInput;
+    pipelineInfo.samplesCount = samplesCount;
 
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = (float)m_Swapchain.extent.width;
-    viewport.height = (float)m_Swapchain.extent.height;
+    viewport.width = (float)m_Swapchain->GetSwapchainExtent().width;
+    viewport.height = (float)m_Swapchain->GetSwapchainExtent().height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     pipelineInfo.viewport = &viewport;
-    pipelineInfo.extent = m_Swapchain.extent;
+    pipelineInfo.extent = m_Swapchain->GetSwapchainExtent();
 
     if (pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST)
         pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -676,33 +530,6 @@ VkShaderModule vulkanBackend::vulkanBackendImpl::CreateShaderModule(Fleur::Graph
 }
 
 
-//======================================================================
-// VkFramebuffer
-void vulkanBackend::vulkanBackendImpl::createFramebuffers()
-{
-    m_Swapchain.framebuffers.resize(m_Swapchain.imageViews.size());
-
-    for (size_t i = 0; i < m_Swapchain.imageViews.size(); i++)
-    {
-        std::array<VkImageView, 2> attachments = {m_Swapchain.imageViews[i], m_Depth.depthTexture.GetImageView()};
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = m_GeometryRenderPass;
-        framebufferInfo.attachmentCount = attachments.size();
-        framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = m_Swapchain.extent.width;
-        framebufferInfo.height = m_Swapchain.extent.height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(m_LogicalDevice, &framebufferInfo, nullptr, &m_Swapchain.framebuffers[i]) != VK_SUCCESS)
-        {
-            DBG_PRINTM("Failed to create graphics framebuffer!")
-            assert(false);
-        }
-    }
-}
-
 void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers(uint32_t idx)
 {
     auto& buffer = m_PrimaryCmdBuffers[idx];
@@ -713,9 +540,9 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers(uint32_t id
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = m_GeometryRenderPass;
-    renderPassInfo.framebuffer = m_Swapchain.framebuffers[idx];
+    renderPassInfo.framebuffer = m_Swapchain->GetFramebuffer(idx);
     renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = m_Swapchain.extent;
+    renderPassInfo.renderArea.extent = m_Swapchain->GetSwapchainExtent();
 
     std::array<VkClearValue, 2> clearValues{};
     clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
@@ -733,9 +560,9 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers(uint32_t id
 
 void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 {
-    imageAvailableSemaphores.resize(m_Swapchain.framebuffersCount);
-    renderFinishedSemaphores.resize(m_Swapchain.framebuffersCount);
-    inFlightFences.resize(m_Swapchain.framebuffersCount);
+    imageAvailableSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    renderFinishedSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    inFlightFences.resize(m_Swapchain->GetSwapchainFramebuffersCount());
 
     VkSemaphoreCreateInfo semaphoreInfo{};
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -744,7 +571,7 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
     {
         if (vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
             vkCreateSemaphore(m_LogicalDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
@@ -768,35 +595,7 @@ void vulkanBackend::vulkanBackendImpl::resize_event(Fleur::SRect& rect)
         return;
     }
     framebufferResized = true;
-    surfaceRect = rect;
-}
-
-
-//======================================================================
-// Cleanup
-void vulkanBackend::vulkanBackendImpl::cleanupSwapChain()
-{
-    for (auto framebuffer : m_Swapchain.framebuffers)
-    {
-        vkDestroyFramebuffer(m_LogicalDevice, framebuffer, nullptr);
-    }
-
-    for (auto imageView : m_Swapchain.imageViews)
-    {
-        vkDestroyImageView(m_LogicalDevice, imageView, nullptr);
-    }
-
-    vkDestroySwapchainKHR(m_LogicalDevice, m_Swapchain.swapchain, nullptr);
-}
-void vulkanBackend::vulkanBackendImpl::recreateSwapChain()
-{
-    vkDeviceWaitIdle(m_LogicalDevice);
-
-    cleanupSwapChain();
-
-    createSwapChain(surfaceRect);
-    createImageViews();
-    createFramebuffers();
+    m_SurfaceRect = rect;
 }
 
 
@@ -806,18 +605,18 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain.framebuffersCount);
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainFramebuffersCount());
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
     // Sum of all descriptros count from all descriptor sets
-    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain.framebuffersCount;
+    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain->GetSwapchainFramebuffersCount();
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain.framebuffersCount);
+    poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetSwapchainFramebuffersCount());
 
     if (vkCreateDescriptorPool(m_LogicalDevice, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
@@ -856,7 +655,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSetLayout()
 }
 void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain.framebuffersCount, m_GeometryDSL);
+    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainFramebuffersCount(), m_GeometryDSL);
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -864,7 +663,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
     allocInfo.descriptorSetCount = layouts.size();
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(m_Swapchain.framebuffersCount);
+    descriptorSets.resize(m_Swapchain->GetSwapchainFramebuffersCount());
     if (vkAllocateDescriptorSets(m_LogicalDevice, &allocInfo, descriptorSets.data()) != VK_SUCCESS)
     {
         DBG_PRINTM("failed to allocate descriptor sets!")
@@ -916,9 +715,9 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 {
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-    m_UniformBuffers.resize(m_Swapchain.framebuffersCount);
+    m_UniformBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
 
-    for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
     {
         m_UniformBuffers[i].Init(m_Allocator, m_LogicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
         m_UniformBuffers[i].Map();
@@ -938,7 +737,7 @@ void vulkanBackend::vulkanBackendImpl::initializeVma()
 {
     VmaAllocatorCreateInfo allocCreateInfo{};
     allocCreateInfo.instance = m_VulkanInstance;
-    allocCreateInfo.physicalDevice = m_PhysicalDevice.vkPhysicalDevice;
+    allocCreateInfo.physicalDevice = m_PhysicalDevice;
     allocCreateInfo.device = m_LogicalDevice;
     allocCreateInfo.vulkanApiVersion = VULKAN_VERSION;
 
@@ -1001,7 +800,7 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
         CreateTexture(gpuTexture, imageView->pData, imageView->w, imageView->h, imageView->channels, GetVkFormat(imageView->channels),
                       VK_IMAGE_ASPECT_COLOR_BIT);
 
-        for (size_t i = 0; i < m_Swapchain.framebuffersCount; i++)
+        for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
         {
             if (i == currentFrame)
             {
@@ -1029,89 +828,6 @@ bool vulkanBackend::vulkanBackendImpl::SFLCmdBuffer::AreValid()
             return false;
     }
     return true;
-}
-
-
-VkCommandBuffer vulkanBackend::vulkanBackendImpl::beginSingleTimeCommands()
-{
-    VkCommandBufferAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-    allocInfo.commandPool = m_GraphicsCommandPool->Pool();
-    allocInfo.commandBufferCount = 1;
-
-    VkCommandBuffer commandBuffer;
-    vkAllocateCommandBuffers(m_LogicalDevice, &allocInfo, &commandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-    return commandBuffer;
-}
-void vulkanBackend::vulkanBackendImpl::endSingleTimeCommands(VkCommandBuffer commandBuffer)
-{
-    vkEndCommandBuffer(commandBuffer);
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffer;
-
-    vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-    vkQueueWaitIdle(graphicsQueue);
-
-    vkFreeCommandBuffers(m_LogicalDevice, m_GraphicsCommandPool->Pool(), 1, &commandBuffer);
-}
-void vulkanBackend::vulkanBackendImpl::transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                             VkImageAspectFlags aspectMask)
-{
-    // FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    VkImageMemoryBarrier barrier{};
-    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-    barrier.oldLayout = oldLayout;
-    barrier.newLayout = newLayout;
-    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    barrier.image = image;
-    barrier.subresourceRange.aspectMask = aspectMask;
-    barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = 1;
-    barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
-
-    VkPipelineStageFlags sourceStage;
-    VkPipelineStageFlags destinationStage;
-    FindBarrierAccessMask(oldLayout, newLayout, barrier.srcAccessMask, barrier.dstAccessMask, sourceStage, destinationStage);
-
-    vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
-
-    endSingleTimeCommands(commandBuffer);
-}
-void vulkanBackend::vulkanBackendImpl::copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
-{
-    VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {width, height, 1};
-
-    vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-    endSingleTimeCommands(commandBuffer);
 }
 
 VkImageView vulkanBackend::vulkanBackendImpl::createTextureImageView(VkImage& image, VkFormat format)
@@ -1152,7 +868,7 @@ VkSampler vulkanBackend::vulkanBackendImpl::createTextureSampler()
     samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
 
     VkPhysicalDeviceProperties properties{};
-    vkGetPhysicalDeviceProperties(m_PhysicalDevice.vkPhysicalDevice, &properties);
+    vkGetPhysicalDeviceProperties(m_PhysicalDevice, &properties);
 
     samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
     samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
@@ -1216,15 +932,15 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_Swapchain.extent.width);
-    viewport.height = static_cast<float>(m_Swapchain.extent.height);
+    viewport.width = static_cast<float>(m_Swapchain->GetSwapchainExtent().width);
+    viewport.height = static_cast<float>(m_Swapchain->GetSwapchainExtent().height);
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
     buffer.SetViewport(viewport);
 
     VkRect2D scissor{};
     scissor.offset = {0, 0};
-    scissor.extent = m_Swapchain.extent;
+    scissor.extent = m_Swapchain->GetSwapchainExtent();
     buffer.SetScissors(scissor);
 
     buffer.BindVertexBuffer(&m_VertexBuffer->Buffer());
@@ -1247,9 +963,11 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
 
 //======================================================================
 // Depth
-void vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device)
+void vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device,
+                                                         VkSampleCountFlagBits samplesCount)
 {
-    CreateDepthTexture(depthBuffer.depthTexture, m_Swapchain.extent.width, m_Swapchain.extent.height, FindDepthFormat(device));
+    CreateDepthTexture(depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
+                       samplesCount);
 }
 
 bool vulkanBackend::vulkanBackendImpl::HasStencilComponent(VkFormat format)
@@ -1259,7 +977,7 @@ bool vulkanBackend::vulkanBackendImpl::HasStencilComponent(VkFormat format)
 
 void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
-    uint32_t prevFrame = (currentFrame + m_Swapchain.framebuffersCount - 1) % m_Swapchain.framebuffersCount;
+    uint32_t prevFrame = (currentFrame + m_Swapchain->GetSwapchainFramebuffersCount() - 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 
     // Fence: CPU awaits signal from GPU here
     vkWaitForFences(m_LogicalDevice, 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
@@ -1285,11 +1003,11 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     uint32_t imageIndex;
     VkResult isSwapchainValid{};
     isSwapchainValid =
-        vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain.swapchain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
+        vkAcquireNextImageKHR(m_LogicalDevice, m_Swapchain->GetSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR || framebufferResized)
     {
         framebufferResized = false;
-        recreateSwapChain();
+        m_Swapchain->Recreate(m_SurfaceRect);
     }
     else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
     {
@@ -1328,14 +1046,14 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     presentInfo.pWaitSemaphores = signalSemaphores;
     presentInfo.pResults = nullptr;  // Optional
 
-    VkSwapchainKHR swapChains[] = {m_Swapchain.swapchain};
+    VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &imageIndex;
 
     vkQueuePresentKHR(presentQueue, &presentInfo);
 
-    currentFrame = (currentFrame + 1) % m_Swapchain.framebuffersCount;
+    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 }
 
 void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels,
@@ -1356,7 +1074,7 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkImage vkImage = texture.CreateImage(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
+    VkImage vkImage = texture.CreateImage(m_LogicalDevice, m_PhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
 
     VkDeviceSize bufferImageSize = width * height * GetChannelsNumFromFormat(format);
     VkDeviceSize mapImageSize = width * height * channels;
@@ -1374,7 +1092,8 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
     texture.CreateImaveView();
 }
 
-void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format)
+void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format,
+                                                          VkSampleCountFlagBits samplesCount)
 {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1388,11 +1107,10 @@ void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, u
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.samples = samplesCount;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    VkImage vkImage =
-        texture.CreateImage(m_LogicalDevice, m_PhysicalDevice.vkPhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(format));
+    VkImage vkImage = texture.CreateImage(m_LogicalDevice, m_PhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(format));
     texture.CreateImaveView();
 
     FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_LogicalDevice, m_GraphicsCommandPool->Pool());

@@ -3,10 +3,7 @@
 #pragma region Includes& Definitions
 
 #include "Renderer_Vulkan.h"
-#if defined(FLEUR_PLATFORM_WIN)
-#define NOMINMAX
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
+
 
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
@@ -31,7 +28,9 @@
 #include "FVkCommand.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
+#include "FVkTexture.h"
 #include "VkHelper.hpp"
+#include "FVkSwapchain.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -50,24 +49,6 @@ constexpr uint32_t MAX_TEXTURES = 128;
 #pragma endregion
 
 #pragma region Structs
-
-struct SSwapchainSupport
-{
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-
-    inline bool isSwapchainSuitable()
-    {
-        return (!formats.empty() && !presentModes.empty());
-    }
-};
-
-struct SLogicalDevice
-{
-    VkPhysicalDevice vkPhysicalDevice;
-    SSwapchainSupport capabilities;
-};
 
 struct SUniqueFamilyQueue
 {
@@ -105,20 +86,6 @@ struct SGPUTexture
     VkDeviceMemory memory;
 };
 
-struct SFLSwapchain
-{
-    VkSwapchainKHR swapchain;
-    VkFormat imageFormat;
-    VkExtent2D extent;
-
-    // VkFramebuffer + VkRenderPass defines the render target
-    std::vector<VkImage> images;              // Raw GPU data
-    std::vector<VkImageView> imageViews;      // Describes how to interpret that Raw GPU data
-    std::vector<VkFramebuffer> framebuffers;  // Relates to single RenderPass, defines which VkImageView is to be which attachment.
-
-    uint32_t framebuffersCount;
-};
-
 #pragma endregion
 
 //======================================================================
@@ -150,7 +117,6 @@ struct vulkanBackend::vulkanBackendImpl
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
     void resize_event(Fleur::SRect& rect);
 
-
     // Instance
     VkInstance m_VulkanInstance;
     VkInstance createInstance();
@@ -166,45 +132,30 @@ struct vulkanBackend::vulkanBackendImpl
 
     // Physical\Logical device
     VkDevice m_LogicalDevice;
-    SLogicalDevice m_PhysicalDevice;
+    VkPhysicalDevice m_PhysicalDevice;
+
     void pickPhysicalDevice();
     bool isDeviceSuitable(VkPhysicalDevice& m_LogicalDevice);
 
     // Queue families
-
     SUniqueFamilyQueue m_GraphicsQueueFamily;
     VkQueue graphicsQueue;
     VkQueue presentQueue;
     SUniqueFamilyQueue findQueueFamilies(VkPhysicalDevice m_LogicalDevice);
 
+    Fleur::SRect m_SurfaceRect;
+
     // Logical device
     void createLogicalDevice();
 
-    // Surface
-    VkSurfaceKHR surface;
-    void createSurface(void* pNativeHandle);
-    Fleur::SRect surfaceRect;
-
     // Swapchain
-    SFLSwapchain m_Swapchain;
-    void createImageViews();
-    void createFramebuffers();
-
-    void cleanupSwapChain();
-    void recreateSwapChain();
-
-
-    SSwapchainSupport querySwapChainSupport(VkPhysicalDevice vkPhysicalDevice);
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Fleur::SRect& framebufferSize);
-    void createSwapChain(Fleur::SRect& framebufferSize);
+    FVkSwapchain* m_Swapchain;
 
     // GeometryPipeline
     VkDescriptorSetLayout m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology);
+                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
 
     // Renderpass
     VkRenderPass m_GeometryRenderPass;
@@ -272,10 +223,6 @@ struct vulkanBackend::vulkanBackendImpl
 
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
-    VkCommandBuffer beginSingleTimeCommands();
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-    void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask);
-    void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     VkSampler createTextureSampler();
@@ -303,7 +250,7 @@ struct vulkanBackend::vulkanBackendImpl
         FVkTexture depthTexture;
     };
     bool HasStencilComponent(VkFormat format);
-    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device);
+    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount);
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
@@ -311,5 +258,5 @@ struct vulkanBackend::vulkanBackendImpl
 
     void CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels, VkFormat format, VkImageAspectFlags aspect);
 
-    void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format);
+    void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount);
 };

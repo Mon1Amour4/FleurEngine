@@ -15,6 +15,7 @@ struct SFPipelineCreationInfo
     VkPrimitiveTopology topology;
     VkViewport* viewport;
     VkExtent2D extent;
+    VkSampleCountFlagBits samplesCount;
 };
 
 class FVkPipeline
