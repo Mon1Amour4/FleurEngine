@@ -29,6 +29,7 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
     m_Device = device;
     m_Format = createInfo.format;
     m_Aspect = aspect;
+    m_Mipmaps = createInfo.mipLevels;
 
     if (vkCreateImage(m_Device, &createInfo, nullptr, &m_Image) != VK_SUCCESS)
     {
@@ -62,7 +63,7 @@ VkImageView FVkTexture::CreateImaveView()
     viewInfo.format = m_Format;
     viewInfo.subresourceRange.aspectMask = m_Aspect;
     viewInfo.subresourceRange.baseMipLevel = 0;
-    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.levelCount = m_Mipmaps;
     viewInfo.subresourceRange.baseArrayLayer = 0;
     viewInfo.subresourceRange.layerCount = 1;
 

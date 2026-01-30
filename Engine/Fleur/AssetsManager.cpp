@@ -495,6 +495,7 @@ void Fleur::AssetsManager::PollMessages()
 
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
+                view.mipmaps = static_cast<uint32_t>(std::floor(std::log2(std::max(view.w, view.h)))) + 1;
                 m_ImagesToUpload.images.push_back(view);
                 m_Image2DCache.RemoveFromAsyncOperations(message.ID);
                 break;

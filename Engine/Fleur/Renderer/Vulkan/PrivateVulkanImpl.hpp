@@ -31,6 +31,7 @@
 #include "FVkTexture.h"
 #include "VkHelper.hpp"
 #include "FVkSwapchain.h"
+#include "FVkDevice.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
@@ -50,19 +51,6 @@ constexpr uint32_t MAX_TEXTURES = 128;
 
 #pragma region Structs
 
-struct SUniqueFamilyQueue
-{
-    int familyIndex{-1};
-    uint32_t availableQueueCount{0};
-
-    bool swapchainSupport{false};
-
-    inline bool is_valid()
-    {
-        return (familyIndex != -1 && availableQueueCount > 0);
-    }
-};
-
 struct SGPUMaterial
 {
     uint32_t albedo;
@@ -77,13 +65,6 @@ struct DrawInfo
     uint64_t vertexOffset = 0;
 
     SGPUMaterial material;
-};
-
-struct SGPUTexture
-{
-    VkImage image;
-    VkImageView view;
-    VkDeviceMemory memory;
 };
 
 #pragma endregion
@@ -130,26 +111,12 @@ struct vulkanBackend::vulkanBackendImpl
                                           VkDebugUtilsMessengerEXT* pDebugMessenger);
     void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
-    // Physical\Logical device
-    VkDevice m_LogicalDevice;
-    VkPhysicalDevice m_PhysicalDevice;
-
-    void pickPhysicalDevice();
-    bool isDeviceSuitable(VkPhysicalDevice& m_LogicalDevice);
-
-    // Queue families
-    SUniqueFamilyQueue m_GraphicsQueueFamily;
-    VkQueue graphicsQueue;
-    VkQueue presentQueue;
-    SUniqueFamilyQueue findQueueFamilies(VkPhysicalDevice m_LogicalDevice);
-
     Fleur::SRect m_SurfaceRect;
-
-    // Logical device
-    void createLogicalDevice();
 
     // Swapchain
     FVkSwapchain* m_Swapchain;
+    FVkDevice* m_Device;
+    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     // GeometryPipeline
     VkDescriptorSetLayout m_GeometryDSL;
@@ -250,13 +217,15 @@ struct vulkanBackend::vulkanBackendImpl
         FVkTexture depthTexture;
     };
     bool HasStencilComponent(VkFormat format);
-    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount);
+    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
+                           uint32_t mimLevels);
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
 
-    void CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels, VkFormat format, VkImageAspectFlags aspect);
+    void CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels, VkFormat format, VkImageAspectFlags aspect,
+                       uint32_t mipLevels);
 
-    void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount);
+    void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
 };

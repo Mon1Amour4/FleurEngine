@@ -199,7 +199,7 @@ FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 }
 
 void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                       VkImageAspectFlags aspectMask)
+                                                       VkImageAspectFlags aspectMask, uint32_t mimmapsCount)
 {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -212,7 +212,7 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = 1;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = mimmapsCount;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;
@@ -238,6 +238,32 @@ void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage imag
     region.imageExtent = {width, height, 1};
 
     vkCmdCopyBufferToImage(m_CommandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+}
+
+void FVkSingleTimeCommandBuffer::GenerateMipMap(VkImage image, uint32_t textureWidth, uint32_t textureHeight, uint32_t mipLevels)
+{
+    int32_t mipWidth = textureWidth;
+    int32_t mipHeight = textureHeight;
+    for (uint32_t i = 1; i < mipLevels; i++)
+    {
+        VkImageMemoryBarrier barrier{};
+        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        barrier.image = image;
+        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        barrier.subresourceRange.baseArrayLayer = 0;
+        barrier.subresourceRange.layerCount = 1;
+        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.baseMipLevel = i - 1;
+        barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+        barrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+
+
+        vkCmdPipelineBarrier(m_CommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+    }
 }
 
 void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)

@@ -29,4 +29,6 @@ private:
     VkImage m_Image;
     VkImageView m_ImageView;
     VkDeviceMemory m_Memory;
+
+    uint32_t m_Mipmaps;
 };

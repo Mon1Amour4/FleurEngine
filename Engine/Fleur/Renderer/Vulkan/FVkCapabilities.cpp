@@ -45,20 +45,3 @@ void FVkCapabilities::EnableExtensions(VkInstanceCreateInfo& createinfo)
     createinfo.enabledExtensionCount = instanceExtensions.size();
     createinfo.ppEnabledExtensionNames = instanceExtensions.data();
 }
-
-bool FVkCapabilities::CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice)
-{
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableDeviceExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(m_LogicalDevice, nullptr, &extensionCount, availableDeviceExtensions.data());
-
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-    for (auto& ext : availableDeviceExtensions)
-    {
-        requiredExtensions.erase(ext.extensionName);
-    }
-
-    return requiredExtensions.empty();
-}

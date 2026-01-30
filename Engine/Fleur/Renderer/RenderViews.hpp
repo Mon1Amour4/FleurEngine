@@ -6,33 +6,34 @@ namespace Fleur::Graphics
 struct SFLImageView
 {
     uint32_t ID;
-    const char* pData = nullptr;
-    uint32_t w = 0;
-    uint32_t h = 0;
-    uint32_t layerCount = 0;
-    uint32_t channels;
+    const char* pData{};
+    uint32_t w{};
+    uint32_t h{};
+    uint32_t layerCount{};
+    uint32_t channels{};
+    uint32_t mipmaps{};
 };
 struct SFLImageViewInfo
 {
-    SFLImageView* pData;
-    uint32_t count;
+    SFLImageView* pData{};
+    uint32_t count{};
 };
 
 struct SFLMaterialView
 {
-    uint32_t albedoID;
-    uint32_t normalID;
+    uint32_t albedoID{};
+    uint32_t normalID{};
 };
 struct SFLMaterialViewInfo
 {
-    SFLMaterialView* pData;
-    uint32_t count;
+    SFLMaterialView* pData{};
+    uint32_t count{};
 };
 
 struct SFLMeshView
 {
-    uint64_t indexCount;
-    uint64_t vertexCount;
+    uint64_t indexCount{};
+    uint64_t vertexCount{};
 
     uint32_t materialIdx;
 };
