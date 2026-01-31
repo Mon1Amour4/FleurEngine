@@ -11,7 +11,6 @@ struct SFLImageView
     uint32_t h{};
     uint32_t layerCount{};
     uint32_t channels{};
-    uint32_t mipmaps{};
 };
 struct SFLImageViewInfo
 {

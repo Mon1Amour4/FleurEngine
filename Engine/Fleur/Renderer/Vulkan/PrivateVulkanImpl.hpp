@@ -26,12 +26,12 @@
 #include "FVkBuffer.h"
 #include "FVkCapabilities.h"
 #include "FVkCommand.h"
+#include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
-#include "FVkTexture.h"
-#include "VkHelper.hpp"
 #include "FVkSwapchain.h"
-#include "FVkDevice.h"
+#include "FVkTexture.h"
+#include "VkHelper.h"
 
 #if defined(FL_CONF_DEBUG)
 #define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;

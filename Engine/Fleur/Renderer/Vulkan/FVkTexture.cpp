@@ -1,7 +1,8 @@
+#include "FVkTexture.h"
+
 #include <cassert>
 
-#include "FVkTexture.h"
-#include "VkHelper.hpp"
+#include "VkHelper.h"
 
 FVkTexture::FVkTexture()
     : m_Device(nullptr)

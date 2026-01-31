@@ -76,7 +76,6 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
         m_ImagesToUpload.framesSinceLastUpload = 0;
 
         m_ImagesToUpload.Clear();
-
     }
 
 
@@ -247,9 +246,9 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
 
     Fleur::Graphics::SFLImageView imageView = image2dAsset.obj->GetView();
     imageView.ID = id;
-    
+
     m_ImagesToUpload.Add(imageView);
-    
+
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
                  image2dAsset.obj->Height());
@@ -495,7 +494,6 @@ void Fleur::AssetsManager::PollMessages()
 
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
-                view.mipmaps = static_cast<uint32_t>(std::floor(std::log2(std::max(view.w, view.h)))) + 1;
                 m_ImagesToUpload.images.push_back(view);
                 m_Image2DCache.RemoveFromAsyncOperations(message.ID);
                 break;

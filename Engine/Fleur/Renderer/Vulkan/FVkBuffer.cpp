@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "VkHelper.hpp"
+#include "VkHelper.h"
 
 
 FVkBuffer::FVkBuffer()

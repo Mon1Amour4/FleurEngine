@@ -82,7 +82,12 @@ public:
     void CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height);
     void Submit(VkQueue queue);
 
-    void GenerateMipMap(VkImage image, uint32_t textureWidth, uint32_t textureHeight, uint32_t mipLevels);
+    void GenerateMipMaps(VkPhysicalDevice physicalDevice, VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+
+    inline VkCommandBuffer GetCommandBuffer()
+    {
+        return m_CommandBuffer;
+    }
 
 private:
     VkDevice m_Device;

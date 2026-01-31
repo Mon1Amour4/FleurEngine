@@ -83,6 +83,16 @@ bool Fleur::Application::OnWindowClose(WindowCloseEvent& event)
 {
     m_IsRunning = false;
     event.SetHandled();
+
+    auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    assetsManager->OnShutdown();
+
+    auto renderer = ServiceLocator::instance().GetService<Renderer>();
+    renderer->OnShutdown();
+
+    auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+    threadPool->Shutdown();
+
     return true;
 }
 bool Fleur::Application::OnWindowResize(WindowResizeEvent& event)

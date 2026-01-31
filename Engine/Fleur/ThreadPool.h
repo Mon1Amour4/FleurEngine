@@ -37,6 +37,7 @@ public:
     };
 
     ThreadPool();
+    ~ThreadPool();
 
     template <class Func, class... Args>
     auto Submit(Func&& f, Args&&... args) -> std::future<std::invoke_result_t<Func, Args...>>
@@ -68,8 +69,9 @@ private:
 
     std::string PrintThreadID(size_t threadID) const;
 
-protected:
     void OnInit();
     void OnShutdown();
+
+protected:
 };
 }  // namespace Fleur

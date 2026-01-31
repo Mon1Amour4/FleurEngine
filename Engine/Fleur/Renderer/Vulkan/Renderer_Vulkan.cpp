@@ -69,14 +69,14 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     m_Multisampler = new FVkMultisampler();
     m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
-                         m_Swapchain->GetSwapchainExtent().height,
-                         m_Swapchain->GetImageFormat());
+                         m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
     CreateGeometryRenderPass();
 
     createDescriptorSetLayout();
 
-    m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology, m_Multisampler->GetSamplesCount());
+    m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
+                                                m_Multisampler->GetSamplesCount());
 
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
@@ -102,8 +102,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
         indexInputDescriptorSize = sizeof(uint16_t);
 
     m_VertexBuffer->Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                         1024u * 1024ul * 512ul,
-                         vertexInputDescriptorSize);
+                         1024u * 1024ul * 512ul, vertexInputDescriptorSize);
 
     m_IndexBuffer->Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul,
                         indexInputDescriptorSize);
@@ -131,6 +130,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 }
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
+    vkDeviceWaitIdle(m_Device->GetLogicalDevice());
+
     delete m_Capabilities;
     delete m_VertexBuffer;
     delete m_IndexBuffer;
@@ -165,8 +166,6 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 
     delete m_GraphicsCommandPool;
 
-    vmaDestroyBuffer(m_Allocator, m_VertexBuffer->Buffer(), m_VertexBuffer->Allocation());
-    vmaDestroyBuffer(m_Allocator, m_IndexBuffer->Buffer(), m_IndexBuffer->Allocation());
     freeVma();
 
     delete m_Device;
@@ -324,7 +323,7 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
     dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
     dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-     std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
+    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
 
     VkRenderPassCreateInfo renderPassInfo{};
     renderPassInfo.dependencyCount = 1;
@@ -348,7 +347,8 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
 // VkPipeline
 FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo,
                                                                       Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                                                      Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
+                                                                      Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology,
+                                                                      VkSampleCountFlagBits samplesCount)
 {
     VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
     VkShaderModule vertexFragmentModule = CreateShaderModule(pFragmentInfo);
@@ -673,8 +673,9 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
         auto imageView = pInfo->pData + i;
         auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
 
+        uint32_t mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
         CreateTexture(gpuTexture, imageView->pData, imageView->w, imageView->h, imageView->channels, GetVkFormat(imageView->channels),
-                      VK_IMAGE_ASPECT_COLOR_BIT, imageView->mipmaps);
+                      VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
         for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
         {
@@ -754,7 +755,7 @@ VkSampler vulkanBackend::vulkanBackendImpl::createTextureSampler()
     samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
     samplerInfo.mipLodBias = 0.0f;
     samplerInfo.minLod = 0.0f;
-    samplerInfo.maxLod = 0.0f;
+    samplerInfo.maxLod = VK_LOD_CLAMP_NONE;
 
     VkSampler sampler{};
     if (vkCreateSampler(m_Device->GetLogicalDevice(), &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
@@ -772,7 +773,7 @@ void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SF
     VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
 
     m_FallbackTexture = new FVkTexture();
-    CreateTexture(*m_FallbackTexture, view.pData, view.w, view.h, view.channels, format, VK_IMAGE_ASPECT_COLOR_BIT, view.mipmaps);
+    CreateTexture(*m_FallbackTexture, view.pData, view.w, view.h, view.channels, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_FallbackTextureIdx = view.ID;
 }
 
@@ -935,6 +936,9 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
 void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels,
                                                      VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
 {
+    if (mipLevels == 0)
+        mipLevels = 1;
+
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
@@ -967,14 +971,17 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
 
     FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->Pool());
     singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
+    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
     if (mipLevels > 1)
     {
-        // Generate mip maps
-
+        singleTimeCmdBuffer.GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
     }
-    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
-    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect,
-                                              mipLevels);
+    else
+    {
+        singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect,
+                                                  mipLevels);
+    }
+
     singleTimeCmdBuffer.Submit(m_Device->GetGraphicsQueue());
     texture.CreateImaveView();
 }

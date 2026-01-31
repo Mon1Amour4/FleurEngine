@@ -6,6 +6,11 @@ Fleur::ThreadPool::ThreadPool()
 {
 }
 
+Fleur::ThreadPool::~ThreadPool()
+{
+    int a = 5;
+}
+
 void Fleur::ThreadPool::OnInit()
 {
     m_Workers.reserve(m_NumWorkers);

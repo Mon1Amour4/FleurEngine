@@ -105,6 +105,8 @@ public:
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
     void UpdateViewport(Fleur::SRect& rect);
 
+    void OnShutdown();
+
 private:
     IRenderer* m_Backend;
     bool m_ShowWireframe;
@@ -159,7 +161,6 @@ private:
 
 protected:
     void OnInit();
-    void OnShutdown();
 };
 
 class QuadRenderer

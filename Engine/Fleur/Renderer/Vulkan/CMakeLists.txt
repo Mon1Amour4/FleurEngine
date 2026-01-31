@@ -20,7 +20,7 @@ SET(PROJECT_HEADERS
     FVkMultisampler.h
     FVkTexture.h
     FVkSwapchain.h
-    VkHelper.hpp
+    VkHelper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
 
@@ -35,6 +35,7 @@ SET(PROJECT_SOURCES
     FVkMultisampler.cpp
     FVkTexture.cpp
     FVkSwapchain.cpp
+    VkHelper.cpp
 )
 
 LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../)

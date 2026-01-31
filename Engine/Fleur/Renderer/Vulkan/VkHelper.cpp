@@ -1,10 +1,9 @@
-#pragma once
+#include "VkHelper.h"
 
-#include <vulkan/vulkan.h>
+#include <cassert>
 
-#include <vector>
 
-static uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
+uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)
 {
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(device, &memProperties);
@@ -20,7 +19,7 @@ static uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkM
 }
 
 // clang-format off
-static void FindBarrierAccessMask(  VkImageLayout oldLayout, 
+void FindBarrierAccessMask(  VkImageLayout oldLayout, 
                                     VkImageLayout newLayout, 
                                     VkAccessFlags& srcAccessMask, // VkImageMemoryBarrier
                                     VkAccessFlags& dstAccessMask, // VkImageMemoryBarrier
@@ -56,9 +55,9 @@ static void FindBarrierAccessMask(  VkImageLayout oldLayout,
         assert(false);
     }
 }
-// clang-format onn
+// clang-format on
 
-static uint32_t GetChannelsNumFromFormat(VkFormat format)
+uint32_t GetChannelsNumFromFormat(VkFormat format)
 {
     switch (format)
     {
@@ -73,26 +72,25 @@ static uint32_t GetChannelsNumFromFormat(VkFormat format)
     }
 }
 
-static VkFormat GetVkFormat(uint32_t channels)
+VkFormat GetVkFormat(uint32_t channels)
 {
     VkFormat format{};
-        switch (channels)
-        {
-        case 1:
-            format = VK_FORMAT_R8_UNORM;
-            break;
-        case 3:
-            format = VK_FORMAT_R8G8B8A8_SRGB;
-            break;
-        case 4:
-            format = VK_FORMAT_R8G8B8A8_SRGB;
-            break;
-        }
-        return format;
+    switch (channels)
+    {
+    case 1:
+        format = VK_FORMAT_R8_UNORM;
+        break;
+    case 3:
+        format = VK_FORMAT_R8G8B8A8_SRGB;
+        break;
+    case 4:
+        format = VK_FORMAT_R8G8B8A8_SRGB;
+        break;
+    }
+    return format;
 }
 
-static VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling,
-                                                               VkFormatFeatureFlags features)
+VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
 {
     for (VkFormat format : candidates)
     {
@@ -111,59 +109,53 @@ static VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<V
         assert(false);
     }
 }
-static VkFormat FindDepthFormat(VkPhysicalDevice device)
+VkFormat FindDepthFormat(VkPhysicalDevice device)
 {
     VkFormat format = FindSupportedFormat(device, {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT}, VK_IMAGE_TILING_OPTIMAL,
                                           VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
     return format;
 }
 
-static VkImageAspectFlags GetDepthAspect(VkFormat format)
+VkImageAspectFlags GetDepthAspect(VkFormat format)
 {
     switch (format)
     {
-        case VK_FORMAT_D32_SFLOAT_S8_UINT:
-        case VK_FORMAT_D24_UNORM_S8_UINT:
-            return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
-        case VK_FORMAT_D32_SFLOAT:
-        case VK_FORMAT_D16_UNORM:
-            return VK_IMAGE_ASPECT_DEPTH_BIT;
+    case VK_FORMAT_D32_SFLOAT:
+    case VK_FORMAT_D16_UNORM:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
 
-        default:
-            assert(false && "Invalid depth format");
-            return 0;
+    default:
+        assert(false && "Invalid depth format");
+        return 0;
     }
 }
 
-class SFLVertexInput
+uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight)
 {
-public:
-    SFLVertexInput()
-        : vertexStride(0) {};
+    return static_cast<int>(floor(log2(std::max(textureWidth, textureHeight)))) + 1;
+}
 
-    void RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
-    {
-        attributeDescriptions.emplace_back(location, binding, format, offset);
-        vertexStride += offset;
-    }
+void SFLVertexInput::RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
+{
+    attributeDescriptions.emplace_back(location, binding, format, offset);
+    vertexStride += offset;
+}
 
-    std::vector<VkVertexInputAttributeDescription>& GetVertexDataAttributeDescriptions()
-    {
-        return attributeDescriptions;
-    }
+std::vector<VkVertexInputAttributeDescription>& SFLVertexInput::GetVertexDataAttributeDescriptions()
+{
+    return attributeDescriptions;
+}
 
-    VkVertexInputBindingDescription GetVertexDataBindingDescriptor()
-    {
-        VkVertexInputBindingDescription bindingDescription{};
-        bindingDescription.binding = 0;
-        bindingDescription.stride = vertexStride;
-        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+VkVertexInputBindingDescription SFLVertexInput::GetVertexDataBindingDescriptor()
+{
+    VkVertexInputBindingDescription bindingDescription{};
+    bindingDescription.binding = 0;
+    bindingDescription.stride = vertexStride;
+    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
 
-        return bindingDescription;
-    }
-
-private:
-    uint32_t vertexStride;
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
-};
+    return bindingDescription;
+}

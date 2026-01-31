@@ -1,7 +1,8 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "VkHelper.hpp"
+
+#include "VkHelper.h"
 
 struct SFPipelineCreationInfo
 {
@@ -39,5 +40,4 @@ private:
     VkDevice m_Device;
     VkPipeline m_Pipeline;
     VkPipelineLayout m_PipelineLayout;
-
 };
