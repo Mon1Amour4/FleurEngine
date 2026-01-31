@@ -289,6 +289,12 @@ void Fleur::Application::Run()
     }
 
     // Release
+    // TODO There should be Services lookup
+    // Pseudocode
+    // for(auto& services : Services)
+    // {
+    //      service.Shutdown();
+    // }
     auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
     assetsManager->OnShutdown();
 
