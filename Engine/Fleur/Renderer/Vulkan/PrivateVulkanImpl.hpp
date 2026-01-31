@@ -113,9 +113,10 @@ struct vulkanBackend::vulkanBackendImpl
 
     Fleur::SRect m_SurfaceRect;
 
-    // Swapchain
-    FVkSwapchain* m_Swapchain;
     FVkDevice* m_Device;
+    FVkSwapchain* m_Swapchain;
+    VkSurfaceKHR m_Surface;
+    VkSurfaceKHR CreateSurface(VkInstance instance, void* nativeHandle);
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
     // GeometryPipeline
@@ -214,7 +215,7 @@ struct vulkanBackend::vulkanBackendImpl
     struct Depth
     {
         Depth() = default;
-        FVkTexture depthTexture;
+        FVkTexture* depthTexture;
     };
     bool HasStencilComponent(VkFormat format);
     void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,

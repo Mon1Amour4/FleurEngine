@@ -1,8 +1,14 @@
 
 // This entire .cpp file was so big so it was pain in the ass to navigate throughout
 // I've hidden vulkanBackendImpl declaration into .hpp file
+#if defined(FLEUR_PLATFORM_WIN)
+#define NOMINMAX
+#include <windows.h>
+#define VK_USE_PLATFORM_WIN32_KHR
+#endif
 
 #include "PrivateVulkanImpl.hpp"
+
 
 vulkanBackend::vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
                              Fleur::Graphics::SFLImageView& fallback)
@@ -43,19 +49,19 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     setupDebugMessenger();
 
     m_Swapchain = new FVkSwapchain();
-    m_Swapchain->CreateSurface(m_VulkanInstance, pNativeHandle);
+    m_Surface = CreateSurface(m_VulkanInstance, pNativeHandle);
 
     SDeviceInfo deviceInfo{};
     deviceInfo.presentationSupport = true;
     deviceInfo.neededQueueFamilyFlags = VK_QUEUE_GRAPHICS_BIT;
-    deviceInfo.surface = m_Swapchain->GetSurface();
+    deviceInfo.surface = m_Surface;
     deviceInfo.requiredDeviceExtensions = deviceExtensions;
 
     m_Device = FVkDevice::CreateSuitableDevice(m_VulkanInstance, deviceInfo);
     m_Device->CreateLogicalDevice(deviceExtensions);
 
     initializeVma();
-    m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
+    m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Surface,
                                  {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height},
                                  m_Device->GetGraphicsQueueFamilyIndex());
 
@@ -81,9 +87,10 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
+    m_Depth.depthTexture = new FVkTexture();
     CreateDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
 
-    m_Swapchain->CreateFrameBuffers(m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(), m_Depth.depthTexture.GetImageView());
+    m_Swapchain->CreateFrameBuffers(m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(), m_Depth.depthTexture->GetImageView());
 
     m_DescriptorSetImageViews.resize(m_Swapchain->GetSwapchainFramebuffersCount());
     m_PrimaryCmdBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
@@ -132,49 +139,80 @@ vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
 
-    delete m_Capabilities;
-    delete m_VertexBuffer;
-    delete m_IndexBuffer;
-    delete m_GeometryVertexInput;
-    delete m_Multisampler;
-    delete m_FallbackTexture;
+    uint32_t framebuffersCount = m_Swapchain->GetSwapchainFramebuffersCount();
 
-    vkDeviceWaitIdle(m_Device->GetLogicalDevice());
-
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
-    {
-        // TODO
-        /*vkDestroyBuffer(m_LogicalDevice, m_UniformBuffers[i], nullptr);
-        vkFreeMemory(m_LogicalDevice, uniformBuffersMemory[i], nullptr);*/
-    }
-
-    vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_Device->GetLogicalDevice(), m_GeometryDSL, nullptr);
-
-    delete m_GeometryPipeline;
-
-    vkDestroyRenderPass(m_Device->GetLogicalDevice(), m_GeometryRenderPass, nullptr);
-    // Sync
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
+    // 1. Synchronization objects
+    for (size_t i = 0; i < framebuffersCount; i++)
     {
         vkDestroySemaphore(m_Device->GetLogicalDevice(), renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(m_Device->GetLogicalDevice(), imageAvailableSemaphores[i], nullptr);
         vkDestroyFence(m_Device->GetLogicalDevice(), inFlightFences[i], nullptr);
     }
 
-    vkDestroySampler(m_Device->GetLogicalDevice(), m_ImageSampler, nullptr);
-
+    // 2. CommandBuffer & CommandPool
+    m_PrimaryCmdBuffers.clear();
+    m_SecondaryCmdBuffers.clear();
     delete m_GraphicsCommandPool;
 
+    // 3. DescriptorSet & DescriptorPool & Descriptor set layout
+    vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), descriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device->GetLogicalDevice(), m_GeometryDSL, nullptr);
+
+    // 4. Pipeline
+    delete m_GeometryPipeline;
+
+    // 5. Swapchain & Framebuffers & swapchain image views
+
+
+    // 5. Framebuffers
+    m_Swapchain->ReleaseFramebuffers();
+
+    // 6. RenderPass
+    vkDestroyRenderPass(m_Device->GetLogicalDevice(), m_GeometryRenderPass, nullptr);
+
+    // 7. All ImageViews
+    delete m_Multisampler;
+    delete m_FallbackTexture;
+    delete m_Depth.depthTexture;
+    // delete m_Depth.depthTexture;
+    m_TextureMap.clear();
+    m_Swapchain->ReleaseSwapchainImageViews();
+
+    // 8. Buffers
+    delete m_VertexBuffer;
+    delete m_IndexBuffer;
+    for (size_t i = 0; i < m_UniformBuffers.size(); i++)
+    {
+        m_UniformBuffers[i].Unmap();
+    }
+    m_UniformBuffers.clear();
+
+    // 9. Samplers
+    vkDestroySampler(m_Device->GetLogicalDevice(), m_ImageSampler, nullptr);
+
+    // 10. Swapchain
+    delete m_Swapchain;
+
+    // 15. VMA
     freeVma();
 
+    // 11. Surface
+    vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
+
+    // 12. LogicalDevice
     delete m_Device;
 
+    // 13. Debug Utills & Validation Layers
     if (m_Capabilities->ValidationEnabled())
         DestroyDebugUtilsMessengerEXT(m_VulkanInstance, debugMessenger, nullptr);
 
-    vkDestroySurfaceKHR(m_VulkanInstance, m_Swapchain->GetSurface(), nullptr);
+    // 14. Instance
     vkDestroyInstance(m_VulkanInstance, nullptr);
+
+
+    // 16. Other
+    delete m_GeometryVertexInput;
+    delete m_Capabilities;
 }
 
 
@@ -342,6 +380,23 @@ void vulkanBackend::vulkanBackendImpl::CreateGeometryRenderPass()
     }
 }
 
+
+VkSurfaceKHR vulkanBackend::vulkanBackendImpl::CreateSurface(VkInstance instance, void* pNativeHandle)
+{
+#if defined(FLEUR_PLATFORM_WIN)
+    VkWin32SurfaceCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
+    createInfo.hwnd = reinterpret_cast<HWND>(pNativeHandle);
+    createInfo.hinstance = GetModuleHandle(nullptr);
+
+    if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS)
+    {
+        assert(false);
+    }
+#endif
+
+    return m_Surface;
+}
 
 //======================================================================
 // VkPipeline
@@ -843,7 +898,7 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
 void vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device,
                                                          VkSampleCountFlagBits samplesCount, uint32_t mimLevels)
 {
-    CreateDepthTexture(depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
+    CreateDepthTexture(*depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
                        samplesCount, mimLevels);
 }
 

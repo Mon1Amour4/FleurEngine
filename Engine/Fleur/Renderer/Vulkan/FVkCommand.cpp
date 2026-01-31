@@ -49,7 +49,7 @@ FVkCommandBuffer::FVkCommandBuffer()
 }
 FVkCommandBuffer::~FVkCommandBuffer()
 {
-    vkResetCommandPool(m_Device, m_CommandPool, VK_COMMAND_POOL_RESET_RELEASE_RESOURCES_BIT);
+    vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &m_CommandBuffer);
 }
 
 void FVkCommandBuffer::Init(VkDevice device, VkCommandPool pool, VkCommandBufferLevel level)

@@ -1,35 +1,46 @@
-#include <cassert>
+#include "FVkSwapchain.h"
+
 #include <algorithm>
 #include <array>
-
-#include "FVkSwapchain.h"
+#include <cassert>
 
 FVkSwapchain::FVkSwapchain()
     : m_Device(nullptr)
     , m_PhysicalDevice(nullptr)
     , m_Swapchain(nullptr)
     , m_SwapchainImageFormat(VK_FORMAT_MAX_ENUM)
-    , m_Surface(nullptr)
     , m_SwapchainExtent({0, 0})
     , m_FramebuffersCount(0)
 {
 }
 FVkSwapchain::~FVkSwapchain()
 {
+    vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+}
+void FVkSwapchain::ReleaseFramebuffers()
+{
     for (size_t i = 0; i < m_FramebuffersCount; i++)
     {
         vkDestroyFramebuffer(m_Device, m_Framebuffers[i], nullptr);
-        vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
     }
-    vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+    m_Framebuffers.clear();
 }
 
-void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, Fleur::SRect rect, uint32_t graphicsQueueFamily)
+void FVkSwapchain::ReleaseSwapchainImageViews()
+{
+    for (size_t i = 0; i < m_FramebuffersCount; i++)
+    {
+        vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
+    }
+    m_SwapchainImageViews.clear();
+}
+
+void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, Fleur::SRect rect, uint32_t graphicsQueueFamily)
 {
     m_Device = device;
     m_PhysicalDevice = physicalDevice;
 
-    QuerySwapChainSupport();
+    QuerySwapChainSupport(surface);
 
     uint32_t imageCount = m_SurfaceCapabilities.minImageCount + 1;
     imageCount = std::clamp(imageCount, m_SurfaceCapabilities.minImageCount, m_SurfaceCapabilities.maxImageCount);
@@ -43,7 +54,7 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
 
     VkSwapchainCreateInfoKHR createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-    createInfo.surface = m_Surface;
+    createInfo.surface = surface;
     createInfo.minImageCount = imageCount;
     createInfo.imageFormat = surfaceFormat.format;
     createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -80,23 +91,6 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
     }
 }
 
-VkSurfaceKHR FVkSwapchain::CreateSurface(VkInstance instance, void* pNativeHandle)
-{
-#if defined(FLEUR_PLATFORM_WIN) 
-    VkWin32SurfaceCreateInfoKHR createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
-    createInfo.hwnd = reinterpret_cast<HWND>(pNativeHandle);
-    createInfo.hinstance = GetModuleHandle(nullptr);
-
-    if (vkCreateWin32SurfaceKHR(instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS)
-    {
-        assert(false);
-    }
-#endif
-
-    return m_Surface;
-}
-
 void FVkSwapchain::CreateFrameBuffers(VkRenderPass renderPass, VkImageView multisampler, VkImageView depth)
 {
     m_Framebuffers.resize(m_FramebuffersCount);
@@ -121,49 +115,49 @@ void FVkSwapchain::CreateFrameBuffers(VkRenderPass renderPass, VkImageView multi
 
 void FVkSwapchain::Recreate(Fleur::SRect rect)
 {
-   /* vkDeviceWaitIdle(m_LogicalDevice);
+    /* vkDeviceWaitIdle(m_LogicalDevice);
 
-    cleanupSwapChain();
+     cleanupSwapChain();
 
-    createSwapChain(surfaceRect);
-    createImageViews();
-    createFramebuffers();*/
+     createSwapChain(surfaceRect);
+     createImageViews();
+     createFramebuffers();*/
 }
 
-bool FVkSwapchain::SwapchainPresentationSupport(VkPhysicalDevice physicalDevice)
+bool FVkSwapchain::SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
 {
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, m_Surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, surface, &formatCount, nullptr);
 
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, m_Surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface, &presentModeCount, nullptr);
 
     return (presentModeCount > 0 && formatCount > 0);
 }
 
-void FVkSwapchain::QuerySwapChainSupport()
+void FVkSwapchain::QuerySwapChainSupport(VkSurfaceKHR surface)
 {
     // Basic surface capabilities
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, m_Surface, &m_SurfaceCapabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(m_PhysicalDevice, surface, &m_SurfaceCapabilities);
 
     // Supported surface formats
     uint32_t formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, surface, &formatCount, nullptr);
 
     if (formatCount != 0)
     {
         m_SurfaceFormats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, m_Surface, &formatCount, m_SurfaceFormats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(m_PhysicalDevice, surface, &formatCount, m_SurfaceFormats.data());
     }
 
     // Supported present modes
     uint32_t presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, surface, &presentModeCount, nullptr);
 
     if (presentModeCount != 0)
     {
         m_PresentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, m_Surface, &presentModeCount, m_PresentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(m_PhysicalDevice, surface, &presentModeCount, m_PresentModes.data());
     }
 }
 VkSurfaceFormatKHR FVkSwapchain::ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats)

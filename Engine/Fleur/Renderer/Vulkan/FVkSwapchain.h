@@ -1,14 +1,9 @@
-#pragma once 
-
-#include <vector>
-
-#if defined(FLEUR_PLATFORM_WIN)
-#define NOMINMAX
-//#include <windows.h>
-#define VK_USE_PLATFORM_WIN32_KHR
-#endif
+#pragma once
 
 #include <Vulkan/vulkan.h>
+
+#include <cassert>
+#include <vector>
 
 #include "../WindowPrimitives.hpp"
 
@@ -18,12 +13,11 @@ public:
     FVkSwapchain();
     ~FVkSwapchain();
 
-    void CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, Fleur::SRect rect, uint32_t graphicsQueueFamily);
-    VkSurfaceKHR CreateSurface(VkInstance instance, void* pNativeHandle);
+    void CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, Fleur::SRect rect, uint32_t graphicsQueueFamily);
     void CreateFrameBuffers(VkRenderPass renderPass, VkImageView multisampler, VkImageView depth);
     void Recreate(Fleur::SRect rect);
 
-    bool SwapchainPresentationSupport(VkPhysicalDevice physicalDevice);
+    bool SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
     inline VkFramebuffer GetFramebuffer(uint32_t idx)
     {
@@ -33,10 +27,6 @@ public:
     inline VkSwapchainKHR GetSwapchain()
     {
         return m_Swapchain;
-    }
-    inline VkSurfaceKHR GetSurface()
-    {
-        return m_Surface;
     }
     inline VkFormat GetImageFormat()
     {
@@ -51,16 +41,19 @@ public:
         return m_FramebuffersCount;
     }
 
+    void ReleaseFramebuffers();
+    void ReleaseSwapchainImageViews();
+
 private:
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
     VkSwapchainKHR m_Swapchain;
     VkFormat m_SwapchainImageFormat;
-    VkSurfaceKHR m_Surface;
+
     VkExtent2D m_SwapchainExtent;
 
-    std::vector<VkImage> m_SwapchainImages;       
-    std::vector<VkImageView> m_SwapchainImageViews;      
+    std::vector<VkImage> m_SwapchainImages;
+    std::vector<VkImageView> m_SwapchainImageViews;
     std::vector<VkFramebuffer> m_Framebuffers;
 
     VkSurfaceCapabilitiesKHR m_SurfaceCapabilities;
@@ -75,7 +68,7 @@ private:
     }
 
 
-    void QuerySwapChainSupport();
+    void QuerySwapChainSupport(VkSurfaceKHR surface);
     VkSurfaceFormatKHR ChooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
     VkPresentModeKHR ChooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
     VkExtent2D ChooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities, Fleur::SRect rect);

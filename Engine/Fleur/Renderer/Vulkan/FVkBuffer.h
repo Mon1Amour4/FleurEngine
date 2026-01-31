@@ -4,10 +4,6 @@
 
 #include "vk_mem_alloc.h"
 
-class FVkStagingBuffer
-{
-};
-
 class FVkBuffer
 {
 public:
