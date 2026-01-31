@@ -22,7 +22,9 @@ Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api)
 
 Fleur::Graphics::Renderer::~Renderer()
 {
-    OnShutdown();
+    Fleur::Memory::FleurAllocator<Camera> alloc;
+    alloc.deallocate(m_Camera, 1);
+    m_Camera = nullptr;
 }
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view path)
@@ -96,7 +98,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
 void Fleur::Graphics::Renderer::OnInit()
 {
     Fleur::Memory::FleurAllocator<Camera> alloc;
-    m_Camera.reset(alloc.construct_at());
+    m_Camera = alloc.construct_at();
     m_Camera->Activate();
     //
     //    m_Device = Device::CreateDevice();

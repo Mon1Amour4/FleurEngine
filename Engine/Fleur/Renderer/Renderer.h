@@ -115,7 +115,7 @@ private:
     std::unique_ptr<CommandQueue> m_CommandQueue;
     std::unique_ptr<CommandPool> m_CommandPool;
     std::unique_ptr<Swapchain> m_Swapchain;
-    std::unique_ptr<Camera> m_Camera;
+    Camera* m_Camera;
     std::unique_ptr<Skybox> m_Skybox;
 
     std::unique_ptr<CommandBuffer> m_StaticGeometryCmd;
