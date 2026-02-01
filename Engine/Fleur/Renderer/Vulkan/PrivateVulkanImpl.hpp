@@ -96,7 +96,6 @@ struct vulkanBackend::vulkanBackendImpl
     ~vulkanBackendImpl();
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
-    void resize_event(Fleur::SRect& rect);
 
     // Instance
     VkInstance m_VulkanInstance;
@@ -154,7 +153,6 @@ struct vulkanBackend::vulkanBackendImpl
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
-    bool framebufferResized = false;
     void createSyncObjects();
 
     std::vector<FVkBuffer> m_UniformBuffers;
@@ -217,7 +215,6 @@ struct vulkanBackend::vulkanBackendImpl
         Depth() = default;
         FVkTexture* depthTexture;
     };
-    bool HasStencilComponent(VkFormat format);
     void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
                            uint32_t mimLevels);
     Depth m_Depth;
@@ -229,4 +226,9 @@ struct vulkanBackend::vulkanBackendImpl
                        uint32_t mipLevels);
 
     void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
+
+    void StartResize();
+    void EndResize(Fleur::SRect& rect);
+
+    bool m_WindowResizeIsInProgress;
 };

@@ -227,6 +227,16 @@ void Fleur::Graphics::Renderer::OnShutdown()
     delete m_Backend;
 }
 
+void Fleur::Graphics::Renderer::StartResize()
+{
+    m_Backend->StartResize();
+}
+
+void Fleur::Graphics::Renderer::EndResize(Fleur::SRect& rect)
+{
+    m_Backend->EndResize(rect);
+}
+
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTexture(std::string_view path) const
 {
     if (path.empty())
@@ -541,7 +551,6 @@ void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
     // m_GizmoFBO->Bind();
     // uint32_t flags = m_GizmoFBO->Flags();
     // m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
-    m_Backend->ResizeEvent(rect);
 }
 
 Fleur::Graphics::SVertexData::SVertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)

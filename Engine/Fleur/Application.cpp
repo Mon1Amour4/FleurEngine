@@ -96,11 +96,14 @@ bool Fleur::Application::OnWindowResize(WindowResizeEvent& event)
 bool Fleur::Application::OnStartResizeWindow(WindowStartResizeEvent& event)
 {
     event.SetHandled();
+    ServiceLocator::instance().GetService<Renderer>()->StartResize();
     return true;
 }
 bool Fleur::Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 {
     event.SetHandled();
+    Fleur::SRect rect{event.X(), event.Y(), event.Width(), event.Height()};
+    ServiceLocator::instance().GetService<Renderer>()->EndResize(rect);
     return true;
 }
 bool Fleur::Application::OnValidateWindow(WindowValidateEvent& event)

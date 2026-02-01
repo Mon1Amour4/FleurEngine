@@ -32,9 +32,13 @@ void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
     pImpl->SubmitImageViews(pInfo);
 }
 
-void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
+void vulkanBackend::StartResize()
 {
-    pImpl->resize_event(rect);
+    pImpl->StartResize();
+}
+void vulkanBackend::EndResize(Fleur::SRect& rect)
+{
+    pImpl->EndResize(rect);
 }
 
 
@@ -42,6 +46,7 @@ void vulkanBackend::ResizeEvent(Fleur::SRect& rect)
 // vulkanBackend::vulkanBackendImpl
 vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle,
                                                     Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
+    : m_WindowResizeIsInProgress(false)
 {
     m_Capabilities = new FVkCapabilities(enableValidation);
 
@@ -516,21 +521,6 @@ void vulkanBackend::vulkanBackendImpl::createSyncObjects()
 
 
 //======================================================================
-// Events
-void vulkanBackend::vulkanBackendImpl::resize_event(Fleur::SRect& rect)
-{
-    static bool first = true;
-    if (first)
-    {
-        first = false;
-        return;
-    }
-    framebufferResized = true;
-    m_SurfaceRect = rect;
-}
-
-
-//======================================================================
 // VkDescriptor
 void vulkanBackend::vulkanBackendImpl::createDescriptorPool()
 {
@@ -902,18 +892,31 @@ void vulkanBackend::vulkanBackendImpl::CreateDepthBuffer(vulkanBackend::vulkanBa
                        samplesCount, mimLevels);
 }
 
-bool vulkanBackend::vulkanBackendImpl::HasStencilComponent(VkFormat format)
-{
-    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
-}
 
 void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
+    if (m_WindowResizeIsInProgress)
+    {
+        std::cout << "\nUpdate -> m_WindowResizeIsInProgress return \n";
+        return;
+    }
+    if (!m_Swapchain->ReadyToPresent())
+    {
+        vkDeviceWaitIdle(m_Device->GetLogicalDevice());
+        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(),
+                              m_Depth.depthTexture->GetImageView());
+
+        for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
+        {
+            InitGeometryPrimaryCmdBuffers(i);
+        }
+    }
     uint32_t prevFrame = (currentFrame + m_Swapchain->GetSwapchainFramebuffersCount() - 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 
     // Fence: CPU awaits signal from GPU here
     vkWaitForFences(m_Device->GetLogicalDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_Device->GetLogicalDevice(), 1, &inFlightFences[currentFrame]);
+
 
     if (!m_DescriptorSetImageViews[currentFrame].empty())
     {
@@ -936,10 +939,10 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     VkResult isSwapchainValid{};
     isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame],
                                              VK_NULL_HANDLE, &imageIndex);
-    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR || framebufferResized)
+    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
     {
-        framebufferResized = false;
-        m_Swapchain->Recreate(m_SurfaceRect);
+        assert(false);
+        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
     }
     else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
     {
@@ -1067,4 +1070,16 @@ void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, u
     singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                               GetDepthAspect(format), mimLevels);
     singleTimeCmdBuffer.Submit(m_Device->GetGraphicsQueue());
+}
+
+void vulkanBackend::vulkanBackendImpl::StartResize()
+{
+    m_WindowResizeIsInProgress = true;
+    std::cout << "\nStartResize\n";
+}
+void vulkanBackend::vulkanBackendImpl::EndResize(Fleur::SRect& rect)
+{
+    m_WindowResizeIsInProgress = false;
+    m_Swapchain->OnWindowResized(rect);
+    std::cout << "\EndResize\n";
 }

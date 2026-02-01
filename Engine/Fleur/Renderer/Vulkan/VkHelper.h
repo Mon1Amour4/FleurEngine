@@ -17,6 +17,7 @@ VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat
 VkFormat FindDepthFormat(VkPhysicalDevice device);
 VkImageAspectFlags GetDepthAspect(VkFormat format);
 uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight);
+bool HasStencilComponent(VkFormat format);
 
 class SFLVertexInput
 {

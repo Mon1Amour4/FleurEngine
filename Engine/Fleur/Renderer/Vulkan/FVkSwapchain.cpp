@@ -24,6 +24,7 @@ void FVkSwapchain::ReleaseFramebuffers()
         vkDestroyFramebuffer(m_Device, m_Framebuffers[i], nullptr);
     }
     m_Framebuffers.clear();
+    m_FramebuffersCreated = false;
 }
 
 void FVkSwapchain::ReleaseSwapchainImageViews()
@@ -33,6 +34,15 @@ void FVkSwapchain::ReleaseSwapchainImageViews()
         vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
     }
     m_SwapchainImageViews.clear();
+    m_SwapchainCreated = false;
+}
+
+void FVkSwapchain::OnWindowResized(Fleur::SRect& rect)
+{
+    m_SwapchainCreated = false;
+    m_FramebuffersCreated = false;
+    m_SwapchainExtent.width = rect.width;
+    m_SwapchainExtent.height = rect.height;
 }
 
 void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, Fleur::SRect rect, uint32_t graphicsQueueFamily)
@@ -89,6 +99,7 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
     {
         m_SwapchainImageViews[i] = CreateSwapchainImageView(m_SwapchainImages[i], m_SwapchainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT);
     }
+    m_SwapchainCreated = true;
 }
 
 void FVkSwapchain::CreateFrameBuffers(VkRenderPass renderPass, VkImageView multisampler, VkImageView depth)
@@ -111,17 +122,25 @@ void FVkSwapchain::CreateFrameBuffers(VkRenderPass renderPass, VkImageView multi
         if (vkCreateFramebuffer(m_Device, &framebufferInfo, nullptr, &m_Framebuffers[i]) != VK_SUCCESS)
             assert(false);
     }
+    m_FramebuffersCreated = true;
 }
 
-void FVkSwapchain::Recreate(Fleur::SRect rect)
+void FVkSwapchain::Recreate(VkSurfaceKHR surface, uint32_t graphicsQueueFamilyIdx, VkRenderPass renderPass, VkImageView multisampler, VkImageView depth)
 {
-    /* vkDeviceWaitIdle(m_LogicalDevice);
+    // 1. Release framebuffers
+    ReleaseFramebuffers();
 
-     cleanupSwapChain();
+    // 2. Release ImageViews
+    ReleaseSwapchainImageViews();
 
-     createSwapChain(surfaceRect);
-     createImageViews();
-     createFramebuffers();*/
+    // 3. Release Swapchain
+    vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+
+    // 4. Create swapchain
+    CreateSwapchain(m_Device, m_PhysicalDevice, surface, {0, 0, m_SwapchainExtent.width, m_SwapchainExtent.height}, graphicsQueueFamilyIdx);
+
+    // 5. Create Framebuffers
+    CreateFrameBuffers(renderPass, multisampler, depth);
 }
 
 bool FVkSwapchain::SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)

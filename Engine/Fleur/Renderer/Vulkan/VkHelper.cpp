@@ -139,6 +139,11 @@ uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight)
     return static_cast<int>(floor(log2(std::max(textureWidth, textureHeight)))) + 1;
 }
 
+bool HasStencilComponent(VkFormat format)
+{
+    return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
+}
+
 void SFLVertexInput::RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
 {
     attributeDescriptions.emplace_back(location, binding, format, offset);

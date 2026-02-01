@@ -65,8 +65,10 @@ struct IRenderer
 
     virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) = 0;
     virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) = 0;
-    virtual void ResizeEvent(Fleur::SRect& rect) = 0;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
+
+    virtual void StartResize() = 0;
+    virtual void EndResize(Fleur::SRect& rect) = 0;
 };
 
 }  // namespace Fleur::Graphics

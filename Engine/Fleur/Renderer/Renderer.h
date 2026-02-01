@@ -107,6 +107,11 @@ public:
 
     void OnShutdown();
 
+    // Temp
+    void StartResize();
+    void EndResize(Fleur::SRect& rect);
+
+
 private:
     IRenderer* m_Backend;
     bool m_ShowWireframe;

@@ -15,9 +15,11 @@ struct vulkanBackend : public Fleur::Graphics::IRenderer
     virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) override;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) override;
 
-    vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
+    vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
+                  Fleur::Graphics::SFLImageView& fallback);
 
-    void ResizeEvent(Fleur::SRect& rect);
+    void StartResize() override;
+    void EndResize(Fleur::SRect& rect) override;
 
 private:
     vulkanBackendImpl* pImpl;
