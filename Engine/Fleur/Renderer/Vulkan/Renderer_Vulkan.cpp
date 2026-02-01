@@ -92,6 +92,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
+    m_Device->CreateFrameCommandBuffer(m_GraphicsCommandPool->GetCommandPool());
+
     m_Depth.depthTexture = new FVkTexture();
     CreateDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
 
@@ -129,11 +131,11 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 
     for (size_t i = 0; i < m_PrimaryCmdBuffers.size(); i++)
     {
-        m_PrimaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->Pool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        m_PrimaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     }
     for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
     {
-        m_SecondaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->Pool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+        m_SecondaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
         UpdateGeometrySecondaryCmdBuffer(i);
         InitGeometryPrimaryCmdBuffers(i);
     }
@@ -1027,20 +1029,21 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
 
     stagingBuffer.MemCopy(pData, static_cast<size_t>(mapImageSize));
 
-    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->Pool());
-    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
-    singleTimeCmdBuffer.CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
+    FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
+    frameCmd->Begin();
+    frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
+    frameCmd->CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
     if (mipLevels > 1)
     {
-        singleTimeCmdBuffer.GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
+        frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
     }
     else
     {
-        singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect,
-                                                  mipLevels);
+        frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels);
     }
 
-    singleTimeCmdBuffer.Submit(m_Device->GetGraphicsQueue());
+    frameCmd->Submit(m_Device->GetGraphicsQueue());
+    frameCmd->Synchronize();
     texture.CreateImaveView();
 }
 
@@ -1066,10 +1069,12 @@ void vulkanBackend::vulkanBackendImpl::CreateDepthTexture(FVkTexture& texture, u
                                           GetDepthAspect(format));
     texture.CreateImaveView();
 
-    FVkSingleTimeCommandBuffer singleTimeCmdBuffer = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->Pool());
-    singleTimeCmdBuffer.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                              GetDepthAspect(format), mimLevels);
-    singleTimeCmdBuffer.Submit(m_Device->GetGraphicsQueue());
+    FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
+    frameCmd->Begin();
+    frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
+                                    mimLevels);
+    frameCmd->Submit(m_Device->GetGraphicsQueue());
+    frameCmd->Synchronize();
 }
 
 void vulkanBackend::vulkanBackendImpl::StartResize()

@@ -1,10 +1,10 @@
+#include "FVkDevice.h"
+
 #include <vulkan/vulkan.h>
 
+#include <array>
 #include <cassert>
 #include <set>
-#include <array>
-
-#include "FVkDevice.h"
 
 bool SQueueFamily::IsValid()
 {
@@ -15,12 +15,13 @@ bool SQueueFamily::IsValid()
 FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
     , m_GraphicsQueueFamily(graphicsQueueFamily)
+    , m_FrameCommandBuffer(nullptr)
 {
-    
 }
 
 FVkDevice::~FVkDevice()
 {
+    delete m_FrameCommandBuffer;
     vkDestroyDevice(m_Device, nullptr);
 }
 
@@ -92,6 +93,12 @@ FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& dev
     assert(false);
 }
 
+FVkSingleTimeCommandBuffer* FVkDevice::CreateFrameCommandBuffer(VkCommandPool commandPool)
+{
+    m_FrameCommandBuffer = new FVkSingleTimeCommandBuffer(m_Device, commandPool);
+    return m_FrameCommandBuffer;
+}
+
 bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo)
 {
     SQueueFamily family{};
@@ -110,7 +117,7 @@ bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& d
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
 
-    if(!CheckDeviceExtensionSupport(physicalDevice, deviceInfo.requiredDeviceExtensions))
+    if (!CheckDeviceExtensionSupport(physicalDevice, deviceInfo.requiredDeviceExtensions))
         return false;
 
     return true;

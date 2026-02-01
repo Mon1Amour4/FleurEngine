@@ -16,7 +16,7 @@ public:
     ~FVkCommandPool();
     void Init(VkDevice device, VkCommandPoolCreateFlagBits usage, uint32_t queueFamilyIndex);
 
-    inline VkCommandPool Pool() const
+    inline VkCommandPool GetCommandPool() const
     {
         return m_CommandPool;
     }
@@ -87,6 +87,14 @@ public:
     inline VkCommandBuffer GetCommandBuffer()
     {
         return m_CommandBuffer;
+    }
+
+    void Begin();
+
+    inline void Synchronize()
+    {
+        vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT_MAX);
+        vkResetFences(m_Device, 1, &m_Fence);
     }
 
 private:

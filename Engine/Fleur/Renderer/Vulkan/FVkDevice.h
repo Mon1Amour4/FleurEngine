@@ -1,8 +1,13 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+
+#include <list>
 #include <string>
 #include <vector>
+
+#include "FVkBuffer.h"
+#include "FVkCommand.h"
 
 struct SQueueFamily
 {
@@ -25,7 +30,6 @@ struct SDeviceInfo
     bool presentationSupport;
     VkSurfaceKHR surface;
     std::vector<const char*> requiredDeviceExtensions;
-
 };
 
 class FVkDevice
@@ -37,6 +41,12 @@ public:
     VkDevice CreateLogicalDevice(std::vector<const char*>& deivceExtensions);
 
     [[nodiscard]] static FVkDevice* CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo);
+
+    FVkSingleTimeCommandBuffer* CreateFrameCommandBuffer(VkCommandPool commandPool);
+    [[nodiscard]] inline FVkSingleTimeCommandBuffer* GetFrameCommandBuffer()
+    {
+        return m_FrameCommandBuffer;
+    }
 
     inline VkDevice GetLogicalDevice()
     {
@@ -71,4 +81,8 @@ private:
 
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
+
+    FVkSingleTimeCommandBuffer* m_FrameCommandBuffer;
+
+    std::list<FVkBuffer> m_StagingBuffers;
 };

@@ -183,12 +183,6 @@ FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkComman
     allocInfo.commandBufferCount = 1;
 
     vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer);
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
 }
 
 FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
@@ -305,6 +299,14 @@ void FVkSingleTimeCommandBuffer::GenerateMipMaps(VkPhysicalDevice physicalDevice
     barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
     vkCmdPipelineBarrier(m_CommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+}
+void FVkSingleTimeCommandBuffer::Begin()
+{
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
 }
 void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)
 {
