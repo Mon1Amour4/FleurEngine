@@ -34,7 +34,7 @@ class Skybox
     //         return static_cast<uint32_t>(m_Vertices.size());
     //     };
     //
-    //     const float* Data() const
+    //     const float* GetData() const
     //     {
     //         return m_Vertices.data();
     //     }

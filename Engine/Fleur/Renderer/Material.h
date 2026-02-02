@@ -38,7 +38,7 @@ struct Material
 //     }
 //     virtual ~Material() = default;
 //
-//     inline std::string_view Name() const
+//     inline std::string_view GetName() const
 //     {
 //         return m_Name;
 //     }

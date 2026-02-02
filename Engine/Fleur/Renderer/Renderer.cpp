@@ -54,7 +54,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
     // }
 
     // auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
-    // return m_Textures.emplace(image->Name(), texture).first->second;
+    // return m_Textures.emplace(image->GetName(), texture).first->second;
     return std::shared_ptr<Fleur::Graphics::Texture>();
 }
 
@@ -78,7 +78,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
     //     image = assetsManager->LoadImage2DFromColor(name, color, width, height)->Resource();
 
     // auto texture = m_Toolchain->LoadTexture(image, m_Device.get());
-    // return m_Textures.emplace(image->Name(), texture).first->second;
+    // return m_Textures.emplace(image->GetName(), texture).first->second;
 }
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img)
@@ -86,13 +86,13 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
     if (!img)
         return GetLoadedTexture("fallback");
 
-    std::string name = std::filesystem::path(img->Name()).stem().string();
+    std::string name = std::filesystem::path(img->GetName()).stem().string();
     auto it = m_Textures.find(name);
     if (it != m_Textures.end())
         return it->second;
 
     auto texture = m_Toolchain->LoadTexture(img, m_Device.get());
-    return m_Textures.emplace(img->Name(), texture).first->second;
+    return m_Textures.emplace(img->GetName(), texture).first->second;
 }
 
 void Fleur::Graphics::Renderer::OnInit()
@@ -277,14 +277,14 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
     for (size_t i = 0; i < model->GetMeshCount(); i++)
     {
         const auto& mesh = model->GetMeshData() + i;
-        for (size_t i = 0; i < mesh->PrimitivesCount(); i++)
+        for (size_t i = 0; i < mesh->GetPrimitivesCount(); i++)
         {
-            const auto& primitive = mesh->Primitives() + i;
+            const auto& primitive = mesh->GetPrimitives() + i;
 
             auto& meshView = meshes.emplace_back();
-            meshView.indexCount = primitive->IndexCount();
-            meshView.vertexCount = primitive->VertexCount();
-            meshView.materialIdx = primitive->MaterialIdx();
+            meshView.indexCount = primitive->GetIndexCount();
+            meshView.vertexCount = primitive->GetVertexCount();
+            meshView.materialIdx = primitive->GetMaterialIdx();
         }
     }
     modelView.meshes.pData = meshes.data();
@@ -448,7 +448,7 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
 
     //        Fleur::Memory::FleurAllocator<Skybox> alloc;
     //        m_Skybox.reset(alloc.construct_at(cubemapTexture, std::span{skyboxVertices}));
-    //        m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->Data(), m_Skybox->GetVertexCount()));
+    //        m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->GetData(), m_Skybox->GetVertexCount()));
     //        isSkyboxCreated = true;
     //    }
     //}
@@ -488,16 +488,16 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
     //    uint32_t indexInnerOffsetBytes = 0;
     //    for (const auto& mesh : *meshes)
     //    {
-    //        m_GizmoCmd->PushDebugGroup(0, mesh.Name().data());
-    //        for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
+    //        m_GizmoCmd->PushDebugGroup(0, mesh.GetName().data());
+    //        for (uint32_t i = 0; i < mesh.GetPrimitivesCount(); i++)
     //        {
     //            m_GizmoCmd->PushDebugGroup(0, "Primitive");
-    //            auto primitive = mesh.Primitives() + i;
-    //            m_GizmoCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
-    //            m_GizmoCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
+    //            auto primitive = mesh.GetPrimitives() + i;
+    //            m_GizmoCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->GetMaterialIdx()));
+    //            m_GizmoCmd->IndexedDraw(primitive->GetIndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
     //                                    static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
 
-    //            indexInnerOffsetBytes += primitive->IndexSize();
+    //            indexInnerOffsetBytes += primitive->GetIndexSize();
     //            m_GizmoCmd->PopDebugGroup();
     //        }
 
@@ -600,15 +600,15 @@ void Fleur::Graphics::Renderer::StaticGeometryPass() const
         uint32_t indexInnerOffsetBytes = 0;
         for (const auto& mesh : *meshes)
         {
-            for (uint32_t i = 0; i < mesh.PrimitivesCount(); i++)
+            for (uint32_t i = 0; i < mesh.GetPrimitivesCount(); i++)
             {
-                const auto primitive = mesh.Primitives() + i;
-                m_StaticGeometryCmd->PushDebugGroup(0, mesh.Name().data());
-                m_StaticGeometryCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->MaterialIdx()));
-                m_StaticGeometryCmd->IndexedDraw(primitive->IndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
+                const auto primitive = mesh.GetPrimitives() + i;
+                m_StaticGeometryCmd->PushDebugGroup(0, mesh.GetName().data());
+                m_StaticGeometryCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->GetMaterialIdx()));
+                m_StaticGeometryCmd->IndexedDraw(primitive->GetIndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
                                                  static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
 
-                indexInnerOffsetBytes += primitive->IndexSize();
+                indexInnerOffsetBytes += primitive->GetIndexSize();
                 m_StaticGeometryCmd->PopDebugGroup();
             }
         }

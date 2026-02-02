@@ -119,8 +119,8 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
             Model::Mesh::Primitive& meshPrimitive =
                 modelMesh.m_Primitives.emplace_back(process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx));
 
-            modelMesh.m_MeshVertexCount += meshPrimitive.VertexCount();
-            modelMesh.m_MeshIndicesCount += meshPrimitive.IndexCount();
+            modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
+            modelMesh.m_MeshIndicesCount += meshPrimitive.GetIndexCount();
         }
         modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
         modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());

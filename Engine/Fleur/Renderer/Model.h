@@ -29,43 +29,43 @@ public:
             Primitive();
             ~Primitive() = default;
 
-            inline uint32_t VertexCount() const
+            inline uint32_t GetVertexCount() const
             {
                 return m_PrimitiveVertexCount;
             }
-            inline uint32_t IndexCount() const
+            inline uint32_t GetIndexCount() const
             {
                 return m_PrimitiveIndicesCount;
             }
 
-            inline uint32_t VertexStart() const
+            inline uint32_t GetVertexStart() const
             {
                 return m_PrimitiveVertexStart;
             }
-            inline uint32_t VertexEnd() const
+            inline uint32_t GetVertexEnd() const
             {
                 return m_PrimitiveVertexEnd;
             }
 
-            inline uint32_t IndexStart() const
+            inline uint32_t GetIndexStart() const
             {
                 return m_PrimitiveIndexStart;
             }
-            inline uint32_t IndexEnd() const
+            inline uint32_t GetIndexEnd() const
             {
                 return m_PrimitiveIndexEnd;
             }
 
-            [[nodiscard]] inline uint32_t VertexSize() const
+            [[nodiscard]] inline uint32_t GetVertexSize() const
             {
                 return m_PrimitiveVertexCount * sizeof(float);
             }
-            [[nodiscard]] inline uint32_t IndexSize() const
+            [[nodiscard]] inline uint32_t GetIndexSize() const
             {
                 return m_PrimitiveIndicesCount * sizeof(uint32_t);
             }
 
-            [[nodiscard]] inline uint32_t MaterialIdx() const
+            [[nodiscard]] inline uint32_t GetMaterialIdx() const
             {
                 return m_MatIdx;
             }
@@ -95,18 +95,18 @@ public:
 
         Mesh(Mesh&& other) noexcept;
 
-        inline std::string_view Name() const
+        inline std::string_view GetName() const
         {
             return m_MeshName;
         }
 
-        inline const Primitive* Primitives() const
+        inline const Primitive* GetPrimitives() const
         {
             if (m_Primitives.size() == 0)
                 return nullptr;
             return &m_Primitives[0];
         }
-        inline uint32_t PrimitivesCount() const
+        inline uint32_t GetPrimitivesCount() const
         {
             return static_cast<uint32_t>(m_Primitives.size());
         }
@@ -132,7 +132,7 @@ public:
     Model(Model&& other) noexcept;
     Model& operator=(Model&& other) noexcept;
 
-    inline std::string_view Name() const
+    inline std::string_view GetName() const
     {
         return m_Name;
     }

@@ -126,7 +126,7 @@ public:
         }
         if (auto object = map.find(id); object != map.end())
         {
-            std::string name = object->second.Name().data();
+            std::string name = object->second.GetName().data();
             map.erase(id);
             stringMap.erase(name);
         }
@@ -136,7 +136,7 @@ public:
         std::lock_guard<std::mutex> lc(mutex);
         if (auto record = map.find(id); record != map.end())
         {
-            std::string name = record->second.Name().data();
+            std::string name = record->second.GetName().data();
             asyncMap.erase(id);
             stringMap.erase(name);
             map.erase(id);

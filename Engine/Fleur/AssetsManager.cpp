@@ -131,7 +131,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            std::filesystem::path fullPath = imagePtr->Name();
+            std::filesystem::path fullPath = imagePtr->GetName();
 
             auto res = fs->GetFullPathToFile(fullPath.string());
             if (!res)
@@ -163,7 +163,8 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
 
             stbi_image_free(imgData);
 
-            FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+            FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->GetName(), imagePtr->GetWidth(),
+                         imagePtr->GetHeight());
 
             handle->status.SetStatus(ELoadingSts::SUCCESS);
             callback.result.loadingStatus = handle->status.GetStatus();
@@ -207,7 +208,7 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::Asse
     Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
     imagePtr->PostCreate(settings);
 
-    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->Name(), imagePtr->Width(), imagePtr->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->GetName(), imagePtr->GetWidth(), imagePtr->GetHeight());
 
     stbi_image_free(imgData);
 
@@ -250,8 +251,8 @@ ImageAsset Fleur::AssetsManager::FromColor(std::string_view name, Fleur::Graphic
     m_ImagesToUpload.Add(imageView);
 
 
-    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
-                 image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->GetName(), image2dAsset.obj->GetWidth(),
+                 image2dAsset.obj->GetHeight());
 
     return image2dAsset;
 }
@@ -284,10 +285,43 @@ ImageAsset Fleur::AssetsManager::LoadImageFromMemory(std::string_view name, unsi
     imageView.ID = id;
     m_ImagesToUpload.Add(imageView);
 
-    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->Name(), image2dAsset.obj->Width(),
-                 image2dAsset.obj->Height());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", id, image2dAsset.obj->GetName(), image2dAsset.obj->GetWidth(),
+                 image2dAsset.obj->GetHeight());
 
     return image2dAsset;
+}
+Fleur::Graphics::Image2D* Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path)
+{
+    Fleur::Graphics::Image2D* image2d = nullptr;
+
+    std::string fileName = std::filesystem::path(path).filename().string();
+
+    auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+
+    auto res = fs->GetFullPathToFile(path);
+    if (!res)
+        return image2d;
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    uint32_t desiredChannels = 4;
+
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
+    unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (!imgData)
+    {
+        FL_CORE_ERROR("Can't load an image: {0} {1}", fileName, stbi_failure_reason());
+        return image2d;
+    }
+
+    image2d = new Fleur::Graphics::Image2D();
+    Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+    image2d->PostCreate(settings);
+
+    stbi_image_free(imgData);
+
+    return image2d;
 }
 
 
@@ -331,7 +365,7 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::Asse
 
     cgltf_free(data);
 
-    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->Name());
+    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
 
     return modelAsset;
 }
@@ -373,7 +407,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
-            std::filesystem::path fullPath = modelPtr->Name();
+            std::filesystem::path fullPath = modelPtr->GetName();
 
             auto res = fs->GetFullPathToFile(path);
             if (!res)
@@ -404,7 +438,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
                 return;
             }
 
-            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->Name(), data);
+            Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->GetName(), data);
             // fabric.load
             Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
             modelPtr->PostCreate(createInfo);
@@ -413,7 +447,7 @@ ModelAsyncOpShared Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path
 
             cgltf_free(data);  // move to release
 
-            FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->Name());
+            FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", handle->asset.ID, modelPtr->GetName());
 
             handle->status.SetStatus(ELoadingSts::SUCCESS);
 

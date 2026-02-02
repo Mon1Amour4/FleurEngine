@@ -28,7 +28,7 @@ public:
     std::shared_ptr<Fleur::Graphics::Texture> LoadTexture(std::shared_ptr<Fleur::Graphics::Image2D> img, const Fleur::Graphics::Device* device) override
     {
         std::lock_guard<std::mutex> lock(m_Mutex);
-        return m_Pairs.emplace_back(std::make_pair(img, device->CreateTexture(img->Name()))).second;
+        return m_Pairs.emplace_back(std::make_pair(img, device->CreateTexture(img->GetName()))).second;
     }
 
     void Update() override
@@ -38,7 +38,7 @@ public:
         {
             if (it->first->IsValid())
             {
-                Fleur::Graphics::ImagePostCreation settings{it->first->Width(), it->first->Height(), it->first->Channels(), it->first->Depth(),
+                Fleur::Graphics::ImagePostCreation settings{it->first->GetWidth(), it->first->GetHeight(), it->first->GetChannelsCount(), it->first->GetDepth(),
                                                             it->first->Data()};
                 it->second->PostCreate(settings);
                 it = m_Pairs.erase(it);

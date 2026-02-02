@@ -335,7 +335,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
 
 // CubemapImage:
 Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::array<Image2D, 6>&& IN inFaces)
-    : ImageBase(name, inFaces[0].Width(), inFaces[0].Width(), inFaces[0].Channels(), inFaces[0].Depth(), 6)
+    : ImageBase(name, inFaces[0].GetWidth(), inFaces[0].GetWidth(), inFaces[0].GetChannelsCount(), inFaces[0].GetDepth(), 6)
 
 {
     m_Faces = std::move(inFaces);
@@ -379,7 +379,7 @@ const Fleur::Graphics::Image2D& Fleur::Graphics::CubemapImage::GetFace(EFace fac
     }
 }
 
-const Fleur::Graphics::Image2D* Fleur::Graphics::CubemapImage::Data() const
+const Fleur::Graphics::Image2D* Fleur::Graphics::CubemapImage::GetData() const
 {
     return reinterpret_cast<const Image2D*>(m_Faces.data());
 }
@@ -397,7 +397,7 @@ void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
          faces[i] = Image2D(name, extension, std::move(bitmap), settings.width, settings.height, settings.channels, settings.depth);
      }
 
-     memcpy_s(bitmap.Data(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);*/
+     memcpy_s(bitmap.GetData(), bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);*/
 
     m_IsCreated = true;
 }

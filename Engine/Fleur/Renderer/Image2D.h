@@ -29,34 +29,34 @@ public:
     ImageBase(ImageBase&& other) noexcept;
     ImageBase& operator=(ImageBase&& other) noexcept;
 
-    std::string_view Name() const
+    std::string_view GetName() const
     {
         return m_Name;
     }
-    virtual uint32_t Width() const
+    virtual uint32_t GetWidth() const
     {
         return m_Width;
     }
-    virtual uint32_t Height() const
+    virtual uint32_t GetHeight() const
     {
         return m_Height;
     }
 
-    uint16_t Channels() const
+    uint16_t GetChannelsCount() const
     {
         return m_Channels;
     }
-    uint16_t Depth() const
+    uint16_t GetDepth() const
     {
         return m_Depth;
     }
 
-    uint16_t Layers() const
+    uint16_t GetLayersCount() const
     {
         return m_Layers;
     }
 
-    [[nodiscard]] size_t SizeBytes() const
+    [[nodiscard]] size_t GetSizeBytes() const
     {
         return m_SizeBytes;
     }
@@ -143,8 +143,9 @@ public:
         Back = 5     // -Z
     };
 
-    CubemapImage(std::string_view name, std::array<Image2D, 6>&& faces);
+    CubemapImage() = default;
     CubemapImage(std::string_view name);
+    CubemapImage(std::string_view name, std::array<Image2D, 6>&& faces);
 
     CubemapImage& operator=(const Image2D& other) = delete;
     CubemapImage(const CubemapImage& other) = delete;
@@ -154,9 +155,11 @@ public:
 
     const Fleur::Graphics::Image2D& GetFace(EFace face) const;
 
-    const Image2D* Data() const;
+    const Image2D* GetData() const;
 
     virtual void PostCreate(ImagePostCreation& settings) override;
+
+    Fleur::Graphics::SFLImageView GetView() const;
 
 private:
     std::array<Image2D, 6> m_Faces;
