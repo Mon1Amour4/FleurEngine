@@ -292,7 +292,7 @@ public:
 
                 CubemapAsset asset = m_CubemapCache.Register(&cubemap, m_GlobalId++);
 
-                Fleur::Graphics::SFLImageView imageView = cubemap.GetView();
+                Fleur::Graphics::SFLImageView imageView = asset.obj->GetView();
                 imageView.ID = asset.ID;
                 m_ImagesToUpload.Add(imageView);
 

@@ -720,9 +720,11 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
         auto imageView = pInfo->pData + i;
         auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
 
-        uint32_t mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
-        CreateTexture(gpuTexture, imageView->pData, imageView->w, imageView->h, imageView->channels, GetVkFormat(imageView->channels),
-                      VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
+        uint32_t mimMapLevel = 1;
+        if (imageView->layerCount == 1)
+            uint32_t mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
+
+        CreateTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
         for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
         {
@@ -820,7 +822,7 @@ void vulkanBackend::vulkanBackendImpl::CreateFallbackTexture(Fleur::Graphics::SF
     VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
 
     m_FallbackTexture = new FVkTexture();
-    CreateTexture(*m_FallbackTexture, view.pData, view.w, view.h, view.channels, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    CreateTexture(*m_FallbackTexture, view, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_FallbackTextureIdx = view.ID;
 }
 
@@ -993,8 +995,8 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 }
 
-void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels,
-                                                     VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
+void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect,
+                                                     uint32_t mipLevels)
 {
     if (mipLevels == 0)
         mipLevels = 1;
@@ -1002,8 +1004,8 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = width;
-    imageInfo.extent.height = height;
+    imageInfo.extent.width = view.w;
+    imageInfo.extent.height = view.h;
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = mipLevels;
     imageInfo.arrayLayers = 1;
@@ -1021,21 +1023,21 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, const 
 
     VkImage vkImage = texture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
 
-    VkDeviceSize bufferImageSize = width * height * GetChannelsNumFromFormat(format);
-    VkDeviceSize mapImageSize = width * height * channels;
+    VkDeviceSize bufferImageSize = view.w * view.h * GetChannelsNumFromFormat(format);
+    VkDeviceSize mapImageSize = view.w * view.h * view.channels;
 
     FVkBuffer stagingBuffer{};
     stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
 
-    stagingBuffer.MemCopy(pData, static_cast<size_t>(mapImageSize));
+    stagingBuffer.MemCopy(view.pData, static_cast<size_t>(mapImageSize));
 
     FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
     frameCmd->Begin();
     frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
-    frameCmd->CopyBufferToImage(stagingBuffer.Buffer(), vkImage, width, height);
+    frameCmd->CopyBufferToImage(stagingBuffer.Buffer(), vkImage, view.w, view.h);
     if (mipLevels > 1)
     {
-        frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, width, height, mipLevels);
+        frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);
     }
     else
     {
