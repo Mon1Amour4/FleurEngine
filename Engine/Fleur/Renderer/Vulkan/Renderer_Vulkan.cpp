@@ -722,7 +722,7 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
 
         uint32_t mimMapLevel = 1;
         if (imageView->layerCount == 1)
-            uint32_t mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
+            mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
 
         CreateTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
