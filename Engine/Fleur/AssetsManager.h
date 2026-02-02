@@ -9,8 +9,51 @@
 #include "Renderer/Shader.h"
 #include "Services/ServiceInterfaces.hpp"
 
+using ImageType = Fleur::Graphics::Image2D;
+using ShaderType = Fleur::Graphics::Shader;
+using ModelType = Fleur::Graphics::Model;
+using CubemapType = Fleur::Graphics::CubemapImage;
+
+using ImageRecord = Fleur::AssetRecord<Fleur::Graphics::Image2D>;
+using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
+using CubemapRecord = Fleur::AssetRecord<Fleur::Graphics::CubemapImage>;
+
+using ImageAsset = Fleur::Asset<ImageType>;
+using ModelAsset = Fleur::Asset<ModelType>;
+using CubemapAsset = Fleur::Asset<CubemapType>;
+
+using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
+using ModelAsyncOp = Fleur::AsyncOperation<ModelType>;
+
+using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
+using ModelAsyncOpShared = std::shared_ptr<ModelAsyncOp>;
+
 namespace Fleur
 {
+enum class ImageSettingsType
+{
+    Image2D,
+    Cubemap
+};
+enum class ImageSourceLayout
+{
+    Image2D,
+    Equirectangular,
+    Cross
+};
+
+enum class DynamicRange
+{
+    LDR,
+    HDR
+};
+
+struct ImageImportSettings
+{
+    ImageSettingsType type;
+    ImageSourceLayout sourceLayout;
+    DynamicRange range;
+};
 
 class AssetsManager;
 
@@ -52,7 +95,22 @@ class AssetCache
     using TAsyncOpShared = std::shared_ptr<TAsyncOp>;
 
 public:
-    Fleur::Asset<T> Load(std::string_view path, AssetID id) {};
+    Fleur::Asset<T> LoadAndRegister(std::string_view path, AssetID id) {};
+    Fleur::Asset<T> Register(T* obj, AssetID id)
+    {
+        std::lock_guard<std::mutex> lc(mutex);
+
+        TRecord record = Exist(obj->GetName());
+        if (record.alreadyExist)
+            return record.asset;
+
+        stringMap.emplace(obj->GetName(), id);
+        T* ptr = &map.emplace(id, std::move(*obj)).first->second;
+        m_size++;
+
+        return {id, ptr};
+    };
+    T* Load(std::string_view path) {};
     std::shared_ptr<AsyncOperation<T>> LoadAsync(std::string_view path, AssetID id, AssetLoadCallback callback) {};
     AssetRecord<T> Add(std::string_view name, AssetID id)
     {
@@ -197,18 +255,52 @@ public:
         if (path.empty())
             return Asset<T>{0, nullptr};
 
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
+        {
+            return m_ModelCache.Load(path, m_GlobalId++);
+        }
+    }
+
+    template <typename T>
+    Asset<T> LLoadImage(std::string_view path, const ImageImportSettings& settings)
+    {
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
-            Asset<T> asset = m_Image2DCache.Load(path, m_GlobalId++);
+            ImageAsset asset = m_Image2DCache.LoadAndRegister(path, m_GlobalId++);
 
             Fleur::Graphics::SFLImageView imageView = asset.obj->GetView();
             imageView.ID = asset.ID;
-            AddImageToUpload(imageView);
+            m_ImagesToUpload.Add(imageView);
 
             return asset;
         }
-        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
-            return m_ModelCache.Load(path, m_GlobalId++);
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
+        {
+            if (settings.sourceLayout == ImageSourceLayout::Image2D)
+            {
+                assert(false);
+            }
+            else
+            {
+                Fleur::Graphics::Image2D* image2d = m_Image2DCache.Load(path);
+
+                Fleur::Graphics::CubemapImage cubemap;
+                if (settings.sourceLayout == ImageSourceLayout::Equirectangular)
+                    cubemap = image2d->FromEquirectangularToCross().FromCrossToCubemap();
+                else
+                    cubemap = image2d->FromCrossToCubemap();
+
+                CubemapAsset asset = m_CubemapCache.Register(&cubemap, m_GlobalId++);
+
+                Fleur::Graphics::SFLImageView imageView = cubemap.GetView();
+                imageView.ID = asset.ID;
+                m_ImagesToUpload.Add(imageView);
+
+                delete image2d;
+
+                return asset;
+            }
+        }
     }
 
     Asset<Fleur::Graphics::Image2D> FromColor(std::string_view name, Fleur::Graphics::Color color);
@@ -301,6 +393,7 @@ private:
 
     Fleur::AssetCache<Fleur::Graphics::Image2D> m_Image2DCache;
     Fleur::AssetCache<Fleur::Graphics::Model> m_ModelCache;
+    Fleur::AssetCache<Fleur::Graphics::CubemapImage> m_CubemapCache;
 
 
     struct ImagesUpload
@@ -331,14 +424,16 @@ private:
 };
 
 template <>
-Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path, AssetID id);
+Fleur::Asset<Fleur::Graphics::Image2D> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAndRegister(std::string_view path, AssetID id);
 template <>
 std::shared_ptr<AsyncOperation<Fleur::Graphics::Image2D>> Fleur::AssetCache<Fleur::Graphics::Image2D>::LoadAsync(std::string_view path, AssetID id,
                                                                                                                  AssetLoadCallback callback);
 template <>
-Fleur::Asset<Fleur::Graphics::Model> Fleur::AssetCache<Fleur::Graphics::Model>::Load(std::string_view path, AssetID id);
+Fleur::Asset<Fleur::Graphics::Model> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAndRegister(std::string_view path, AssetID id);
 template <>
 std::shared_ptr<AsyncOperation<Fleur::Graphics::Model>> Fleur::AssetCache<Fleur::Graphics::Model>::LoadAsync(std::string_view path, AssetID id,
                                                                                                              AssetLoadCallback callback);
+template <>
+Fleur::Graphics::Image2D* Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std::string_view path);
 
 }  // namespace Fleur

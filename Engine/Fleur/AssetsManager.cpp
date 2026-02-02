@@ -22,22 +22,6 @@
 #include "FileSystem/FileSystem.h"
 #include "Services/ServiceLocator.h"
 
-using ImageType = Fleur::Graphics::Image2D;
-using ShaderType = Fleur::Graphics::Shader;
-using ModelType = Fleur::Graphics::Model;
-
-using ImageRecord = Fleur::AssetRecord<Fleur::Graphics::Image2D>;
-using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
-
-using ImageAsset = Fleur::Asset<ImageType>;
-using ModelAsset = Fleur::Asset<ModelType>;
-
-using ImageAsyncOp = Fleur::AsyncOperation<ImageType>;
-using ModelAsyncOp = Fleur::AsyncOperation<ModelType>;
-
-using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
-using ModelAsyncOpShared = std::shared_ptr<ModelAsyncOp>;
-
 Fleur::AssetsManager::AssetsManager()
 {
 }
@@ -175,7 +159,7 @@ ImageAsyncOpShared Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path
     return asyncOperation;
 }
 
-ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, Fleur::AssetID id)
+ImageAsset Fleur::AssetCache<ImageType>::LoadAndRegister(std::string_view path, Fleur::AssetID id)
 {
     std::string fileName = std::filesystem::path(path).filename().string();
 
@@ -327,7 +311,7 @@ Fleur::Graphics::Image2D* Fleur::AssetCache<Fleur::Graphics::Image2D>::Load(std:
 
 //======================================================================
 // Model
-ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, Fleur::AssetID id)
+ModelAsset Fleur::AssetCache<ModelType>::LoadAndRegister(std::string_view path, Fleur::AssetID id)
 {
     if (path.empty())
         return ModelAsset{0, nullptr};
