@@ -56,8 +56,8 @@ SET(ENGINE_HEADERS
     Fleur/Ecs/EntityId.h
     Fleur/Ecs/Entity.h
     Fleur/Ecs/EntityManager.h
-    Fleur/Ecs/SimpleComponent.h
-    Fleur/Ecs/SimpleComponent.hpp
+    Fleur/Ecs/Component.h
+    Fleur/Ecs/Component.hpp
 )
 
 SET(ENGINE_SOURCES
