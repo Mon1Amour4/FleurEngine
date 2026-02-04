@@ -11,11 +11,11 @@ class CubemapImage;
 
 struct ImagePostCreation
 {
-    uint32_t width;
-    uint32_t height;
-    uint16_t channels;
-    uint16_t depth;
-    const void* data;
+    uint32_t width{};
+    uint32_t height{};
+    uint16_t channels{};
+    uint16_t depth{};
+    const void* data{};
 };
 
 class ImageBase

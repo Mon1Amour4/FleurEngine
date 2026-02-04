@@ -126,9 +126,9 @@ public:
         if (record.alreadyExist)
             return record.asset;
 
-        return Load(path, record, settings);
+        return Load(path, TAsset(id, record.asset.obj), settings);
     };
-    TAsset Load(std::string_view path, TRecord tRecord, ResourceImportSettings settings) {};
+    TAsset Load(std::string_view path, TAsset tAsset, ResourceImportSettings settings) {};
     TRecord Register(std::string_view path, AssetID id)
     {
         std::lock_guard<std::mutex> lc(mutex);
@@ -332,7 +332,6 @@ public:
 
         return Asset<T>({0, nullptr});
     }
-
     template <typename T>
     Asset<T> Get(AssetID id)
     {
@@ -368,7 +367,6 @@ public:
             return m_ModelCache.Release(name);
         }
     }
-
     template <typename T>
     void Release(AssetID id)
     {
@@ -430,11 +428,10 @@ private:
 };
 
 template <>
-ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageRecord imageRecord, ResourceImportSettings settings);
+ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageAsset imageAsset, ResourceImportSettings settings);
 template <>
-ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelRecord modelRecord, ResourceImportSettings settings);
-template <>
-CubemapAsset Fleur::AssetCache<CubemapType>::Load(std::string_view path, CubemapRecord modelRecord, ResourceImportSettings settings);
+ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelAsset modelAsset, ResourceImportSettings settings);
+
 template <>
 void Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, ImageAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id,
                                              AssetLoadCallback callback);

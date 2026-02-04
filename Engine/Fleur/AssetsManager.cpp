@@ -175,13 +175,26 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 {
     Fleur::ResourceImportSettings settings{};
     settings.cubemapSettings = cubemapSettings;
-    CubemapAsset cubemapAsset = m_CubemapCache.LoadAndRegister(path, settings, GetNextID());
+    settings.imageImportSettings.imageSource = IMAGE_SOURCE_DISK;
 
-    Fleur::Graphics::SFLImageView imageView = cubemapAsset.obj->GetView();
-    imageView.ID = cubemapAsset.ID;
-    m_ImagesToUpload.Add(imageView);
+    Fleur::Graphics::Image2D* tmpImage = new Fleur::Graphics::Image2D();
+    ImageAsset image2dAsset = m_Image2DCache.Load(path, ImageAsset(GetNextID(), tmpImage), settings);
 
-    return cubemapAsset;
+    if (settings.cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
+    {
+        Fleur::Graphics::CubemapImage cubemap = tmpImage->FromEquirectangularToCross().FromCrossToCubemap();
+
+        CubemapRecord cubemapRecord = m_CubemapCache.Register(tmpImage->GetName(), image2dAsset.ID);
+
+        *cubemapRecord.asset.obj = std::move(cubemap);
+
+        Fleur::Graphics::SFLImageView imageView = cubemapRecord.asset.obj->GetView();
+        imageView.ID = image2dAsset.ID;
+        m_ImagesToUpload.Add(imageView);
+
+        delete tmpImage;
+        return cubemapRecord.asset;
+    }
 }
 
 
@@ -205,10 +218,9 @@ CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view pat
 
 
 // ---------- AssetCache ----------
-ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelRecord modelRecord, ResourceImportSettings importSettings)
+ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelAsset modelAsset, ResourceImportSettings importSettings)
 {
-    ModelAsset modelAsset = modelRecord.asset;
-    ModelType* modelPtr = modelRecord.asset.obj;
+    ModelType* modelPtr = modelAsset.obj;
     auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
     auto res = fileSystem->GetFullPathToFile(path);
@@ -238,10 +250,10 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelRecord
 
     return modelAsset;
 }
-ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageRecord imageRecord, ResourceImportSettings importSettings)
+template <>
+ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageAsset imageAsset, ResourceImportSettings importSettings)
 {
-    ImageAsset image2dAsset = imageRecord.asset;
-    ImageType* imagePtr = imageRecord.asset.obj;
+    ImageType* imagePtr = imageAsset.obj;
     if (importSettings.imageImportSettings.imageSource == IMAGE_SOURCE_DISK)
     {
         auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
@@ -286,7 +298,7 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageRecord
         }
 
         Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
-        image2dAsset.obj->PostCreate(info);
+        imagePtr->PostCreate(info);
 
         alloc.deallocate(pData, size);
     }
@@ -307,22 +319,18 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageRecord
 
         Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
 
-        image2dAsset.obj->PostCreate(info);
+        imagePtr->PostCreate(info);
     }
     else
     {
         assert(false);
     }
 
-    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) has loaded", image2dAsset.ID, imagePtr->GetName(), imagePtr->GetWidth(),
-                 imagePtr->GetHeight());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) has loaded", imageAsset.ID, imagePtr->GetName(), imagePtr->GetWidth(), imagePtr->GetHeight());
 
-    return image2dAsset;
+    return imageAsset;
 }
-CubemapAsset Fleur::AssetCache<CubemapType>::Load(std::string_view path, CubemapRecord imageRecord, ResourceImportSettings importSettings)
-{
-    return CubemapAsset{};
-}
+
 
 void Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, ModelAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id,
                                              AssetLoadCallback callback)
