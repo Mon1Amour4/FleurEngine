@@ -28,7 +28,7 @@ public:
     {
         return m_StrideSizeBytes;
     }
-    inline VkBuffer& Buffer()
+    inline VkBuffer& GetBuffer()
     {
         return m_VkBuffer;
     }

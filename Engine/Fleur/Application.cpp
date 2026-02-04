@@ -207,12 +207,14 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
-    assetsManager.value()->FromColor("Fallback", Fleur::Graphics::Color(255, 0, 255, 255));
+    assetsManager.value()->LoadImage("Fallback", {
+                                                     .imageSource = IMAGE_SOURCE_COLOR,
+                                                     .color = Fleur::Graphics::Color(255, 0, 255, 255),
+                                                 });
 
-    auto sponzasset = assetsManager->get()->LoadAsync<Fleur::Graphics::Model>("Sponza/Sponza.glb");
+    auto sponzasset = assetsManager->get()->LoadModel("Sponza/Sponza.glb");
 
-    assetsManager->get()->LLoadImage<Fleur::Graphics::CubemapImage>(
-        "skybox.jpg", {.type = ImageSettingsType::Cubemap, .sourceLayout = ImageSourceLayout::Equirectangular, .range = DynamicRange::LDR});
+    assetsManager->get()->LoadCubemap("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE});
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();

@@ -308,6 +308,13 @@ void FVkSingleTimeCommandBuffer::Begin()
 
     vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
 }
+
+void FVkSingleTimeCommandBuffer::Synchronize()
+{
+    vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT_MAX);
+    vkResetFences(m_Device, 1, &m_Fence);
+}
+
 void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)
 {
     vkEndCommandBuffer(m_CommandBuffer);

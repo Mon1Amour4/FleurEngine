@@ -89,6 +89,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                 m_Multisampler->GetSamplesCount());
 
+    m_Skybox = new FVkCubemap();
+
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
@@ -145,6 +147,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
 vulkanBackend::vulkanBackendImpl::~vulkanBackendImpl()
 {
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
+
+    delete m_Skybox;
 
     uint32_t framebuffersCount = m_Swapchain->GetSwapchainFramebuffersCount();
 
@@ -596,7 +600,7 @@ void vulkanBackend::vulkanBackendImpl::createDescriptorSets()
     for (size_t i = 0; i < descriptorSets.size(); i++)
     {
         VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_UniformBuffers[i].Buffer();
+        bufferInfo.buffer = m_UniformBuffers[i].GetBuffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
@@ -722,19 +726,59 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
 
         uint32_t mimMapLevel = 1;
         if (imageView->layerCount == 1)
+        {
             mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
 
-        CreateTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
+            CreateTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
-        for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
-        {
-            if (i == currentFrame)
+            for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
             {
-                UpdateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
-                continue;
-            }
+                if (i == currentFrame)
+                {
+                    UpdateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
+                    continue;
+                }
 
-            m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
+                m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
+            }
+        }
+        else if (imageView->layerCount == SKYBOX_LAYERS_COUNT)
+        {
+            VkFormat format = GetVkFormat(imageView->channels);
+            uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
+
+            VkImageCreateInfo imageInfo{};
+            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+            imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.extent.width = imageView->w;
+            imageInfo.extent.height = imageView->h;
+            imageInfo.extent.depth = 1;
+            imageInfo.mipLevels = 1;
+            imageInfo.arrayLayers = imageView->layerCount;
+            imageInfo.format = format;
+            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+            FVkBuffer stagingBuffer{};
+            stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, layerSize, layerSize);
+            for (size_t i = 0; i < SKYBOX_LAYERS_COUNT; i++)
+            {
+                VkImage face = m_Skybox->GetFaceTexture(i).CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
+                                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+                FVkSingleTimeCommandBuffer* cmd = m_Device->GetFrameCommandBuffer();
+                cmd->Begin();
+                cmd->TransitionImageLayout(face, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                           mimMapLevel);
+                stagingBuffer.MemCopy(imageView->pData, layerSize);
+                cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), face, imageView->w, imageView->h);
+                cmd->TransitionImageLayout(face, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                           VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
+                cmd->Submit(m_Device->GetGraphicsQueue());
+                cmd->Synchronize();
+            }
         }
     }
 }
@@ -869,11 +913,11 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     scissor.extent = m_Swapchain->GetSwapchainExtent();
     buffer.SetScissors(scissor);
 
-    buffer.BindVertexBuffer(&m_VertexBuffer->Buffer());
+    buffer.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
     if (m_IndexBuffer->StrideBytes() == 4)
-        buffer.BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT32);
+        buffer.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
     else if (m_IndexBuffer->StrideBytes() == 2)
-        buffer.BindIndexBuffer(&m_IndexBuffer->Buffer(), VK_INDEX_TYPE_UINT16);
+        buffer.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
 
     buffer.BindDescriptorSet(m_GeometryPipeline->PipelineLayout(), &descriptorSets[idx]);
 
@@ -1034,7 +1078,7 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur:
     FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
     frameCmd->Begin();
     frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
-    frameCmd->CopyBufferToImage(stagingBuffer.Buffer(), vkImage, view.w, view.h);
+    frameCmd->CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, view.w, view.h);
     if (mipLevels > 1)
     {
         frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);

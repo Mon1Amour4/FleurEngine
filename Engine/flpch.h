@@ -28,4 +28,5 @@
 #elif FLEUR_PLATFORM_WIN
 #define NOMINMAX
 #include <windowsx.h>
+#undef LoadImage
 #endif

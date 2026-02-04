@@ -26,6 +26,7 @@
 #include "FVkBuffer.h"
 #include "FVkCapabilities.h"
 #include "FVkCommand.h"
+#include "FVkCubemap.h"
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
@@ -44,6 +45,7 @@
 #endif
 
 #define VULKAN_VERSION VK_API_VERSION_1_4
+#define SKYBOX_LAYERS_COUNT 6
 
 constexpr uint32_t MAX_TEXTURES = 128;
 
@@ -222,8 +224,7 @@ struct vulkanBackend::vulkanBackendImpl
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
 
-    void CreateTexture(FVkTexture& texture, const char* pData, uint32_t width, uint32_t height, uint32_t channels, VkFormat format, VkImageAspectFlags aspect,
-                       uint32_t mipLevels);
+    void CreateTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
 
     void CreateDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
 
@@ -231,4 +232,6 @@ struct vulkanBackend::vulkanBackendImpl
     void EndResize(Fleur::SRect& rect);
 
     bool m_WindowResizeIsInProgress;
+
+    FVkCubemap* m_Skybox;
 };

@@ -91,11 +91,7 @@ public:
 
     void Begin();
 
-    inline void Synchronize()
-    {
-        vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT_MAX);
-        vkResetFences(m_Device, 1, &m_Fence);
-    }
+    void Synchronize();
 
 private:
     VkDevice m_Device;

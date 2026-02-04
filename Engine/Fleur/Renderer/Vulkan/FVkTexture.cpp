@@ -11,6 +11,7 @@ FVkTexture::FVkTexture()
     , m_Image(nullptr)
     , m_ImageView(nullptr)
     , m_Memory(nullptr)
+    , m_Mipmaps(0)
 {
 }
 
