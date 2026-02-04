@@ -194,12 +194,10 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path)
 
     return m_ModelCache.LoadAndRegisterAsync(path, Fleur::ResourceImportSettings{}, GetNextID(), callback);
 }
-
 ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path)
 {
     return ImageAsyncOpShared();
 }
-
 CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings settings)
 {
     return CubemapAsyncOpShared();
@@ -236,7 +234,7 @@ ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelRecord
 
     cgltf_free(data);
 
-    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) was added", modelAsset.ID, modelPtr->GetName());
+    FL_CORE_INFO("[AssetsManager] Model (ID: {0}, {1}) has loaded", modelAsset.ID, modelPtr->GetName());
 
     return modelAsset;
 }
@@ -316,7 +314,8 @@ ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageRecord
         assert(false);
     }
 
-    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", image2dAsset.ID, imagePtr->GetName(), imagePtr->GetWidth(), imagePtr->GetHeight());
+    FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) has loaded", image2dAsset.ID, imagePtr->GetName(), imagePtr->GetWidth(),
+                 imagePtr->GetHeight());
 
     return image2dAsset;
 }
