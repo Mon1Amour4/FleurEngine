@@ -244,9 +244,10 @@ public:
             return TAsyncOpShared{nullptr};
 
         TAsyncOpShared asyncOperation = RegisterAsync(path, id);
-        if (asyncOperation->status.GetStatus() == ELoadingSts::LOADED)
+        if (asyncOperation->status.GetStatus() == ELoadingSts::LOADED || asyncOperation->status.GetStatus() == ELoadingSts::LOADING)
             return asyncOperation;
 
+        asyncOperation->status.SetStatus(LOADING);
         LoadAsync(path, asyncOperation, settings, id, callback);
 
         return asyncOperation;
@@ -266,11 +267,9 @@ public:
             return existinfAsyncOperation;
 
         T* ptr = &map.emplace(id, name).first->second;
-        asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), TO_BE_LOADED));
         stringMap.emplace(name, id);
         m_size++;
-
-        return std::make_shared<TAsyncOp>(TAsset(id, ptr), ELoadingSts::TO_BE_LOADED);
+        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), TO_BE_LOADED)).first->second;
     };
     void LoadAsync(std::string_view path, TAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id, AssetLoadCallback callback) {};
 

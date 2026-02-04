@@ -173,18 +173,18 @@ ImageAsset Fleur::AssetsManager::LoadImage(std::string_view path, ImageImportSet
 }
 CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImportSettings cubemapSettings)
 {
+    CubemapRecord cubemapRecord = m_CubemapCache.Register(path, GetNextID());
+
     Fleur::ResourceImportSettings settings{};
     settings.cubemapSettings = cubemapSettings;
     settings.imageImportSettings.imageSource = IMAGE_SOURCE_DISK;
 
     Fleur::Graphics::Image2D* tmpImage = new Fleur::Graphics::Image2D();
-    ImageAsset image2dAsset = m_Image2DCache.Load(path, ImageAsset(GetNextID(), tmpImage), settings);
+    ImageAsset image2dAsset = m_Image2DCache.Load(path, ImageAsset(cubemapRecord.asset.ID, tmpImage), settings);
 
     if (settings.cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
     {
         Fleur::Graphics::CubemapImage cubemap = tmpImage->FromEquirectangularToCross().FromCrossToCubemap();
-
-        CubemapRecord cubemapRecord = m_CubemapCache.Register(tmpImage->GetName(), image2dAsset.ID);
 
         *cubemapRecord.asset.obj = std::move(cubemap);
 
@@ -209,11 +209,57 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path)
 }
 ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path)
 {
-    return ImageAsyncOpShared();
+    AssetLoadCallback callback{};
+    callback.manager = this;
+    callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+
+    return m_Image2DCache.LoadAndRegisterAsync(path, Fleur::ResourceImportSettings{}, GetNextID(), callback);
 }
-CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings settings)
+CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings)
 {
-    return CubemapAsyncOpShared();
+    CubemapAsyncOpShared asyncOperation = m_CubemapCache.RegisterAsync(path, GetNextID());
+    if (asyncOperation->status.GetStatus() != TO_BE_LOADED)
+        return asyncOperation;
+
+    asyncOperation->status.SetStatus(LOADING);
+
+    auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+
+    Fleur::ResourceImportSettings settings{};
+    settings.cubemapSettings = cubemapSettings;
+    threadPool->Submit(
+        [this](std::string_view path, CubemapAsyncOpShared asyncOperation, Fleur::ResourceImportSettings settings)
+        {
+            Fleur::ResourceImportSettings image2dSettings{};
+            image2dSettings.imageImportSettings.imageSource = IMAGE_SOURCE_DISK;
+
+            AssetLoadCallback callback{};
+            callback.manager = this;
+            callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+
+            Fleur::Graphics::Image2D* image2d = new Fleur::Graphics::Image2D();
+            ImageAsyncOpShared imageAsyncOperation = std::make_shared<ImageAsyncOp>(ImageAsset(asyncOperation->asset.ID, image2d), LOADING);
+            m_Image2DCache.LoadAsync(path, imageAsyncOperation, image2dSettings, asyncOperation->asset.ID, callback);
+            while (imageAsyncOperation->status.GetStatus() != LOADED)
+            {
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            if (settings.cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
+            {
+                Fleur::Graphics::CubemapImage cubemap = imageAsyncOperation->asset.obj->FromEquirectangularToCross().FromCrossToCubemap();
+
+                *asyncOperation->asset.obj = std::move(cubemap);
+
+                Fleur::Graphics::SFLImageView imageView = asyncOperation->asset.obj->GetView();
+                imageView.ID = asyncOperation->asset.ID;
+                m_ImagesToUpload.Add(imageView);
+
+                delete image2d;
+                imageAsyncOperation.reset();
+            }
+        },
+        path, asyncOperation, settings);
 }
 
 
@@ -399,7 +445,7 @@ void Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, ModelAsyncOp
         },
         asyncOperation, path, callback);
 }
-
+template <>
 void Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, ImageAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id,
                                              AssetLoadCallback callback)
 {
