@@ -396,6 +396,8 @@ private:
     void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, AssetLoadCallback& callback);
     void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
                                   CubemapImportSettings& cubemapSettings);
+
+    constexpr static std::string_view CORRUPTED_ASSET_ERROR_MESSAGE = "[AssetsManager] Error occured during asset loading";
 };
 
 }  // namespace Fleur
