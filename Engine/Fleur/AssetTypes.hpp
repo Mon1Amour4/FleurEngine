@@ -10,6 +10,8 @@ using AssetID = uint32_t;
 
 enum EAsyncOperationStatus
 {
+    REGISTERED,
+
     TO_BE_LOADED,
     LOADING,
 

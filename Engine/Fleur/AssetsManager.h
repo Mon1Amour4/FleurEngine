@@ -144,7 +144,7 @@ public:
         T* ptr = &map.emplace(id, name).first->second;
         stringMap.emplace(name, id);
         m_size++;
-        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), TO_BE_LOADED)).first->second;
+        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), REGISTERED)).first->second;
     };
 
     TAsyncOpShared FindExistingAsyncOperation(std::string_view name)

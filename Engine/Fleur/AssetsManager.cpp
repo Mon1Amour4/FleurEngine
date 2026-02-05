@@ -215,6 +215,12 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 // ---------- Async ----------
 ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path)
 {
+    ModelAsyncOpShared sharedOperation = m_ModelCache.RegisterAsync(path, GetNextID());
+    if (sharedOperation->status.GetStatus() != REGISTERED)
+        return sharedOperation;
+
+    sharedOperation->status.SetStatus(TO_BE_LOADED);
+
     AssetLoadCallback callback{};
     callback.manager = this;
     callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
@@ -227,6 +233,12 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path)
 }
 ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings)
 {
+    ImageAsyncOpShared sharedOperation = m_Image2DCache.RegisterAsync(path, GetNextID());
+    if (sharedOperation->status.GetStatus() != REGISTERED)
+        return sharedOperation;
+
+    sharedOperation->status.SetStatus(TO_BE_LOADED);
+
     AssetLoadCallback callback{};
     callback.manager = this;
     callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
@@ -240,10 +252,10 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
 CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings)
 {
     CubemapAsyncOpShared sharedOperation = m_CubemapCache.RegisterAsync(path, GetNextID());
-    if (sharedOperation->status.GetStatus() != TO_BE_LOADED)
+    if (sharedOperation->status.GetStatus() != REGISTERED)
         return sharedOperation;
 
-    sharedOperation->status.SetStatus(LOADING);
+    sharedOperation->status.SetStatus(TO_BE_LOADED);
 
     AssetLoadCallback callback{};
     callback.manager = this;
@@ -526,9 +538,12 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
             }
 
             delete image2d;
+
             callback.result.pResource = asyncOperation->asset.obj;
             callback.result.type = EVENT_TYPE_CUBEMAP_LOADED;
             callback.result.ID = asyncOperation->asset.ID;
+
+            asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADED);
 
             callback.result.loadingStatus = asyncOperation->status.GetStatus();
             callback.operator()();
