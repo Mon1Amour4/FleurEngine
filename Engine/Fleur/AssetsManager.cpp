@@ -241,7 +241,7 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
     callback.manager = this;
     callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadImageAsyncInternal(path, sharedOperation, callback);
+    LoadImageAsyncInternal(path, sharedOperation, imageSettings, callback);
 
     return sharedOperation;
 }
@@ -311,74 +311,15 @@ void Fleur::AssetsManager::LoadImageInternal(std::string_view path, ImageAsset* 
     ImageType* imagePtr = asset->obj;
     if (imageSettings.imageSource == IMAGE_SOURCE_DISK)
     {
-        auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-
-        auto res = fs->GetFullPathToFile(path);
-        if (!res)
-        {
-            FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, asset->ID, imagePtr->GetName());
-            assert(false);
-            return;
-        }
-
-        int width = 0;
-        int height = 0;
-        int channels = 0;
-        uint32_t desiredChannels = 4;
-
-        stbi_set_flip_vertically_on_load_thread(imageSettings.flip);
-        unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
-        if (!imgData)
-        {
-            FL_CORE_ERROR("{0} ID: {1}, Name: {2}, Reason: {3}", CORRUPTED_ASSET_ERROR_MESSAGE, asset->ID, imagePtr->GetName(), stbi_failure_reason());
-            assert(false);
-            return;
-        }
-
-        Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
-        imagePtr->PostCreate(settings);
-
-        stbi_image_free(imgData);
+        LoadImageFromDisk(path, asset, imageSettings);
     }
     else if (imageSettings.imageSource == IMAGE_SOURCE_COLOR)
     {
-        uint32_t width = 1;
-        uint32_t height = 1;
-        uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
-
-        size_t size = width * height * channels;
-
-        uint32_t colorData = imageSettings.color.Data();
-
-        Fleur::Memory::FleurAllocator<unsigned char> alloc;
-        unsigned char* pData = alloc.allocate(size);
-        for (size_t i = 0; i < size; i += channels)
-        {
-            std::memcpy(pData + i, &colorData + i, channels);
-        }
-
-        Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
-        imagePtr->PostCreate(info);
-
-        alloc.deallocate(pData, size);
+        LoadImageFromColor(asset, imageSettings);
     }
     else if (imageSettings.imageSource == IMAGE_SOURCE_MEMORY)
     {
-        assert(imageSettings.pMemoryData);
-        assert(imageSettings.sizeInMemory > 0);
-
-        int width = 0;
-        int height = 0;
-        int channels = 0;
-        int desiredChannels = 4;
-
-        stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
-        unsigned char* imgData =
-            stbi_load_from_memory(imageSettings.pMemoryData, static_cast<int>(imageSettings.sizeInMemory), &width, &height, &channels, STBI_rgb_alpha);
-
-        Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
-
-        imagePtr->PostCreate(info);
+        LoadImageFromMemory(asset, imageSettings);
     }
     else
     {
@@ -462,12 +403,13 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
         },
         sharedOperation, path, callback);
 }
-void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, AssetLoadCallback& callback)
+void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings,
+                                                  AssetLoadCallback& callback)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](std::string_view path, ImageAsyncOpShared handle, bool flipVertical, AssetLoadCallback callback)
+        [this](std::string_view path, ImageAsyncOpShared handle, ImageImportSettings imageSettings, AssetLoadCallback callback)
         {
             ImageType* imagePtr = handle->asset.obj;
 
@@ -487,44 +429,72 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
 
             callback.result.loadingStatus = handle->status.GetStatus();
 
-            auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-
-            std::filesystem::path fullPath = path;
-
-            auto res = fs->GetFullPathToFile(fullPath.string());
-            if (!res)
+            if (imageSettings.imageSource == IMAGE_SOURCE_DISK)
             {
-                FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
-                assert(false);
-                handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
-                return;
+                auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+
+                std::filesystem::path fullPath = path;
+
+                auto res = fs->GetFullPathToFile(fullPath.string());
+                if (!res)
+                {
+                    FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
+                    assert(false);
+                    handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
+                    callback.result.loadingStatus = handle->status.GetStatus();
+                    callback.operator()();
+                    return;
+                }
+
+                int width = 0;
+                int height = 0;
+                int channels = 0;
+                uint32_t desiredChannels = 4;
+
+                stbi_set_flip_vertically_on_load_thread(static_cast<int>(imageSettings.flip));
+                unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+
+                if (!imgData)
+                {
+                    FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
+                    assert(false);
+                    handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
+                    callback.result.loadingStatus = handle->status.GetStatus();
+                    callback.operator()();
+                    return;
+                }
+
+                Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+                imagePtr->PostCreate(settings);
+
+                stbi_image_free(imgData);
             }
-
-            int width = 0;
-            int height = 0;
-            int channels = 0;
-            uint32_t desiredChannels = 4;
-
-            stbi_set_flip_vertically_on_load_thread(static_cast<int>(flipVertical));
-            unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
-
-            if (!imgData)
+            else if (imageSettings.imageSource == IMAGE_SOURCE_COLOR)
             {
-                FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
-                assert(false);
-                handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
-                return;
+                uint32_t width = 1;
+                uint32_t height = 1;
+                uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+
+                size_t size = width * height * channels;
+
+                uint32_t colorData = imageSettings.color.Data();
+
+                Fleur::Memory::FleurAllocator<unsigned char> alloc;
+                unsigned char* pData = alloc.allocate(size);
+                for (size_t i = 0; i < size; i += channels)
+                {
+                    std::memcpy(pData + i, &colorData + i, channels);
+                }
+
+                Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+                imagePtr->PostCreate(info);
+
+                alloc.deallocate(pData, size);
             }
-
-            Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
-            imagePtr->PostCreate(settings);
-
-            stbi_image_free(imgData);
-
+            else
+            {
+                assert(false);
+            }
             FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) was added", handle->asset.ID, imagePtr->GetName(), imagePtr->GetWidth(),
                          imagePtr->GetHeight());
 
@@ -532,7 +502,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
             callback.result.loadingStatus = handle->status.GetStatus();
             callback.operator()();
         },
-        path, sharedOperation, false, callback);
+        path, sharedOperation, imageSettings, callback);
 }
 void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
                                                     CubemapImportSettings& cubemapSettings)
@@ -544,8 +514,8 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
         {
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADING);
 
-            Fleur::Graphics::Image2D* image2d = new Fleur::Graphics::Image2D();
-            ImageAsset tmpImageAsset{0, image2d};
+            Fleur::Graphics::Image2D* image2d = new Fleur::Graphics::Image2D(path);
+            ImageAsset tmpImageAsset{asyncOperation->asset.ID, image2d};
 
             Fleur::ImageImportSettings imageSettings{.imageSource = IMAGE_SOURCE_DISK};
             LoadImageInternal(path, &tmpImageAsset, imageSettings);
@@ -574,4 +544,84 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
             callback.operator()();
         },
         path, sharedOperation, cubemapSettings, callback);
+}
+
+
+void Fleur::AssetsManager::LoadImageFromDisk(std::string_view path, ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings)
+{
+    ImageType* imagePtr = imageAsset->obj;
+    AssetID imageID = imageAsset->ID;
+
+    auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+
+    auto res = fs->GetFullPathToFile(path);
+    if (!res)
+    {
+        FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, imageID, imagePtr->GetName());
+        assert(false);
+        return;
+    }
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    uint32_t desiredChannels = 4;
+
+    stbi_set_flip_vertically_on_load_thread(imageSettings.flip);
+    unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if (!imgData)
+    {
+        FL_CORE_ERROR("{0} ID: {1}, Name: {2}, Reason: {3}", CORRUPTED_ASSET_ERROR_MESSAGE, imageID, imagePtr->GetName(), stbi_failure_reason());
+        assert(false);
+        return;
+    }
+
+    Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+    imagePtr->PostCreate(settings);
+
+    stbi_image_free(imgData);
+}
+void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings)
+{
+    ImageType* imagePtr = imageAsset->obj;
+    AssetID imageID = imageAsset->ID;
+    uint32_t width = 1;
+    uint32_t height = 1;
+    uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+
+    size_t size = width * height * channels;
+
+    uint32_t colorData = imageSettings.color.Data();
+
+    Fleur::Memory::FleurAllocator<unsigned char> alloc;
+    unsigned char* pData = alloc.allocate(size);
+    for (size_t i = 0; i < size; i += channels)
+    {
+        std::memcpy(pData + i, &colorData + i, channels);
+    }
+
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+    imagePtr->PostCreate(info);
+
+    alloc.deallocate(pData, size);
+}
+void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings)
+{
+    ImageType* imagePtr = imageAsset->obj;
+    AssetID imageID = imageAsset->ID;
+    assert(imageSettings.pMemoryData);
+    assert(imageSettings.sizeInMemory > 0);
+
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+    int desiredChannels = 4;
+
+    stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
+    unsigned char* imgData =
+        stbi_load_from_memory(imageSettings.pMemoryData, static_cast<int>(imageSettings.sizeInMemory), &width, &height, &channels, STBI_rgb_alpha);
+
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
+
+    imagePtr->PostCreate(info);
 }

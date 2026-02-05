@@ -392,8 +392,12 @@ private:
     void LoadImageInternal(std::string_view path, ImageAsset* asset, ImageImportSettings& imageSettings);
     void LoadCubemapInternal(std::string_view path, ImageAsset* asset, CubemapImportSettings& cubemapSettings);
 
+    void LoadImageFromDisk(std::string_view path, ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
+    void LoadImageFromColor(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
+    void LoadImageFromMemory(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
+
     void LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback);
-    void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, AssetLoadCallback& callback);
+    void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings, AssetLoadCallback& callback);
     void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
                                   CubemapImportSettings& cubemapSettings);
 
