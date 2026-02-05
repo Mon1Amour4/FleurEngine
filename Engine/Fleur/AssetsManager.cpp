@@ -141,6 +141,29 @@ void Fleur::AssetsManager::PollMessages()
                 break;
             }
             }
+            break;
+        }
+        case EVENT_TYPE_CUBEMAP_LOADED:
+        {
+            switch (message.loadingStatus)
+            {
+            case CORRUPTED:
+            case LOADING_STATUS_TO_TERMINATE:
+            {
+                m_CubemapCache.RemoveBrokenAsyncAsset(message.ID);
+                break;
+            }
+            case LOADED:
+            {
+                const Fleur::Graphics::CubemapImage* loadedImage = reinterpret_cast<const Fleur::Graphics::CubemapImage*>(message.pResource);
+
+                Fleur::Graphics::SFLImageView view = loadedImage->GetView();
+                view.ID = message.ID;
+                m_ImagesToUpload.images.push_back(view);
+                m_CubemapCache.RemoveFromAsyncOperations(loadedImage->GetName());
+                break;
+            }
+            }
         }
         }
 
