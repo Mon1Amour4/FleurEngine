@@ -328,9 +328,6 @@ void Fleur::AssetsManager::LoadImageInternal(std::string_view path, ImageAsset* 
 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) has loaded", asset->ID, imagePtr->GetName(), imagePtr->GetWidth(), imagePtr->GetHeight());
 }
-void Fleur::AssetsManager::LoadCubemapInternal(std::string_view path, ImageAsset* asset, CubemapImportSettings& cubemapSettings)
-{
-}
 
 void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback)
 {

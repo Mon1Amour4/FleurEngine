@@ -390,7 +390,6 @@ private:
 
     void LoadModelInternal(std::string_view path, ModelAsset* asset);
     void LoadImageInternal(std::string_view path, ImageAsset* asset, ImageImportSettings& imageSettings);
-    void LoadCubemapInternal(std::string_view path, ImageAsset* asset, CubemapImportSettings& cubemapSettings);
 
     void LoadImageFromDisk(std::string_view path, ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
     void LoadImageFromColor(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
