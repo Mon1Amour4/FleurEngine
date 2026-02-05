@@ -8,24 +8,27 @@ namespace Fleur
 
 using AssetID = uint32_t;
 
-enum ELoadingSts
+enum EAsyncOperationStatus
 {
     TO_BE_LOADED,
     LOADING,
+
     CORRUPTED,
     LOADING_STATUS_TO_TERMINATE,
-    LOADING_STATUS_MAX_VALUE,
-    LOADED
+
+    LOADED,
+
+    LOADING_STATUS_MAX_VALUE
 };
 
 class FLAsyncLoadStatus
 {
 public:
     FLAsyncLoadStatus() = default;
-    FLAsyncLoadStatus(ELoadingSts status)
+    FLAsyncLoadStatus(EAsyncOperationStatus status)
         : currentStatus(status) {};
 
-    bool SetStatus(Fleur::ELoadingSts status)
+    bool SetStatus(Fleur::EAsyncOperationStatus status)
     {
         if (currentStatus == LOADING_STATUS_TO_TERMINATE || (currentStatus == LOADING_STATUS_TO_TERMINATE && status == !CORRUPTED))
             return false;
@@ -34,13 +37,13 @@ public:
         return true;
     }
 
-    inline ELoadingSts GetStatus() const
+    inline EAsyncOperationStatus GetStatus() const
     {
         return currentStatus;
     }
 
 private:
-    ELoadingSts currentStatus;
+    EAsyncOperationStatus currentStatus;
 };
 
 

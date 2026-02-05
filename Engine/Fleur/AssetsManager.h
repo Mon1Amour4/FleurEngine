@@ -70,13 +70,11 @@ struct CubemapImportSettings
     CubemapSourceLayout sourceLayout{CUBEMAP_SOURCE_LAYOUT_MAX_VALUE};
 };
 
-
-class AssetsManager;
-
 enum AssetEventType
 {
     EVENT_TYPE_MODEL_LOADED,
     EVENT_TYPE_IMAGE2D_LOADED,
+    EVENT_TYPE_CUBEMAP_LOADED,
     EVENT_TYPE_MAX_VALUE,
 };
 struct AssetLoadResult
@@ -84,9 +82,10 @@ struct AssetLoadResult
     AssetEventType type = EVENT_TYPE_MAX_VALUE;
     const void* pResource = nullptr;
     AssetID ID = 0;
-    ELoadingSts loadingStatus = LOADING_STATUS_MAX_VALUE;
+    EAsyncOperationStatus loadingStatus = LOADING_STATUS_MAX_VALUE;
 };
 
+class AssetsManager;
 struct AssetLoadCallback
 {
     using CallbackFn = void (Fleur::AssetsManager::*)(AssetLoadResult);
@@ -101,12 +100,6 @@ struct AssetLoadCallback
 
     CallbackFn callback = nullptr;
 };
-struct ResourceImportSettings
-{
-    bool flipImage{};
-    CubemapImportSettings cubemapSettings{};
-    ImageImportSettings imageImportSettings{};
-};
 
 template <typename T>
 class AssetCache
@@ -117,18 +110,6 @@ class AssetCache
     using TAsyncOpShared = std::shared_ptr<TAsyncOp>;
 
 public:
-    TAsset LoadAndRegister(std::string_view path, ResourceImportSettings settings, AssetID id)
-    {
-        if (path.empty())
-            return TAsset{0, nullptr};
-
-        TRecord record = Register(path, id);
-        if (record.alreadyExist)
-            return record.asset;
-
-        return Load(path, TAsset(id, record.asset.obj), settings);
-    };
-    TAsset Load(std::string_view path, TAsset tAsset, ResourceImportSettings settings) {};
     TRecord Register(std::string_view path, AssetID id)
     {
         std::lock_guard<std::mutex> lc(mutex);
@@ -144,15 +125,35 @@ public:
 
         return {true, false, {id, ptr}};
     };
+    TAsyncOpShared RegisterAsync(std::string_view path, AssetID id)
+    {
+        std::lock_guard<std::mutex> lc(mutex);
+
+        std::string name = GetNameFromPath(path);
+
+        // 1. Check async map first
+        TAsyncOpShared asyncOperation = FindExistingAsyncOperation(name);
+        if (asyncOperation.get()->status.GetStatus() != EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)
+            return asyncOperation;
+
+        // 2. Check map
+        TRecord completedRecord = Exist(name);
+        if (completedRecord.alreadyExist)
+            return std::make_shared<TAsyncOp>(completedRecord.asset, EAsyncOperationStatus::LOADED);
+
+        T* ptr = &map.emplace(id, name).first->second;
+        stringMap.emplace(name, id);
+        m_size++;
+        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), TO_BE_LOADED)).first->second;
+    };
 
     TAsyncOpShared FindExistingAsyncOperation(std::string_view name)
     {
+        // Check only async map is enought
         if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
             return operation->second;
-        else if (auto operation = asyncOperationsToRelease.find(name.data()); operation != asyncOperationsToRelease.end())
-            return operation->second;
         else
-            return {std::make_shared<TAsyncOp>(TAsset(0, nullptr), ELoadingSts::LOADING_STATUS_MAX_VALUE)};
+            return {std::make_shared<TAsyncOp>(TAsset(0, nullptr), EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)};
     }
 
     AssetRecord<T> Exist(std::string_view name)
@@ -161,9 +162,6 @@ public:
 
         if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
         {
-            if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
-                return record;
-
             record.registered = true;
             record.alreadyExist = true;
             record.asset.ID = stringMap[name.data()];
@@ -198,7 +196,7 @@ public:
             if (auto operation = asyncMap.find(GetNameFromPath(name)); operation != asyncMap.end())
             {
                 asyncOperationsToRelease.emplace(operation->first, operation->second);
-                operation->second->status.SetStatus(Fleur::ELoadingSts::LOADING_STATUS_TO_TERMINATE);
+                operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
                 return;
             }
             stringMap.erase(name.data());
@@ -214,7 +212,7 @@ public:
             if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
             {
                 asyncOperationsToRelease.emplace(operation->first, operation->second);
-                operation->second->status.SetStatus(Fleur::ELoadingSts::LOADING_STATUS_TO_TERMINATE);
+                operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
                 return;
             }
             stringMap.erase(name.data());
@@ -237,41 +235,6 @@ public:
     {
         asyncMap.erase(name.data());
     }
-
-    TAsyncOpShared LoadAndRegisterAsync(std::string_view path, ResourceImportSettings settings, AssetID id, AssetLoadCallback callback)
-    {
-        if (path.empty())
-            return TAsyncOpShared{nullptr};
-
-        TAsyncOpShared asyncOperation = RegisterAsync(path, id);
-        if (asyncOperation->status.GetStatus() == ELoadingSts::LOADED || asyncOperation->status.GetStatus() == ELoadingSts::LOADING)
-            return asyncOperation;
-
-        asyncOperation->status.SetStatus(LOADING);
-        LoadAsync(path, asyncOperation, settings, id, callback);
-
-        return asyncOperation;
-    };
-    TAsyncOpShared RegisterAsync(std::string_view path, AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-
-        std::string name = GetNameFromPath(path);
-
-        TRecord completedRecord = Exist(name);
-        if (completedRecord.alreadyExist)
-            return std::make_shared<TAsyncOp>(completedRecord.asset, ELoadingSts::LOADED);
-
-        TAsyncOpShared existinfAsyncOperation = FindExistingAsyncOperation(name);
-        if (existinfAsyncOperation.get()->status.GetStatus() != ELoadingSts::LOADING_STATUS_MAX_VALUE)
-            return existinfAsyncOperation;
-
-        T* ptr = &map.emplace(id, name).first->second;
-        stringMap.emplace(name, id);
-        m_size++;
-        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), TO_BE_LOADED)).first->second;
-    };
-    void LoadAsync(std::string_view path, TAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id, AssetLoadCallback callback) {};
 
 private:
     std::string GetNameFromPath(std::string_view path)
@@ -306,7 +269,7 @@ public:
 
     // ---------- Async ----------
     ModelAsyncOpShared LoadModelAsync(std::string_view path);
-    ImageAsyncOpShared LoadImageAsync(std::string_view path);
+    ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings);
     CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings settings);
 
     template <typename T>
@@ -424,17 +387,15 @@ private:
     void PollMessages();
 
     AssetID GetNextID();
+
+    void LoadModelInternal(std::string_view path, ModelAsset* asset);
+    void LoadImageInternal(std::string_view path, ImageAsset* asset, ImageImportSettings& imageSettings);
+    void LoadCubemapInternal(std::string_view path, ImageAsset* asset, CubemapImportSettings& cubemapSettings);
+
+    void LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback);
+    void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, AssetLoadCallback& callback);
+    void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
+                                  CubemapImportSettings& cubemapSettings);
 };
 
-template <>
-ImageAsset Fleur::AssetCache<ImageType>::Load(std::string_view path, ImageAsset imageAsset, ResourceImportSettings settings);
-template <>
-ModelAsset Fleur::AssetCache<ModelType>::Load(std::string_view path, ModelAsset modelAsset, ResourceImportSettings settings);
-
-template <>
-void Fleur::AssetCache<ImageType>::LoadAsync(std::string_view path, ImageAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id,
-                                             AssetLoadCallback callback);
-template <>
-void Fleur::AssetCache<ModelType>::LoadAsync(std::string_view path, ModelAsyncOpShared asyncOperation, ResourceImportSettings settings, AssetID id,
-                                             AssetLoadCallback callback);
 }  // namespace Fleur

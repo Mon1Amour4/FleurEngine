@@ -14,17 +14,6 @@ using Model = Fleur::Graphics::Model;
 using Renderer = Fleur::Graphics::Renderer;
 using Color = Fleur::Graphics::Color;
 
-void Call(Fleur::Graphics::Model* model)
-{
-    glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-    glm::mat4 R = glm::mat4(1.f);
-    glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    glm::mat4 M = T * R * S;
-
-    auto renderer = Fleur::ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
-    renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, model, M);
-}
-
 template <>
 Fleur::Application& Fleur::singleton<Fleur::Application>::instance()
 {

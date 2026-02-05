@@ -744,6 +744,7 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
         }
         else if (imageView->layerCount == SKYBOX_LAYERS_COUNT)
         {
+            continue;
             VkFormat format = GetVkFormat(imageView->channels);
             uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
 
