@@ -64,8 +64,8 @@ public:
         m_Width = settings.width;
         m_Height = settings.height;
         m_Channels = settings.channels;
-        m_Depth = settings.depth;
-        m_Format = GetTextureFormat(settings.channels, settings.depth);
+        m_DepthBytes = settings.depthBytes;
+        m_Format = GetTextureFormat(settings.channels, settings.depthBytes);
     }
 
     ETextureFormat Format() const

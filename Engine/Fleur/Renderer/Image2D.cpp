@@ -3,14 +3,16 @@
 #include "Color.h"
 #include "FleurAllocator.hpp"
 #include "Services/ServiceLocator.h"
+#include <External/stb_image/stb_image_write.h>
 
-// ImageBase
+
+// ---------- ImageBase ----------
 Fleur::Graphics::ImageBase::ImageBase(std::string_view name, uint16_t layers)
     : m_Name(name)
     , m_Width(0)
     , m_Height(0)
     , m_Channels(0)
-    , m_Depth(0)
+    , m_DepthBytes(0)
     , m_Layers(layers)
     , m_SizeBytes(0)
     , m_IsCreated(false)
@@ -21,7 +23,7 @@ Fleur::Graphics::ImageBase::ImageBase(std::string_view name, uint32_t width, uin
     , m_Width(width)
     , m_Height(height)
     , m_Channels(channels)
-    , m_Depth(depth)
+    , m_DepthBytes(depth)
     , m_Layers(layers)
     , m_SizeBytes(width * height * channels * depth * layers)
     , m_IsCreated(false)
@@ -33,7 +35,7 @@ Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
     , m_Width(other.m_Width)
     , m_Height(other.m_Height)
     , m_Channels(other.m_Channels)
-    , m_Depth(other.m_Depth)
+    , m_DepthBytes(other.m_DepthBytes)
     , m_Layers(other.m_Layers)
     , m_SizeBytes(other.m_SizeBytes)
     , m_IsCreated(other.m_IsCreated)
@@ -41,7 +43,7 @@ Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
     other.m_Width = 0;
     other.m_Height = 0;
     other.m_Channels = 0;
-    other.m_Depth = 0;
+    other.m_DepthBytes = 0;
     other.m_Layers = 0;
     other.m_SizeBytes = 0;
     other.m_IsCreated = false;
@@ -54,7 +56,7 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
         m_Width = other.m_Width;
         m_Height = other.m_Height;
         m_Channels = other.m_Channels;
-        m_Depth = other.m_Depth;
+        m_DepthBytes = other.m_DepthBytes;
         m_Layers = other.m_Layers;
         m_SizeBytes = other.m_SizeBytes;
         m_IsCreated = other.m_IsCreated;
@@ -62,7 +64,7 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
         other.m_Width = 0;
         other.m_Height = 0;
         other.m_Channels = 0;
-        other.m_Depth = 0;
+        other.m_DepthBytes = 0;
         other.m_Layers = 0;
         other.m_SizeBytes = 0;
         other.m_IsCreated = false;
@@ -70,7 +72,8 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
     return *this;
 }
 
-// Image2D:
+
+// ---------- Image2D ----------
 Fleur::Graphics::Image2D::Image2D()
     : ImageBase()
 {
@@ -88,7 +91,7 @@ Fleur::Graphics::Image2D::Image2D(std::string_view name, unsigned char* data, in
     , m_Bitmap(w, h, channels)
 {
     FL_CORE_ASSERT(depth > 0 && channels > 0, "Invalid Image data");
-    memcpy(m_Bitmap.Data(), data, m_Bitmap.GetSizeBytes());
+    memcpy(m_Bitmap.GetData(), data, m_Bitmap.GetSizeBytes());
     m_IsCreated = true;
 }
 Fleur::Graphics::Image2D::Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& IN inBitmap, int w, int h, uint16_t channels, uint16_t depth)
@@ -108,7 +111,7 @@ Fleur::Graphics::Image2D& Fleur::Graphics::Image2D::operator=(Fleur::Graphics::I
         m_IsCreated = other.m_IsCreated;
         m_Name = std::move(other.m_Name);
         m_Channels = other.m_Channels;
-        m_Depth = other.m_Depth;
+        m_DepthBytes = other.m_DepthBytes;
         m_Layers = other.m_Layers;
         m_SizeBytes = other.m_SizeBytes;
 
@@ -116,7 +119,7 @@ Fleur::Graphics::Image2D& Fleur::Graphics::Image2D::operator=(Fleur::Graphics::I
         other.m_Height = 0;
         other.m_IsCreated = false;
         other.m_Channels = 0;
-        other.m_Depth = 0;
+        other.m_DepthBytes = 0;
         other.m_Layers = 0;
         other.m_SizeBytes = 0;
     }
@@ -130,7 +133,7 @@ Fleur::Graphics::Image2D::Image2D(Fleur::Graphics::Image2D&& other) noexcept
     m_IsCreated = other.m_IsCreated;
     m_Name = std::move(other.m_Name);
     m_Channels = other.m_Channels;
-    m_Depth = other.m_Depth;
+    m_DepthBytes = other.m_DepthBytes;
     m_Layers = other.m_Layers;
     m_SizeBytes = other.m_SizeBytes;
 
@@ -138,16 +141,15 @@ Fleur::Graphics::Image2D::Image2D(Fleur::Graphics::Image2D&& other) noexcept
     other.m_Height = 0;
     other.m_IsCreated = false;
     other.m_Channels = 0;
-    other.m_Depth = 0;
+    other.m_DepthBytes = 0;
     other.m_Layers = 0;
     other.m_SizeBytes = 0;
 }
 
-const void* Fleur::Graphics::Image2D::Data() const
+Fleur::Graphics::SFLImageView Fleur::Graphics::Image2D::GetView() const
 {
-    return m_Bitmap.Data();
+    return {0, (const char*)m_Bitmap.GetData(), m_Width, m_Height, m_Layers, m_Channels};
 }
-
 void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
 {
     FL_CORE_ASSERT(settings.data, "[Image2D] data is nullptr");
@@ -155,17 +157,69 @@ void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
     ImageBase::PostCreate(settings);
 
     m_Bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
-    memcpy_s(m_Bitmap.Data(), m_Bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depth);
+    memcpy_s(m_Bitmap.GetData(), m_Bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depthBytes);
 
     m_IsCreated = true;
 }
 
-Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() const
-{
-    uint32_t faceSize = m_Width / 4;
-    constexpr float pi = glm::pi<float>();
 
-    Bitmap<BitmapFormat_UnsignedByte> outBitmap(faceSize * 4, faceSize * 3, m_Channels);
+// ---------- CubemapImage ----------
+Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name)
+    : ImageBase(name, 6)
+{
+}
+Fleur::Graphics::CubemapImage& Fleur::Graphics::CubemapImage::operator=(CubemapImage&& other) noexcept
+{
+    if (this != &other)
+    {
+        ImageBase::operator=(std::move(other));
+        m_Data = std::move(other.m_Data);
+    }
+    return *this;
+}
+Fleur::Graphics::CubemapImage::CubemapImage(CubemapImage&& other) noexcept
+    : ImageBase(std::move(other))
+    , m_Data(std::move(other.m_Data))
+{
+}
+
+Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromFaces(const std::array<Image2D, 6>& faces)
+{
+    Fleur::Graphics::CubemapImage cubemap{};
+    cubemap.m_Name = faces[0].GetName();
+    cubemap.m_Width = faces[0].GetWidth();
+    cubemap.m_Height = faces[0].GetHeight();
+    assert(cubemap.m_Width == cubemap.m_Height);
+    cubemap.m_Channels = faces[0].GetChannelsCount();
+    cubemap.m_DepthBytes = faces[0].GetDepth();
+    cubemap.m_Layers = CUBEMAP_LAYERS_COUNT;
+
+    size_t layerSize = faces[0].GetSizeBytes();
+    cubemap.m_Data.resize(layerSize * CUBEMAP_LAYERS_COUNT);
+    for (size_t i = 0; i < CUBEMAP_LAYERS_COUNT; i++)
+    {
+        memcpy(static_cast<void*>(cubemap.GetFaceData(i)), faces[i].GetData(), faces[i].GetSizeBytes());
+    }
+    return cubemap;
+}
+Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromEquirectangular(const Image2D& src)
+{
+    // 1. Stage one: From Equirectangular to cross:
+    uint32_t faceSize = src.GetWidth() / 4;
+    constexpr float pi = glm::pi<float>();
+    const Fleur::Bitmap<BitmapFormat_UnsignedByte>* sourceBitmap = src.GetBitmap();
+    Bitmap<BitmapFormat_UnsignedByte> outBitmap(faceSize * 4, faceSize * 3, src.GetChannelsCount());
+
+    Fleur::Graphics::CubemapImage cubemap{};
+    cubemap.m_Name = src.GetName();
+    cubemap.m_Width = faceSize;
+    cubemap.m_Height = faceSize;
+    cubemap.m_Channels = src.GetChannelsCount();
+    cubemap.m_DepthBytes = src.GetDepth();
+    cubemap.m_Layers = CUBEMAP_LAYERS_COUNT;
+
+    size_t layerSize = faceSize * faceSize * cubemap.m_Channels * cubemap.m_DepthBytes;
+
     struct FacePos
     {
         int x, y;
@@ -255,8 +309,8 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
                 float uu = (phi + pi) / (2.f * pi);  // [0,1]
                 float vv = theta / pi;               // [0,1]
 
-                float x = static_cast<float>(uu * (m_Width - 1));
-                float y = static_cast<float>(vv * (m_Height - 1));
+                float x = static_cast<float>(uu * (src.GetWidth() - 1));
+                float y = static_cast<float>(vv * (src.GetHeight() - 1));
 
 
                 // bilinear interpolation:
@@ -264,10 +318,10 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
 
                 FL_CORE_ASSERT(leftX >= 0, "");
 
-                uint32_t rightX = std::min(static_cast<uint32_t>(std::floor(leftX + 1)), m_Width - 1);
+                uint32_t rightX = std::min(static_cast<uint32_t>(std::floor(leftX + 1)), src.GetWidth() - 1);
 
                 uint32_t topY = static_cast<uint32_t>(std::floor(y));
-                uint32_t bottomY = std::min(static_cast<uint32_t>(topY + 1), m_Height - 1);
+                uint32_t bottomY = std::min(static_cast<uint32_t>(topY + 1), src.GetHeight() - 1);
 
                 float shiftX = x - leftX;
                 float shiftY = y - topY;
@@ -280,11 +334,10 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
                 float w10 = (1.f - shiftX) * shiftY;
                 float w11 = shiftX * shiftY;
 
-
-                glm::vec4 c00 = m_Bitmap.GetPixel(leftX, topY);
-                glm::vec4 c01 = m_Bitmap.GetPixel(rightX, topY);
-                glm::vec4 c10 = m_Bitmap.GetPixel(leftX, bottomY);
-                glm::vec4 c11 = m_Bitmap.GetPixel(rightX, bottomY);
+                glm::vec4 c00 = sourceBitmap->GetPixel(leftX, topY);
+                glm::vec4 c01 = sourceBitmap->GetPixel(rightX, topY);
+                glm::vec4 c10 = sourceBitmap->GetPixel(leftX, bottomY);
+                glm::vec4 c11 = sourceBitmap->GetPixel(rightX, bottomY);
 
                 glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
@@ -294,31 +347,21 @@ Fleur::Graphics::Image2D Fleur::Graphics::Image2D::FromEquirectangularToCross() 
             }
         }
     }
-    return Image2D(m_Name + "_cross_layout", reinterpret_cast<unsigned char*>(outBitmap.Data()), faceSize * 4, faceSize * 3, m_Channels, m_Depth);
-}
 
-Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() const
-{
-    uint32_t faceSize = m_Width / 4;
-
-    std::array<Image2D, 6> outFaces;
-    for (int i = 0; i < 6; i++)
-    {
-        outFaces[i] = Image2D(m_Name + "_face_" + std::to_string(i), faceSize, faceSize, m_Channels, m_Depth);
-    }
-
+    // 2. Stage two: from equirectangular to cubemap
+    cubemap.m_Data.resize(faceSize * faceSize * cubemap.m_Channels * CUBEMAP_LAYERS_COUNT);
     auto uploadFace = [&](uint32_t startX, uint32_t startY, uint32_t outFace)
     {
-        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(faceSize, faceSize, m_Channels);
+        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(faceSize, faceSize, cubemap.m_Channels);
         for (uint32_t y = 0; y < faceSize; ++y)
         {
             for (uint32_t x = 0; x < faceSize; ++x)
             {
-                glm::vec4 color = m_Bitmap.GetPixel(startX + x, startY + y);
+                glm::vec4 color = outBitmap.GetPixel(startX + x, startY + y);
                 tmp.SetPixel(x, y, color);
             }
         }
-        outFaces[outFace].m_Bitmap = std::move(tmp);
+        memmove(cubemap.GetFaceData(outFace), tmp.GetData(), layerSize);
     };
 
     // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
@@ -329,59 +372,47 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::Image2D::FromCrossToCubemap() con
     uploadFace(faceSize, faceSize, 4);      // +Z (front)
     uploadFace(faceSize * 3, faceSize, 5);  // -Z (back)
 
-    return Fleur::Graphics::CubemapImage(m_Name + "_cubemap", std::move(outFaces));
+    return cubemap;
 }
-
-
-// CubemapImage:
-Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name, std::array<Image2D, 6>&& IN inFaces)
-    : ImageBase(name, inFaces[0].GetWidth(), inFaces[0].GetWidth(), inFaces[0].GetChannelsCount(), inFaces[0].GetDepth(), 6)
-
+Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromCross(const Image2D& src)
 {
-    m_Faces = std::move(inFaces);
-}
-Fleur::Graphics::CubemapImage::CubemapImage(std::string_view name)
-    : ImageBase(name, 6)
-{
-}
+    uint32_t faceSize = src.GetWidth() / 4;
 
-Fleur::Graphics::CubemapImage& Fleur::Graphics::CubemapImage::operator=(CubemapImage&& other) noexcept
-{
-    if (this != &other)
+    Fleur::Graphics::CubemapImage cubemap{};
+    cubemap.m_Name = src.GetName();
+    cubemap.m_Width = faceSize;
+    cubemap.m_Height = faceSize;
+    cubemap.m_Channels = src.GetChannelsCount();
+    cubemap.m_DepthBytes = src.GetDepth();
+    cubemap.m_Layers = CUBEMAP_LAYERS_COUNT;
+
+    size_t layerSize = faceSize * faceSize * cubemap.m_Channels * cubemap.m_DepthBytes;
+    cubemap.m_Data.resize(layerSize * CUBEMAP_LAYERS_COUNT);
+
+    const Fleur::Bitmap<BitmapFormat_UnsignedByte>* sourceBitmap = src.GetBitmap();
+    auto uploadFace = [&](uint32_t startX, uint32_t startY, uint32_t outFace)
     {
-        ImageBase::operator=(std::move(other));
-        m_Faces = std::move(other.m_Faces);
-    }
-    return *this;
-}
-Fleur::Graphics::CubemapImage::CubemapImage(CubemapImage&& other) noexcept
-    : ImageBase(std::move(other))
-    , m_Faces(std::move(other.m_Faces))
-{
-}
+        Fleur::Bitmap<BitmapFormat_UnsignedByte> tmp(faceSize, faceSize, cubemap.m_Channels);
+        for (uint32_t y = 0; y < faceSize; ++y)
+        {
+            for (uint32_t x = 0; x < faceSize; ++x)
+            {
+                glm::vec4 color = sourceBitmap->GetPixel(startX + x, startY + y);
+                tmp.SetPixel(x, y, color);
+            }
+        }
+        memcpy(cubemap.GetFaceData(outFace), tmp.GetData(), layerSize);
+    };
 
-const Fleur::Graphics::Image2D& Fleur::Graphics::CubemapImage::GetFace(EFace face) const
-{
-    switch (face)
-    {
-    case Fleur::Graphics::CubemapImage::EFace::Right:
-        return m_Faces[0];
-    case Fleur::Graphics::CubemapImage::EFace::Left:
-        return m_Faces[1];
-    case Fleur::Graphics::CubemapImage::EFace::Top:
-        return m_Faces[2];
-    case Fleur::Graphics::CubemapImage::EFace::Bottom:
-        return m_Faces[3];
-    case Fleur::Graphics::CubemapImage::EFace::Back:
-        return m_Faces[4];
-    case Fleur::Graphics::CubemapImage::EFace::Front:
-        return m_Faces[5];
-    }
-}
+    // Face indices: 0=+X, 1=-X, 2=+Y, 3=-Y, 4=+Z, 5=-Z
+    uploadFace(faceSize * 2, faceSize, 0);  // +X (right)
+    uploadFace(0, faceSize, 1);             // -X (left)
+    uploadFace(faceSize, 0, 2);             // +Y (top)
+    uploadFace(faceSize, faceSize * 2, 3);  // -Y (bottom)
+    uploadFace(faceSize, faceSize, 4);      // +Z (front)
+    uploadFace(faceSize * 3, faceSize, 5);  // -Z (back)
 
-const Fleur::Graphics::Image2D* Fleur::Graphics::CubemapImage::GetData() const
-{
-    return reinterpret_cast<const Image2D*>(m_Faces.data());
+    return cubemap;
 }
 
 void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
@@ -404,10 +435,5 @@ void Fleur::Graphics::CubemapImage::PostCreate(ImagePostCreation& settings)
 
 Fleur::Graphics::SFLImageView Fleur::Graphics::CubemapImage::GetView() const
 {
-    return {0, (const char*)m_Faces.data(), m_Width, m_Height, m_Layers, m_Channels};
-}
-
-Fleur::Graphics::SFLImageView Fleur::Graphics::Image2D::GetView() const
-{
-    return {0, (const char*)m_Bitmap.Data(), m_Width, m_Height, m_Layers, m_Channels};
+    return {0, (const char*)m_Data.data(), m_Width, m_Height, m_Layers, m_Channels};
 }

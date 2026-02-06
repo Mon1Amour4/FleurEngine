@@ -213,16 +213,17 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 
     if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
     {
-        *cubemapRecord.asset.obj = std::move(tmpImageAsset.obj->FromEquirectangularToCross().FromCrossToCubemap());
+        *cubemapRecord.asset.obj = std::move(Fleur::Graphics::CubemapImage::FromEquirectangular(*tmpImageAsset.obj));
     }
     else if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_CROSS_LAYOUT)
     {
-        *cubemapRecord.asset.obj = std::move(tmpImageAsset.obj->FromCrossToCubemap());
+        *cubemapRecord.asset.obj = std::move(Fleur::Graphics::CubemapImage::FromCross(*tmpImageAsset.obj));
     }
     else if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_6_IMAGES)
     {
         // TODO
         assert(false);
+        //*cubemapRecord.asset.obj = std::move(Fleur::Graphics::CubemapImage::FromFaces(*tmpImageAsset.obj));
     }
 
     Fleur::Graphics::SFLImageView imageView = cubemapRecord.asset.obj->GetView();
@@ -543,13 +544,16 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
 
             if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
             {
-                Fleur::Graphics::CubemapImage cubemap = image2d->FromEquirectangularToCross().FromCrossToCubemap();
-                *asyncOperation->asset.obj = std::move(cubemap);
+                *asyncOperation->asset.obj = Fleur::Graphics::CubemapImage::FromEquirectangular(*image2d);
+
             }
             else if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_CROSS_LAYOUT)
             {
-                Fleur::Graphics::CubemapImage cubemap = image2d->FromCrossToCubemap();
-                *asyncOperation->asset.obj = std::move(cubemap);
+                *asyncOperation->asset.obj = std::move(Fleur::Graphics::CubemapImage::FromCross(*image2d));
+            }
+            else if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_6_IMAGES)
+            {
+                assert(false);
             }
 
             delete image2d;

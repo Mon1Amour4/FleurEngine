@@ -4,6 +4,8 @@
 #include "Bitmap.hpp"
 #include "Renderer/RenderViews.hpp"
 
+#define CUBEMAP_LAYERS_COUNT 6
+
 namespace Fleur::Graphics
 {
 class Color;
@@ -14,7 +16,7 @@ struct ImagePostCreation
     uint32_t width{};
     uint32_t height{};
     uint16_t channels{};
-    uint16_t depth{};
+    uint16_t depthBytes{};
     const void* data{};
 };
 
@@ -48,7 +50,7 @@ public:
     }
     uint16_t GetDepth() const
     {
-        return m_Depth;
+        return m_DepthBytes;
     }
 
     uint16_t GetLayersCount() const
@@ -58,6 +60,7 @@ public:
 
     [[nodiscard]] size_t GetSizeBytes() const
     {
+        assert(m_SizeBytes > 0);
         return m_SizeBytes;
     }
 
@@ -71,7 +74,8 @@ public:
         m_Width = settings.width;
         m_Height = settings.height;
         m_Channels = settings.channels;
-        m_Depth = settings.depth;
+        m_DepthBytes = settings.depthBytes;
+        m_SizeBytes = m_Width * m_Height * m_Channels * m_DepthBytes;
     }
 
 protected:
@@ -80,7 +84,7 @@ protected:
         , m_Width(0)
         , m_Height(0)
         , m_Channels(0)
-        , m_Depth(0)
+        , m_DepthBytes(0)
         , m_Layers(1)
         , m_SizeBytes(0)
         , m_IsCreated(false) {};
@@ -91,7 +95,7 @@ protected:
 
     uint32_t m_Width, m_Height;
 
-    uint16_t m_Channels, m_Depth, m_Layers;
+    uint16_t m_Channels, m_DepthBytes, m_Layers;
 
     size_t m_SizeBytes;
 
@@ -114,14 +118,19 @@ public:
     Image2D& operator=(Image2D&& other) noexcept;
     Image2D(Image2D&& other) noexcept;
 
-    const void* Data() const;
+    inline const void* GetData() const
+    {
+        return m_Bitmap.GetData();
+    }
 
     virtual void PostCreate(ImagePostCreation& settings) override;
 
-    Image2D FromEquirectangularToCross() const;
-    CubemapImage FromCrossToCubemap() const;
-
     Fleur::Graphics::SFLImageView GetView() const;
+
+    inline const Bitmap<BitmapFormat_UnsignedByte>* GetBitmap() const
+    {
+        return &m_Bitmap;
+    }
 
 private:
     Bitmap<BitmapFormat_UnsignedByte> m_Bitmap;
@@ -145,7 +154,9 @@ public:
 
     CubemapImage() = default;
     CubemapImage(std::string_view name);
-    CubemapImage(std::string_view name, std::array<Image2D, 6>&& faces);
+    static CubemapImage FromEquirectangular(const Image2D& src);
+    static CubemapImage FromCross(const Image2D& src);
+    static CubemapImage FromFaces(const std::array<Image2D, 6>& faces);
 
     CubemapImage& operator=(const Image2D& other) = delete;
     CubemapImage(const CubemapImage& other) = delete;
@@ -153,16 +164,30 @@ public:
     CubemapImage& operator=(CubemapImage&& other) noexcept;
     CubemapImage(CubemapImage&& other) noexcept;
 
-    const Fleur::Graphics::Image2D& GetFace(EFace face) const;
+    inline const unsigned char* GetData() const
+    {
+        return (const unsigned char*)m_Data.data();
+    }
+    inline const unsigned char* GetFaceData(uint32_t face) const
+    {
+        if (face > CUBEMAP_LAYERS_COUNT - 1)
+            return nullptr;
 
-    const Image2D* GetData() const;
+        return (unsigned char*)m_Data.data() + (m_Width * m_Height * face);
+    }
+    inline unsigned char* GetFaceData(uint32_t face)
+    {
+        if (face > CUBEMAP_LAYERS_COUNT - 1)
+            return nullptr;
 
+        return (unsigned char*)m_Data.data() + (m_Width * m_Height * m_Channels * m_DepthBytes * face);
+    }
     virtual void PostCreate(ImagePostCreation& settings) override;
 
     Fleur::Graphics::SFLImageView GetView() const;
 
 private:
-    std::array<Image2D, 6> m_Faces;
+    std::vector<std::byte> m_Data;
 };
 
 }  // namespace Fleur::Graphics
