@@ -237,7 +237,7 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 
 
 // ---------- Async ----------
-ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path)
+ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, void (*ClientCallback)(ModelAsset asset))
 {
     ModelAsyncOpShared sharedOperation = m_ModelCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -269,7 +269,8 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
 
     return sharedOperation;
 }
-CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings)
+CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings,
+                                                            std::function<void(CubemapAsset&)> clientCallback)
 {
     CubemapAsyncOpShared sharedOperation = m_CubemapCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -277,11 +278,11 @@ CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view pat
 
     sharedOperation->status.SetStatus(TO_BE_LOADED);
 
-    AssetLoadCallback callback{};
-    callback.manager = this;
-    callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+    AssetLoadCallback internalCallback{};
+    internalCallback.manager = this;
+    internalCallback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadCubemapAsyncInternal(path, sharedOperation, callback, cubemapSettings);
+    LoadCubemapAsyncInternal(path, sharedOperation, cubemapSettings, internalCallback, clientCallback);
 
     return sharedOperation;
 }
@@ -525,13 +526,18 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
         },
         path, sharedOperation, imageSettings, callback);
 }
-void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
-                                                    CubemapImportSettings& cubemapSettings)
+// clang-format off
+void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
+                                                    CubemapAsyncOpShared sharedOperation, 
+                                                    CubemapImportSettings& cubemapSettings,
+                                                    AssetLoadCallback& internalCallback,
+                                                    std::function<void(CubemapAsset&)> clientCallback)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](std::string_view path, CubemapAsyncOpShared asyncOperation, CubemapImportSettings cubemapSettings, AssetLoadCallback callback)
+        [this](std::string_view path, CubemapAsyncOpShared asyncOperation, CubemapImportSettings cubemapSettings, AssetLoadCallback internalCallback,
+               std::function<void(CubemapAsset&)> clientCallback)
         {
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADING);
 
@@ -545,7 +551,6 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
             if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE)
             {
                 *asyncOperation->asset.obj = Fleur::Graphics::CubemapImage::FromEquirectangular(*image2d);
-
             }
             else if (cubemapSettings.sourceLayout == CUBEMAP_SOURCE_LAYOUT_CROSS_LAYOUT)
             {
@@ -558,18 +563,20 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path, Cubem
 
             delete image2d;
 
-            callback.result.pResource = asyncOperation->asset.obj;
-            callback.result.type = EVENT_TYPE_CUBEMAP_LOADED;
-            callback.result.ID = asyncOperation->asset.ID;
+            internalCallback.result.pResource = asyncOperation->asset.obj;
+            internalCallback.result.type = EVENT_TYPE_CUBEMAP_LOADED;
+            internalCallback.result.ID = asyncOperation->asset.ID;
 
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADED);
 
-            callback.result.loadingStatus = asyncOperation->status.GetStatus();
-            callback.operator()();
-        },
-        path, sharedOperation, cubemapSettings, callback);
-}
+            internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
+            internalCallback.operator()();
 
+            clientCallback.operator()(asyncOperation->asset);
+        },
+        path, sharedOperation, cubemapSettings, internalCallback, clientCallback);
+}
+// clang-format on
 
 void Fleur::AssetsManager::LoadImageFromDisk(std::string_view path, ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings)
 {

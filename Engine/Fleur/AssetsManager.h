@@ -7,6 +7,7 @@
 #include "Renderer/Color.h"
 #include "Renderer/RenderViews.hpp"
 #include "Renderer/Shader.h"
+#include "Renderer/Skybox.h"
 #include "Services/ServiceInterfaces.hpp"
 
 using ImageType = Fleur::Graphics::Image2D;
@@ -268,9 +269,9 @@ public:
     CubemapAsset LoadCubemap(std::string_view path, CubemapImportSettings settings);
 
     // ---------- Async ----------
-    ModelAsyncOpShared LoadModelAsync(std::string_view path);
+    ModelAsyncOpShared LoadModelAsync(std::string_view path, void (*ClientCallback)(ModelAsset asset));
     ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings);
-    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings settings);
+    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback);
 
     template <typename T>
     Asset<T> Get(std::string_view name)
@@ -397,8 +398,8 @@ private:
 
     void LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback);
     void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings, AssetLoadCallback& callback);
-    void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, AssetLoadCallback& callback,
-                                  CubemapImportSettings& cubemapSettings);
+    void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, CubemapImportSettings& cubemapSettings,
+                                  AssetLoadCallback& internalCallback, std::function<void(CubemapAsset&)> clientCallback);
 
     constexpr static std::string_view CORRUPTED_ASSET_ERROR_MESSAGE = "[AssetsManager] Error occured during asset loading";
 };

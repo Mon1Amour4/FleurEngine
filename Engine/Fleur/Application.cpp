@@ -29,6 +29,7 @@ Fleur::Application::Application()
 
 Fleur::Application::~Application()
 {
+    delete m_skybox;
 }
 
 void Fleur::Application::PushLayer(Layer* layer)
@@ -201,9 +202,15 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
                                                      .color = Fleur::Graphics::Color(255, 0, 255, 255),
                                                  });
 
-    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb");
+    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb", nullptr);
 
-    assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE});
+    assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
+                                           [&](CubemapAsset asset)
+                                           {
+                                               m_skybox = new Fleur::Graphics::Skybox(asset.ID);
+                                               auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+                                               renderer->SetSkybox(m_skybox);
+                                           });
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();

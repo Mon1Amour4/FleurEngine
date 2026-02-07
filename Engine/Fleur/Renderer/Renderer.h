@@ -55,8 +55,8 @@ public:
     // IRenderer;
     void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
-    void DrawQuad(Color backgroundColor, Fleur::SRect);
-    void DrawLine();
+    void SetSkybox(Fleur::Graphics::Skybox* skybox);
+
 
     // IUpdatable
     void OnUpdate(float dtTime);
@@ -164,18 +164,9 @@ private:
     void SkyboxPass() const;
     void StaticGeometryPass() const;
 
+
 protected:
     void OnInit();
-};
-
-class QuadRenderer
-{
-public:
-    QuadRenderer(const Texture* texture);
-
-private:
-    Material* m_Material;
-    const ShaderObject* m_Shader;
 };
 
 }  // namespace Fleur::Graphics

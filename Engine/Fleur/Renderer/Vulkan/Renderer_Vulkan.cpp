@@ -782,9 +782,10 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
             cmd->Synchronize();
 
             m_Skybox->GetCubemapTexture()->CreateImaveView();
-            VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
 
-            VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
+            // Fleur::Graphics::SFLShaderInfo info{};
+            // info.shaderCode VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
+            // VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
         }
     }
 }

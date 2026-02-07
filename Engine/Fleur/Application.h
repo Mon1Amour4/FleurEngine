@@ -19,6 +19,7 @@ namespace Fleur::Graphics
 class Renderer;
 class Model;
 class Texture;
+class Skybox;
 }  // namespace Fleur::Graphics
 
 namespace Fleur
@@ -76,6 +77,9 @@ protected:
     virtual ~Application() override;
 
     Fleur::Graphics::EGraphicsAPI m_GraphicsAPI;
+
+private:
+    Fleur::Graphics::Skybox* m_skybox;
 };
 
 }  // namespace Fleur
