@@ -14,10 +14,10 @@ struct BitmapFormat_UnsignedByte
 
         glm::vec4 data = underlying.GetPixel(x, y);
 
-        uint8_t* byteData = reinterpret_cast<uint8_t*>(underlying.Data());
+        uint8_t* byteData = reinterpret_cast<uint8_t*>(underlying.GetData());
 
-        uint32_t comp = underlying.Components();
-        const int offset = comp * (y * underlying.Width() + x);
+        uint32_t comp = underlying.GetComponents();
+        const int offset = comp * (y * underlying.GetWidth() + x);
         if (comp > 0)
             byteData[offset + 0] = uint8_t(pixelData.x * 255.0f);
         if (comp > 1)
@@ -31,10 +31,10 @@ struct BitmapFormat_UnsignedByte
     glm::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         const Derived& underlying = static_cast<const Derived&>(*this);
-        const uint8_t* byteData = reinterpret_cast<const uint8_t*>(underlying.Data());
-        uint32_t comp = underlying.Components();
+        const uint8_t* byteData = reinterpret_cast<const uint8_t*>(underlying.GetData());
+        uint32_t comp = underlying.GetComponents();
 
-        const int offset = comp * (y * underlying.Width() + x);
+        const int offset = comp * (y * underlying.GetWidth() + x);
         return glm::vec4(comp > 0 ? float(byteData[offset + 0]) / 255.0f : 0.0f, comp > 1 ? float(byteData[offset + 1]) / 255.0f : 0.0f,
                          comp > 2 ? float(byteData[offset + 2]) / 255.0f : 0.0f, comp > 3 ? float(byteData[offset + 3]) / 255.0f : 0.0f);
     }
@@ -157,26 +157,26 @@ public:
         return Fmt<Bitmap>::GetPixel(x, y);
     }
 
-    uint32_t Width() const
+    uint32_t GetWidth() const
     {
         return m_Width;
     }
 
-    uint32_t Height() const
+    uint32_t GetHeight() const
     {
         return m_Height;
     }
 
-    uint32_t Components() const
+    uint32_t GetComponents() const
     {
         return m_Components;
     }
 
-    const void* Data() const
+    const void* GetData() const
     {
         return reinterpret_cast<const void*>(m_Data.data());
     }
-    void* Data()
+    void* GetData()
     {
         return reinterpret_cast<void*>(m_Data.data());
     }
