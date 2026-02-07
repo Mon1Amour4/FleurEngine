@@ -2,6 +2,7 @@
 
 #include "Graphics.hpp"
 #include "Image2D.h"
+#include "Material.h"
 
 namespace Fleur::Graphics
 {
@@ -9,18 +10,28 @@ class Skybox
 {
 public:
     Skybox(AssetID cubemapID)
-        : m_CubemapID(cubemapID)
+        : m_Material{.albedo = cubemapID}
     {
     }
 
-    inline glm::vec3& GetVertexData()
+    inline const glm::vec3* GetVertexData() const
     {
+        return m_SkyboxVertices.data();
+    }
+    inline uint32_t GetVertexCount() const
+    {
+        return m_SkyboxVertices.size();
+    }
+
+    inline const Fleur::Graphics::Material* GetMaterial() const
+    {
+        return &m_Material;
     }
 
 
 private:
-    AssetID m_CubemapID;
-    static constexpr std::array<glm::vec3, 36> SkyboxVertices = {
+    Fleur::Graphics::Material m_Material;
+    static constexpr std::array<glm::vec3, 36> m_SkyboxVertices = {
         // +X
         glm::vec3(1, -1, -1),
         glm::vec3(1, -1, 1),

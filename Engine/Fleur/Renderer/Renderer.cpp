@@ -341,18 +341,17 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
 
 void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
 {
-    /*Fleur::Graphics::SFLModelView modelView{};
+    Fleur::Graphics::SFLModelView modelView{};
     modelView.indecies.pData = nullptr;
     modelView.indecies.count = 0;
-    modelView.vertecies.pData = model->GetVerticesData();
-    modelView.vertecies.count = model->GetVertexCount();
+    modelView.vertecies.pData = skybox->GetVertexData();
+    modelView.vertecies.count = skybox->GetVertexCount();
 
     std::vector<SFLMaterialView> materials;
-    materials.reserve(model->GetMaterialsCount());
-    for (size_t i = 0; i < model->GetMaterialsCount(); i++)
+    materials.reserve(1);
+    for (size_t i = 0; i < 1; i++)
     {
-        const auto& material = model->GetMaterialsData() + i;
-        materials.emplace_back(material->albedo, material->normal);
+        materials.emplace_back(*skybox->GetMaterial());
     }
     Fleur::Graphics::SFLMaterialViewInfo materialViewInfo{};
     materialViewInfo.pData = materials.data();
@@ -361,10 +360,10 @@ void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
     modelView.materials = materialViewInfo;
 
     std::vector<Fleur::Graphics::SFLMeshView> meshes;
-    meshes.reserve(model->GetMeshCount());
-    for (size_t i = 0; i < model->GetMeshCount(); i++)
+    meshes.reserve(1);
+    for (size_t i = 0; i < 1; i++)
     {
-        const auto& mesh = model->GetMeshData() + i;
+        const auto& mesh = skybox->GetVertexData() + i;
         for (size_t i = 0; i < mesh->GetPrimitivesCount(); i++)
         {
             const auto& primitive = mesh->GetPrimitives() + i;
@@ -378,7 +377,7 @@ void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
     modelView.meshes.pData = meshes.data();
     modelView.meshes.count = meshes.size();
 
-    m_Backend->AddToDrawList(&modelView);*/
+    m_Backend->AddToDrawList(&modelView);
 }
 
 void Fleur::Graphics::Renderer::Clear()
