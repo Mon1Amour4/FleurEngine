@@ -237,7 +237,7 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 
 
 // ---------- Async ----------
-ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, void (*ClientCallback)(ModelAsset asset))
+ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback)
 {
     ModelAsyncOpShared sharedOperation = m_ModelCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -245,15 +245,15 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, v
 
     sharedOperation->status.SetStatus(TO_BE_LOADED);
 
-    AssetLoadCallback callback{};
-    callback.manager = this;
-    callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+    AssetLoadCallback internalCallback{};
+    internalCallback.manager = this;
+    internalCallback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadModelAsyncInternal(path, sharedOperation, callback);
+    LoadModelAsyncInternal(path, sharedOperation, internalCallback, callback);
 
     return sharedOperation;
 }
-ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings)
+ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback)
 {
     ImageAsyncOpShared sharedOperation = m_Image2DCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -261,11 +261,11 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
 
     sharedOperation->status.SetStatus(TO_BE_LOADED);
 
-    AssetLoadCallback callback{};
-    callback.manager = this;
-    callback.callback = &Fleur::AssetsManager::OnAssetLoaded;
+    AssetLoadCallback internalCallback{};
+    internalCallback.manager = this;
+    internalCallback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadImageAsyncInternal(path, sharedOperation, imageSettings, callback);
+    LoadImageAsyncInternal(path, sharedOperation, imageSettings, internalCallback, callback);
 
     return sharedOperation;
 }
@@ -354,19 +354,20 @@ void Fleur::AssetsManager::LoadImageInternal(std::string_view path, ImageAsset* 
     FL_CORE_INFO("[AssetsManager] Image (ID: {0}, {1}, {2}, {3}) has loaded", asset->ID, imagePtr->GetName(), imagePtr->GetWidth(), imagePtr->GetHeight());
 }
 
-void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback)
+void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& internalCallback,
+                                                  std::function<void(ModelAsset&)> clientCallback)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
     threadPool->Submit(
-        [this](ModelAsyncOpShared handle, std::string_view path, AssetLoadCallback callback)
+        [this](ModelAsyncOpShared handle, std::string_view path, AssetLoadCallback internalCallback, std::function<void(ModelAsset&)> clientCallback)
         {
             handle->status.SetStatus(EAsyncOperationStatus::LOADING);
 
             ModelType* modelPtr = handle->asset.obj;
 
-            callback.result.pResource = modelPtr;
-            callback.result.type = EVENT_TYPE_MODEL_LOADED;
-            callback.result.ID = handle->asset.ID;
+            internalCallback.result.pResource = modelPtr;
+            internalCallback.result.type = EVENT_TYPE_MODEL_LOADED;
+            internalCallback.result.ID = handle->asset.ID;
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -378,8 +379,8 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
                 FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, modelPtr->GetName());
                 assert(false);
                 handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
                 return;
             }
 
@@ -391,8 +392,8 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
                 FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, modelPtr->GetName());
                 assert(false);
                 handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
                 return;
             }
 
@@ -402,8 +403,8 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
                 FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, modelPtr->GetName());
                 assert(false);
                 handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
                 return;
             }
 
@@ -420,18 +421,23 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
 
             handle->status.SetStatus(EAsyncOperationStatus::LOADED);
 
-            callback.result.loadingStatus = handle->status.GetStatus();
-            callback.operator()();
+            internalCallback.result.loadingStatus = handle->status.GetStatus();
+            internalCallback.operator()();
+
+            if (clientCallback)
+                clientCallback.operator()(handle->asset);
         },
-        sharedOperation, path, callback);
+        sharedOperation, path, internalCallback, clientCallback);
 }
+
 void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings,
-                                                  AssetLoadCallback& callback)
+                                                  AssetLoadCallback& internalCallback, std::function<void(ImageAsset&)> clientCallback)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
-        [this](std::string_view path, ImageAsyncOpShared handle, ImageImportSettings imageSettings, AssetLoadCallback callback)
+        [this](std::string_view path, ImageAsyncOpShared handle, ImageImportSettings imageSettings, AssetLoadCallback internalCallback,
+               std::function<void(ImageAsset&)> clientCallback)
         {
             ImageType* imagePtr = handle->asset.obj;
 
@@ -439,17 +445,17 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
             {
                 FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
                 assert(false);
-                callback.result.loadingStatus = handle->status.GetStatus();
-                callback.operator()();
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
                 return;
             }
 
 
-            callback.result.pResource = imagePtr;
-            callback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
-            callback.result.ID = handle->asset.ID;
+            internalCallback.result.pResource = imagePtr;
+            internalCallback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
+            internalCallback.result.ID = handle->asset.ID;
 
-            callback.result.loadingStatus = handle->status.GetStatus();
+            internalCallback.result.loadingStatus = handle->status.GetStatus();
 
             if (imageSettings.imageSource == IMAGE_SOURCE_DISK)
             {
@@ -463,8 +469,8 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
                     assert(false);
                     handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                    callback.result.loadingStatus = handle->status.GetStatus();
-                    callback.operator()();
+                    internalCallback.result.loadingStatus = handle->status.GetStatus();
+                    internalCallback.operator()();
                     return;
                 }
 
@@ -481,8 +487,8 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     FL_CORE_ERROR("{0} ID: {1}, Name: {2}", CORRUPTED_ASSET_ERROR_MESSAGE, handle->asset.ID, imagePtr->GetName());
                     assert(false);
                     handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
-                    callback.result.loadingStatus = handle->status.GetStatus();
-                    callback.operator()();
+                    internalCallback.result.loadingStatus = handle->status.GetStatus();
+                    internalCallback.operator()();
                     return;
                 }
 
@@ -521,10 +527,13 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                          imagePtr->GetHeight());
 
             handle->status.SetStatus(EAsyncOperationStatus::LOADED);
-            callback.result.loadingStatus = handle->status.GetStatus();
-            callback.operator()();
+            internalCallback.result.loadingStatus = handle->status.GetStatus();
+            internalCallback.operator()();
+
+            if (clientCallback)
+                clientCallback.operator()(handle->asset);
         },
-        path, sharedOperation, imageSettings, callback);
+        path, sharedOperation, imageSettings, internalCallback, clientCallback);
 }
 // clang-format off
 void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
@@ -572,7 +581,8 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
             internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
             internalCallback.operator()();
 
-            clientCallback.operator()(asyncOperation->asset);
+            if(clientCallback)
+                clientCallback.operator()(asyncOperation->asset);
         },
         path, sharedOperation, cubemapSettings, internalCallback, clientCallback);
 }

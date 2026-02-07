@@ -205,7 +205,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb", nullptr);
 
     assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
-                                           [&](CubemapAsset asset)
+                                           [this](CubemapAsset asset)
                                            {
                                                m_skybox = new Fleur::Graphics::Skybox(asset.ID);
                                                auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();

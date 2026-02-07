@@ -269,9 +269,9 @@ public:
     CubemapAsset LoadCubemap(std::string_view path, CubemapImportSettings settings);
 
     // ---------- Async ----------
-    ModelAsyncOpShared LoadModelAsync(std::string_view path, void (*ClientCallback)(ModelAsset asset));
-    ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings);
-    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback);
+    ModelAsyncOpShared LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback = nullptr);
+    ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback = nullptr);
+    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback = nullptr);
 
     template <typename T>
     Asset<T> Get(std::string_view name)
@@ -396,8 +396,12 @@ private:
     void LoadImageFromColor(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
     void LoadImageFromMemory(ImageAsset* imageAsset, Fleur::ImageImportSettings& imageSettings);
 
-    void LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& callback);
-    void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings, AssetLoadCallback& callback);
+    void LoadModelAsyncInternal(std::string_view path, ModelAsyncOpShared sharedOperation, AssetLoadCallback& internalCallback,
+                                std::function<void(ModelAsset&)> clientCallback);
+
+    void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings, AssetLoadCallback& callback,
+                                std::function<void(ImageAsset&)> clientCallback);
+
     void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, CubemapImportSettings& cubemapSettings,
                                   AssetLoadCallback& internalCallback, std::function<void(CubemapAsset&)> clientCallback);
 
