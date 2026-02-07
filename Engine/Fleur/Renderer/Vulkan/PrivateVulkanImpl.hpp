@@ -45,7 +45,7 @@
 #endif
 
 #define VULKAN_VERSION VK_API_VERSION_1_4
-#define SKYBOX_LAYERS_COUNT 6
+#define CUBEMAP_LAYERS_COUNT 6
 
 constexpr uint32_t MAX_TEXTURES = 128;
 

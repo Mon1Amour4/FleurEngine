@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <vulkan/vulkan.h>
 
@@ -31,4 +31,6 @@ private:
     VkDeviceMemory m_Memory;
 
     uint32_t m_Mipmaps;
+
+    VkImageCreateFlags m_ImageFlags;
 };

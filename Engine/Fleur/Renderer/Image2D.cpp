@@ -3,7 +3,6 @@
 #include "Color.h"
 #include "FleurAllocator.hpp"
 #include "Services/ServiceLocator.h"
-#include <External/stb_image/stb_image_write.h>
 
 
 // ---------- ImageBase ----------

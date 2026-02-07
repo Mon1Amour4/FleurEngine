@@ -12,13 +12,13 @@ public:
     FVkCubemap() = default;
     ~FVkCubemap();
 
-    inline FVkTexture& GetFaceTexture(uint32_t idx)
+    inline FVkTexture* GetCubemapTexture()
     {
-        return m_Textures[idx];
+        return &m_Texture;
     }
 
 private:
     VkDevice m_Device;
 
-    std::vector<FVkTexture> m_Textures{6};
+    FVkTexture m_Texture;
 };

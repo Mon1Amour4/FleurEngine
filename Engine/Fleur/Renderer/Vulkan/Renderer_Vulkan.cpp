@@ -742,15 +742,16 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
                 m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
             }
         }
-        else if (imageView->layerCount == SKYBOX_LAYERS_COUNT)
+        else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
         {
-            continue;
             VkFormat format = GetVkFormat(imageView->channels);
             uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
+            uint32_t imageSize = layerSize * imageView->layerCount;
 
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             imageInfo.imageType = VK_IMAGE_TYPE_2D;
+            imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
             imageInfo.extent.width = imageView->w;
             imageInfo.extent.height = imageView->h;
             imageInfo.extent.depth = 1;
@@ -764,22 +765,26 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
             FVkBuffer stagingBuffer{};
-            stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, layerSize, layerSize);
-            for (size_t i = 0; i < SKYBOX_LAYERS_COUNT; i++)
-            {
-                VkImage face = m_Skybox->GetFaceTexture(i).CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
-                                                                       VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-                FVkSingleTimeCommandBuffer* cmd = m_Device->GetFrameCommandBuffer();
-                cmd->Begin();
-                cmd->TransitionImageLayout(face, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-                                           mimMapLevel);
-                stagingBuffer.MemCopy(imageView->pData, layerSize);
-                cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), face, imageView->w, imageView->h);
-                cmd->TransitionImageLayout(face, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                           VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
-                cmd->Submit(m_Device->GetGraphicsQueue());
-                cmd->Synchronize();
-            }
+            stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
+            stagingBuffer.MemCopy(imageView->pData, imageSize);
+
+            VkImage skyboxImage = m_Skybox->GetCubemapTexture()->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
+                                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+            FVkSingleTimeCommandBuffer* cmd = m_Device->GetFrameCommandBuffer();
+            cmd->Begin();
+            cmd->TransitionImageLayout(skyboxImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                       VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), skyboxImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
+            cmd->TransitionImageLayout(skyboxImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+            cmd->Submit(m_Device->GetGraphicsQueue());
+            cmd->Synchronize();
+
+            m_Skybox->GetCubemapTexture()->CreateImaveView();
+            VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
+
+            VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
         }
     }
 }
@@ -1079,7 +1084,7 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur:
     FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
     frameCmd->Begin();
     frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
-    frameCmd->CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, view.w, view.h);
+    frameCmd->CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
     if (mipLevels > 1)
     {
         frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);

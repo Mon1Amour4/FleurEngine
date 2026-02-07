@@ -193,7 +193,7 @@ FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 }
 
 void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                       VkImageAspectFlags aspectMask, uint32_t mimMapLevel)
+                                                       VkImageAspectFlags aspectMask, uint32_t mimMapCount)
 {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -204,7 +204,7 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
     barrier.image = image;
     barrier.subresourceRange.aspectMask = aspectMask;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mimMapLevel;
+    barrier.subresourceRange.levelCount = mimMapCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
@@ -216,22 +216,20 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
     vkCmdPipelineBarrier(m_CommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height)
+void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t size, uint32_t layerCount)
 {
-    VkBufferImageCopy region{};
-    region.bufferOffset = 0;
-    region.bufferRowLength = 0;
-    region.bufferImageHeight = 0;
-
-    region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.imageSubresource.mipLevel = 0;
-    region.imageSubresource.baseArrayLayer = 0;
-    region.imageSubresource.layerCount = 1;
-
-    region.imageOffset = {0, 0, 0};
-    region.imageExtent = {width, height, 1};
-
-    vkCmdCopyBufferToImage(m_CommandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    for (size_t i = 0; i < layerCount; i++)
+    {
+        VkBufferImageCopy region{
+            .bufferOffset = size * i,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource = VkImageSubresourceLayers{.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1},
+            .imageOffset = {0, 0, 0},
+            .imageExtent = VkExtent3D{imageExtent.width, imageExtent.height, 1},
+        };
+        vkCmdCopyBufferToImage(m_CommandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+    }
 }
 
 void FVkSingleTimeCommandBuffer::GenerateMipMaps(VkPhysicalDevice physicalDevice, VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight,
