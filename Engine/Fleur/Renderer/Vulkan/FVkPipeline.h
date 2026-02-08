@@ -17,6 +17,7 @@ struct SFPipelineCreationInfo
     VkViewport* viewport;
     VkExtent2D extent;
     VkSampleCountFlagBits samplesCount;
+    VkCompareOp depthStencilOp;
 };
 
 class FVkPipeline

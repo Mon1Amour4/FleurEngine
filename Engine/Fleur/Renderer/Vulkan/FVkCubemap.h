@@ -15,8 +15,7 @@ public:
     FVkSkybox();
     ~FVkSkybox();
 
-    void Create(VkDevice device, VkExtent2D extent, VkShaderModule vertexShader, VkShaderModule fragmentShader);
-
+    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkShaderModule vertexShader, VkShaderModule fragmentShader);
     inline FVkTexture* GetCubemapTexture()
     {
         return &m_Texture;
@@ -24,6 +23,9 @@ public:
 
 private:
     void CreateRenderPass(const FVkSwapchain* swapchain);
+    void CreateDescriptorSetLayout();
+    void CreateDescriptorPool(uint32_t framebufferCount);
+    void CreateDescriptorSets(uint32_t framebufferCount);
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
@@ -31,6 +33,11 @@ private:
     VkRenderPass m_RenderPass;
     VkShaderModule m_VertexShader;
     VkShaderModule m_FragmentShader;
+    VkDescriptorSetLayout m_DescriptorSetLayout;
+    VkCompareOp m_DepthStencilCompareOp;
+    VkDescriptorPool m_DescriptorPool;
+    std::vector<VkDescriptorSet> m_DescriptorSets;
+    std::vector<FVkBuffer> m_UniformBuffers;
 
     FVkTexture* m_Texture;
     FVkPipeline* m_Pipeline;
