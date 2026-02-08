@@ -341,6 +341,20 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
 
 void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
 {
+    // 1. Load Shader
+    auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+
+    auto pVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;
+    Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
+    vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
+    vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
+
+    auto pFragmentShader = assetsManager->Get<Shader>("skyboxFragment").obj;
+    Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
+    fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
+    fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
+
+    // 2. Build Model view onject
     Fleur::Graphics::SFLModelView modelView{};
     modelView.indecies.pData = nullptr;
     modelView.indecies.count = 0;
@@ -351,7 +365,7 @@ void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
     materials.reserve(1);
     for (size_t i = 0; i < 1; i++)
     {
-        materials.emplace_back(*skybox->GetMaterial());
+        materials.emplace_back(skybox->GetMaterial()->albedo, 0);
     }
     Fleur::Graphics::SFLMaterialViewInfo materialViewInfo{};
     materialViewInfo.pData = materials.data();
@@ -364,20 +378,20 @@ void Fleur::Graphics::Renderer::SetSkybox(Fleur::Graphics::Skybox* skybox)
     for (size_t i = 0; i < 1; i++)
     {
         const auto& mesh = skybox->GetVertexData() + i;
-        for (size_t i = 0; i < mesh->GetPrimitivesCount(); i++)
+        for (size_t i = 0; i < 1; i++)
         {
-            const auto& primitive = mesh->GetPrimitives() + i;
+            const auto& primitive = skybox->GetVertexData() + i;
 
             auto& meshView = meshes.emplace_back();
-            meshView.indexCount = primitive->GetIndexCount();
-            meshView.vertexCount = primitive->GetVertexCount();
-            meshView.materialIdx = primitive->GetMaterialIdx();
+            meshView.indexCount = 0;
+            meshView.vertexCount = skybox->GetVertexCount();
+            meshView.materialIdx = 0;
         }
     }
     modelView.meshes.pData = meshes.data();
     modelView.meshes.count = meshes.size();
 
-    m_Backend->AddToDrawList(&modelView);
+    m_Backend->SetSkybox(modelView, vertexShaderInfo, fragmentShaderInfo);
 }
 
 void Fleur::Graphics::Renderer::Clear()

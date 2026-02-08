@@ -99,6 +99,8 @@ struct vulkanBackend::vulkanBackendImpl
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
 
+    void SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader);
+
     // Instance
     VkInstance m_VulkanInstance;
     VkInstance createInstance();
@@ -233,5 +235,5 @@ struct vulkanBackend::vulkanBackendImpl
 
     bool m_WindowResizeIsInProgress;
 
-    FVkCubemap* m_Skybox;
+    FVkSkybox* m_Skybox;
 };

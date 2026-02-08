@@ -202,7 +202,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
                                                      .color = Fleur::Graphics::Color(255, 0, 255, 255),
                                                  });
 
-    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb", nullptr);
+    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb");
 
     assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
                                            [this](CubemapAsset asset)
@@ -216,18 +216,6 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
 
-
-    // assetsManager.value()->Load<Model>("gizmo.glb");
-    // assetsManager.value()->Load<Model>("WaterCooler/WaterCooler.obj");
-
-    // assetsManager.value()->Load<CubemapImage>("skybox.jpg");
-    // assetsManager.value()->Load<Image2D>("left.jpg");
-    // assetsManager.value()->Load<Image2D>("front.jpg");
-    // assetsManager.value()->Load<Image2D>("right.jpg");
-    // assetsManager.value()->Load<Image2D>("back.jpg");
-    // assetsManager.value()->Load<Image2D>("bottom.jpg");
-    // assetsManager.value()->Load<Image2D>("top.jpg");
-    // assetsManager.value()->Load<Image2D>("skybox_cubemap.jpg");  // cross-layour
 
     m_IsInitialized = true;
     m_IsRunning = true;

@@ -4,6 +4,8 @@
 
 #include "IRenderer.hpp"
 
+using namespace Fleur::Graphics;
+
 struct vulkanBackend : public Fleur::Graphics::IRenderer
 {
     // pImpl
@@ -11,12 +13,12 @@ struct vulkanBackend : public Fleur::Graphics::IRenderer
 
     // Vrtual interface
     virtual ~vulkanBackend() override;
-    virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) override;
-    virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) override;
-    virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) override;
+    virtual void AddToDrawList(SFLModelView* pModelView) override;
+    virtual void Update(SFLGeometryUBO* pUbo) override;
+    virtual void SubmitImageViews(SFLImageViewInfo* pInfo) override;
+    virtual void SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader) override;
 
-    vulkanBackend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
-                  Fleur::Graphics::SFLImageView& fallback);
+    vulkanBackend(bool enableValidation, SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback);
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;

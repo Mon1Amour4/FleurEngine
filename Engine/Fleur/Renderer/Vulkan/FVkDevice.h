@@ -48,23 +48,23 @@ public:
         return m_FrameCommandBuffer;
     }
 
-    inline VkDevice GetLogicalDevice()
+    inline VkDevice GetLogicalDevice() const
     {
         return m_Device;
     }
-    inline VkPhysicalDevice GetPhysicalDevice()
+    inline VkPhysicalDevice GetPhysicalDevice() const
     {
         return m_PhysicalDevice;
     }
-    inline uint32_t GetGraphicsQueueFamilyIndex()
+    inline uint32_t GetGraphicsQueueFamilyIndex() const
     {
         return m_GraphicsQueueFamily.familyIndex;
     }
-    inline VkQueue GetGraphicsQueue()
+    inline VkQueue GetGraphicsQueue() const
     {
         return m_GraphicsQueue;
     }
-    inline VkQueue GetPresentQueue()
+    inline VkQueue GetPresentQueue() const
     {
         return m_PresentQueue;
     }

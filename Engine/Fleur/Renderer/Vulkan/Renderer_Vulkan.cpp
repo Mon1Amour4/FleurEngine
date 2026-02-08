@@ -32,6 +32,11 @@ void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
     pImpl->SubmitImageViews(pInfo);
 }
 
+void vulkanBackend::SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader)
+{
+    pImpl->SetSkybox(pModelView, pVertexShader, pFragmentShader);
+}
+
 void vulkanBackend::StartResize()
 {
     pImpl->StartResize();
@@ -89,7 +94,7 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                 m_Multisampler->GetSamplesCount());
 
-    m_Skybox = new FVkCubemap();
+    m_Skybox = new FVkSkybox();
 
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
@@ -1044,6 +1049,15 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
     currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainFramebuffersCount();
+}
+
+void vulkanBackend::vulkanBackendImpl::SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader)
+{
+    SFPipelineCreationInfo pipelineInfo{.device = m_Device->GetLogicalDevice(), .};
+
+    m_Skybox->Create(m_Device->GetLogicalDevice(), CreateShaderModule(pVertexShader), CreateShaderModule(pFragmentShader), &pipelineInfo);
+
+    AddToDrawList(pModelView);
 }
 
 void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect,

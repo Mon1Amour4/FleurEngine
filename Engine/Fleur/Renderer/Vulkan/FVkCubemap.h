@@ -4,13 +4,18 @@
 
 #include <vector>
 
+#include "FVkDevice.h"
+#include "FVkPipeline.h"
+#include "FVkSwapchain.h"
 #include "FVkTexture.h"
 
-class FVkCubemap
+class FVkSkybox
 {
 public:
-    FVkCubemap() = default;
-    ~FVkCubemap();
+    FVkSkybox();
+    ~FVkSkybox();
+
+    void Create(VkDevice device, VkExtent2D extent, VkShaderModule vertexShader, VkShaderModule fragmentShader);
 
     inline FVkTexture* GetCubemapTexture()
     {
@@ -18,7 +23,16 @@ public:
     }
 
 private:
-    VkDevice m_Device;
+    void CreateRenderPass(const FVkSwapchain* swapchain);
 
-    FVkTexture m_Texture;
+    VkDevice m_Device;
+    VkPhysicalDevice m_PhysicalDevice;
+
+    VkRenderPass m_RenderPass;
+    VkShaderModule m_VertexShader;
+    VkShaderModule m_FragmentShader;
+
+    FVkTexture* m_Texture;
+    FVkPipeline* m_Pipeline;
+    SFLVertexInput* m_VertexInput;
 };

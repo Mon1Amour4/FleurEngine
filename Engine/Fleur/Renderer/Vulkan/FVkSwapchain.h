@@ -19,24 +19,24 @@ public:
 
     bool SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
-    inline VkFramebuffer GetFramebuffer(uint32_t idx)
+    inline VkFramebuffer GetFramebuffer(uint32_t idx) const
     {
         assert(idx <= m_FramebuffersCount - 1);
         return m_Framebuffers[idx];
     }
-    inline VkSwapchainKHR GetSwapchain()
+    inline VkSwapchainKHR GetSwapchain() const
     {
         return m_Swapchain;
     }
-    inline VkFormat GetImageFormat()
+    inline VkFormat GetImageFormat() const
     {
         return m_SwapchainImageFormat;
     }
-    inline VkExtent2D GetSwapchainExtent()
+    inline VkExtent2D GetSwapchainExtent() const
     {
         return m_SwapchainExtent;
     }
-    inline uint32_t GetSwapchainFramebuffersCount()
+    inline uint32_t GetSwapchainFramebuffersCount() const
     {
         return m_FramebuffersCount;
     }
