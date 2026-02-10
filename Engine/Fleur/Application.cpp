@@ -202,6 +202,10 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
                                                      .color = Fleur::Graphics::Color(255, 0, 255, 255),
                                                  });
 
+    auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
+    renderer.value()->Init();
+    renderer.value()->SetVSync(settings.Vsync);
+
     auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb");
 
     assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
@@ -209,12 +213,8 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
                                            {
                                                m_skybox = new Fleur::Graphics::Skybox(asset.ID);
                                                auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
-                                               renderer->SetSkybox(m_skybox);
+                                               renderer->SetSkybox(asset.ID);
                                            });
-
-    auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
-    renderer.value()->Init();
-    renderer.value()->SetVSync(settings.Vsync);
 
 
     m_IsInitialized = true;

@@ -70,7 +70,8 @@ struct IRenderer
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;
 
-    virtual void SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader) = 0;
+    virtual void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo) = 0;
+    virtual void SetSkybox(AssetID id) = 0;
 };
 
 }  // namespace Fleur::Graphics

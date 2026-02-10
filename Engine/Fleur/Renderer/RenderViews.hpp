@@ -2,10 +2,11 @@
 
 namespace Fleur::Graphics
 {
+using AssetID = uint32_t;
 
 struct SFLImageView
 {
-    uint32_t ID;
+    AssetID ID;
     const char* pData{};
     uint32_t w{};
     uint32_t h{};

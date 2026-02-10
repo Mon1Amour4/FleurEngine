@@ -99,7 +99,7 @@ struct vulkanBackend::vulkanBackendImpl
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
 
-    void SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader);
+    void SetSkybox(AssetID id);
 
     // Instance
     VkInstance m_VulkanInstance;
@@ -198,7 +198,7 @@ struct vulkanBackend::vulkanBackendImpl
     VkSampler createTextureSampler();
 
     VkSampler m_ImageSampler;
-    std::unordered_map<uint32_t, FVkTexture> m_TextureMap;
+    std::unordered_map<AssetID, FVkTexture> m_TextureMap;
     uint32_t m_FallbackTextureIdx;
     void UpdateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
@@ -236,4 +236,5 @@ struct vulkanBackend::vulkanBackendImpl
     bool m_WindowResizeIsInProgress;
 
     FVkSkybox* m_Skybox;
+    void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
 };

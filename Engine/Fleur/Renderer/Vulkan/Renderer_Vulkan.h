@@ -16,7 +16,9 @@ struct vulkanBackend : public Fleur::Graphics::IRenderer
     virtual void AddToDrawList(SFLModelView* pModelView) override;
     virtual void Update(SFLGeometryUBO* pUbo) override;
     virtual void SubmitImageViews(SFLImageViewInfo* pInfo) override;
-    virtual void SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader) override;
+
+    virtual void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo) override;
+    virtual void SetSkybox(AssetID id) override;
 
     vulkanBackend(bool enableValidation, SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback);
 

@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <RenderViews.hpp>
+#include <glm/ext/matrix_float4x4.hpp>
 #include <vector>
 
 #include "FVkDevice.h"
@@ -15,17 +17,19 @@ public:
     FVkSkybox();
     ~FVkSkybox();
 
-    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkShaderModule vertexShader, VkShaderModule fragmentShader);
-    inline FVkTexture* GetCubemapTexture()
-    {
-        return &m_Texture;
-    }
+    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkImageView fallback, VkShaderModule vertexShader, VkShaderModule fragmentShader);
+    void SetSkybox(VkImageView imageView);
+
+    void Record(VkCommandBuffer cmd, uint32_t frame);
+
+    void Update(uint32_t frame, const glm::mat4& transformation);
 
 private:
     void CreateRenderPass(const FVkSwapchain* swapchain);
     void CreateDescriptorSetLayout();
     void CreateDescriptorPool(uint32_t framebufferCount);
     void CreateDescriptorSets(uint32_t framebufferCount);
+    void CreateSampler();
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
@@ -38,8 +42,10 @@ private:
     VkDescriptorPool m_DescriptorPool;
     std::vector<VkDescriptorSet> m_DescriptorSets;
     std::vector<FVkBuffer> m_UniformBuffers;
+    VkSampler m_Sampler;
 
-    FVkTexture* m_Texture;
+    VkImageView m_ImageView;
+
     FVkPipeline* m_Pipeline;
     SFLVertexInput* m_VertexInput;
 };

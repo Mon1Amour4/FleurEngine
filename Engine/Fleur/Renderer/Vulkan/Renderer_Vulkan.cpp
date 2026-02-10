@@ -32,9 +32,14 @@ void vulkanBackend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
     pImpl->SubmitImageViews(pInfo);
 }
 
-void vulkanBackend::SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader)
+void vulkanBackend::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
-    pImpl->SetSkybox(pModelView, pVertexShader, pFragmentShader);
+    pImpl->CreateSkybox(id, pVertexShaderInfo, pFragmentShaderInfo);
+}
+
+void vulkanBackend::SetSkybox(AssetID id)
+{
+    pImpl->SetSkybox(id);
 }
 
 void vulkanBackend::StartResize()
@@ -94,7 +99,6 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     m_GeometryPipeline = CreateGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                 m_Multisampler->GetSamplesCount());
 
-    m_Skybox = new FVkSkybox();
 
     m_GraphicsCommandPool = new FVkCommandPool();
     m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
@@ -443,9 +447,9 @@ FVkPipeline* vulkanBackend::vulkanBackendImpl::CreateGeometryPipeline(Fleur::Gra
     viewport.maxDepth = 1.0f;
     pipelineInfo.viewport = &viewport;
     pipelineInfo.extent = m_Swapchain->GetSwapchainExtent();
-
-    if (pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST)
-        pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.topology = pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+                                                                                                                : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.depthWriteEnable = true;
 
     FVkPipeline* geometryPipeline = new FVkPipeline();
     geometryPipeline->Init(&pipelineInfo);
@@ -773,24 +777,19 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
             stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
             stagingBuffer.MemCopy(imageView->pData, imageSize);
 
-            VkImage skyboxImage = m_Skybox->GetCubemapTexture()->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
-                                                                             VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+            VkImage cubemapImage = gpuTexture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
+                                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
             FVkSingleTimeCommandBuffer* cmd = m_Device->GetFrameCommandBuffer();
             cmd->Begin();
-            cmd->TransitionImageLayout(skyboxImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            cmd->TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                        VK_IMAGE_ASPECT_COLOR_BIT, 1);
-            cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), skyboxImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
-            cmd->TransitionImageLayout(skyboxImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
+            cmd->TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                                        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
             cmd->Submit(m_Device->GetGraphicsQueue());
             cmd->Synchronize();
-
-            m_Skybox->GetCubemapTexture()->CreateImaveView();
-
-            // Fleur::Graphics::SFLShaderInfo info{};
-            // info.shaderCode VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
-            // VkShaderModule vertexShaderModule = CreateShaderModule(pVertexInfo);
+            gpuTexture.CreateImaveView();
         }
     }
 }
@@ -909,7 +908,7 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     auto& buffer = m_SecondaryCmdBuffers[idx];
     buffer.Reset();
     buffer.Begin(m_GeometryRenderPass);
-    buffer.BindPipeline(m_GeometryPipeline->Pipeline());
+    buffer.BindPipeline(m_GeometryPipeline->GetPipeline());
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -931,12 +930,12 @@ void vulkanBackend::vulkanBackendImpl::UpdateGeometrySecondaryCmdBuffer(uint32_t
     else if (m_IndexBuffer->StrideBytes() == 2)
         buffer.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
 
-    buffer.BindDescriptorSet(m_GeometryPipeline->PipelineLayout(), &descriptorSets[idx]);
+    buffer.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[idx]);
 
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pc{draw.material.albedo};
-        buffer.PushConstant(m_GeometryPipeline->PipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pc);
+        buffer.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pc);
         buffer.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
 
@@ -1051,13 +1050,9 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 }
 
-void vulkanBackend::vulkanBackendImpl::SetSkybox(SFLModelView* pModelView, SFLShaderInfo* pVertexShader, SFLShaderInfo* pFragmentShader)
+void vulkanBackend::vulkanBackendImpl::SetSkybox(AssetID id)
 {
-    SFPipelineCreationInfo pipelineInfo{.device = m_Device->GetLogicalDevice(), .};
-
-    m_Skybox->Create(m_Device->GetLogicalDevice(), CreateShaderModule(pVertexShader), CreateShaderModule(pFragmentShader), &pipelineInfo);
-
-    AddToDrawList(pModelView);
+    m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
 }
 
 void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect,
@@ -1154,4 +1149,10 @@ void vulkanBackend::vulkanBackendImpl::EndResize(Fleur::SRect& rect)
     m_WindowResizeIsInProgress = false;
     m_Swapchain->OnWindowResized(rect);
     std::cout << "\EndResize\n";
+}
+
+void vulkanBackend::vulkanBackendImpl::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
+{
+    m_Skybox = new FVkSkybox();
+    m_Skybox->Create(m_Device, m_Swapchain, m_TextureMap[id].GetImageView(), CreateShaderModule(pVertexShaderInfo), CreateShaderModule(pFragmentShaderInfo));
 }

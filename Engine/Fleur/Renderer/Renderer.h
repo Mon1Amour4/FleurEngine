@@ -55,7 +55,7 @@ public:
     // IRenderer;
     void DrawModel(ERenderStage stage, const Model* model, glm::mat4 modelPos);
 
-    void SetSkybox(Fleur::Graphics::Skybox* skybox);
+    void SetSkybox(AssetID id);
 
 
     // IUpdatable

@@ -18,6 +18,7 @@ struct SFPipelineCreationInfo
     VkExtent2D extent;
     VkSampleCountFlagBits samplesCount;
     VkCompareOp depthStencilOp;
+    VkBool32 depthWriteEnable;
 };
 
 class FVkPipeline
@@ -28,11 +29,11 @@ public:
 
     void Init(SFPipelineCreationInfo* info);
 
-    VkPipeline Pipeline()
+    VkPipeline GetPipeline()
     {
         return m_Pipeline;
     }
-    VkPipelineLayout PipelineLayout()
+    VkPipelineLayout GetPipelineLayout()
     {
         return m_PipelineLayout;
     }
