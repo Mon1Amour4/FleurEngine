@@ -8,7 +8,6 @@ FVkSkybox::FVkSkybox()
     , m_VertexShader(nullptr)
     , m_FragmentShader(nullptr)
     , m_Pipeline(nullptr)
-    , m_VertexInput(nullptr)
     , m_RenderPass(nullptr)
     , m_PhysicalDevice(nullptr)
     , m_DescriptorSetLayout(nullptr)
@@ -19,7 +18,6 @@ FVkSkybox::FVkSkybox()
 
 FVkSkybox::~FVkSkybox()
 {
-    delete m_VertexInput;
     delete m_Pipeline;
 
     if (m_VertexShader)
@@ -38,16 +36,14 @@ FVkSkybox::~FVkSkybox()
 }
 
 void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkImageView imageView, VkShaderModule vertexShader,
-                       VkShaderModule fragmentShader)
+                       VkShaderModule fragmentShader, VkSampleCountFlagBits samples)
 {
     m_Device = device->GetLogicalDevice();
     m_PhysicalDevice = device->GetPhysicalDevice();
     m_VertexShader = vertexShader;
     m_FragmentShader = fragmentShader;
     m_ImageView = imageView;
-
-    m_VertexInput = new SFLVertexInput();
-    m_VertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
+    m_Samples = samples;
 
     m_Pipeline = new FVkPipeline();
 
@@ -68,12 +64,12 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
                                         .descriptorSetLayout = m_DescriptorSetLayout,
                                         .vertexShader = m_VertexShader,
                                         .fragmentShader = m_FragmentShader,
-                                        .pushConstantSize = sizeof(uint32_t),
-                                        .vertexInput = m_VertexInput,
+                                        .pushConstantSize = 0,
+                                        .vertexInput = nullptr,
                                         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                                         .viewport = &viewport,
                                         .extent = swapchainExtent,
-                                        .samplesCount = VK_SAMPLE_COUNT_1_BIT,
+                                        .samplesCount = m_Samples,
                                         .depthStencilOp = m_DepthStencilCompareOp,
                                         .depthWriteEnable = false};
     m_Pipeline->Init(&pipelineInfo);
@@ -87,11 +83,66 @@ void FVkSkybox::SetSkybox(VkImageView imageView)
 {
     m_ImageView = imageView;
 
-    // Update VkWriteDescriptorSet for VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
+    for (size_t i = 0; i < m_DescriptorSets.size(); i++)
+    {
+        VkDescriptorImageInfo imageSamplerInfo{};
+        imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageSamplerInfo.imageView = imageView;
+        imageSamplerInfo.sampler = m_Sampler;
+
+        std::array<VkWriteDescriptorSet, 1> descriptorImageWrites{};
+        for (size_t j = 0; j < descriptorImageWrites.size(); j++)
+        {
+            descriptorImageWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorImageWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorImageWrites[j].dstSet = m_DescriptorSets[i];
+            descriptorImageWrites[j].dstBinding = 4;
+            descriptorImageWrites[j].dstArrayElement = j;
+            descriptorImageWrites[j].descriptorCount = 1;
+            descriptorImageWrites[j].pImageInfo = &imageSamplerInfo;
+        }
+        vkUpdateDescriptorSets(m_Device, descriptorImageWrites.size(), descriptorImageWrites.data(), 0, nullptr);
+    }
 }
 
-void FVkSkybox::Record(VkCommandBuffer cmd, uint32_t frame)
+void FVkSkybox::Record(VkCommandBuffer cmd, uint32_t frame, VkFramebuffer frameBuffer, VkExtent2D swapchainExtent)
 {
+    vkResetCommandBuffer(cmd, 0);
+
+    VkCommandBufferInheritanceInfo inheritanceInfo{};
+    inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
+    inheritanceInfo.pNext = NULL;
+    inheritanceInfo.renderPass = m_RenderPass;
+    inheritanceInfo.subpass = 0;
+    inheritanceInfo.framebuffer = VK_NULL_HANDLE;
+
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
+    beginInfo.pInheritanceInfo = &inheritanceInfo;
+
+    if (vkBeginCommandBuffer(cmd, &beginInfo) != VK_SUCCESS)
+    {
+        assert(false);
+    }
+
+    VkRenderPassBeginInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassInfo.renderPass = m_RenderPass;
+    renderPassInfo.framebuffer = frameBuffer;
+    renderPassInfo.renderArea.offset = {0, 0};
+    renderPassInfo.renderArea.extent = swapchainExtent;
+
+    std::array<VkClearValue, 2> clearValues{};
+    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+    clearValues[1].depthStencil = {1.0f, 0};
+
+    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+    renderPassInfo.pClearValues = clearValues.data();
+
+    vkCmdBeginRenderPass(cmd, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
     vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipeline());
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &m_DescriptorSets[frame], 0, nullptr);
@@ -109,7 +160,7 @@ void FVkSkybox::Update(uint32_t frame, const glm::mat4& transformation)
 void FVkSkybox::CreateRenderPass(const FVkSwapchain* swapchain)
 {
     VkAttachmentDescription colorAttachment{.format = swapchain->GetImageFormat(),
-                                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                                            .samples = m_Samples,
                                             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                                             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                                             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -118,7 +169,7 @@ void FVkSkybox::CreateRenderPass(const FVkSwapchain* swapchain)
                                             .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR};
 
     VkAttachmentDescription depthAttachment{.format = FindDepthFormat(m_PhysicalDevice),
-                                            .samples = VK_SAMPLE_COUNT_1_BIT,
+                                            .samples = m_Samples,
                                             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                                             .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
                                             .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -161,19 +212,17 @@ void FVkSkybox::CreateDescriptorSetLayout()
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.binding = 2;
     uboLayoutBinding.descriptorCount = 1;           // if more than 1 then it means an array
     uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional
 
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    samplerLayoutBinding.binding = 1;
-    // Max num of descriptors in this current descriptor set
-    samplerLayoutBinding.descriptorCount = 1;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
+    VkDescriptorSetLayoutBinding cubemapBinding{};
+    cubemapBinding.binding = 4;
+    cubemapBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    cubemapBinding.descriptorCount = 1;
+    cubemapBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
 
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
+    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, cubemapBinding};
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     layoutInfo.bindingCount = bindings.size();
@@ -208,6 +257,9 @@ void FVkSkybox::CreateDescriptorPool(uint32_t framebufferCount)
 
 void FVkSkybox::CreateDescriptorSets(uint32_t framebufferCount)
 {
+    m_DescriptorSets.resize(framebufferCount);
+    m_UniformBuffers.resize(framebufferCount);
+
     std::vector<VkDescriptorSetLayout> layouts(framebufferCount, m_DescriptorSetLayout);
 
     VkDescriptorSetAllocateInfo allocInfo{};
@@ -216,25 +268,25 @@ void FVkSkybox::CreateDescriptorSets(uint32_t framebufferCount)
     allocInfo.descriptorSetCount = layouts.size();
     allocInfo.pSetLayouts = layouts.data();
 
-    m_DescriptorSets.resize(framebufferCount);
     if (vkAllocateDescriptorSets(m_Device, &allocInfo, m_DescriptorSets.data()) != VK_SUCCESS)
     {
         assert(true);
     }
 
-    m_UniformBuffers.resize(m_DescriptorSets.size());
+    uint32_t bufferSize = sizeof(glm::mat4);
     for (size_t i = 0; i < m_DescriptorSets.size(); i++)
     {
+        m_UniformBuffers[i].Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_UniformBuffers[i].GetBuffer();
         bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
+        bufferInfo.range = bufferSize;
 
         std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
         descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         descriptorWrites[0].dstSet = m_DescriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
+        descriptorWrites[0].dstBinding = 2;
         descriptorWrites[0].dstArrayElement = 0;
         descriptorWrites[0].descriptorCount = 1;
         descriptorWrites[0].pBufferInfo = &bufferInfo;
@@ -252,7 +304,7 @@ void FVkSkybox::CreateDescriptorSets(uint32_t framebufferCount)
             descriptorImageWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
             descriptorImageWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
             descriptorImageWrites[j].dstSet = m_DescriptorSets[i];
-            descriptorImageWrites[j].dstBinding = 1;
+            descriptorImageWrites[j].dstBinding = 4;
             descriptorImageWrites[j].dstArrayElement = j;
             descriptorImageWrites[j].descriptorCount = 1;
             descriptorImageWrites[j].pImageInfo = &imageSamplerInfo;

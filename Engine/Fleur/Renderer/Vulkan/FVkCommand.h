@@ -47,7 +47,7 @@ public:
     void BindPipeline(VkPipeline pipeline);
     void BeginRenderPass(VkRenderPassBeginInfo info, VkSubpassContents content);
     void EndRenderPass();
-    void ExecuteSecondaryCommandBuffer(VkCommandBuffer* secondary);
+    void ExecuteSecondaryCommandBuffer(VkCommandBuffer secondary);
 
     void SetViewport(VkViewport viewport);
     void SetScissors(VkRect2D scissors);
@@ -57,7 +57,7 @@ public:
     void PushConstant(VkPipelineLayout pipelineLayout, VkImageAspectFlags shaderStage, SFLPushConstant constant);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
 
-    inline VkCommandBuffer* CommandBuffer()
+    inline VkCommandBuffer* GetCommandBuffer()
     {
         return &m_CommandBuffer;
     }

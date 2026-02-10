@@ -25,6 +25,7 @@ private:
     VkDevice m_Device;
     VkFormat m_Format;
     VkImageAspectFlags m_Aspect;
+    uint32_t m_Layers;
 
     VkImage m_Image;
     VkImageView m_ImageView;

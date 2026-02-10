@@ -126,11 +126,11 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     else if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
         indexInputDescriptorSize = sizeof(uint16_t);
 
-    m_VertexBuffer->Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+    m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                          1024u * 1024ul * 512ul, vertexInputDescriptorSize);
 
-    m_IndexBuffer->Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul,
-                        indexInputDescriptorSize);
+    m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                        1024u * 1024ul * 256ul, indexInputDescriptorSize);
 
     createUniformBuffers();
     createDescriptorPool();
@@ -144,6 +144,8 @@ vulkanBackend::vulkanBackendImpl::vulkanBackendImpl(bool enableValidation, Fleur
     {
         m_PrimaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
     }
+    m_SkyboxCmd.Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+
     for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
     {
         m_SecondaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
@@ -503,7 +505,7 @@ void vulkanBackend::vulkanBackendImpl::InitGeometryPrimaryCmdBuffers(uint32_t id
     renderPassInfo.pClearValues = clearValues.data();
 
     buffer.BeginRenderPass(renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-    buffer.ExecuteSecondaryCommandBuffer(m_SecondaryCmdBuffers[idx].CommandBuffer());
+    buffer.ExecuteSecondaryCommandBuffer(*m_SecondaryCmdBuffers[idx].GetCommandBuffer());
     buffer.EndRenderPass();
 
     buffer.End();
@@ -655,15 +657,14 @@ void vulkanBackend::vulkanBackendImpl::createUniformBuffers()
 
     for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
     {
-        m_UniformBuffers[i].Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
-        m_UniformBuffers[i].Map();
+        m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
     }
 }
 void vulkanBackend::vulkanBackendImpl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
     pUbo->model = glm::mat4(1.0f);
-    memcpy(m_UniformBuffers[currentFrame].MappedMemory(), pUbo, sizeof(*pUbo));
+    m_UniformBuffers[currentFrame].MemCopy(pUbo, sizeof(*pUbo));
 }
 
 
@@ -774,7 +775,7 @@ void vulkanBackend::vulkanBackendImpl::SubmitImageViews(Fleur::Graphics::SFLImag
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
             FVkBuffer stagingBuffer{};
-            stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
+            stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
             stagingBuffer.MemCopy(imageView->pData, imageSize);
 
             VkImage cubemapImage = gpuTexture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
@@ -956,7 +957,6 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
 {
     if (m_WindowResizeIsInProgress)
     {
-        std::cout << "\nUpdate -> m_WindowResizeIsInProgress return \n";
         return;
     }
     if (!m_Swapchain->ReadyToPresent())
@@ -993,7 +993,6 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
         InitGeometryPrimaryCmdBuffers(currentFrame);
     }
 
-
     uint32_t imageIndex;
     VkResult isSwapchainValid{};
     isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame],
@@ -1009,6 +1008,8 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
         assert(false);
     }
 
+    m_Skybox->Update(currentFrame, glm::mat4(1.f));
+
     updateUniformBuffer(currentFrame, pUbo);
 
     VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
@@ -1021,7 +1022,7 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
 
-    submitInfo.pCommandBuffers = m_PrimaryCmdBuffers[currentFrame].CommandBuffer();
+    submitInfo.pCommandBuffers = m_PrimaryCmdBuffers[currentFrame].GetCommandBuffer();
 
     VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
@@ -1052,7 +1053,17 @@ void vulkanBackend::vulkanBackendImpl::update(Fleur::Graphics::SFLGeometryUBO* p
 
 void vulkanBackend::vulkanBackendImpl::SetSkybox(AssetID id)
 {
+    while (m_TextureMap[id].GetImageView() == nullptr)
+    {
+    }
     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
+    m_Skybox->Update(0, glm::mat4(1.f));
+    m_Skybox->Update(1, glm::mat4(1.f));
+    m_Skybox->Update(2, glm::mat4(1.f));
+
+    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 0, m_Swapchain->GetFramebuffer(0), m_Swapchain->GetSwapchainExtent());
+    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 1, m_Swapchain->GetFramebuffer(1), m_Swapchain->GetSwapchainExtent());
+    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 2, m_Swapchain->GetFramebuffer(2), m_Swapchain->GetSwapchainExtent());
 }
 
 void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect,
@@ -1087,7 +1098,7 @@ void vulkanBackend::vulkanBackendImpl::CreateTexture(FVkTexture& texture, Fleur:
     VkDeviceSize mapImageSize = view.w * view.h * view.channels;
 
     FVkBuffer stagingBuffer{};
-    stagingBuffer.Init(m_Allocator, m_Device->GetLogicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
+    stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
 
     stagingBuffer.MemCopy(view.pData, static_cast<size_t>(mapImageSize));
 
@@ -1154,5 +1165,6 @@ void vulkanBackend::vulkanBackendImpl::EndResize(Fleur::SRect& rect)
 void vulkanBackend::vulkanBackendImpl::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_TextureMap[id].GetImageView(), CreateShaderModule(pVertexShaderInfo), CreateShaderModule(pFragmentShaderInfo));
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), CreateShaderModule(pVertexShaderInfo), CreateShaderModule(pFragmentShaderInfo),
+                     VK_SAMPLE_COUNT_1_BIT);
 }

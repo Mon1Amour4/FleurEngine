@@ -3,7 +3,12 @@
 #include <vulkan/vulkan.h>
 
 #include "VkHelper.h"
-
+enum BindingType
+{
+    UNIFORM_BUFFER,
+    TEXTURE2D,
+    CUBEMAP,
+};
 struct SFPipelineCreationInfo
 {
     VkDevice device;
@@ -19,6 +24,7 @@ struct SFPipelineCreationInfo
     VkSampleCountFlagBits samplesCount;
     VkCompareOp depthStencilOp;
     VkBool32 depthWriteEnable;
+    BindingType binding;
 };
 
 class FVkPipeline
@@ -42,4 +48,6 @@ private:
     VkDevice m_Device;
     VkPipeline m_Pipeline;
     VkPipelineLayout m_PipelineLayout;
+
+    uint32_t GetBindingIdx();
 };

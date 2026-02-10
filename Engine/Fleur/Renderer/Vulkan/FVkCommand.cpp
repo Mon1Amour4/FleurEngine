@@ -120,9 +120,9 @@ void FVkCommandBuffer::EndRenderPass()
     vkCmdEndRenderPass(m_CommandBuffer);
 }
 
-void FVkCommandBuffer::ExecuteSecondaryCommandBuffer(VkCommandBuffer* secondary)
+void FVkCommandBuffer::ExecuteSecondaryCommandBuffer(VkCommandBuffer secondary)
 {
-    vkCmdExecuteCommands(m_CommandBuffer, 1, secondary);
+    vkCmdExecuteCommands(m_CommandBuffer, 1, &secondary);
 }
 
 void FVkCommandBuffer::SetViewport(VkViewport viewport)

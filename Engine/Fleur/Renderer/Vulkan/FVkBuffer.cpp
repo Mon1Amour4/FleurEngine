@@ -7,24 +7,37 @@
 
 FVkBuffer::FVkBuffer()
     : m_Device(nullptr)
-    , m_Allocator(nullptr)
     , m_SizeBytes(0)
     , m_CurrentSizeBytes(0)
     , m_StrideSizeBytes(0)
     , m_VkBuffer(nullptr)
-    , m_Allocation(nullptr)
     , m_MemoryUsage(0)
     , m_MappedMemory(nullptr)
 {
 }
 FVkBuffer::~FVkBuffer()
 {
-    vmaDestroyBuffer(m_Allocator, m_VkBuffer, m_Allocation);
+    if (m_MappedMemory)
+    {
+        vkUnmapMemory(m_Device, m_Memory);
+        m_MappedMemory = nullptr;
+    }
+
+    if (m_VkBuffer != VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(m_Device, m_VkBuffer, nullptr);
+        m_VkBuffer = VK_NULL_HANDLE;
+    }
+
+    if (m_Memory != VK_NULL_HANDLE)
+    {
+        vkFreeMemory(m_Device, m_Memory, nullptr);
+        m_Memory = VK_NULL_HANDLE;
+    }
 }
 
-void FVkBuffer::Init(VmaAllocator allocator, VkDevice device, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
+void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
 {
-    m_Allocator = allocator;
     m_Device = device;
     m_SizeBytes = sizeBytes;
     m_StrideSizeBytes = strideSize;
@@ -33,11 +46,26 @@ void FVkBuffer::Init(VmaAllocator allocator, VkDevice device, VkBufferUsageFlags
     bufferInfo.size = sizeBytes;
     bufferInfo.usage = usage;
 
-    VmaAllocationCreateInfo allocInfo = {};
-    allocInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    allocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+    if (vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VkBuffer) != VK_SUCCESS)
+    {
+        assert(false);
+    }
 
-    if (vmaCreateBuffer(m_Allocator, &bufferInfo, &allocInfo, &m_VkBuffer, &m_Allocation, nullptr) != VK_SUCCESS)
+    VkMemoryRequirements memRequirements;
+    vkGetBufferMemoryRequirements(m_Device, m_VkBuffer, &memRequirements);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memRequirements.size;
+    allocInfo.memoryTypeIndex =
+        FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+
+    if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_Memory) != VK_SUCCESS)
+    {
+        assert(true);
+    }
+
+    if (vkBindBufferMemory(m_Device, m_VkBuffer, m_Memory, 0) != VK_SUCCESS)
     {
         assert(false);
     }
@@ -54,25 +82,30 @@ void FVkBuffer::CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandB
 
 void FVkBuffer::MemCopy(const void* src, size_t size)
 {
-    vmaMapMemory(m_Allocator, m_Allocation, &m_MappedMemory);
+    vkMapMemory(m_Device, m_Memory, 0, size, 0, &m_MappedMemory);
     memcpy(m_MappedMemory, src, size);
-    vmaUnmapMemory(m_Allocator, m_Allocation);
+    vkUnmapMemory(m_Device, m_Memory);
+    m_MappedMemory = nullptr;
 }
 
 void FVkBuffer::UploadDataToBuffer(const void* pData, uint64_t count)
 {
-    uint64_t oldOffset = m_CurrentSizeBytes;
-    m_CurrentSizeBytes += count * m_StrideSizeBytes;
+    const VkDeviceSize sizeBytes = count * m_StrideSizeBytes;
+    const VkDeviceSize offset = m_CurrentSizeBytes;
 
-    if (vmaCopyMemoryToAllocation(m_Allocator, pData, m_Allocation, oldOffset, m_StrideSizeBytes * count) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    m_CurrentSizeBytes += sizeBytes;
+
+    assert(offset + sizeBytes <= m_SizeBytes);
+
+    vkMapMemory(m_Device, m_Memory, offset, sizeBytes, 0, &m_MappedMemory);
+    memcpy(m_MappedMemory, pData, sizeBytes);
+    vkUnmapMemory(m_Device, m_Memory);
+    m_MappedMemory = nullptr;
 }
 
 void* FVkBuffer::Map()
 {
-    vmaMapMemory(m_Allocator, m_Allocation, &m_MappedMemory);
+    vkMapMemory(m_Device, m_Memory, 0, m_SizeBytes, 0, &m_MappedMemory);
 
     return m_MappedMemory;
 }
@@ -82,6 +115,6 @@ void FVkBuffer::Unmap()
     if (!m_MappedMemory)
         return;
 
-    vmaUnmapMemory(m_Allocator, m_Allocation);
+    vkUnmapMemory(m_Device, m_Memory);
     m_MappedMemory = nullptr;
 }

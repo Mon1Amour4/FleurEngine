@@ -10,7 +10,7 @@ public:
     FVkBuffer();
     ~FVkBuffer();
 
-    void Init(VmaAllocator allocator, VkDevice device, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
+    void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
 
     void CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer);
     void MemCopy(const void* src, size_t size);
@@ -32,10 +32,6 @@ public:
     {
         return m_VkBuffer;
     }
-    inline VmaAllocation Allocation()
-    {
-        return m_Allocation;
-    }
 
     inline void* MappedMemory() const
     {
@@ -46,7 +42,6 @@ public:
     void Unmap();
 
 private:
-    VmaAllocator m_Allocator;
     VkDevice m_Device;
 
     uint64_t m_SizeBytes;
@@ -54,9 +49,7 @@ private:
     uint32_t m_StrideSizeBytes;
 
     VkBuffer m_VkBuffer;
-    // VkDeviceMemory m_VkMemory;
-
-    VmaAllocation m_Allocation;
+    VkDeviceMemory m_Memory;
 
     VkMemoryPropertyFlags m_MemoryUsage;
     void* m_MappedMemory;

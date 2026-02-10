@@ -148,6 +148,8 @@ struct vulkanBackend::vulkanBackendImpl
     };
 
     std::vector<FVkCommandBuffer> m_PrimaryCmdBuffers;
+    FVkCommandBuffer m_SkyboxCmd;
+
     std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
     std::vector<bool> m_SecondaryCmdValidation;
     void InitGeometryPrimaryCmdBuffers(uint32_t idx);

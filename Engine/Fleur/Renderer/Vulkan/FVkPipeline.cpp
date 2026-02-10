@@ -27,31 +27,39 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    // PushConstant
-    VkPushConstantRange pushConstant{
-        .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-        .offset = 0,
-        .size = info->pushConstantSize,
+    // VkPipelineLayout
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .setLayoutCount = 1, .pSetLayouts = &info->descriptorSetLayout};
+
+    if (info->pushConstantSize > 0)
+    {
+        // PushConstant
+        VkPushConstantRange pushConstant{
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+            .offset = 0,
+            .size = info->pushConstantSize,
+        };
+
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
     };
 
-    // VkPipelineLayout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                                                  .setLayoutCount = 1,
-                                                  .pSetLayouts = &info->descriptorSetLayout,
-                                                  .pushConstantRangeCount = 1,
-                                                  .pPushConstantRanges = &pushConstant};
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
         assert(false);
 
-    auto bindingDescription = info->vertexInput->GetVertexDataBindingDescriptor();
-    auto& attributeDescriptions = info->vertexInput->GetVertexDataAttributeDescriptions();
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, .vertexBindingDescriptionCount = 0};
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-                                                         .vertexBindingDescriptionCount = 1,
-                                                         .pVertexBindingDescriptions = &bindingDescription,
-                                                         .vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size()),
-                                                         .pVertexAttributeDescriptions = attributeDescriptions.data()};
+    if (info->vertexInput)
+    {
+        auto bindingDescription = info->vertexInput->GetVertexDataBindingDescriptor();
+        auto& attributeDescriptions = info->vertexInput->GetVertexDataAttributeDescriptions();
+
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+    }
 
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{
@@ -149,4 +157,9 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
     {
         assert(false);
     }
+}
+
+uint32_t FVkPipeline::GetBindingIdx()
+{
+    return 0;
 }
