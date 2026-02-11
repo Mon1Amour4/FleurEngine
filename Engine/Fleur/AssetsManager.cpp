@@ -30,8 +30,7 @@ Fleur::AssetsManager::~AssetsManager()
 }
 
 
-//======================================================================
-// Service
+// ---------- Service ----------
 void Fleur::AssetsManager::OnInit()
 {
     load_all_shaders();

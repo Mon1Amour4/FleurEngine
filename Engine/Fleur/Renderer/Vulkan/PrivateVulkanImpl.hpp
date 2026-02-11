@@ -71,8 +71,7 @@ struct DrawInfo
 
 #pragma endregion
 
-//======================================================================
-// Static functions
+// ---------- static function ----------
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
@@ -124,23 +123,26 @@ struct backend::impl
     VkSurfaceKHR create_surface(VkInstance instance, void* nativeHandle);
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
 
-    // GeometryPipeline
+    // ---------- geometryPipeline ----------
     VkDescriptorSetLayout m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* create_geometry_pipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                           Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
 
-    // Renderpass
+    // ---------- renderpass ----------
     VkRenderPass m_GeometryRenderPass;
     void create_geometry_renderpass();
 
-    // Shaders
+
+    // ---------- shaders ----------
     VkShaderModule create_shader_module(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
-    // CommandPool
+
+    // ---------- commandPool ----------
     FVkCommandPool* m_GraphicsCommandPool;
 
-    // CommandBuffer
+
+    // ---------- commandBuffer ----------
     struct SFLCmdBuffer
     {
         std::vector<VkCommandBuffer> buffers;
@@ -157,7 +159,8 @@ struct backend::impl
     void init_geometry_primary_cmd_buffers(uint32_t idx);
     void update_geometry_secondary_cmd_buffer(uint32_t idx);
 
-    // Synchronization
+
+    // ---------- synchronization ----------
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
@@ -178,7 +181,8 @@ struct backend::impl
     std::vector<VkDescriptorSet> descriptorSets;
     void create_descriptor_sets();
 
-    // VMA
+
+    // ---------- vma ----------
     VmaAllocator m_Allocator;
     void initialize_Vma();
     void free_Vma();
@@ -217,7 +221,7 @@ struct backend::impl
     void create_fallback_texture(Fleur::Graphics::SFLImageView& pInfo);
 
 
-    // Depth
+    // ---------- depth ----------
     struct Depth
     {
         Depth() = default;
