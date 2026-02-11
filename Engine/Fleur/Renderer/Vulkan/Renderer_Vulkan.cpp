@@ -242,13 +242,22 @@ VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::
 {
     m_ValidationsEnabled = enableValidation;
 
+    uint32_t instanceVersion = 0;
+    if (vkEnumerateInstanceVersion(&instanceVersion) != VK_SUCCESS)
+        assert(false);
+    m_InstanceVersion.Major = VK_API_VERSION_MAJOR(instanceVersion);
+    m_InstanceVersion.Minor = VK_API_VERSION_MINOR(instanceVersion);
+    m_InstanceVersion.Patch = VK_API_VERSION_PATCH(instanceVersion);
+    DBG_PRINT("",
+              "Vulkan Version: Major: " << m_InstanceVersion.Major << ", Minor:" << m_InstanceVersion.Minor << ", Patch: " << m_InstanceVersion.Patch << "\n");
+
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Fleur Engine";
     appInfo.applicationVersion = VULKAN_VERSION;
     appInfo.pEngineName = "Fleur Engine";
     appInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.apiVersion = VULKAN_VERSION;
+    appInfo.apiVersion = VK_MAKE_API_VERSION(0, m_InstanceVersion.Major, m_InstanceVersion.Minor, m_InstanceVersion.Patch);
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;

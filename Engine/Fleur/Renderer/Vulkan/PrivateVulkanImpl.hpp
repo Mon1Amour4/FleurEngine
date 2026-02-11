@@ -102,6 +102,12 @@ struct backend::impl
     void set_skybox(AssetID id);
 
     // Instance
+    struct
+    {
+        int Major;
+        int Minor;
+        int Patch;
+    } m_InstanceVersion;
     VkInstance m_VulkanInstance;
     bool m_ValidationsEnabled{false};
     VkInstance create_instance(bool enableValidation, const std::vector<const char*>& instanceExtensions, const std::vector<const char*>& validationLayers);
