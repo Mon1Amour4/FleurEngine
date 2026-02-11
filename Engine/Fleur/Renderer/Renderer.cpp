@@ -215,7 +215,7 @@ void Fleur::Graphics::Renderer::OnInit()
 
     bool vulkanValidation = true;
 
-    m_Backend = new vulkanBackend(vulkanValidation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+    m_Backend = new vk::backend(vulkanValidation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 
 
     auto pSkyboxVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;

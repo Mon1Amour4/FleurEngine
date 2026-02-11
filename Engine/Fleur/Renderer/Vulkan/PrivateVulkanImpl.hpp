@@ -91,11 +91,13 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
     return VK_FALSE;
 }
 
-struct vulkanBackend::vulkanBackendImpl
+namespace vk
 {
-    vulkanBackendImpl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
-                      Fleur::Graphics::SFLImageView& fallback);
-    ~vulkanBackendImpl();
+
+struct backend::impl
+{
+    impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
+    ~impl();
 
     void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
 
@@ -221,8 +223,7 @@ struct vulkanBackend::vulkanBackendImpl
         Depth() = default;
         FVkTexture* depthTexture;
     };
-    void CreateDepthBuffer(vulkanBackend::vulkanBackendImpl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
-                           uint32_t mimLevels);
+    void CreateDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
@@ -240,3 +241,4 @@ struct vulkanBackend::vulkanBackendImpl
     FVkSkybox* m_Skybox;
     void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
 };
+}  // namespace vk
