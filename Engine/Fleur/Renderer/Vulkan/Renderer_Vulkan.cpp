@@ -55,9 +55,12 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
                         Fleur::Graphics::SFLImageView& fallback)
     : m_WindowResizeIsInProgress(false)
 {
-    m_Capabilities = new FVkCapabilities(enableValidation);
-
-    m_VulkanInstance = create_instance();
+    std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
+    std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
+#if defined(FLEUR_PLATFORM_WIN)
+    instanceExtensions.push_back("VK_KHR_win32_surface");
+#endif
+    m_VulkanInstance = create_instance(enableValidation, instanceExtensions, validationLayers);
     setup_debug_messenger();
 
     m_Swapchain = new FVkSwapchain();
@@ -222,7 +225,7 @@ vk::backend::impl::~impl()
     delete m_Device;
 
     // 13. Debug Utills & Validation Layers
-    if (m_Capabilities->ValidationEnabled())
+    if (m_ValidationsEnabled)
         destroy_debug_utils_messenger_EXT(m_VulkanInstance, debugMessenger, nullptr);
 
     // 14. Instance
@@ -231,12 +234,14 @@ vk::backend::impl::~impl()
 
     // 16. Other
     delete m_GeometryVertexInput;
-    delete m_Capabilities;
 }
 
 
-VkInstance vk::backend::impl::create_instance()
+VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::vector<const char*>& instanceExtensions,
+                                              const std::vector<const char*>& validationLayers)
 {
+    m_ValidationsEnabled = enableValidation;
+
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "Fleur Engine";
@@ -251,9 +256,35 @@ VkInstance vk::backend::impl::create_instance()
 
     VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
 
-    if (m_Capabilities->ValidationEnabled())
+    if (m_ValidationsEnabled)
     {
-        m_Capabilities->EnableValidationLayersSupport(createInfo);
+        // query instance extension properties
+        uint32_t availableLayerCount;
+        vkEnumerateInstanceLayerProperties(&availableLayerCount, nullptr);
+
+        std::vector<VkLayerProperties> availableLayers(availableLayerCount);
+        vkEnumerateInstanceLayerProperties(&availableLayerCount, availableLayers.data());
+        DBG_PRINTM("Vulkan available validation layers:");
+        for (size_t i = 0; i < availableLayerCount; i++)
+        {
+            DBG_PRINT("", '\t' << availableLayers[i].layerName << "  spec_v: " << availableLayers[i].specVersion
+                               << "impl_v: " << availableLayers[i].implementationVersion << ' ' << availableLayers[i].description);
+        }
+        {
+            std::list<std::string> layers(validationLayers.begin(), validationLayers.end());
+            for (const auto& layer : availableLayers)
+            {
+                auto it = std::find(layers.begin(), layers.end(), layer.layerName);
+                if (it != layers.end())
+                {
+                    layers.erase(it);
+                }
+            }
+            assert(layers.empty());
+        }
+
+        createInfo.enabledLayerCount = validationLayers.size();
+        createInfo.ppEnabledLayerNames = validationLayers.data();
 
         populate_debug_messenger_create_info(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
@@ -262,7 +293,33 @@ VkInstance vk::backend::impl::create_instance()
     {
         createInfo.enabledLayerCount = 0;
     }
-    m_Capabilities->EnableExtensions(createInfo);
+
+    // Enable extensions
+    uint32_t extensionCount = 0;
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
+
+    std::vector<VkExtensionProperties> props(extensionCount);
+    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, props.data());
+
+    DBG_PRINTM("Vulkan available extensions:");
+    for (size_t i = 0; i < extensionCount; i++)
+    {
+        DBG_PRINT("", '\t' << props[i].extensionName << " v:" << props[i].specVersion);
+    }
+    {
+        std::list<std::string> extensions(instanceExtensions.begin(), instanceExtensions.end());
+        for (const auto& ext : props)
+        {
+            auto it = std::find(extensions.begin(), extensions.end(), ext.extensionName);
+            if (it != extensions.end())
+            {
+                extensions.erase(it);
+            }
+        }
+        assert(extensions.empty());
+    }
+    createInfo.enabledExtensionCount = instanceExtensions.size();
+    createInfo.ppEnabledExtensionNames = instanceExtensions.data();
 
     if (vkCreateInstance(&createInfo, nullptr, &m_VulkanInstance) != VK_SUCCESS)
     {

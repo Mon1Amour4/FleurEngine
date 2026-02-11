@@ -14,7 +14,6 @@ SET(PROJECT_HEADERS
     Renderer_Vulkan.h
     FVkDevice.h
     FVkBuffer.h
-    FVkCapabilities.h
     FVkCommand.h
     FVkPipeline.h
     FVkMultisampler.h
@@ -29,7 +28,6 @@ SET(PROJECT_SOURCES
     # Vulkan
     Renderer_Vulkan.cpp
     FVkDevice.cpp
-    FVkCapabilities.cpp
     FVkBuffer.cpp
     FVkCommand.cpp
     FVkPipeline.cpp

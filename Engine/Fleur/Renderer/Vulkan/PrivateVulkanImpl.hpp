@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "FVkBuffer.h"
-#include "FVkCapabilities.h"
 #include "FVkCommand.h"
 #include "FVkCubemap.h"
 #include "FVkDevice.h"
@@ -104,9 +103,8 @@ struct backend::impl
 
     // Instance
     VkInstance m_VulkanInstance;
-    VkInstance create_instance();
-
-    FVkCapabilities* m_Capabilities;
+    bool m_ValidationsEnabled{false};
+    VkInstance create_instance(bool enableValidation, const std::vector<const char*>& instanceExtensions, const std::vector<const char*>& validationLayers);
 
     VkDebugUtilsMessengerEXT debugMessenger;
     void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
