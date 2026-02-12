@@ -10,26 +10,17 @@ FVkSwapchain::FVkSwapchain()
     , m_Swapchain(nullptr)
     , m_SwapchainImageFormat(VK_FORMAT_MAX_ENUM)
     , m_SwapchainExtent({0, 0})
-    , m_FramebuffersCount(0)
+    , m_SwapcainImageCount(0)
 {
 }
 FVkSwapchain::~FVkSwapchain()
 {
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 }
-void FVkSwapchain::ReleaseFramebuffers()
-{
-    for (size_t i = 0; i < m_FramebuffersCount; i++)
-    {
-        vkDestroyFramebuffer(m_Device, m_Framebuffers[i], nullptr);
-    }
-    m_Framebuffers.clear();
-    m_FramebuffersCreated = false;
-}
 
 void FVkSwapchain::ReleaseSwapchainImageViews()
 {
-    for (size_t i = 0; i < m_FramebuffersCount; i++)
+    for (size_t i = 0; i < m_SwapcainImageCount; i++)
     {
         vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
     }
@@ -40,7 +31,6 @@ void FVkSwapchain::ReleaseSwapchainImageViews()
 void FVkSwapchain::OnWindowResized(Fleur::SRect& rect)
 {
     m_SwapchainCreated = false;
-    m_FramebuffersCreated = false;
     m_SwapchainExtent.width = rect.width;
     m_SwapchainExtent.height = rect.height;
 }
@@ -54,7 +44,7 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
 
     uint32_t imageCount = m_SurfaceCapabilities.minImageCount + 1;
     imageCount = std::clamp(imageCount, m_SurfaceCapabilities.minImageCount, m_SurfaceCapabilities.maxImageCount);
-    m_FramebuffersCount = imageCount;
+    m_SwapcainImageCount = imageCount;
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(m_SurfaceFormats);
     m_SwapchainImageFormat = surfaceFormat.format;
@@ -102,45 +92,17 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
     m_SwapchainCreated = true;
 }
 
-void FVkSwapchain::CreateFrameBuffers(VkRenderPass renderPass, VkImageView multisampler, VkImageView depth)
+
+void FVkSwapchain::Recreate(VkSurfaceKHR surface, uint32_t graphicsQueueFamilyIdx, VkImageView multisampler, VkImageView depth)
 {
-    m_Framebuffers.resize(m_FramebuffersCount);
-
-    for (size_t i = 0; i < m_Framebuffers.size(); i++)
-    {
-        std::array<VkImageView, 3> attachments = {multisampler, depth, m_SwapchainImageViews[i]};
-
-        VkFramebufferCreateInfo framebufferInfo{};
-        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
-        framebufferInfo.renderPass = renderPass;
-        framebufferInfo.attachmentCount = attachments.size();
-        framebufferInfo.pAttachments = attachments.data();
-        framebufferInfo.width = m_SwapchainExtent.width;
-        framebufferInfo.height = m_SwapchainExtent.height;
-        framebufferInfo.layers = 1;
-
-        if (vkCreateFramebuffer(m_Device, &framebufferInfo, nullptr, &m_Framebuffers[i]) != VK_SUCCESS)
-            assert(false);
-    }
-    m_FramebuffersCreated = true;
-}
-
-void FVkSwapchain::Recreate(VkSurfaceKHR surface, uint32_t graphicsQueueFamilyIdx, VkRenderPass renderPass, VkImageView multisampler, VkImageView depth)
-{
-    // 1. Release framebuffers
-    ReleaseFramebuffers();
-
-    // 2. Release ImageViews
+    // 1. Release ImageViews
     ReleaseSwapchainImageViews();
 
-    // 3. Release Swapchain
+    // 2. Release Swapchain
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 
-    // 4. Create swapchain
+    // 3. Create swapchain
     CreateSwapchain(m_Device, m_PhysicalDevice, surface, {0, 0, m_SwapchainExtent.width, m_SwapchainExtent.height}, graphicsQueueFamilyIdx);
-
-    // 5. Create Framebuffers
-    CreateFrameBuffers(renderPass, multisampler, depth);
 }
 
 bool FVkSwapchain::SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)

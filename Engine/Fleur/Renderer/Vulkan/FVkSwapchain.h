@@ -14,16 +14,10 @@ public:
     ~FVkSwapchain();
 
     void CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, Fleur::SRect rect, uint32_t graphicsQueueFamily);
-    void CreateFrameBuffers(VkRenderPass renderPass, VkImageView multisampler, VkImageView depth);
-    void Recreate(VkSurfaceKHR surface, uint32_t graphicsQueueFamilyIdx, VkRenderPass renderPass, VkImageView multisampler, VkImageView depth);
+    void Recreate(VkSurfaceKHR surface, uint32_t graphicsQueueFamilyIdx, VkImageView multisampler, VkImageView depth);
 
     bool SwapchainPresentationSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
 
-    inline VkFramebuffer GetFramebuffer(uint32_t idx) const
-    {
-        assert(idx <= m_FramebuffersCount - 1);
-        return m_Framebuffers[idx];
-    }
     inline VkSwapchainKHR GetSwapchain() const
     {
         return m_Swapchain;
@@ -36,16 +30,15 @@ public:
     {
         return m_SwapchainExtent;
     }
-    inline uint32_t GetSwapchainFramebuffersCount() const
+    inline uint32_t GetSwapchainImageCount() const
     {
-        return m_FramebuffersCount;
+        return m_SwapcainImageCount;
     }
     inline bool ReadyToPresent()
     {
-        return (m_SwapchainCreated && m_FramebuffersCreated);
+        return (m_SwapchainCreated);
     }
 
-    void ReleaseFramebuffers();
     void ReleaseSwapchainImageViews();
 
     void OnWindowResized(Fleur::SRect& rect);
@@ -60,16 +53,14 @@ private:
 
     std::vector<VkImage> m_SwapchainImages;
     std::vector<VkImageView> m_SwapchainImageViews;
-    std::vector<VkFramebuffer> m_Framebuffers;
 
     VkSurfaceCapabilitiesKHR m_SurfaceCapabilities;
     std::vector<VkSurfaceFormatKHR> m_SurfaceFormats;
     std::vector<VkPresentModeKHR> m_PresentModes;
 
     bool m_SwapchainCreated;
-    bool m_FramebuffersCreated;
 
-    uint32_t m_FramebuffersCount;
+    uint32_t m_SwapcainImageCount;
 
     inline bool isSwapchainSuitable()
     {

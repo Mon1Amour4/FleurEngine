@@ -128,7 +128,7 @@ struct backend::impl
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
     // ---------- geometryPipeline ----------
-    FVkDescriptorSetLayout m_GeometryDSL;
+    FVkDescriptorSetLayout* m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                         Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
@@ -136,10 +136,6 @@ struct backend::impl
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
-
-
-    // ---------- commandPool ----------
-    FVkCommandPool* m_GraphicsCommandPool;
 
 
     // ---------- commandBuffer ----------
@@ -151,20 +147,30 @@ struct backend::impl
         bool areValid();
     };
 
-    std::vector<FVkCommandBuffer> m_PrimaryCmdBuffers;
     FVkCommandBuffer m_SkyboxCmd;
 
-    std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
-    std::vector<bool> m_SecondaryCmdValidation;
-    void initGeometryPrimaryCmdBuffers(uint32_t idx);
-    void updateGeometrySecondaryCmdBuffer(uint32_t idx);
+    struct FrameContext
+    {
+        FrameContext(uint32_t framesInFlight)
+            : m_FramesInFlight(framesInFlight)
+            , m_CommandPools(m_FramesInFlight)
+            , m_CommandBuffers(m_FramesInFlight)
+            , m_InFlightFences(m_FramesInFlight)
+            , m_ImagesAvailable(m_FramesInFlight)
+            , m_RenderFinished(m_FramesInFlight)
+            , m_FrameCommandBuffer(nullptr) {};
 
+        uint32_t m_FramesInFlight;
+        std::vector<FVkCommandPool> m_CommandPools;
+        std::vector<FVkCommandBuffer> m_CommandBuffers;
+        std::vector<VkFence> m_InFlightFences;
+        std::vector<VkSemaphore> m_ImagesAvailable;
+        std::vector<VkSemaphore> m_RenderFinished;
 
-    // ---------- synchronization ----------
-    std::vector<VkSemaphore> imageAvailableSemaphores;
-    std::vector<VkSemaphore> renderFinishedSemaphores;
-    std::vector<VkFence> inFlightFences;
-    void createSyncObjects();
+        FVkCommandPool m_FrameCommandPool;
+        FVkSingleTimeCommandBuffer* m_FrameCommandBuffer;
+    };
+    FrameContext* m_FrameContext;
 
     std::vector<FVkBuffer> m_UniformBuffers;
 
@@ -172,8 +178,6 @@ struct backend::impl
 
     void createUniformBuffers();
     void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
-
-    void createDescriptorSetLayout();
 
     VkDescriptorPool descriptorPool;
     void createDescriptorPool();
@@ -193,9 +197,6 @@ struct backend::impl
 
     std::vector<DrawInfo> m_DrawList;
     void addToDrawList(Fleur::Graphics::SFLModelView* pModelView);
-
-    VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
-    std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
 
     uint32_t currentFrame = 0;
 

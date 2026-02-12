@@ -54,6 +54,8 @@ void vk::backend::EndResize(Fleur::SRect& rect)
 vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
                         Fleur::Graphics::SFLImageView& fallback)
     : m_WindowResizeIsInProgress(false)
+    , m_GeometryDSL(nullptr)
+    , m_FrameContext(nullptr)
 {
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
@@ -91,8 +93,7 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Multisampler = new FVkMultisampler();
     m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
-
-    createDescriptorSetLayout();
+    uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
 
     m_GeometryDSL = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
                         .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
@@ -102,21 +103,32 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                 m_Multisampler->GetSamplesCount());
 
+    m_FrameContext = new FrameContext(swapChainImageCount);
+    for (size_t i = 0; i < swapChainImageCount; i++)
+    {
+        m_FrameContext->m_CommandPools[i].Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                                               m_Device->GetGraphicsQueueFamilyIndex());
+        m_FrameContext->m_CommandBuffers[i].Init(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[i].GetCommandPool(),
+                                                 VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+        VkSemaphoreCreateInfo semaphoreInfo{};
+        semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
-    m_GraphicsCommandPool = new FVkCommandPool();
-    m_GraphicsCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
+        VkFenceCreateInfo fenceInfo{};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    m_Device->CreateFrameCommandBuffer(m_GraphicsCommandPool->GetCommandPool());
+        if (vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &m_FrameContext->m_ImagesAvailable[i]) != VK_SUCCESS ||
+            vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &m_FrameContext->m_RenderFinished[i]) != VK_SUCCESS ||
+            vkCreateFence(m_Device->GetLogicalDevice(), &fenceInfo, nullptr, &m_FrameContext->m_InFlightFences[i]) != VK_SUCCESS)
+        {
+            DBG_PRINTM("Failed to create semaphores!")
+            assert(false);
+        }
+    }
 
     m_Depth.depthTexture = new FVkTexture();
     createDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
 
-    m_Swapchain->CreateFrameBuffers(m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(), m_Depth.depthTexture->GetImageView());
-
-    m_DescriptorSetImageViews.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-    m_PrimaryCmdBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-    m_SecondaryCmdBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-    m_SecondaryCmdValidation.resize(m_SecondaryCmdBuffers.size());
 
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
@@ -142,21 +154,6 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_ImageSampler = createTextureSampler();
 
     createDescriptorSets();
-
-    for (size_t i = 0; i < m_PrimaryCmdBuffers.size(); i++)
-    {
-        m_PrimaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-    }
-    m_SkyboxCmd.Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
-
-    for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
-    {
-        m_SecondaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-        updateGeometrySecondaryCmdBuffer(i);
-        initGeometryPrimaryCmdBuffers(i);
-    }
-
-    createSyncObjects();
 }
 vk::backend::impl::~impl()
 {
@@ -164,36 +161,27 @@ vk::backend::impl::~impl()
 
     delete m_Skybox;
 
-    uint32_t framebuffersCount = m_Swapchain->GetSwapchainFramebuffersCount();
+    uint32_t framebuffersCount = m_Swapchain->GetSwapchainImageCount();
 
     // 1. Synchronization objects
     for (size_t i = 0; i < framebuffersCount; i++)
     {
-        vkDestroySemaphore(m_Device->GetLogicalDevice(), renderFinishedSemaphores[i], nullptr);
-        vkDestroySemaphore(m_Device->GetLogicalDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(m_Device->GetLogicalDevice(), inFlightFences[i], nullptr);
+        vkDestroySemaphore(m_Device->GetLogicalDevice(), m_FrameContext->m_RenderFinished[i], nullptr);
+        vkDestroySemaphore(m_Device->GetLogicalDevice(), m_FrameContext->m_ImagesAvailable[i], nullptr);
+        vkDestroyFence(m_Device->GetLogicalDevice(), m_FrameContext->m_InFlightFences[i], nullptr);
     }
 
     // 2. CommandBuffer & CommandPool
-    m_PrimaryCmdBuffers.clear();
-    m_SecondaryCmdBuffers.clear();
-    delete m_GraphicsCommandPool;
+    delete m_FrameContext;
 
     // 3. DescriptorSet & DescriptorPool & Descriptor set layout
     vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), descriptorPool, nullptr);
-    vkDestroyDescriptorSetLayout(m_Device->GetLogicalDevice(), m_GeometryDSL, nullptr);
+    delete m_GeometryDSL;
 
     // 4. Pipeline
     delete m_GeometryPipeline;
 
     // 5. Swapchain & Framebuffers & swapchain image views
-
-
-    // 5. Framebuffers
-    m_Swapchain->ReleaseFramebuffers();
-
-    // 6. RenderPass
-    vkDestroyRenderPass(m_Device->GetLogicalDevice(), m_GeometryRenderPass, nullptr);
 
     // 7. All ImageViews
     delete m_Multisampler;
@@ -385,85 +373,6 @@ void vk::backend::impl::destroyDebugUtilsMessenger_EXT(VkInstance instance, VkDe
 }
 
 
-void vk::backend::impl::createGeometryRenderpass()
-{
-    VkAttachmentDescription depthAttachment{};
-    depthAttachment.format = FindDepthFormat(m_Device->GetPhysicalDevice());
-    depthAttachment.samples = m_Multisampler->GetSamplesCount();
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference depthAttachmentRef{};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentDescription colorAttachment{};
-    colorAttachment.format = m_Swapchain->GetImageFormat();
-    colorAttachment.samples = m_Multisampler->GetSamplesCount();
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;  // Not VK_IMAGE_LAYOUT_PRESENT_SRC_KHR cause of multisampling
-
-    VkAttachmentDescription colorAttachmentResolve{};
-    colorAttachmentResolve.format = m_Swapchain->GetImageFormat();
-    colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-    colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-
-    VkAttachmentReference colorAttachmentResolveRef{};
-    colorAttachmentResolveRef.attachment = 2;
-    colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkAttachmentReference colorAttachmentRef{};
-    colorAttachmentRef.attachment = 0;
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-    VkSubpassDescription subpass{};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-    subpass.pResolveAttachments = &colorAttachmentResolveRef;
-
-    VkSubpassDependency dependency{};
-    dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-    dependency.dstSubpass = 0;
-    dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-    dependency.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-    dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-    dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-    std::array<VkAttachmentDescription, 3> attachments = {colorAttachment, depthAttachment, colorAttachmentResolve};
-
-    VkRenderPassCreateInfo renderPassInfo{};
-    renderPassInfo.dependencyCount = 1;
-    renderPassInfo.pDependencies = &dependency;
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-    renderPassInfo.attachmentCount = attachments.size();
-    renderPassInfo.pAttachments = attachments.data();
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
-
-
-    if (vkCreateRenderPass(m_Device->GetLogicalDevice(), &renderPassInfo, nullptr, &m_GeometryRenderPass) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to create render pass!")
-        assert(false);
-    }
-}
-
-
 VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNativeHandle)
 {
 #if defined(FLEUR_PLATFORM_WIN)
@@ -533,76 +442,22 @@ VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderI
 }
 
 
-void vk::backend::impl::initGeometryPrimaryCmdBuffers(uint32_t idx)
-{
-    auto& buffer = m_PrimaryCmdBuffers[idx];
-
-    buffer.Reset();
-    buffer.Begin(m_GeometryRenderPass);
-
-    VkRenderPassBeginInfo renderPassInfo{};
-    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassInfo.renderPass = m_GeometryRenderPass;
-    renderPassInfo.framebuffer = m_Swapchain->GetFramebuffer(idx);
-    renderPassInfo.renderArea.offset = {0, 0};
-    renderPassInfo.renderArea.extent = m_Swapchain->GetSwapchainExtent();
-
-    std::array<VkClearValue, 2> clearValues{};
-    clearValues[0].color = {{0.0f, 0.0f, 0.0f, 1.0f}};
-    clearValues[1].depthStencil = {1.0f, 0};
-
-    renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-    renderPassInfo.pClearValues = clearValues.data();
-
-    buffer.BeginRenderPass(renderPassInfo, VK_SUBPASS_CONTENTS_SECONDARY_COMMAND_BUFFERS);
-    buffer.ExecuteSecondaryCommandBuffer(*m_SecondaryCmdBuffers[idx].GetCommandBuffer());
-    buffer.EndRenderPass();
-
-    buffer.End();
-}
-
-void vk::backend::impl::createSyncObjects()
-{
-    imageAvailableSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-    renderFinishedSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-    inFlightFences.resize(m_Swapchain->GetSwapchainFramebuffersCount());
-
-    VkSemaphoreCreateInfo semaphoreInfo{};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
-
-    VkFenceCreateInfo fenceInfo{};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
-    {
-        if (vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-            vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-            vkCreateFence(m_Device->GetLogicalDevice(), &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS)
-        {
-            DBG_PRINTM("Failed to create semaphores!")
-            assert(false);
-        }
-    }
-}
-
-
 void vk::backend::impl::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainFramebuffersCount());
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
 
-    // Sum of all descriptros count from all descriptor sets
-    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain->GetSwapchainFramebuffersCount();
+    // Sum of all descriptor count from all descriptor sets
+    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain->GetSwapchainImageCount();
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = poolSizes.size();
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetSwapchainFramebuffersCount());
+    poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
 
     if (vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
@@ -610,38 +465,9 @@ void vk::backend::impl::createDescriptorPool()
         assert(false);
     }
 }
-void vk::backend::impl::createDescriptorSetLayout()
-{
-    VkDescriptorSetLayoutBinding uboLayoutBinding{};
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.pImmutableSamplers = nullptr;  // Optional
-
-    VkDescriptorSetLayoutBinding samplerLayoutBinding{};
-    samplerLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    samplerLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-    samplerLayoutBinding.binding = 1;
-    // Max num of descriptors in this current descriptor set
-    samplerLayoutBinding.descriptorCount = MAX_TEXTURES;
-    samplerLayoutBinding.pImmutableSamplers = nullptr;
-
-    std::array<VkDescriptorSetLayoutBinding, 2> bindings = {uboLayoutBinding, samplerLayoutBinding};
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = bindings.size();
-    layoutInfo.pBindings = bindings.data();
-
-    if (vkCreateDescriptorSetLayout(m_Device->GetLogicalDevice(), &layoutInfo, nullptr, &m_GeometryDSL) != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to create descriptor set layout!!")
-        assert(false);
-    }
-}
 void vk::backend::impl::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainFramebuffersCount(), m_GeometryDSL);
+    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainImageCount(), m_GeometryDSL);
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -649,7 +475,7 @@ void vk::backend::impl::createDescriptorSets()
     allocInfo.descriptorSetCount = layouts.size();
     allocInfo.pSetLayouts = layouts.data();
 
-    descriptorSets.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    descriptorSets.resize(m_Swapchain->GetSwapchainImageCount());
     if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &allocInfo, descriptorSets.data()) != VK_SUCCESS)
     {
         DBG_PRINTM("failed to allocate descriptor sets!")
@@ -699,9 +525,9 @@ void vk::backend::impl::createUniformBuffers()
 {
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-    m_UniformBuffers.resize(m_Swapchain->GetSwapchainFramebuffersCount());
+    m_UniformBuffers.resize(m_Swapchain->GetSwapchainImageCount());
 
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
     {
         m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
     }
@@ -759,17 +585,6 @@ void vk::backend::impl::addToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 
         globalIndexOffset += draw.indexCount;
     }
-
-    for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
-    {
-        if (vkGetFenceStatus(m_Device->GetLogicalDevice(), inFlightFences[i]) == VK_SUCCESS)
-        {
-            updateGeometrySecondaryCmdBuffer(i);
-            initGeometryPrimaryCmdBuffers(i);
-            continue;
-        }
-        m_SecondaryCmdValidation[i] = false;
-    }
 }
 void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
@@ -785,7 +600,7 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             createTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
-            for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
+            for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
             {
                 if (i == currentFrame)
                 {
@@ -946,47 +761,6 @@ void vk::backend::impl::updateDescriptorSets(VkDescriptorSet& set, uint32_t idx,
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
-void vk::backend::impl::updateGeometrySecondaryCmdBuffer(uint32_t idx)
-{
-    m_SecondaryCmdValidation[idx] = true;
-
-    auto& buffer = m_SecondaryCmdBuffers[idx];
-    buffer.Reset();
-    buffer.Begin(m_GeometryRenderPass);
-    buffer.BindPipeline(m_GeometryPipeline->GetPipeline());
-
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_Swapchain->GetSwapchainExtent().width);
-    viewport.height = static_cast<float>(m_Swapchain->GetSwapchainExtent().height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    buffer.SetViewport(viewport);
-
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_Swapchain->GetSwapchainExtent();
-    buffer.SetScissors(scissor);
-
-    buffer.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-    if (m_IndexBuffer->StrideBytes() == 4)
-        buffer.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
-    else if (m_IndexBuffer->StrideBytes() == 2)
-        buffer.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
-
-    buffer.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[idx]);
-
-    for (const auto& draw : m_DrawList)
-    {
-        SFLPushConstant pc{draw.material.albedo};
-        buffer.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pc);
-        buffer.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
-    }
-
-    buffer.End();
-}
-
 
 void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
                                           uint32_t mimLevels)
@@ -1005,19 +779,13 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     if (!m_Swapchain->ReadyToPresent())
     {
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
-        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(),
+        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_Multisampler->GetTexture()->GetImageView(),
                               m_Depth.depthTexture->GetImageView());
-
-        for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
-        {
-            initGeometryPrimaryCmdBuffers(i);
-        }
     }
-    uint32_t prevFrame = (currentFrame + m_Swapchain->GetSwapchainFramebuffersCount() - 1) % m_Swapchain->GetSwapchainFramebuffersCount();
 
     // Fence: CPU awaits signal from GPU here
-    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &inFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_Device->GetLogicalDevice(), 1, &inFlightFences[currentFrame]);
+    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
 
 
     if (!m_DescriptorSetImageViews[currentFrame].empty())
@@ -1030,16 +798,10 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
         m_DescriptorSetImageViews[currentFrame].clear();
     }
 
-    if (!m_SecondaryCmdValidation[currentFrame])
-    {
-        updateGeometrySecondaryCmdBuffer(currentFrame);
-        initGeometryPrimaryCmdBuffers(currentFrame);
-    }
-
     uint32_t imageIndex;
     VkResult isSwapchainValid{};
-    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX, imageAvailableSemaphores[currentFrame],
-                                             VK_NULL_HANDLE, &imageIndex);
+    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
+                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
     {
         assert(false);
@@ -1051,11 +813,11 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
         assert(false);
     }
 
-    m_Skybox->Update(currentFrame, glm::mat4(1.f));
+    // m_Skybox->Update(currentFrame, glm::mat4(1.f));
 
     updateUniformBuffer(currentFrame, pUbo);
 
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
+    VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
@@ -1065,13 +827,13 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
 
-    submitInfo.pCommandBuffers = m_PrimaryCmdBuffers[currentFrame].GetCommandBuffer();
+    submitInfo.pCommandBuffers = m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer();
 
-    VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
+    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, inFlightFences[currentFrame]) != VK_SUCCESS)
+    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_FrameContext->m_InFlightFences[currentFrame]) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to submit draw command buffer!")
         assert(false);
@@ -1091,22 +853,22 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
-    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainFramebuffersCount();
+    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
 }
 
 void vk::backend::impl::set_skybox(AssetID id)
-{
-    while (m_TextureMap[id].GetImageView() == nullptr)
-    {
-    }
-    m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
-    m_Skybox->Update(0, glm::mat4(1.f));
-    m_Skybox->Update(1, glm::mat4(1.f));
-    m_Skybox->Update(2, glm::mat4(1.f));
+{ /*
+     while (m_TextureMap[id].GetImageView() == nullptr)
+     {
+     }
+     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
+     m_Skybox->Update(0, glm::mat4(1.f));
+     m_Skybox->Update(1, glm::mat4(1.f));
+     m_Skybox->Update(2, glm::mat4(1.f));
 
-    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 0, m_Swapchain->GetFramebuffer(0), m_Swapchain->GetSwapchainExtent());
-    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 1, m_Swapchain->GetFramebuffer(1), m_Swapchain->GetSwapchainExtent());
-    m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 2, m_Swapchain->GetFramebuffer(2), m_Swapchain->GetSwapchainExtent());
+     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 0, m_Swapchain->GetFramebuffer(0), m_Swapchain->GetSwapchainExtent());
+     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 1, m_Swapchain->GetFramebuffer(1), m_Swapchain->GetSwapchainExtent());
+     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 2, m_Swapchain->GetFramebuffer(2), m_Swapchain->GetSwapchainExtent());*/
 }
 
 void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)

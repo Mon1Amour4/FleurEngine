@@ -45,7 +45,7 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
                                         .queueCreateInfoCount = 1,
                                         .pQueueCreateInfos = &uniqueFamilyQueueCreateInfo,
                                         .enabledExtensionCount = (uint32_t)deivceExtensions.size(),
-                                        .ppEnabledExtensionNames = deivceExtensions.data(), 
+                                        .ppEnabledExtensionNames = deivceExtensions.data(),
                                         .pEnabledFeatures = &deviceFeatures};
 
     if (vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) != VK_SUCCESS)
@@ -94,12 +94,6 @@ FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& dev
     }
 
     assert(false);
-}
-
-FVkSingleTimeCommandBuffer* FVkDevice::CreateFrameCommandBuffer(VkCommandPool commandPool)
-{
-    m_FrameCommandBuffer = new FVkSingleTimeCommandBuffer(m_Device, commandPool);
-    return m_FrameCommandBuffer;
 }
 
 bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo)

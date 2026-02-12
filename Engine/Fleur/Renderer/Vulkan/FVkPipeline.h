@@ -67,7 +67,7 @@ public:
             return *this;
         }
 
-        FVkDescriptorSetLayout build()
+        FVkDescriptorSetLayout* build()
         {
             VkDescriptorSetLayoutCreateInfo info{};
             info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -78,7 +78,7 @@ public:
             if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
                 assert(false);
 
-            return FVkDescriptorSetLayout(m_Device, layout);
+            return new FVkDescriptorSetLayout(m_Device, layout);
         }
 
     private:
