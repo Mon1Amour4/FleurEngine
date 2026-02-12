@@ -22,7 +22,7 @@ vk::backend::~backend()
 }
 void vk::backend::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
-    pImpl->add_to_draw_list(pModelView);
+    pImpl->addToDrawList(pModelView);
 }
 void vk::backend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
@@ -30,11 +30,11 @@ void vk::backend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 }
 void vk::backend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
-    pImpl->submit_image_views(pInfo);
+    pImpl->submitImageViews(pInfo);
 }
 void vk::backend::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
-    pImpl->create_skybox(id, pVertexShaderInfo, pFragmentShaderInfo);
+    pImpl->createSkybox(id, pVertexShaderInfo, pFragmentShaderInfo);
 }
 void vk::backend::SetSkybox(AssetID id)
 {
@@ -42,11 +42,11 @@ void vk::backend::SetSkybox(AssetID id)
 }
 void vk::backend::StartResize()
 {
-    pImpl->start_resize();
+    pImpl->startResize();
 }
 void vk::backend::EndResize(Fleur::SRect& rect)
 {
-    pImpl->end_resize(rect);
+    pImpl->endResize(rect);
 }
 
 
@@ -60,11 +60,11 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
 #if defined(FLEUR_PLATFORM_WIN)
     instanceExtensions.push_back("VK_KHR_win32_surface");
 #endif
-    m_VulkanInstance = create_instance(enableValidation, instanceExtensions, validationLayers);
-    setup_debug_messenger();
+    m_VulkanInstance = createInstance(enableValidation, instanceExtensions, validationLayers);
+    setupDebugMessenger();
 
     m_Swapchain = new FVkSwapchain();
-    m_Surface = create_surface(m_VulkanInstance, pNativeHandle);
+    m_Surface = createSurface(m_VulkanInstance, pNativeHandle);
 
     SDeviceInfo deviceInfo{};
     deviceInfo.presentationSupport = true;
@@ -75,7 +75,7 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Device = FVkDevice::CreateSuitableDevice(m_VulkanInstance, deviceInfo);
     m_Device->CreateLogicalDevice(deviceExtensions);
 
-    initialize_Vma();
+    initializeVma();
     m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Surface,
                                  {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height},
                                  m_Device->GetGraphicsQueueFamilyIndex());
@@ -92,11 +92,13 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
-    create_geometry_renderpass();
+    createGeometryRenderpass();
 
-    create_descriptor_set_layout();
+    createDescriptorSetLayout();
 
-    m_GeometryPipeline = create_geometry_pipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
+    auto asd = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, );
+
+    m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                   m_Multisampler->GetSamplesCount());
 
 
@@ -106,7 +108,7 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Device->CreateFrameCommandBuffer(m_GraphicsCommandPool->GetCommandPool());
 
     m_Depth.depthTexture = new FVkTexture();
-    create_depth_buffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
+    createDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
 
     m_Swapchain->CreateFrameBuffers(m_GeometryRenderPass, m_Multisampler->GetTexture()->GetImageView(), m_Depth.depthTexture->GetImageView());
 
@@ -132,13 +134,13 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         1024u * 1024ul * 256ul, indexInputDescriptorSize);
 
-    create_uniform_buffers();
-    create_descriptor_pool();
+    createUniformBuffers();
+    createDescriptorPool();
 
-    create_fallback_texture(fallback);
-    m_ImageSampler = create_texture_sampler();
+    createFallbackTexture(fallback);
+    m_ImageSampler = createTextureSampler();
 
-    create_descriptor_sets();
+    createDescriptorSets();
 
     for (size_t i = 0; i < m_PrimaryCmdBuffers.size(); i++)
     {
@@ -149,11 +151,11 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     for (size_t i = 0; i < m_SecondaryCmdBuffers.size(); i++)
     {
         m_SecondaryCmdBuffers[i].Init(m_Device->GetLogicalDevice(), m_GraphicsCommandPool->GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_SECONDARY);
-        update_geometry_secondary_cmd_buffer(i);
-        init_geometry_primary_cmd_buffers(i);
+        updateGeometrySecondaryCmdBuffer(i);
+        initGeometryPrimaryCmdBuffers(i);
     }
 
-    create_sync_objects();
+    createSyncObjects();
 }
 vk::backend::impl::~impl()
 {
@@ -216,7 +218,7 @@ vk::backend::impl::~impl()
     delete m_Swapchain;
 
     // 15. VMA
-    free_Vma();
+    freeVma();
 
     // 11. Surface
     vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
@@ -226,7 +228,7 @@ vk::backend::impl::~impl()
 
     // 13. Debug Utills & Validation Layers
     if (m_ValidationsEnabled)
-        destroy_debug_utils_messenger_EXT(m_VulkanInstance, debugMessenger, nullptr);
+        destroyDebugUtilsMessenger_EXT(m_VulkanInstance, debugMessenger, nullptr);
 
     // 14. Instance
     vkDestroyInstance(m_VulkanInstance, nullptr);
@@ -237,7 +239,7 @@ vk::backend::impl::~impl()
 }
 
 
-VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::vector<const char*>& instanceExtensions,
+VkInstance vk::backend::impl::createInstance(bool enableValidation, const std::vector<const char*>& instanceExtensions,
                                               const std::vector<const char*>& validationLayers)
 {
     m_ValidationsEnabled = enableValidation;
@@ -249,7 +251,7 @@ VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::
     m_InstanceVersion.Minor = VK_API_VERSION_MINOR(instanceVersion);
     m_InstanceVersion.Patch = VK_API_VERSION_PATCH(instanceVersion);
     DBG_PRINT("",
-              "Vulkan Version: Major: " << m_InstanceVersion.Major << ", Minor:" << m_InstanceVersion.Minor << ", Patch: " << m_InstanceVersion.Patch << "\n");
+              "\n[Vulkan] Vulkan Version: Major: " << m_InstanceVersion.Major << ", Minor:" << m_InstanceVersion.Minor << ", Patch: " << m_InstanceVersion.Patch);
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -257,7 +259,7 @@ VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::
     appInfo.applicationVersion = VULKAN_VERSION;
     appInfo.pEngineName = "Fleur Engine";
     appInfo.engineVersion = VK_MAKE_API_VERSION(0, 0, 1, 0);
-    appInfo.apiVersion = VK_MAKE_API_VERSION(0, m_InstanceVersion.Major, m_InstanceVersion.Minor, m_InstanceVersion.Patch);
+    appInfo.apiVersion = VK_MAKE_API_VERSION(0, m_InstanceVersion.Major, m_InstanceVersion.Minor, 0);
 
     VkInstanceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
@@ -295,7 +297,7 @@ VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::
         createInfo.enabledLayerCount = validationLayers.size();
         createInfo.ppEnabledLayerNames = validationLayers.data();
 
-        populate_debug_messenger_create_info(debugCreateInfo);
+        populateDebugMessengerCreateInfo(debugCreateInfo);
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugCreateInfo;
     }
     else
@@ -338,7 +340,7 @@ VkInstance vk::backend::impl::create_instance(bool enableValidation, const std::
     return m_VulkanInstance;
 }
 
-void vk::backend::impl::populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
+void vk::backend::impl::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
 {
     createInfo = {};
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -348,17 +350,17 @@ void vk::backend::impl::populate_debug_messenger_create_info(VkDebugUtilsMesseng
         VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     createInfo.pfnUserCallback = debugCallback;
 }
-void vk::backend::impl::setup_debug_messenger()
+void vk::backend::impl::setupDebugMessenger()
 {
     VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    populate_debug_messenger_create_info(createInfo);
+    populateDebugMessengerCreateInfo(createInfo);
 
-    if (create_debug_utils_messenger_EXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
+    if (createDebugUtilsMessenger_EXT(m_VulkanInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to set up debug messenger");
     }
 }
-VkResult vk::backend::impl::create_debug_utils_messenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+VkResult vk::backend::impl::createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
                                                              const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
@@ -372,7 +374,7 @@ VkResult vk::backend::impl::create_debug_utils_messenger_EXT(VkInstance instance
     }
 }
 
-void vk::backend::impl::destroy_debug_utils_messenger_EXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
+void vk::backend::impl::destroyDebugUtilsMessenger_EXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
 {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr)
@@ -382,7 +384,7 @@ void vk::backend::impl::destroy_debug_utils_messenger_EXT(VkInstance instance, V
 }
 
 
-void vk::backend::impl::create_geometry_renderpass()
+void vk::backend::impl::createGeometryRenderpass()
 {
     VkAttachmentDescription depthAttachment{};
     depthAttachment.format = FindDepthFormat(m_Device->GetPhysicalDevice());
@@ -461,7 +463,7 @@ void vk::backend::impl::create_geometry_renderpass()
 }
 
 
-VkSurfaceKHR vk::backend::impl::create_surface(VkInstance instance, void* pNativeHandle)
+VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNativeHandle)
 {
 #if defined(FLEUR_PLATFORM_WIN)
     VkWin32SurfaceCreateInfoKHR createInfo{};
@@ -479,11 +481,11 @@ VkSurfaceKHR vk::backend::impl::create_surface(VkInstance instance, void* pNativ
 }
 
 
-FVkPipeline* vk::backend::impl::create_geometry_pipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                                          Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
 {
-    VkShaderModule vertexShaderModule = create_shader_module(pVertexInfo);
-    VkShaderModule vertexFragmentModule = create_shader_module(pFragmentInfo);
+    VkShaderModule vertexShaderModule = createShaderModule(pVertexInfo);
+    VkShaderModule vertexFragmentModule = createShaderModule(pFragmentInfo);
 
     SFPipelineCreationInfo pipelineInfo{};
     pipelineInfo.device = m_Device->GetLogicalDevice();
@@ -518,7 +520,7 @@ FVkPipeline* vk::backend::impl::create_geometry_pipeline(Fleur::Graphics::SFLSha
 }
 
 
-VkShaderModule vk::backend::impl::create_shader_module(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
+VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -536,7 +538,7 @@ VkShaderModule vk::backend::impl::create_shader_module(Fleur::Graphics::SFLShade
 }
 
 
-void vk::backend::impl::init_geometry_primary_cmd_buffers(uint32_t idx)
+void vk::backend::impl::initGeometryPrimaryCmdBuffers(uint32_t idx)
 {
     auto& buffer = m_PrimaryCmdBuffers[idx];
 
@@ -564,7 +566,7 @@ void vk::backend::impl::init_geometry_primary_cmd_buffers(uint32_t idx)
     buffer.End();
 }
 
-void vk::backend::impl::create_sync_objects()
+void vk::backend::impl::createSyncObjects()
 {
     imageAvailableSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
     renderFinishedSemaphores.resize(m_Swapchain->GetSwapchainFramebuffersCount());
@@ -590,7 +592,7 @@ void vk::backend::impl::create_sync_objects()
 }
 
 
-void vk::backend::impl::create_descriptor_pool()
+void vk::backend::impl::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -613,7 +615,7 @@ void vk::backend::impl::create_descriptor_pool()
         assert(false);
     }
 }
-void vk::backend::impl::create_descriptor_set_layout()
+void vk::backend::impl::createDescriptorSetLayout()
 {
     VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -642,7 +644,7 @@ void vk::backend::impl::create_descriptor_set_layout()
         assert(false);
     }
 }
-void vk::backend::impl::create_descriptor_sets()
+void vk::backend::impl::createDescriptorSets()
 {
     std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainFramebuffersCount(), m_GeometryDSL);
 
@@ -698,7 +700,7 @@ void vk::backend::impl::create_descriptor_sets()
 }
 
 
-void vk::backend::impl::create_uniform_buffers()
+void vk::backend::impl::createUniformBuffers()
 {
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
@@ -709,7 +711,7 @@ void vk::backend::impl::create_uniform_buffers()
         m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
     }
 }
-void vk::backend::impl::update_uniform_buffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
+void vk::backend::impl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
     pUbo->model = glm::mat4(1.0f);
@@ -717,7 +719,7 @@ void vk::backend::impl::update_uniform_buffer(uint32_t currentImage, Fleur::Grap
 }
 
 
-void vk::backend::impl::initialize_Vma()
+void vk::backend::impl::initializeVma()
 {
     VmaAllocatorCreateInfo allocCreateInfo{};
     allocCreateInfo.instance = m_VulkanInstance;
@@ -731,13 +733,13 @@ void vk::backend::impl::initialize_Vma()
         assert(true);
     }
 }
-void vk::backend::impl::free_Vma()
+void vk::backend::impl::freeVma()
 {
     vmaDestroyAllocator(m_Allocator);
 }
 
 
-void vk::backend::impl::add_to_draw_list(Fleur::Graphics::SFLModelView* pModelView)
+void vk::backend::impl::addToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
     uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
     uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
@@ -767,14 +769,14 @@ void vk::backend::impl::add_to_draw_list(Fleur::Graphics::SFLModelView* pModelVi
     {
         if (vkGetFenceStatus(m_Device->GetLogicalDevice(), inFlightFences[i]) == VK_SUCCESS)
         {
-            update_geometry_secondary_cmd_buffer(i);
-            init_geometry_primary_cmd_buffers(i);
+            updateGeometrySecondaryCmdBuffer(i);
+            initGeometryPrimaryCmdBuffers(i);
             continue;
         }
         m_SecondaryCmdValidation[i] = false;
     }
 }
-void vk::backend::impl::submit_image_views(Fleur::Graphics::SFLImageViewInfo* pInfo)
+void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     for (size_t i = 0; i < pInfo->count; i++)
     {
@@ -786,13 +788,13 @@ void vk::backend::impl::submit_image_views(Fleur::Graphics::SFLImageViewInfo* pI
         {
             mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
 
-            create_texture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
+            createTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
             for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
             {
                 if (i == currentFrame)
                 {
-                    update_descriptor_sets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
+                    updateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
                     continue;
                 }
 
@@ -849,7 +851,7 @@ void vk::backend::impl::SFLCmdBuffer::invalidate()
         validation[i] = false;
     }
 }
-bool vk::backend::impl::SFLCmdBuffer::are_valid()
+bool vk::backend::impl::SFLCmdBuffer::areValid()
 {
     for (size_t i = 0; i < validation.size(); i++)
     {
@@ -859,11 +861,11 @@ bool vk::backend::impl::SFLCmdBuffer::are_valid()
     return true;
 }
 
-VkImageView vk::backend::impl::create_texture_image_view(VkImage& image, VkFormat format)
+VkImageView vk::backend::impl::createTextureImageView(VkImage& image, VkFormat format)
 {
-    return create_image_view(image, format, VK_IMAGE_ASPECT_COLOR_BIT);
+    return createImageView(image, format, VK_IMAGE_ASPECT_COLOR_BIT);
 }
-VkImageView vk::backend::impl::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
+VkImageView vk::backend::impl::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags)
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
@@ -886,7 +888,7 @@ VkImageView vk::backend::impl::create_image_view(VkImage image, VkFormat format,
 
     return imageView;
 }
-VkSampler vk::backend::impl::create_texture_sampler()
+VkSampler vk::backend::impl::createTextureSampler()
 {
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -920,16 +922,16 @@ VkSampler vk::backend::impl::create_texture_sampler()
 }
 
 
-void vk::backend::impl::create_fallback_texture(Fleur::Graphics::SFLImageView& view)
+void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& view)
 {
     VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
 
     m_FallbackTexture = new FVkTexture();
-    create_texture(*m_FallbackTexture, view, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    createTexture(*m_FallbackTexture, view, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_FallbackTextureIdx = view.ID;
 }
 
-void vk::backend::impl::update_descriptor_sets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
+void vk::backend::impl::updateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
 {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -949,7 +951,7 @@ void vk::backend::impl::update_descriptor_sets(VkDescriptorSet& set, uint32_t id
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
 }
 
-void vk::backend::impl::update_geometry_secondary_cmd_buffer(uint32_t idx)
+void vk::backend::impl::updateGeometrySecondaryCmdBuffer(uint32_t idx)
 {
     m_SecondaryCmdValidation[idx] = true;
 
@@ -991,10 +993,10 @@ void vk::backend::impl::update_geometry_secondary_cmd_buffer(uint32_t idx)
 }
 
 
-void vk::backend::impl::create_depth_buffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
+void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
                                             uint32_t mimLevels)
 {
-    create_depth_texture(*depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
+    createDepthTexture(*depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
                          samplesCount, mimLevels);
 }
 
@@ -1013,7 +1015,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
         for (size_t i = 0; i < m_Swapchain->GetSwapchainFramebuffersCount(); i++)
         {
-            init_geometry_primary_cmd_buffers(i);
+            initGeometryPrimaryCmdBuffers(i);
         }
     }
     uint32_t prevFrame = (currentFrame + m_Swapchain->GetSwapchainFramebuffersCount() - 1) % m_Swapchain->GetSwapchainFramebuffersCount();
@@ -1027,7 +1029,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     {
         for (size_t i = 0; i < m_DescriptorSetImageViews[currentFrame].size(); i++)
         {
-            update_descriptor_sets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx,
+            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx,
                                    m_DescriptorSetImageViews[currentFrame][i].view, m_ImageSampler);
         }
         m_DescriptorSetImageViews[currentFrame].clear();
@@ -1035,8 +1037,8 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
     if (!m_SecondaryCmdValidation[currentFrame])
     {
-        update_geometry_secondary_cmd_buffer(currentFrame);
-        init_geometry_primary_cmd_buffers(currentFrame);
+        updateGeometrySecondaryCmdBuffer(currentFrame);
+        initGeometryPrimaryCmdBuffers(currentFrame);
     }
 
     uint32_t imageIndex;
@@ -1056,7 +1058,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
     m_Skybox->Update(currentFrame, glm::mat4(1.f));
 
-    update_uniform_buffer(currentFrame, pUbo);
+    updateUniformBuffer(currentFrame, pUbo);
 
     VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -1112,7 +1114,7 @@ void vk::backend::impl::set_skybox(AssetID id)
     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 2, m_Swapchain->GetFramebuffer(2), m_Swapchain->GetSwapchainExtent());
 }
 
-void vk::backend::impl::create_texture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
+void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
 {
     if (mipLevels == 0)
         mipLevels = 1;
@@ -1165,7 +1167,7 @@ void vk::backend::impl::create_texture(FVkTexture& texture, Fleur::Graphics::SFL
     texture.CreateImaveView();
 }
 
-void vk::backend::impl::create_depth_texture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount,
+void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount,
                                              uint32_t mimLevels)
 {
     VkImageCreateInfo imageInfo{};
@@ -1195,21 +1197,21 @@ void vk::backend::impl::create_depth_texture(FVkTexture& texture, uint32_t width
     frameCmd->Synchronize();
 }
 
-void vk::backend::impl::start_resize()
+void vk::backend::impl::startResize()
 {
     m_WindowResizeIsInProgress = true;
     std::cout << "\nStartResize\n";
 }
-void vk::backend::impl::end_resize(Fleur::SRect& rect)
+void vk::backend::impl::endResize(Fleur::SRect& rect)
 {
     m_WindowResizeIsInProgress = false;
     m_Swapchain->OnWindowResized(rect);
     std::cout << "\EndResize\n";
 }
 
-void vk::backend::impl::create_skybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
+void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), create_shader_module(pVertexShaderInfo),
-                     create_shader_module(pFragmentShaderInfo), VK_SAMPLE_COUNT_1_BIT);
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), createShaderModule(pVertexShaderInfo),
+                     createShaderModule(pFragmentShaderInfo), VK_SAMPLE_COUNT_1_BIT);
 }

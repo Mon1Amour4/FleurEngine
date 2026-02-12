@@ -15,57 +15,43 @@ FVkPipeline::~FVkPipeline()
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
 }
 
-void FVkPipeline::Init(SFPipelineCreationInfo* info)
+void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 {
-    m_Device = info->device;
+    m_Device = device;
+    m_DescriptorSetLayout = desc.descriptorSetLayout;
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = info->vertexShader, .pName = "main"};
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = desc.vertexShader, .pName = "main"};
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = info->fragmentShader, .pName = "main"};
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = desc.fragmentShader, .pName = "main"};
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    // VkPipelineLayout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO, .setLayoutCount = 1, .pSetLayouts = &info->descriptorSetLayout};
-
-    if (info->pushConstantSize > 0)
-    {
-        // PushConstant
-        VkPushConstantRange pushConstant{
-            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-            .offset = 0,
-            .size = info->pushConstantSize,
-        };
-
-        pipelineLayoutInfo.pushConstantRangeCount = 1;
-        pipelineLayoutInfo.pPushConstantRanges = &pushConstant;
-    };
-
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(desc.setLayouts.size());
+    pipelineLayoutInfo.pSetLayouts = desc.setLayouts.empty() ? nullptr : desc.setLayouts.data();
+    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstants.size());
+    pipelineLayoutInfo.pPushConstantRanges = desc.pushConstants.empty() ? nullptr : desc.pushConstants.data();
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
         assert(false);
 
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO, .vertexBindingDescriptionCount = 0};
-
-    if (info->vertexInput)
-    {
-        auto bindingDescription = info->vertexInput->GetVertexDataBindingDescriptor();
-        auto& attributeDescriptions = info->vertexInput->GetVertexDataAttributeDescriptions();
-
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-    }
+    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
+    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(desc.vertexBindings.size());
+    vertexInputInfo.pVertexBindingDescriptions = desc.vertexBindings.empty() ? nullptr : desc.vertexBindings.data();
+    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(desc.vertexAttributes.size());
+    vertexInputInfo.pVertexAttributeDescriptions = desc.vertexAttributes.empty() ? nullptr : desc.vertexAttributes.data();
 
 
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO, .topology = info->topology, .primitiveRestartEnable = VK_FALSE};
+    VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
+    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
+    inputAssembly.topology = desc.topology;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{info->extent}};
+    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{desc.extent}};
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -75,7 +61,7 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
     VkPipelineMultisampleStateCreateInfo multisampling{};
     multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
     multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = info->samplesCount;
+    multisampling.rasterizationSamples = desc.samplesCount;
     multisampling.minSampleShading = 1.0f;           // Optional
     multisampling.pSampleMask = nullptr;             // Optional
     multisampling.alphaToCoverageEnable = VK_FALSE;  // Optional
@@ -124,8 +110,8 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
                                                        .depthTestEnable = VK_TRUE,
-                                                       .depthWriteEnable = info->depthWriteEnable,
-                                                       .depthCompareOp = info->depthStencilOp,
+                                                       .depthWriteEnable = desc.depthWriteEnable,
+                                                       .depthCompareOp = desc.depthCompareOp,
                                                        .depthBoundsTestEnable = VK_FALSE,
                                                        .stencilTestEnable = VK_FALSE,
                                                        .front = {},
@@ -133,9 +119,16 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
                                                        .minDepthBounds = 0.0f,
                                                        .maxDepthBounds = 1.0f};
 
+    VkPipelineRenderingCreateInfo renderingInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
+                                                .pNext = nullptr,
+                                                .colorAttachmentCount = 1,
+                                                .pColorAttachmentFormats = &desc.colorFormat,
+                                                .depthAttachmentFormat = desc.depthFormat,
+                                                .stencilAttachmentFormat = VK_FORMAT_UNDEFINED};
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.pNext = &renderingInfo;
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
     pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -148,7 +141,7 @@ void FVkPipeline::Init(SFPipelineCreationInfo* info)
     pipelineInfo.pDynamicState = &dynamicState;
     pipelineInfo.pDepthStencilState = &depthStencil;
     pipelineInfo.layout = m_PipelineLayout;
-    pipelineInfo.renderPass = info->renderPass;
+    pipelineInfo.renderPass = nullptr;
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
     pipelineInfo.basePipelineIndex = -1;               // Optional

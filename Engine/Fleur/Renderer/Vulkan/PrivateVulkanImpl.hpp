@@ -110,36 +110,36 @@ struct backend::impl
     } m_InstanceVersion;
     VkInstance m_VulkanInstance;
     bool m_ValidationsEnabled{false};
-    VkInstance create_instance(bool enableValidation, const std::vector<const char*>& instanceExtensions, const std::vector<const char*>& validationLayers);
+    VkInstance createInstance(bool enableValidation, const std::vector<const char*>& instanceExtensions, const std::vector<const char*>& validationLayers);
 
     VkDebugUtilsMessengerEXT debugMessenger;
-    void populate_debug_messenger_create_info(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
-    void setup_debug_messenger();
-    VkResult create_debug_utils_messenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+    void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+    void setupDebugMessenger();
+    VkResult createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
                                               const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
-    void destroy_debug_utils_messenger_EXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
+    void destroyDebugUtilsMessenger_EXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
     Fleur::SRect m_SurfaceRect;
 
     FVkDevice* m_Device;
     FVkSwapchain* m_Swapchain;
     VkSurfaceKHR m_Surface;
-    VkSurfaceKHR create_surface(VkInstance instance, void* nativeHandle);
-    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME};
+    VkSurfaceKHR createSurface(VkInstance instance, void* nativeHandle);
+    std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
     // ---------- geometryPipeline ----------
     VkDescriptorSetLayout m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
-    FVkPipeline* create_geometry_pipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
+    FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                           Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
 
     // ---------- renderpass ----------
     VkRenderPass m_GeometryRenderPass;
-    void create_geometry_renderpass();
+    void createGeometryRenderpass();
 
 
     // ---------- shaders ----------
-    VkShaderModule create_shader_module(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
+    VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
 
 
     // ---------- commandPool ----------
@@ -152,7 +152,7 @@ struct backend::impl
         std::vector<VkCommandBuffer> buffers;
         std::vector<bool> validation;
         void invalidate();
-        bool are_valid();
+        bool areValid();
     };
 
     std::vector<FVkCommandBuffer> m_PrimaryCmdBuffers;
@@ -160,59 +160,59 @@ struct backend::impl
 
     std::vector<FVkCommandBuffer> m_SecondaryCmdBuffers;
     std::vector<bool> m_SecondaryCmdValidation;
-    void init_geometry_primary_cmd_buffers(uint32_t idx);
-    void update_geometry_secondary_cmd_buffer(uint32_t idx);
+    void initGeometryPrimaryCmdBuffers(uint32_t idx);
+    void updateGeometrySecondaryCmdBuffer(uint32_t idx);
 
 
     // ---------- synchronization ----------
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;
-    void create_sync_objects();
+    void createSyncObjects();
 
     std::vector<FVkBuffer> m_UniformBuffers;
 
     VkMemoryRequirements memRequirements;
 
-    void create_uniform_buffers();
-    void update_uniform_buffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
+    void createUniformBuffers();
+    void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
 
-    void create_descriptor_set_layout();
+    void createDescriptorSetLayout();
 
     VkDescriptorPool descriptorPool;
-    void create_descriptor_pool();
+    void createDescriptorPool();
 
     std::vector<VkDescriptorSet> descriptorSets;
-    void create_descriptor_sets();
+    void createDescriptorSets();
 
 
     // ---------- vma ----------
     VmaAllocator m_Allocator;
-    void initialize_Vma();
-    void free_Vma();
+    void initializeVma();
+    void freeVma();
 
     FVkBuffer* m_VertexBuffer;
     FVkBuffer* m_IndexBuffer;
 
 
     std::vector<DrawInfo> m_DrawList;
-    void add_to_draw_list(Fleur::Graphics::SFLModelView* pModelView);
+    void addToDrawList(Fleur::Graphics::SFLModelView* pModelView);
 
     VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
     std::array<VkVertexInputAttributeDescription, 3> GetVertexDataAttributeDescriptions();
 
     uint32_t currentFrame = 0;
 
-    void submit_image_views(Fleur::Graphics::SFLImageViewInfo* pInfo);
+    void submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
-    VkImageView create_texture_image_view(VkImage& image, VkFormat format);
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
-    VkSampler create_texture_sampler();
+    VkImageView createTextureImageView(VkImage& image, VkFormat format);
+    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
+    VkSampler createTextureSampler();
 
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
     uint32_t m_FallbackTextureIdx;
-    void update_descriptor_sets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
+    void updateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
     struct SFLDescriptorSetImage
     {
@@ -222,7 +222,7 @@ struct backend::impl
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViews;
 
     FVkTexture* m_FallbackTexture;
-    void create_fallback_texture(Fleur::Graphics::SFLImageView& pInfo);
+    void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
 
     // ---------- depth ----------
@@ -231,22 +231,22 @@ struct backend::impl
         Depth() = default;
         FVkTexture* depthTexture;
     };
-    void create_depth_buffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
+    void createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
     Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
 
-    void create_texture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
+    void createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
 
-    void create_depth_texture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
+    void createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
 
-    void start_resize();
-    void end_resize(Fleur::SRect& rect);
+    void startResize();
+    void endResize(Fleur::SRect& rect);
 
     bool m_WindowResizeIsInProgress;
 
     FVkSkybox* m_Skybox;
-    void create_skybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
+    void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
 };
 }  // namespace vk

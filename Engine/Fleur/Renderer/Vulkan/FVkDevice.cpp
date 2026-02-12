@@ -37,13 +37,16 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
-    VkDeviceCreateInfo deviceCreateInfo{};
-    deviceCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    deviceCreateInfo.pQueueCreateInfos = &uniqueFamilyQueueCreateInfo;
-    deviceCreateInfo.queueCreateInfoCount = 1;            // Unique QueueFamilies count
-    deviceCreateInfo.pEnabledFeatures = &deviceFeatures;  // Pointer to array of Unique QueueFamilies
-    deviceCreateInfo.ppEnabledExtensionNames = deivceExtensions.data();
-    deviceCreateInfo.enabledExtensionCount = deivceExtensions.size();
+    VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR, .pNext = nullptr, .dynamicRendering = VK_TRUE};
+
+    VkDeviceCreateInfo deviceCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+                                        .pNext = &dynamicRenderingFeature,
+                                        .queueCreateInfoCount = 1,
+                                        .pQueueCreateInfos = &uniqueFamilyQueueCreateInfo,
+                                        .enabledExtensionCount = (uint32_t)deivceExtensions.size(),
+                                        .ppEnabledExtensionNames = deivceExtensions.data(), 
+                                        .pEnabledFeatures = &deviceFeatures};
 
     if (vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) != VK_SUCCESS)
     {

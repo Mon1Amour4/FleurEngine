@@ -9,31 +9,113 @@ enum BindingType
     TEXTURE2D,
     CUBEMAP,
 };
-struct SFPipelineCreationInfo
+
+struct FGraphicsPipelineDesc
 {
-    VkDevice device;
-    VkRenderPass renderPass;
     VkDescriptorSetLayout descriptorSetLayout;
-    VkShaderModule vertexShader;
-    VkShaderModule fragmentShader;
-    uint32_t pushConstantSize;
-    SFLVertexInput* vertexInput;
-    VkPrimitiveTopology topology;
-    VkViewport* viewport;
-    VkExtent2D extent;
-    VkSampleCountFlagBits samplesCount;
-    VkCompareOp depthStencilOp;
-    VkBool32 depthWriteEnable;
-    BindingType binding;
+
+    // Shaders
+    VkShaderModule vertexShader = VK_NULL_HANDLE;
+    VkShaderModule fragmentShader = VK_NULL_HANDLE;
+
+    // Layout
+    std::vector<VkDescriptorSetLayout> setLayouts;
+    std::vector<VkPushConstantRange> pushConstants;
+
+    // Vertex input
+    std::vector<VkVertexInputBindingDescription> vertexBindings;
+    std::vector<VkVertexInputAttributeDescription> vertexAttributes;
+
+    // IA
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    // Raster / Depth
+    bool depthWriteEnable = true;
+    VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
+
+    // Formats (dynamic rendering)
+    VkFormat colorFormat = VK_FORMAT_UNDEFINED;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+
+    // MSAA
+    VkSampleCountFlagBits samplesCount = VK_SAMPLE_COUNT_1_BIT;
+
+    // Optional
+    VkExtent2D extent{};
 };
 
+class FVkDescriptorSetLayout
+{
+public:
+    class Builder
+    {
+    public:
+        Builder(VkDevice device)
+            : m_Device(device)
+        {
+        }
+
+        Builder& add(uint32_t idx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count = 1)
+        {
+            VkDescriptorSetLayoutBinding binding{};
+            binding.binding = idx;
+            binding.descriptorType = type;
+            binding.descriptorCount = count;
+            binding.stageFlags = stageFlags;
+            binding.pImmutableSamplers = nullptr;
+
+            m_Bindings.push_back(binding);
+            return *this;
+        }
+
+        FVkDescriptorSetLayout build()
+        {
+            VkDescriptorSetLayoutCreateInfo info{};
+            info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            info.bindingCount = static_cast<uint32_t>(m_Bindings.size());
+            info.pBindings = m_Bindings.data();
+
+            VkDescriptorSetLayout layout;
+            if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
+                throw std::runtime_error("Failed to create DescriptorSetLayout");
+
+            return FVkDescriptorSetLayout(m_Device, layout);
+        }
+
+    private:
+        VkDevice m_Device;
+        std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
+        uint32_t m_CurrentBinding = 0;
+    };
+
+    ~FVkDescriptorSetLayout()
+    {
+        if (m_Layout != VK_NULL_HANDLE)
+            vkDestroyDescriptorSetLayout(m_Device, m_Layout, nullptr);
+    }
+
+    VkDescriptorSetLayout get() const
+    {
+        return m_Layout;
+    }
+
+private:
+    FVkDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout layout)
+        : m_Device(device)
+        , m_Layout(layout)
+    {
+    }
+
+    VkDevice m_Device;
+    VkDescriptorSetLayout m_Layout = VK_NULL_HANDLE;
+};
 class FVkPipeline
 {
 public:
     FVkPipeline();
     ~FVkPipeline();
 
-    void Init(SFPipelineCreationInfo* info);
+    void Init(VkDevice device, FGraphicsPipelineDesc& dedc);
 
     VkPipeline GetPipeline()
     {
@@ -48,6 +130,7 @@ private:
     VkDevice m_Device;
     VkPipeline m_Pipeline;
     VkPipelineLayout m_PipelineLayout;
+    VkDescriptorSetLayout m_DescriptorSetLayout;
 
     uint32_t GetBindingIdx();
 };
