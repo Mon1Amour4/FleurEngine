@@ -27,9 +27,13 @@ public:
 
     void RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset);
 
-    std::vector<VkVertexInputAttributeDescription>& GetVertexDataAttributeDescriptions();
+    const std::vector<VkVertexInputAttributeDescription>& GetVertexDataAttributeDescriptions() const;
 
-    VkVertexInputBindingDescription GetVertexDataBindingDescriptor();
+    VkVertexInputBindingDescription GetVertexDataBindingDescriptor() const;
+    inline uint32_t GetAttributeCount() const
+    {
+        return attributeDescriptions.size();
+    }
 
 private:
     uint32_t vertexStride;

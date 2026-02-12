@@ -150,12 +150,12 @@ void SFLVertexInput::RegisterAttribute(uint32_t binding, uint32_t location, VkFo
     vertexStride += offset;
 }
 
-std::vector<VkVertexInputAttributeDescription>& SFLVertexInput::GetVertexDataAttributeDescriptions()
+const std::vector<VkVertexInputAttributeDescription>& SFLVertexInput::GetVertexDataAttributeDescriptions() const
 {
     return attributeDescriptions;
 }
 
-VkVertexInputBindingDescription SFLVertexInput::GetVertexDataBindingDescriptor()
+VkVertexInputBindingDescription SFLVertexInput::GetVertexDataBindingDescriptor() const
 {
     VkVertexInputBindingDescription bindingDescription{};
     bindingDescription.binding = 0;

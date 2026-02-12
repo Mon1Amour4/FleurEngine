@@ -115,8 +115,8 @@ struct backend::impl
     VkDebugUtilsMessengerEXT debugMessenger;
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
     void setupDebugMessenger();
-    VkResult createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                              const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger);
+    VkResult createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
+                                           VkDebugUtilsMessengerEXT* pDebugMessenger);
     void destroyDebugUtilsMessenger_EXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
 
     Fleur::SRect m_SurfaceRect;
@@ -128,14 +128,10 @@ struct backend::impl
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
     // ---------- geometryPipeline ----------
-    VkDescriptorSetLayout m_GeometryDSL;
+    FVkDescriptorSetLayout m_GeometryDSL;
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                          Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
-
-    // ---------- renderpass ----------
-    VkRenderPass m_GeometryRenderPass;
-    void createGeometryRenderpass();
+                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
 
 
     // ---------- shaders ----------

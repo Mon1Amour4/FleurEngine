@@ -28,22 +28,22 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(desc.setLayouts.size());
-    pipelineLayoutInfo.pSetLayouts = desc.setLayouts.empty() ? nullptr : desc.setLayouts.data();
-    pipelineLayoutInfo.pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstants.size());
-    pipelineLayoutInfo.pPushConstantRanges = desc.pushConstants.empty() ? nullptr : desc.pushConstants.data();
+    VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                                                  .setLayoutCount = 1,
+                                                  .pSetLayouts = &desc.descriptorSetLayout,
+                                                  .pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstants.size()),
+                                                  .pPushConstantRanges = desc.pushConstants.empty() ? nullptr : desc.pushConstants.data()};
+
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
         assert(false);
 
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(desc.vertexBindings.size());
-    vertexInputInfo.pVertexBindingDescriptions = desc.vertexBindings.empty() ? nullptr : desc.vertexBindings.data();
-    vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(desc.vertexAttributes.size());
-    vertexInputInfo.pVertexAttributeDescriptions = desc.vertexAttributes.empty() ? nullptr : desc.vertexAttributes.data();
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &desc.vertexInput->GetVertexDataBindingDescriptor();
+    vertexInputInfo.vertexAttributeDescriptionCount = desc.vertexInput->GetAttributeCount();
+    vertexInputInfo.pVertexAttributeDescriptions = desc.vertexInput->GetVertexDataAttributeDescriptions().data();
 
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};

@@ -92,14 +92,15 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
-    createGeometryRenderpass();
-
     createDescriptorSetLayout();
 
-    auto asd = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, );
+    m_GeometryDSL = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                        .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
+                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                        .build();
 
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
-                                                  m_Multisampler->GetSamplesCount());
+                                                m_Multisampler->GetSamplesCount());
 
 
     m_GraphicsCommandPool = new FVkCommandPool();
@@ -240,7 +241,7 @@ vk::backend::impl::~impl()
 
 
 VkInstance vk::backend::impl::createInstance(bool enableValidation, const std::vector<const char*>& instanceExtensions,
-                                              const std::vector<const char*>& validationLayers)
+                                             const std::vector<const char*>& validationLayers)
 {
     m_ValidationsEnabled = enableValidation;
 
@@ -250,8 +251,8 @@ VkInstance vk::backend::impl::createInstance(bool enableValidation, const std::v
     m_InstanceVersion.Major = VK_API_VERSION_MAJOR(instanceVersion);
     m_InstanceVersion.Minor = VK_API_VERSION_MINOR(instanceVersion);
     m_InstanceVersion.Patch = VK_API_VERSION_PATCH(instanceVersion);
-    DBG_PRINT("",
-              "\n[Vulkan] Vulkan Version: Major: " << m_InstanceVersion.Major << ", Minor:" << m_InstanceVersion.Minor << ", Patch: " << m_InstanceVersion.Patch);
+    DBG_PRINT(
+        "", "\n[Vulkan] Vulkan Version: Major: " << m_InstanceVersion.Major << ", Minor:" << m_InstanceVersion.Minor << ", Patch: " << m_InstanceVersion.Patch);
 
     VkApplicationInfo appInfo{};
     appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -361,7 +362,7 @@ void vk::backend::impl::setupDebugMessenger()
     }
 }
 VkResult vk::backend::impl::createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                                             const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+                                                          const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
@@ -482,36 +483,30 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
 
 
 FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                                         Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
+                                                       Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
 {
     VkShaderModule vertexShaderModule = createShaderModule(pVertexInfo);
     VkShaderModule vertexFragmentModule = createShaderModule(pFragmentInfo);
 
-    SFPipelineCreationInfo pipelineInfo{};
-    pipelineInfo.device = m_Device->GetLogicalDevice();
-    pipelineInfo.renderPass = m_GeometryRenderPass;
-    pipelineInfo.descriptorSetLayout = m_GeometryDSL;
-    pipelineInfo.fragmentShader = vertexFragmentModule;
-    pipelineInfo.vertexShader = vertexShaderModule;
-    pipelineInfo.pushConstantSize = sizeof(uint32_t);
-    pipelineInfo.vertexInput = m_GeometryVertexInput;
-    pipelineInfo.samplesCount = samplesCount;
+    std::vector<VkPushConstantRange> pushConstants{VkPushConstantRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t)}};
 
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = (float)m_Swapchain->GetSwapchainExtent().width;
-    viewport.height = (float)m_Swapchain->GetSwapchainExtent().height;
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    pipelineInfo.viewport = &viewport;
-    pipelineInfo.extent = m_Swapchain->GetSwapchainExtent();
-    pipelineInfo.topology = pInputAssemblyTopology == Fleur::Graphics::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST ? VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-                                                                                                                : VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-    pipelineInfo.depthWriteEnable = true;
+    FGraphicsPipelineDesc pipelineInfo{
+        .descriptorSetLayout = m_GeometryDSL.getDescriptorSetLayout(),
+        .vertexShader = vertexShaderModule,
+        .fragmentShader = vertexFragmentModule,
+        .pushConstants = pushConstants,
+        .vertexInput = m_GeometryVertexInput,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .depthWriteEnable = true,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .colorFormat = m_Swapchain->GetImageFormat(),
+        .depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice()),
+        .samplesCount = m_Multisampler->GetSamplesCount(),
+        .extent = VkExtent2D{.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height}};
+
 
     FVkPipeline* geometryPipeline = new FVkPipeline();
-    geometryPipeline->Init(&pipelineInfo);
+    geometryPipeline->Init(m_Device->GetLogicalDevice(), pipelineInfo);
 
     vkDestroyShaderModule(m_Device->GetLogicalDevice(), vertexShaderModule, nullptr);
     vkDestroyShaderModule(m_Device->GetLogicalDevice(), vertexFragmentModule, nullptr);
@@ -994,10 +989,10 @@ void vk::backend::impl::updateGeometrySecondaryCmdBuffer(uint32_t idx)
 
 
 void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
-                                            uint32_t mimLevels)
+                                          uint32_t mimLevels)
 {
     createDepthTexture(*depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
-                         samplesCount, mimLevels);
+                       samplesCount, mimLevels);
 }
 
 
@@ -1029,8 +1024,8 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     {
         for (size_t i = 0; i < m_DescriptorSetImageViews[currentFrame].size(); i++)
         {
-            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx,
-                                   m_DescriptorSetImageViews[currentFrame][i].view, m_ImageSampler);
+            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx, m_DescriptorSetImageViews[currentFrame][i].view,
+                                 m_ImageSampler);
         }
         m_DescriptorSetImageViews[currentFrame].clear();
     }
@@ -1168,7 +1163,7 @@ void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLI
 }
 
 void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount,
-                                             uint32_t mimLevels)
+                                           uint32_t mimLevels)
 {
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -1212,6 +1207,6 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
 void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), createShaderModule(pVertexShaderInfo),
-                     createShaderModule(pFragmentShaderInfo), VK_SAMPLE_COUNT_1_BIT);
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), createShaderModule(pVertexShaderInfo), createShaderModule(pFragmentShaderInfo),
+                     VK_SAMPLE_COUNT_1_BIT);
 }

@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cassert>
+
 #include "VkHelper.h"
 enum BindingType
 {
@@ -18,13 +20,10 @@ struct FGraphicsPipelineDesc
     VkShaderModule vertexShader = VK_NULL_HANDLE;
     VkShaderModule fragmentShader = VK_NULL_HANDLE;
 
-    // Layout
-    std::vector<VkDescriptorSetLayout> setLayouts;
-    std::vector<VkPushConstantRange> pushConstants;
+    const std::vector<VkPushConstantRange>& pushConstants;
 
     // Vertex input
-    std::vector<VkVertexInputBindingDescription> vertexBindings;
-    std::vector<VkVertexInputAttributeDescription> vertexAttributes;
+    const SFLVertexInput* vertexInput;
 
     // IA
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -77,7 +76,7 @@ public:
 
             VkDescriptorSetLayout layout;
             if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
-                throw std::runtime_error("Failed to create DescriptorSetLayout");
+                assert(false);
 
             return FVkDescriptorSetLayout(m_Device, layout);
         }
@@ -94,7 +93,7 @@ public:
             vkDestroyDescriptorSetLayout(m_Device, m_Layout, nullptr);
     }
 
-    VkDescriptorSetLayout get() const
+    VkDescriptorSetLayout getDescriptorSetLayout() const
     {
         return m_Layout;
     }
