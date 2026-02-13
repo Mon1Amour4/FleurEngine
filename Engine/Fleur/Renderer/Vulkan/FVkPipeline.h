@@ -54,7 +54,7 @@ public:
         {
         }
 
-        Builder& add(uint32_t idx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count = 1)
+        Builder& add(uint32_t idx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count)
         {
             VkDescriptorSetLayoutBinding binding{};
             binding.binding = idx;
@@ -93,7 +93,7 @@ public:
             vkDestroyDescriptorSetLayout(m_Device, m_Layout, nullptr);
     }
 
-    VkDescriptorSetLayout getDescriptorSetLayout() const
+    VkDescriptorSetLayout GetDescriptorSetLayout() const
     {
         return m_Layout;
     }
@@ -108,6 +108,7 @@ private:
     VkDevice m_Device;
     VkDescriptorSetLayout m_Layout = VK_NULL_HANDLE;
 };
+
 class FVkPipeline
 {
 public:

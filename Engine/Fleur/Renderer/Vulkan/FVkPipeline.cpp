@@ -38,10 +38,11 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
         assert(false);
 
+    VkVertexInputBindingDescription vertexInputBindingDescription = desc.vertexInput->GetVertexDataBindingDescriptor();
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
     vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &desc.vertexInput->GetVertexDataBindingDescriptor();
+    vertexInputInfo.pVertexBindingDescriptions = &vertexInputBindingDescription;
     vertexInputInfo.vertexAttributeDescriptionCount = desc.vertexInput->GetAttributeCount();
     vertexInputInfo.pVertexAttributeDescriptions = desc.vertexInput->GetVertexDataAttributeDescriptions().data();
 

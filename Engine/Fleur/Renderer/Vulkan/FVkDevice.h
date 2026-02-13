@@ -42,12 +42,6 @@ public:
 
     [[nodiscard]] static FVkDevice* CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo);
 
-    FVkSingleTimeCommandBuffer* CreateFrameCommandBuffer(VkCommandPool commandPool);
-    [[nodiscard]] inline FVkSingleTimeCommandBuffer* GetFrameCommandBuffer()
-    {
-        return m_FrameCommandBuffer;
-    }
-
     inline VkDevice GetLogicalDevice() const
     {
         return m_Device;
@@ -81,8 +75,6 @@ private:
 
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
-
-    FVkSingleTimeCommandBuffer* m_FrameCommandBuffer;
 
     std::list<FVkBuffer> m_StagingBuffers;
 };

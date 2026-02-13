@@ -96,8 +96,8 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
 
     m_GeometryDSL = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
-                        .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT)
-                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT)
+                        .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
+                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 128)
                         .build();
 
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
@@ -125,6 +125,9 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
             assert(false);
         }
     }
+    m_FrameContext->m_FrameCommandPool = new FVkCommandPool();
+    m_FrameContext->m_FrameCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
+
 
     m_Depth.depthTexture = new FVkTexture();
     createDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
@@ -153,6 +156,7 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     createFallbackTexture(fallback);
     m_ImageSampler = createTextureSampler();
 
+    m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
     createDescriptorSets();
 }
 vk::backend::impl::~impl()
@@ -349,8 +353,13 @@ void vk::backend::impl::setupDebugMessenger()
         DBG_PRINTM("Failed to set up debug messenger");
     }
 }
-VkResult vk::backend::impl::createDebugUtilsMessenger_EXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
-                                                          const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger)
+
+// clang-format off
+VkResult vk::backend::impl::createDebugUtilsMessenger_EXT(VkInstance instance, 
+                                                          const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo,
+                                                          const VkAllocationCallbacks* pAllocator, 
+                                                          VkDebugUtilsMessengerEXT* pDebugMessenger)
+// clang-format on
 {
     auto func = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (func != nullptr)
@@ -400,7 +409,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     std::vector<VkPushConstantRange> pushConstants{VkPushConstantRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t)}};
 
     FGraphicsPipelineDesc pipelineInfo{
-        .descriptorSetLayout = m_GeometryDSL.getDescriptorSetLayout(),
+        .descriptorSetLayout = m_GeometryDSL->GetDescriptorSetLayout(),
         .vertexShader = vertexShaderModule,
         .fragmentShader = vertexFragmentModule,
         .pushConstants = pushConstants,
@@ -449,8 +458,6 @@ void vk::backend::impl::createDescriptorPool()
     poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-
-    // Sum of all descriptor count from all descriptor sets
     poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain->GetSwapchainImageCount();
 
     VkDescriptorPoolCreateInfo poolInfo{};
@@ -467,7 +474,7 @@ void vk::backend::impl::createDescriptorPool()
 }
 void vk::backend::impl::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainImageCount(), m_GeometryDSL);
+    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainImageCount(), m_GeometryDSL->GetDescriptorSetLayout());
 
     VkDescriptorSetAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -560,6 +567,7 @@ void vk::backend::impl::freeVma()
 }
 
 
+// ---------- add draw ----------
 void vk::backend::impl::addToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
     uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
@@ -602,13 +610,13 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
             {
+                m_DescriptorSetImageViewsToUpload[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
                 if (i == currentFrame)
                 {
                     updateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
                     continue;
                 }
 
-                m_DescriptorSetImageViews[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
             }
         }
         else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
@@ -639,16 +647,16 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             VkImage cubemapImage = gpuTexture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
                                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-            FVkSingleTimeCommandBuffer* cmd = m_Device->GetFrameCommandBuffer();
-            cmd->Begin();
-            cmd->TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                       VK_IMAGE_ASPECT_COLOR_BIT, 1);
-            cmd->CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
-            cmd->TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                       VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-            cmd->Submit(m_Device->GetGraphicsQueue());
-            cmd->Synchronize();
+            
+            {
+                FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+                frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                           VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
+                frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                frameCmd.Submit(m_Device->GetGraphicsQueue());
+            }
             gpuTexture.CreateImaveView();
         }
     }
@@ -770,92 +778,6 @@ void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer,
 }
 
 
-void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
-{
-    if (m_WindowResizeIsInProgress)
-    {
-        return;
-    }
-    if (!m_Swapchain->ReadyToPresent())
-    {
-        vkDeviceWaitIdle(m_Device->GetLogicalDevice());
-        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_Multisampler->GetTexture()->GetImageView(),
-                              m_Depth.depthTexture->GetImageView());
-    }
-
-    // Fence: CPU awaits signal from GPU here
-    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
-
-
-    if (!m_DescriptorSetImageViews[currentFrame].empty())
-    {
-        for (size_t i = 0; i < m_DescriptorSetImageViews[currentFrame].size(); i++)
-        {
-            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViews[currentFrame][i].idx, m_DescriptorSetImageViews[currentFrame][i].view,
-                                 m_ImageSampler);
-        }
-        m_DescriptorSetImageViews[currentFrame].clear();
-    }
-
-    uint32_t imageIndex;
-    VkResult isSwapchainValid{};
-    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
-                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
-    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
-    {
-        assert(false);
-        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
-    }
-    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
-    {
-        DBG_PRINTM("Failed to present swap chain image!")
-        assert(false);
-    }
-
-    // m_Skybox->Update(currentFrame, glm::mat4(1.f));
-
-    updateUniformBuffer(currentFrame, pUbo);
-
-    VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-
-    submitInfo.pCommandBuffers = m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer();
-
-    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[currentFrame]};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_FrameContext->m_InFlightFences[currentFrame]) != VK_SUCCESS)
-    {
-        DBG_PRINTM("Failed to submit draw command buffer!")
-        assert(false);
-    }
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-    presentInfo.pResults = nullptr;  // Optional
-
-    VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
-
-    vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
-
-    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
-}
-
 void vk::backend::impl::set_skybox(AssetID id)
 { /*
      while (m_TextureMap[id].GetImageView() == nullptr)
@@ -906,21 +828,22 @@ void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLI
 
     stagingBuffer.MemCopy(view.pData, static_cast<size_t>(mapImageSize));
 
-    FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
-    frameCmd->Begin();
-    frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
-    frameCmd->CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
-    if (mipLevels > 1)
     {
-        frameCmd->GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);
-    }
-    else
-    {
-        frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels);
+        FVkSingleTimeCommandBuffer frameCmd =  FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
+        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
+        if (mipLevels > 1)
+        {
+            frameCmd.GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);
+        }
+        else
+        {
+            frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels);
+        }
+
+        frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 
-    frameCmd->Submit(m_Device->GetGraphicsQueue());
-    frameCmd->Synchronize();
     texture.CreateImaveView();
 }
 
@@ -946,12 +869,12 @@ void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, 
                                           GetDepthAspect(format));
     texture.CreateImaveView();
 
-    FVkSingleTimeCommandBuffer* frameCmd = m_Device->GetFrameCommandBuffer();
-    frameCmd->Begin();
-    frameCmd->TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
-                                    mimLevels);
-    frameCmd->Submit(m_Device->GetGraphicsQueue());
-    frameCmd->Synchronize();
+    {
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
+                                        mimLevels);
+        frameCmd.Submit(m_Device->GetGraphicsQueue());
+    }
 }
 
 void vk::backend::impl::startResize()
@@ -971,4 +894,122 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
     m_Skybox = new FVkSkybox();
     m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), createShaderModule(pVertexShaderInfo), createShaderModule(pFragmentShaderInfo),
                      VK_SAMPLE_COUNT_1_BIT);
+}
+
+void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
+{
+    if (m_WindowResizeIsInProgress)
+    {
+        return;
+    }
+    if (!m_Swapchain->ReadyToPresent())
+    {
+        vkDeviceWaitIdle(m_Device->GetLogicalDevice());
+        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_Multisampler->GetTexture()->GetImageView(),
+                              m_Depth.depthTexture->GetImageView());
+    }
+
+
+    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
+
+
+    if (!m_DescriptorSetImageViewsToUpload[currentFrame].empty())
+    {
+        for (size_t i = 0; i < m_DescriptorSetImageViewsToUpload[currentFrame].size(); i++)
+        {
+            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViewsToUpload[currentFrame][i].idx, m_DescriptorSetImageViewsToUpload[currentFrame][i].view,
+                                 m_ImageSampler);
+        }
+        m_DescriptorSetImageViewsToUpload[currentFrame].clear();
+    }
+
+
+     // ---------- issuing commands ----------
+    vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[currentFrame].GetCommandPool(), 0);
+    
+    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    cmd.Begin();
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(currentFrame),m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    VkRect2D renderArea{
+        .offset = {0, 0},
+        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    };
+
+    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    if (m_IndexBuffer->StrideBytes() == 4)
+        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+    else if (m_IndexBuffer->StrideBytes() == 2)
+        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
+
+    cmd.BeginRendering(m_Swapchain->GetSwapchainImageView(currentFrame), m_Depth.depthTexture->GetImageView(), renderArea);
+    cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+    for (const auto& draw : m_DrawList)
+    {
+        cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[draw.material.albedo]);
+        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+    }
+    cmd.EndRendering();
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(currentFrame), m_Swapchain->GetImageFormat(),
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    cmd.End();
+
+    uint32_t imageIndex;
+    VkResult isSwapchainValid{};
+    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
+                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
+    {
+        assert(false);
+        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
+    }
+    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
+    {
+        DBG_PRINTM("Failed to present swap chain image!")
+        assert(false);
+    }
+
+
+    updateUniformBuffer(currentFrame, pUbo);
+
+    VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+
+    submitInfo.pCommandBuffers = m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer();
+
+    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[currentFrame]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_FrameContext->m_InFlightFences[currentFrame]) != VK_SUCCESS)
+    {
+        DBG_PRINTM("Failed to submit draw command buffer!")
+        assert(false);
+    }
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.pResults = nullptr;  // Optional
+
+    VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+
+    vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
+
+    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
 }

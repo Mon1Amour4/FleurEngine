@@ -14,6 +14,7 @@ class FVkCommandPool
 public:
     FVkCommandPool();
     ~FVkCommandPool();
+
     void Init(VkDevice device, VkCommandPoolCreateFlagBits usage, uint32_t queueFamilyIndex);
 
     inline VkCommandPool GetCommandPool() const
@@ -41,12 +42,10 @@ public:
         return m_Valid;
     }
     void Reset();
-    void Begin(VkRenderPass renderPass);
+    void Begin();
     void End();
 
     void BindPipeline(VkPipeline pipeline);
-    void BeginRenderPass(VkRenderPassBeginInfo info, VkSubpassContents content);
-    void EndRenderPass();
     void ExecuteSecondaryCommandBuffer(VkCommandBuffer secondary);
 
     void SetViewport(VkViewport viewport);
@@ -56,6 +55,9 @@ public:
     void BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet);
     void PushConstant(VkPipelineLayout pipelineLayout, VkImageAspectFlags shaderStage, SFLPushConstant constant);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
+
+    void BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea);
+    void EndRendering();
 
     inline VkCommandBuffer* GetCommandBuffer()
     {
@@ -88,10 +90,6 @@ public:
     {
         return m_CommandBuffer;
     }
-
-    void Begin();
-
-    void Synchronize();
 
 private:
     VkDevice m_Device;

@@ -38,6 +38,18 @@ public:
     {
         return (m_SwapchainCreated);
     }
+    inline VkImage GetSwapchainImage(uint32_t idx) const
+    {
+        assert(idx <= m_SwapchainImages.size() - 1);
+
+        return m_SwapchainImages[idx];
+    }
+    inline VkImageView GetSwapchainImageView(uint32_t idx) const
+    {
+        assert(idx <= m_SwapchainImages.size() - 1);
+
+        return m_SwapchainImageViews[idx];
+    }
 
     void ReleaseSwapchainImageViews();
 

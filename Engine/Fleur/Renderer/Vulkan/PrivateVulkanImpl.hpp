@@ -157,8 +157,7 @@ struct backend::impl
             , m_CommandBuffers(m_FramesInFlight)
             , m_InFlightFences(m_FramesInFlight)
             , m_ImagesAvailable(m_FramesInFlight)
-            , m_RenderFinished(m_FramesInFlight)
-            , m_FrameCommandBuffer(nullptr) {};
+            , m_RenderFinished(m_FramesInFlight) {};
 
         uint32_t m_FramesInFlight;
         std::vector<FVkCommandPool> m_CommandPools;
@@ -167,8 +166,7 @@ struct backend::impl
         std::vector<VkSemaphore> m_ImagesAvailable;
         std::vector<VkSemaphore> m_RenderFinished;
 
-        FVkCommandPool m_FrameCommandPool;
-        FVkSingleTimeCommandBuffer* m_FrameCommandBuffer;
+        FVkCommandPool* m_FrameCommandPool;
     };
     FrameContext* m_FrameContext;
 
@@ -216,7 +214,7 @@ struct backend::impl
         uint32_t idx;
         VkImageView view;
     };
-    std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViews;
+    std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViewsToUpload;
 
     FVkTexture* m_FallbackTexture;
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);

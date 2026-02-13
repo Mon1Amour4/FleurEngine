@@ -15,13 +15,11 @@ bool SQueueFamily::IsValid()
 FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
     , m_GraphicsQueueFamily(graphicsQueueFamily)
-    , m_FrameCommandBuffer(nullptr)
 {
 }
 
 FVkDevice::~FVkDevice()
 {
-    delete m_FrameCommandBuffer;
     vkDestroyDevice(m_Device, nullptr);
 }
 

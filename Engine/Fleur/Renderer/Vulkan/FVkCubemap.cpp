@@ -59,24 +59,27 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
 
     CreateRenderPass(swapchain);
     CreateDescriptorSetLayout();
-    SFPipelineCreationInfo pipelineInfo{.device = m_Device,
-                                        .renderPass = m_RenderPass,
-                                        .descriptorSetLayout = m_DescriptorSetLayout,
-                                        .vertexShader = m_VertexShader,
-                                        .fragmentShader = m_FragmentShader,
-                                        .pushConstantSize = 0,
-                                        .vertexInput = nullptr,
-                                        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-                                        .viewport = &viewport,
-                                        .extent = swapchainExtent,
-                                        .samplesCount = m_Samples,
-                                        .depthStencilOp = m_DepthStencilCompareOp,
-                                        .depthWriteEnable = false};
-    m_Pipeline->Init(&pipelineInfo);
 
-    CreateDescriptorPool(swapchain->GetSwapchainFramebuffersCount());
+   /* std::vector<VkPushConstantRange> pushConstants{};
+    FGraphicsPipelineDesc pipelineInfo{
+        .descriptorSetLayout = m_DescriptorSetLayout,
+        .vertexShader = m_VertexShader,
+        .fragmentShader = m_FragmentShader,
+        .pushConstants = pushConstants,
+        .vertexInput = m_GeometryVertexInput,
+        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .depthWriteEnable = false,
+        .depthCompareOp = m_DepthStencilCompareOp,
+        .colorFormat = m_Swapchain->GetImageFormat(),
+        .depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice()),
+        .samplesCount = m_Multisampler->GetSamplesCount(),
+        .extent = VkExtent2D{.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height}};
+
+    m_Pipeline->Init(&pipelineInfo);*/
+
+    CreateDescriptorPool(swapchain->GetSwapchainImageCount());
     CreateSampler();
-    CreateDescriptorSets(swapchain->GetSwapchainFramebuffersCount());
+    CreateDescriptorSets(swapchain->GetSwapchainImageCount());
 }
 
 void FVkSkybox::SetSkybox(VkImageView imageView)

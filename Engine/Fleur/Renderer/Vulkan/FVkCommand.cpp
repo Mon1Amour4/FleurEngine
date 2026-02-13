@@ -4,8 +4,9 @@
 
 #include "VkHelper.h"
 #include "vk_mem_alloc.h"
-//======================================================================
-// CommandPool
+
+
+// ---------- commandPool ----------
 FVkCommandPool::FVkCommandPool()
     : m_Device(nullptr)
     , m_Usage(VK_COMMAND_POOL_CREATE_FLAG_BITS_MAX_ENUM)
@@ -37,8 +38,7 @@ void FVkCommandPool::Init(VkDevice device, VkCommandPoolCreateFlagBits usage, ui
 }
 
 
-//======================================================================
-// CommandBuffer
+// ---------- commandBuffer ----------
 FVkCommandBuffer::FVkCommandBuffer()
     : m_Device(nullptr)
     , m_Level(VK_COMMAND_BUFFER_LEVEL_MAX_ENUM)
@@ -76,20 +76,9 @@ void FVkCommandBuffer::Reset()
     m_Valid = false;
 }
 
-void FVkCommandBuffer::Begin(VkRenderPass renderPass)
+void FVkCommandBuffer::Begin()
 {
-    VkCommandBufferInheritanceInfo inheritanceInfo{};
-    inheritanceInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO;
-    inheritanceInfo.pNext = NULL;
-    inheritanceInfo.renderPass = renderPass;
-    inheritanceInfo.subpass = 0;
-    inheritanceInfo.framebuffer = VK_NULL_HANDLE;
-
-
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
-    beginInfo.pInheritanceInfo = &inheritanceInfo;
+    VkCommandBufferBeginInfo beginInfo = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, .pNext = NULL, .flags = 0, .pInheritanceInfo = NULL};
 
     if (vkBeginCommandBuffer(m_CommandBuffer, &beginInfo) != VK_SUCCESS)
     {
@@ -108,16 +97,6 @@ void FVkCommandBuffer::End()
 void FVkCommandBuffer::BindPipeline(VkPipeline pipeline)
 {
     vkCmdBindPipeline(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-}
-
-void FVkCommandBuffer::BeginRenderPass(VkRenderPassBeginInfo info, VkSubpassContents content)
-{
-    vkCmdBeginRenderPass(m_CommandBuffer, &info, content);
-}
-
-void FVkCommandBuffer::EndRenderPass()
-{
-    vkCmdEndRenderPass(m_CommandBuffer);
 }
 
 void FVkCommandBuffer::ExecuteSecondaryCommandBuffer(VkCommandBuffer secondary)
@@ -161,9 +140,55 @@ void FVkCommandBuffer::DrawIndexed(uint32_t indexCount, size_t indexOffset, size
     vkCmdDrawIndexed(m_CommandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
 }
 
+void FVkCommandBuffer::BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea)
+{
+    VkClearValue clearColor{
+        .color = {1.0f, 1.0f, 1.0f, 1.0f},
+    };
+    VkClearValue clearDepth{
+        .depthStencil = {.depth = 1.0f, .stencil = 0},
+    };
 
-//======================================================================
-// FVkSingleTimeCommandBuffer
+    VkRenderingAttachmentInfoKHR colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                                                 .pNext = nullptr,
+                                                 .imageView = renderTarget,
+                                                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
+                                                 .resolveImageView = nullptr,
+                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                                                 .clearValue = clearColor};
+
+    VkRenderingAttachmentInfoKHR depthAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                                                 .pNext = nullptr,
+                                                 .imageView = depthRenderTarget,
+                                                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
+                                                 .resolveImageView = nullptr,
+                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                                                 .clearValue = clearDepth};
+
+    VkRenderingInfoKHR renderingInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+                                     .renderArea = renderarea,
+                                     .layerCount = 1,
+                                     .viewMask = 0,
+                                     .colorAttachmentCount = 1,
+                                     .pColorAttachments = &colorAttachment,
+                                     .pDepthAttachment = &depthAttachment};
+
+    vkCmdBeginRendering(m_CommandBuffer, &renderingInfo);
+}
+
+void FVkCommandBuffer::EndRendering()
+{
+    vkCmdEndRendering(m_CommandBuffer);
+}
+
+
+// ---------- FVkSingleTimeCommandBuffer ----------
 FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkCommandPool pool)
     : m_Device(device)
     , m_CommandPool(pool)
@@ -183,8 +208,13 @@ FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkComman
     allocInfo.commandBufferCount = 1;
 
     vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer);
-}
 
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
+}
 FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 {
     vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT64_MAX);
@@ -298,20 +328,7 @@ void FVkSingleTimeCommandBuffer::GenerateMipMaps(VkPhysicalDevice physicalDevice
 
     vkCmdPipelineBarrier(m_CommandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
-void FVkSingleTimeCommandBuffer::Begin()
-{
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
-}
-
-void FVkSingleTimeCommandBuffer::Synchronize()
-{
-    vkWaitForFences(m_Device, 1, &m_Fence, VK_TRUE, UINT_MAX);
-    vkResetFences(m_Device, 1, &m_Fence);
-}
 
 void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)
 {
