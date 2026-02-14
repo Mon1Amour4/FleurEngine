@@ -158,6 +158,15 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
 
     m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
     createDescriptorSets();
+
+    {
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+
+        frameCmd.TransitionImageLayout(m_Multisampler->GetTexture()->GetImage(), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+        frameCmd.Submit(m_Device->GetGraphicsQueue());
+    }
 }
 vk::backend::impl::~impl()
 {
