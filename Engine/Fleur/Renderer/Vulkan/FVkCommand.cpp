@@ -130,7 +130,7 @@ void FVkCommandBuffer::BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDesc
     vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, descriptorSet, 0, nullptr);
 }
 
-void FVkCommandBuffer::PushConstant(VkPipelineLayout pipelineLayout, VkImageAspectFlags shaderStage, SFLPushConstant constant)
+void FVkCommandBuffer::PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant)
 {
     vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStage, 0, sizeof(SFLPushConstant), &constant);
 }

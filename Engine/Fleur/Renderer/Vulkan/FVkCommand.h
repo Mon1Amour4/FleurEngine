@@ -50,10 +50,11 @@ public:
 
     void SetViewport(VkViewport viewport);
     void SetScissors(VkRect2D scissors);
+
     void BindVertexBuffer(VkBuffer* buffer);
     void BindIndexBuffer(VkBuffer* buffer, VkIndexType indextype);
     void BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet);
-    void PushConstant(VkPipelineLayout pipelineLayout, VkImageAspectFlags shaderStage, SFLPushConstant constant);
+    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
 
     void BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea);
