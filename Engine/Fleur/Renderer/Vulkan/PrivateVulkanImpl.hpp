@@ -243,5 +243,7 @@ struct backend::impl
 
     FVkSkybox* m_Skybox;
     void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
+
+    void BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage);
 };
 }  // namespace vk

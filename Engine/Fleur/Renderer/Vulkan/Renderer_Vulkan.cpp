@@ -896,6 +896,48 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
                      VK_SAMPLE_COUNT_1_BIT);
 }
 
+void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage)
+{
+    VkClearValue clearColor{
+        .color = {1.0f, 1.0f, 1.0f, 1.0f},
+    };
+    VkClearValue clearDepth{
+        .depthStencil = {.depth = 1.0f, .stencil = 0},
+    };
+
+    VkRenderingAttachmentInfoKHR colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                                                 .pNext = nullptr,
+                                                 .imageView = m_Multisampler->GetTexture()->GetImageView(),
+                                                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                 .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
+                                                 .resolveImageView = m_Swapchain->GetSwapchainImageView(currentImage),
+                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                 .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                                 .clearValue = clearColor};
+
+    VkRenderingAttachmentInfoKHR depthAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
+                                                 .pNext = nullptr,
+                                                 .imageView = m_Depth.depthTexture->GetImageView(),
+                                                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
+                                                 .resolveImageView = nullptr,
+                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                                                 .clearValue = clearDepth};
+
+    VkRenderingInfoKHR renderingInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
+                                     .renderArea = renderarea,
+                                     .layerCount = 1,
+                                     .viewMask = 0,
+                                     .colorAttachmentCount = 1,
+                                     .pColorAttachments = &colorAttachment,
+                                     .pDepthAttachment = &depthAttachment};
+
+    vkCmdBeginRendering(cmd, &renderingInfo);
+}
+
 void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     if (m_WindowResizeIsInProgress)
@@ -944,7 +986,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     else if (m_IndexBuffer->StrideBytes() == 2)
         cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
 
-    cmd.BeginRendering(m_Swapchain->GetSwapchainImageView(currentFrame), m_Depth.depthTexture->GetImageView(), renderArea);
+    BeginRendering(*m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer(), renderArea, imageIndex);
     cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
     for (const auto& draw : m_DrawList)
     {
