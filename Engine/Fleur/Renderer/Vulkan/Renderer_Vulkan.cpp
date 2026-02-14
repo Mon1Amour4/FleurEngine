@@ -93,11 +93,12 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_Multisampler = new FVkMultisampler();
     m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
+
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
 
     m_GeometryDSL = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
                         .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
-                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 128)
+                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
                         .build();
 
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
@@ -625,7 +626,6 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
                     updateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
                     continue;
                 }
-
             }
         }
         else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
@@ -656,14 +656,15 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             VkImage cubemapImage = gpuTexture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
                                                           VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-            
+
             {
-                FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+                FVkSingleTimeCommandBuffer frameCmd =
+                    FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
                 frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                           VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                                               VK_IMAGE_ASPECT_COLOR_BIT, 1);
                 frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
                 frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                           VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
                 frameCmd.Submit(m_Device->GetGraphicsQueue());
             }
             gpuTexture.CreateImaveView();
@@ -838,7 +839,7 @@ void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLI
     stagingBuffer.MemCopy(view.pData, static_cast<size_t>(mapImageSize));
 
     {
-        FVkSingleTimeCommandBuffer frameCmd =  FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
         frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
         if (mipLevels > 1)
@@ -881,7 +882,7 @@ void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
-                                        mimLevels);
+                                       mimLevels);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 }
@@ -969,20 +970,34 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     {
         for (size_t i = 0; i < m_DescriptorSetImageViewsToUpload[currentFrame].size(); i++)
         {
-            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViewsToUpload[currentFrame][i].idx, m_DescriptorSetImageViewsToUpload[currentFrame][i].view,
-                                 m_ImageSampler);
+            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViewsToUpload[currentFrame][i].idx,
+                                 m_DescriptorSetImageViewsToUpload[currentFrame][i].view, m_ImageSampler);
         }
         m_DescriptorSetImageViewsToUpload[currentFrame].clear();
     }
 
+    uint32_t imageIndex;
+    VkResult isSwapchainValid{};
+    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
+                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
+    {
+        assert(false);
+        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
+    }
+    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
+    {
+        DBG_PRINTM("Failed to present swap chain image!")
+        assert(false);
+    }
 
-     // ---------- issuing commands ----------
+    // ---------- issuing commands ----------
     vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[currentFrame].GetCommandPool(), 0);
-    
+
     auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
     cmd.Begin();
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(currentFrame),m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     VkRect2D renderArea{
         .offset = {0, 0},
@@ -1003,25 +1018,9 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
         cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
     cmd.EndRendering();
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(currentFrame), m_Swapchain->GetImageFormat(),
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                          VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(),
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     cmd.End();
-
-    uint32_t imageIndex;
-    VkResult isSwapchainValid{};
-    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
-                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
-    if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
-    {
-        assert(false);
-        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
-    }
-    else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
-    {
-        DBG_PRINTM("Failed to present swap chain image!")
-        assert(false);
-    }
 
 
     updateUniformBuffer(currentFrame, pUbo);

@@ -216,7 +216,6 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
                                                renderer->SetSkybox(asset.ID);
                                            });
 
-
     m_IsInitialized = true;
     m_IsRunning = true;
 }
