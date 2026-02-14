@@ -49,7 +49,8 @@ FVkCommandBuffer::FVkCommandBuffer()
 }
 FVkCommandBuffer::~FVkCommandBuffer()
 {
-    vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &m_CommandBuffer);
+    if (m_CommandPool && m_CommandBuffer)
+        vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &m_CommandBuffer);
 }
 
 void FVkCommandBuffer::Init(VkDevice device, VkCommandPool pool, VkCommandBufferLevel level)
