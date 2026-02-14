@@ -999,10 +999,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-    VkRect2D renderArea{
-        .offset = {0, 0},
-        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
-    };
+
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
     if (m_IndexBuffer->StrideBytes() == 4)
@@ -1010,11 +1007,33 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     else if (m_IndexBuffer->StrideBytes() == 2)
         cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
 
+    VkRect2D renderArea{
+        .offset = {0, 0},
+        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    };
     BeginRendering(*m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer(), renderArea, imageIndex);
+
     cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+
+    VkViewport defaultViewport{.x = 0,
+                               .y = 0,
+                               .width = (float)m_Swapchain->GetSwapchainExtent().width,
+                               .height = (float)m_Swapchain->GetSwapchainExtent().height,
+                               .minDepth = 0,
+                               .maxDepth = 1.0f};
+    cmd.SetViewport(defaultViewport);
+
+    VkRect2D defaultScissors{
+        .offset = VkOffset2D{.x = 0, .y = 0},
+        .extent = m_Swapchain->GetSwapchainExtent(),
+    };
+    cmd.SetScissors(defaultScissors);
+
+    cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[currentFrame]);
     for (const auto& draw : m_DrawList)
     {
-        cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[draw.material.albedo]);
+        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
+        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
     cmd.EndRendering();
