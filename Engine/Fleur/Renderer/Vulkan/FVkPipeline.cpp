@@ -19,8 +19,10 @@ FVkPipeline::~FVkPipeline()
 
 void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 {
+    assert(desc.descriptorSetLayouts.size() > 0);
+
     m_Device = device;
-    m_DescriptorSetLayout = desc.descriptorSetLayout;
+    m_DescriptorSetLayouts = desc.descriptorSetLayouts;
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = desc.vertexShader, .pName = "main"};
@@ -31,9 +33,9 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                                                  .setLayoutCount = 1,
-                                                  .pSetLayouts = &desc.descriptorSetLayout,
-                                                  .pushConstantRangeCount = static_cast<uint32_t>(desc.pushConstants.size()),
+                                                  .setLayoutCount = (uint32_t)m_DescriptorSetLayouts.size(),
+                                                  .pSetLayouts = m_DescriptorSetLayouts.data(),
+                                                  .pushConstantRangeCount = (uint32_t)desc.pushConstants.size(),
                                                   .pPushConstantRanges = desc.pushConstants.empty() ? nullptr : desc.pushConstants.data()};
 
 

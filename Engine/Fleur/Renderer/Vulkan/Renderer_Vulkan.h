@@ -11,7 +11,7 @@ namespace vk
 
 struct backend : public Fleur::Graphics::IRenderer
 {
-    // pImpl
+    // ---------- pImpl ----------
     struct impl;
 
     // Vrtual interface

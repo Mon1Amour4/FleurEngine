@@ -35,8 +35,17 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
+    VkPhysicalDeviceDescriptorIndexingFeatures indexing{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+                                                        .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+                                                        .descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE,
+                                                        .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
+                                                        .descriptorBindingUpdateUnusedWhilePending = VK_TRUE,
+                                                        .descriptorBindingPartiallyBound = VK_TRUE,
+                                                        .descriptorBindingVariableDescriptorCount = VK_TRUE,
+                                                        .runtimeDescriptorArray = VK_TRUE};
+
     VkPhysicalDeviceDynamicRenderingFeaturesKHR dynamicRenderingFeature{
-        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR, .pNext = nullptr, .dynamicRendering = VK_TRUE};
+        .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES_KHR, .pNext = &indexing, .dynamicRendering = VK_TRUE};
 
     VkDeviceCreateInfo deviceCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                                         .pNext = &dynamicRenderingFeature,

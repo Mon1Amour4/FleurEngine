@@ -14,7 +14,7 @@ enum BindingType
 
 struct FGraphicsPipelineDesc
 {
-    VkDescriptorSetLayout descriptorSetLayout;
+    const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts;
 
     // Shaders
     VkShaderModule vertexShader = VK_NULL_HANDLE;
@@ -69,10 +69,23 @@ public:
 
         FVkDescriptorSetLayout* build()
         {
-            VkDescriptorSetLayoutCreateInfo info{};
-            info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            info.bindingCount = static_cast<uint32_t>(m_Bindings.size());
-            info.pBindings = m_Bindings.data();
+            // ---------- using descriptor indexing ----------
+            // ---------- https://docs.vulkan.org/samples/latest/samples/extensions/descriptor_indexing/README.html ----------
+
+            const VkDescriptorBindingFlagsEXT flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
+                                                      VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT /*|
+                                                      VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/;
+
+            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
+            binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+            binding_flags.bindingCount = m_Bindings.size();
+            binding_flags.pBindingFlags = &flags;
+
+            VkDescriptorSetLayoutCreateInfo info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                                                 .pNext = &binding_flags,
+                                                 .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
+                                                 .bindingCount = (uint32_t)m_Bindings.size(),
+                                                 .pBindings = m_Bindings.data()};
 
             VkDescriptorSetLayout layout;
             if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
@@ -130,7 +143,7 @@ private:
     VkDevice m_Device;
     VkPipeline m_Pipeline;
     VkPipelineLayout m_PipelineLayout;
-    VkDescriptorSetLayout m_DescriptorSetLayout;
+    std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
 
     uint32_t GetBindingIdx();
 };

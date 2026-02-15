@@ -46,7 +46,7 @@
 #define VULKAN_VERSION VK_API_VERSION_1_4
 #define CUBEMAP_LAYERS_COUNT 6
 
-constexpr uint32_t MAX_TEXTURES = 128;
+constexpr uint32_t MAX_TEXTURES = 4096;
 
 #pragma endregion
 
@@ -128,7 +128,7 @@ struct backend::impl
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
     // ---------- geometryPipeline ----------
-    FVkDescriptorSetLayout* m_GeometryDSL;
+
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                         Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
@@ -170,19 +170,8 @@ struct backend::impl
     };
     FrameContext* m_FrameContext;
 
-    std::vector<FVkBuffer> m_UniformBuffers;
 
     VkMemoryRequirements memRequirements;
-
-    void createUniformBuffers();
-    void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
-
-    VkDescriptorPool descriptorPool;
-    void createDescriptorPool();
-
-    std::vector<VkDescriptorSet> descriptorSets;
-    void createDescriptorSets();
-
 
     // ---------- vma ----------
     VmaAllocator m_Allocator;
@@ -245,5 +234,20 @@ struct backend::impl
     void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
 
     void BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage);
+
+    // ---------- static geometry ----------
+    FVkDescriptorSetLayout* m_StaticGeometryTexturesDsl;
+    FVkDescriptorSetLayout* m_StaticGeometryUboDsl;
+    std::vector<VkDescriptorSet> m_StaticGeometryDescriptorSetUbo;
+    VkDescriptorSet m_StaticGeometryDescriptorSetTextures;
+    VkDescriptorPool m_DescriptorPool;
+    std::vector<FVkBuffer> m_UniformBuffers;
+
+    void createStaticGeometryPass();
+    void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
+
+    void createDescriptorPool();
+
+    void createDescriptorSets();
 };
 }  // namespace vk

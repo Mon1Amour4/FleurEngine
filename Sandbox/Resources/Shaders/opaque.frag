@@ -1,11 +1,11 @@
 #version 450
 
-#define MAX_TEXTURES 128
+#extension GL_EXT_nonuniform_qualifier : enable
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 0) out vec4 outColor;
 
-layout(binding = 1) uniform sampler2D texSampler[MAX_TEXTURES];
+layout(set = 1, binding = 0) uniform sampler2D texSampler[];
 
 layout(push_constant) uniform PushConsts
 {

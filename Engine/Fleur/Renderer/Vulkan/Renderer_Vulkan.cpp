@@ -51,10 +51,15 @@ void vk::backend::EndResize(Fleur::SRect& rect)
 
 
 // ---------- impl ----------
-vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
+// clang-format off
+vk::backend::impl::impl(bool enableValidation, 
+                        Fleur::Graphics::SFLFrame& pFrame, 
+                        void* pNativeHandle, Fleur::SRect& framebufferSize,
                         Fleur::Graphics::SFLImageView& fallback)
+    // clang-format on
     : m_WindowResizeIsInProgress(false)
-    , m_GeometryDSL(nullptr)
+    , m_StaticGeometryTexturesDsl(nullptr)
+    , m_StaticGeometryUboDsl(nullptr)
     , m_FrameContext(nullptr)
 {
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
@@ -96,13 +101,6 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
 
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
 
-    m_GeometryDSL = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
-                        .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
-                        .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
-                        .build();
-
-    m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
-                                                m_Multisampler->GetSamplesCount());
 
     m_FrameContext = new FrameContext(swapChainImageCount);
     for (size_t i = 0; i < swapChainImageCount; i++)
@@ -151,14 +149,15 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         1024u * 1024ul * 256ul, indexInputDescriptorSize);
 
-    createUniformBuffers();
-    createDescriptorPool();
-
     createFallbackTexture(fallback);
     m_ImageSampler = createTextureSampler();
 
+    createStaticGeometryPass();
+
+    m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
+                                                m_Multisampler->GetSamplesCount());
+
     m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
-    createDescriptorSets();
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
@@ -169,6 +168,7 @@ vk::backend::impl::impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 }
+
 vk::backend::impl::~impl()
 {
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
@@ -189,8 +189,9 @@ vk::backend::impl::~impl()
     delete m_FrameContext;
 
     // 3. DescriptorSet & DescriptorPool & Descriptor set layout
-    vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), descriptorPool, nullptr);
-    delete m_GeometryDSL;
+    vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), m_DescriptorPool, nullptr);
+    delete m_StaticGeometryTexturesDsl;
+    delete m_StaticGeometryUboDsl;
 
     // 4. Pipeline
     delete m_GeometryPipeline;
@@ -418,8 +419,9 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
 
     std::vector<VkPushConstantRange> pushConstants{VkPushConstantRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t)}};
 
+    std::vector<VkDescriptorSetLayout> dsl{m_StaticGeometryUboDsl->GetDescriptorSetLayout(), m_StaticGeometryTexturesDsl->GetDescriptorSetLayout()};
     FGraphicsPipelineDesc pipelineInfo{
-        .descriptorSetLayout = m_GeometryDSL->GetDescriptorSetLayout(),
+        .descriptorSetLayouts = dsl,
         .vertexShader = vertexShaderModule,
         .fragmentShader = vertexFragmentModule,
         .pushConstants = pushConstants,
@@ -463,20 +465,21 @@ VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderI
 
 void vk::backend::impl::createDescriptorPool()
 {
+    // ---------- descriptor indexing uses, 500k descriptors is min-limit ----------
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = MAX_TEXTURES * m_Swapchain->GetSwapchainImageCount();
+    poolSizes[1].descriptorCount = MAX_TEXTURES;
 
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.poolSizeCount = poolSizes.size();
-    poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
+    VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+                                        .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
+                                        .maxSets = m_Swapchain->GetSwapchainImageCount() + 1,
+                                        .poolSizeCount = poolSizes.size(),
+                                        .pPoolSizes = poolSizes.data()};
 
-    if (vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
+    if (vkCreateDescriptorPool(m_Device->GetLogicalDevice(), &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS)
     {
         DBG_PRINTM("failed to create descriptor pool!")
         assert(false);
@@ -484,71 +487,68 @@ void vk::backend::impl::createDescriptorPool()
 }
 void vk::backend::impl::createDescriptorSets()
 {
-    std::vector<VkDescriptorSetLayout> layouts(m_Swapchain->GetSwapchainImageCount(), m_GeometryDSL->GetDescriptorSetLayout());
+    // ---------- ubo ----------
+    m_StaticGeometryDescriptorSetUbo.resize(m_Swapchain->GetSwapchainImageCount());
+    auto uboDsl = m_StaticGeometryUboDsl->GetDescriptorSetLayout();
 
-    VkDescriptorSetAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocInfo.descriptorPool = descriptorPool;
-    allocInfo.descriptorSetCount = layouts.size();
-    allocInfo.pSetLayouts = layouts.data();
-
-    descriptorSets.resize(m_Swapchain->GetSwapchainImageCount());
-    if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &allocInfo, descriptorSets.data()) != VK_SUCCESS)
+    for (size_t i = 0; i < m_StaticGeometryDescriptorSetUbo.size(); i++)
     {
-        DBG_PRINTM("failed to allocate descriptor sets!")
-        assert(true);
-    }
+        VkDescriptorSetAllocateInfo uniformBufferAllocInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &uboDsl};
 
-    for (size_t i = 0; i < descriptorSets.size(); i++)
-    {
+        if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &uniformBufferAllocInfo, &m_StaticGeometryDescriptorSetUbo[i]) != VK_SUCCESS)
+        {
+            DBG_PRINTM("failed to allocate descriptor sets!")
+            assert(true);
+        }
+
         VkDescriptorBufferInfo bufferInfo{};
         bufferInfo.buffer = m_UniformBuffers[i].GetBuffer();
         bufferInfo.offset = 0;
         bufferInfo.range = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-        std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].dstSet = descriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+        VkWriteDescriptorSet descriptorWrites{};
+        descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrites.dstSet = m_StaticGeometryDescriptorSetUbo[i];
+        descriptorWrites.dstBinding = 0;
+        descriptorWrites.dstArrayElement = 0;
+        descriptorWrites.descriptorCount = 1;
+        descriptorWrites.pBufferInfo = &bufferInfo;
 
-        vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
-
-        VkDescriptorImageInfo imageSamplerInfo{};
-        imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageSamplerInfo.imageView = m_FallbackTexture->GetImageView();
-        imageSamplerInfo.sampler = m_ImageSampler;
-
-        std::array<VkWriteDescriptorSet, MAX_TEXTURES> descriptorImageWrites{};
-        for (size_t j = 0; j < descriptorImageWrites.size(); j++)
-        {
-            descriptorImageWrites[j].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            descriptorImageWrites[j].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-            descriptorImageWrites[j].dstSet = descriptorSets[i];
-            descriptorImageWrites[j].dstBinding = 1;
-            descriptorImageWrites[j].dstArrayElement = j;
-            descriptorImageWrites[j].descriptorCount = 1;
-            descriptorImageWrites[j].pImageInfo = &imageSamplerInfo;
-        }
-        vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), descriptorImageWrites.size(), descriptorImageWrites.data(), 0, nullptr);
+        vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
     }
-}
 
 
-void vk::backend::impl::createUniformBuffers()
-{
-    VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
+    // ---------- textures ----------
+    auto textureDsl = m_StaticGeometryTexturesDsl->GetDescriptorSetLayout();
 
-    m_UniformBuffers.resize(m_Swapchain->GetSwapchainImageCount());
+    VkDescriptorSetAllocateInfo texturesDescriptorSetAllocInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &textureDsl};
 
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
+    if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &texturesDescriptorSetAllocInfo, &m_StaticGeometryDescriptorSetTextures) != VK_SUCCESS)
     {
-        m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
+        DBG_PRINTM("failed to allocate descriptor sets!")
+        assert(true);
     }
+
+    VkDescriptorImageInfo imageSamplerInfo{};
+    imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageSamplerInfo.imageView = m_FallbackTexture->GetImageView();
+    imageSamplerInfo.sampler = m_ImageSampler;
+
+    VkWriteDescriptorSet descriptorImageWrites{};
+    descriptorImageWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorImageWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorImageWrites.dstSet = m_StaticGeometryDescriptorSetTextures;
+    descriptorImageWrites.dstBinding = 0;
+    descriptorImageWrites.dstArrayElement = 0;
+    descriptorImageWrites.descriptorCount = 1;
+    descriptorImageWrites.pImageInfo = &imageSamplerInfo;
+
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorImageWrites, 0, nullptr);
 }
+
 void vk::backend::impl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     pUbo->proj[1][1] *= -1;
@@ -618,15 +618,7 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             createTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
-            for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
-            {
-                m_DescriptorSetImageViewsToUpload[i].emplace_back(imageView->ID, gpuTexture.GetImageView());
-                if (i == currentFrame)
-                {
-                    updateDescriptorSets(descriptorSets[currentFrame], imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
-                    continue;
-                }
-            }
+            updateDescriptorSets(m_StaticGeometryDescriptorSetTextures, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
         }
         else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
         {
@@ -770,7 +762,7 @@ void vk::backend::impl::updateDescriptorSets(VkDescriptorSet& set, uint32_t idx,
 
     descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorWrites[0].dstSet = set;
-    descriptorWrites[0].dstBinding = 1;
+    descriptorWrites[0].dstBinding = 0;
     descriptorWrites[0].dstArrayElement = idx;
     descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorWrites[0].descriptorCount = 1;
@@ -948,6 +940,29 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea,
     vkCmdBeginRendering(cmd, &renderingInfo);
 }
 
+void vk::backend::impl::createStaticGeometryPass()
+{
+    m_StaticGeometryUboDsl =
+        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build();
+
+    m_StaticGeometryTexturesDsl = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                      .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
+                                      .build();
+
+    createDescriptorPool();
+
+    VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
+
+    m_UniformBuffers.resize(m_Swapchain->GetSwapchainImageCount());
+
+    for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
+    {
+        m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
+    }
+
+    createDescriptorSets();
+}
+
 void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     if (m_WindowResizeIsInProgress)
@@ -964,17 +979,6 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
 
     vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
-
-
-    if (!m_DescriptorSetImageViewsToUpload[currentFrame].empty())
-    {
-        for (size_t i = 0; i < m_DescriptorSetImageViewsToUpload[currentFrame].size(); i++)
-        {
-            updateDescriptorSets(descriptorSets[currentFrame], m_DescriptorSetImageViewsToUpload[currentFrame][i].idx,
-                                 m_DescriptorSetImageViewsToUpload[currentFrame][i].view, m_ImageSampler);
-        }
-        m_DescriptorSetImageViewsToUpload[currentFrame].clear();
-    }
 
     uint32_t imageIndex;
     VkResult isSwapchainValid{};
@@ -1029,7 +1033,11 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     };
     cmd.SetScissors(defaultScissors);
 
-    cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &descriptorSets[currentFrame]);
+    std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[currentFrame], m_StaticGeometryDescriptorSetTextures};
+    vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline->GetPipelineLayout(), 0, dst.size(), dst.data(), 0,
+                            nullptr);
+    // cmd.BindDescriptorSet(, &m_StaticGeometryDescriptorSetUbo[currentFrame]);
+    // cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &m_StaticGeometryDescriptorSetTextures);
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
