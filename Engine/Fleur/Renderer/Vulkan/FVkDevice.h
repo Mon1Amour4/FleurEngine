@@ -38,6 +38,8 @@ public:
     FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily);
     ~FVkDevice();
 
+
+    // ---------- pImpl ----------
     VkDevice CreateLogicalDevice(std::vector<const char*>& deivceExtensions);
 
     [[nodiscard]] static FVkDevice* CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo);

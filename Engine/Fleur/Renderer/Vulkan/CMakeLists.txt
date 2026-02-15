@@ -19,7 +19,7 @@ SET(PROJECT_HEADERS
     FVkMultisampler.h
     FVkTexture.h
     FVkSwapchain.h
-    FVkCubemap.h
+    FVkSkybox.h
     VkHelper.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
@@ -34,7 +34,7 @@ SET(PROJECT_SOURCES
     FVkMultisampler.cpp
     FVkTexture.cpp
     FVkSwapchain.cpp
-    FVkCubemap.cpp
+    FVkSkybox.cpp
     VkHelper.cpp
 )
 

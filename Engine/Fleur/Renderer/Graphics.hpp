@@ -22,6 +22,13 @@ struct SVertexData
 };
 #pragma pack(pop)
 
+struct SFLCameraData
+{
+    glm::vec3 cameraDir;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 struct SFLGeometryUBO
 {
     glm::mat4 model;

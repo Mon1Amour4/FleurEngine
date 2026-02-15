@@ -35,8 +35,8 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                                                   .setLayoutCount = (uint32_t)m_DescriptorSetLayouts.size(),
                                                   .pSetLayouts = m_DescriptorSetLayouts.data(),
-                                                  .pushConstantRangeCount = (uint32_t)desc.pushConstants.size(),
-                                                  .pPushConstantRanges = desc.pushConstants.empty() ? nullptr : desc.pushConstants.data()};
+                                                  .pushConstantRangeCount = (uint32_t)desc.pushConstants->size(),
+                                                  .pPushConstantRanges = desc.pushConstants->empty() ? nullptr : desc.pushConstants->data()};
 
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)

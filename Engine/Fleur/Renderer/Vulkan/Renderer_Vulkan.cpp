@@ -24,9 +24,9 @@ void vk::backend::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
 {
     pImpl->addToDrawList(pModelView);
 }
-void vk::backend::Update(Fleur::Graphics::SFLGeometryUBO* pUbo)
+void vk::backend::Update(Fleur::Graphics::SFLCameraData& cameraData)
 {
-    pImpl->update(pUbo);
+    pImpl->update(cameraData);
 }
 void vk::backend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
@@ -38,7 +38,7 @@ void vk::backend::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFL
 }
 void vk::backend::SetSkybox(AssetID id)
 {
-    pImpl->set_skybox(id);
+    pImpl->setSkybox(id);
 }
 void vk::backend::StartResize()
 {
@@ -61,6 +61,7 @@ vk::backend::impl::impl(bool enableValidation,
     , m_StaticGeometryTexturesDsl(nullptr)
     , m_StaticGeometryUboDsl(nullptr)
     , m_FrameContext(nullptr)
+    , m_Skybox(nullptr)
 {
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
@@ -424,7 +425,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
         .descriptorSetLayouts = dsl,
         .vertexShader = vertexShaderModule,
         .fragmentShader = vertexFragmentModule,
-        .pushConstants = pushConstants,
+        .pushConstants = &pushConstants,
         .vertexInput = m_GeometryVertexInput,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
         .depthWriteEnable = true,
@@ -618,7 +619,7 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
 
             createTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
 
-            updateDescriptorSets(m_StaticGeometryDescriptorSetTextures, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
+            updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
         }
         else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
         {
@@ -751,24 +752,23 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     m_FallbackTextureIdx = view.ID;
 }
 
-void vk::backend::impl::updateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
+void vk::backend::impl::updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
 {
     VkDescriptorImageInfo imageInfo{};
     imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageInfo.imageView = imageView;
     imageInfo.sampler = sampler;
 
-    std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
+    VkWriteDescriptorSet descriptorWrites{};
+    descriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorWrites.dstSet = set;
+    descriptorWrites.dstBinding = 0;
+    descriptorWrites.dstArrayElement = idx;
+    descriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorWrites.descriptorCount = 1;
+    descriptorWrites.pImageInfo = &imageInfo;
 
-    descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrites[0].dstSet = set;
-    descriptorWrites[0].dstBinding = 0;
-    descriptorWrites[0].dstArrayElement = idx;
-    descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrites[0].descriptorCount = 1;
-    descriptorWrites[0].pImageInfo = &imageInfo;
-
-    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), descriptorWrites.size(), descriptorWrites.data(), 0, nullptr);
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorWrites, 0, nullptr);
 }
 
 
@@ -779,21 +779,6 @@ void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer,
                        samplesCount, mimLevels);
 }
 
-
-void vk::backend::impl::set_skybox(AssetID id)
-{ /*
-     while (m_TextureMap[id].GetImageView() == nullptr)
-     {
-     }
-     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
-     m_Skybox->Update(0, glm::mat4(1.f));
-     m_Skybox->Update(1, glm::mat4(1.f));
-     m_Skybox->Update(2, glm::mat4(1.f));
-
-     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 0, m_Swapchain->GetFramebuffer(0), m_Swapchain->GetSwapchainExtent());
-     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 1, m_Swapchain->GetFramebuffer(1), m_Swapchain->GetSwapchainExtent());
-     m_Skybox->Record(*m_SkyboxCmd.GetCommandBuffer(), 2, m_Swapchain->GetFramebuffer(2), m_Swapchain->GetSwapchainExtent());*/
-}
 
 void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
 {
@@ -893,9 +878,18 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
 
 void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
+    if (m_Skybox)
+        return;
+
+    VkShaderModule skyboxVertexShader = createShaderModule(pVertexShaderInfo);
+    VkShaderModule skyboxFragmentShader = createShaderModule(pFragmentShaderInfo);
+
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), createShaderModule(pVertexShaderInfo), createShaderModule(pFragmentShaderInfo),
-                     VK_SAMPLE_COUNT_1_BIT);
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader);
+}
+void vk::backend::impl::setSkybox(AssetID id)
+{
+    m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
 }
 
 void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage)
@@ -963,7 +957,7 @@ void vk::backend::impl::createStaticGeometryPass()
     createDescriptorSets();
 }
 
-void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
+void vk::backend::impl::update(Fleur::Graphics::SFLCameraData& cameraData)
 {
     if (m_WindowResizeIsInProgress)
     {
@@ -1004,18 +998,22 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
+    VkRect2D renderArea{
+        .offset = {0, 0},
+        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    };
+    BeginRendering(*m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer(), renderArea, imageIndex);
+
+    if (m_Skybox)
+    {
+        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), cameraData.cameraDir);
+    }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
     if (m_IndexBuffer->StrideBytes() == 4)
         cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
     else if (m_IndexBuffer->StrideBytes() == 2)
         cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
-
-    VkRect2D renderArea{
-        .offset = {0, 0},
-        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
-    };
-    BeginRendering(*m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer(), renderArea, imageIndex);
 
     cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
 
@@ -1036,8 +1034,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[currentFrame], m_StaticGeometryDescriptorSetTextures};
     vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline->GetPipelineLayout(), 0, dst.size(), dst.data(), 0,
                             nullptr);
-    // cmd.BindDescriptorSet(, &m_StaticGeometryDescriptorSetUbo[currentFrame]);
-    // cmd.BindDescriptorSet(m_GeometryPipeline->GetPipelineLayout(), &m_StaticGeometryDescriptorSetTextures);
+
     for (const auto& draw : m_DrawList)
     {
         SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
@@ -1050,7 +1047,8 @@ void vk::backend::impl::update(Fleur::Graphics::SFLGeometryUBO* pUbo)
     cmd.End();
 
 
-    updateUniformBuffer(currentFrame, pUbo);
+    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), cameraData.view, cameraData.proj};
+    updateUniformBuffer(currentFrame, &ubo);
 
     VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};

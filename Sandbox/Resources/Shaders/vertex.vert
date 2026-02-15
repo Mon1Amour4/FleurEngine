@@ -1,12 +1,5 @@
 #version 450
 
-// layout binding means that this uniform comes binding 0 of descriptor set
-//
-//  VkDescriptorSetLayoutBinding{
-//      .binding = 0,
-//      .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-//  }
-//
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     mat4 model;
     mat4 view;

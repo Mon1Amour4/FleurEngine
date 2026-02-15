@@ -25,10 +25,10 @@
 
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
-#include "FVkCubemap.h"
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
+#include "FVkSkybox.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
 #include "VkHelper.h"
@@ -97,9 +97,7 @@ struct backend::impl
     impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~impl();
 
-    void update(Fleur::Graphics::SFLGeometryUBO* pUbo);
-
-    void set_skybox(AssetID id);
+    void update(Fleur::Graphics::SFLCameraData& cameraData);
 
     // Instance
     struct
@@ -157,7 +155,8 @@ struct backend::impl
             , m_CommandBuffers(m_FramesInFlight)
             , m_InFlightFences(m_FramesInFlight)
             , m_ImagesAvailable(m_FramesInFlight)
-            , m_RenderFinished(m_FramesInFlight) {};
+            , m_RenderFinished(m_FramesInFlight)
+            , m_FrameCommandPool(nullptr) {};
 
         uint32_t m_FramesInFlight;
         std::vector<FVkCommandPool> m_CommandPools;
@@ -173,6 +172,7 @@ struct backend::impl
 
     VkMemoryRequirements memRequirements;
 
+
     // ---------- vma ----------
     VmaAllocator m_Allocator;
     void initializeVma();
@@ -180,7 +180,6 @@ struct backend::impl
 
     FVkBuffer* m_VertexBuffer;
     FVkBuffer* m_IndexBuffer;
-
 
     std::vector<DrawInfo> m_DrawList;
     void addToDrawList(Fleur::Graphics::SFLModelView* pModelView);
@@ -196,7 +195,7 @@ struct backend::impl
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
     uint32_t m_FallbackTextureIdx;
-    void updateDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
+    void updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
     struct SFLDescriptorSetImage
     {
@@ -230,10 +229,8 @@ struct backend::impl
 
     bool m_WindowResizeIsInProgress;
 
-    FVkSkybox* m_Skybox;
-    void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
-
     void BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage);
+
 
     // ---------- static geometry ----------
     FVkDescriptorSetLayout* m_StaticGeometryTexturesDsl;
@@ -249,5 +246,11 @@ struct backend::impl
     void createDescriptorPool();
 
     void createDescriptorSets();
+
+
+    // ---------- skybox ----------
+    FVkSkybox* m_Skybox;
+    void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
+    void setSkybox(AssetID id);
 };
 }  // namespace vk

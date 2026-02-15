@@ -20,7 +20,7 @@ struct FGraphicsPipelineDesc
     VkShaderModule vertexShader = VK_NULL_HANDLE;
     VkShaderModule fragmentShader = VK_NULL_HANDLE;
 
-    const std::vector<VkPushConstantRange>& pushConstants;
+    const std::vector<VkPushConstantRange>* pushConstants;
 
     // Vertex input
     const SFLVertexInput* vertexInput;
@@ -72,9 +72,10 @@ public:
             // ---------- using descriptor indexing ----------
             // ---------- https://docs.vulkan.org/samples/latest/samples/extensions/descriptor_indexing/README.html ----------
 
-            const VkDescriptorBindingFlagsEXT flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT |
-                                                      VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT /*|
-                                                      VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/;
+            const VkDescriptorBindingFlagsEXT flags =
+                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT /*|
+                                                                VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/
+                ;
 
             VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
             binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
@@ -128,7 +129,7 @@ public:
     FVkPipeline();
     ~FVkPipeline();
 
-    void Init(VkDevice device, FGraphicsPipelineDesc& dedc);
+    void Init(VkDevice device, FGraphicsPipelineDesc& desc);
 
     VkPipeline GetPipeline()
     {

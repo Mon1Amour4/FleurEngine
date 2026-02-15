@@ -64,7 +64,7 @@ struct IRenderer
     virtual ~IRenderer() = default;
 
     virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) = 0;
-    virtual void Update(Fleur::Graphics::SFLGeometryUBO* pUbo) = 0;
+    virtual void Update(Fleur::Graphics::SFLCameraData& cameraData) = 0;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
 
     virtual void StartResize() = 0;

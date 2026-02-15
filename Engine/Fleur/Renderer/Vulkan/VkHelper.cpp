@@ -184,10 +184,85 @@ void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, 
     vkCmdPipelineBarrier(cmd, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
+uint32_t GetFormatSize(VkFormat format)
+{
+    switch (format)
+    {
+    // 8-bit
+    case VK_FORMAT_R8_UNORM:
+    case VK_FORMAT_R8_SNORM:
+    case VK_FORMAT_R8_UINT:
+    case VK_FORMAT_R8_SINT:
+    case VK_FORMAT_R8_SRGB:
+        return 1;
+
+    case VK_FORMAT_R8G8_UNORM:
+    case VK_FORMAT_R8G8_SNORM:
+    case VK_FORMAT_R8G8_UINT:
+    case VK_FORMAT_R8G8_SINT:
+    case VK_FORMAT_R8G8_SRGB:
+        return 2;
+
+    case VK_FORMAT_R8G8B8A8_UNORM:
+    case VK_FORMAT_R8G8B8A8_SNORM:
+    case VK_FORMAT_R8G8B8A8_UINT:
+    case VK_FORMAT_R8G8B8A8_SINT:
+    case VK_FORMAT_R8G8B8A8_SRGB:
+        return 4;
+
+    // 16-bit
+    case VK_FORMAT_R16_SFLOAT:
+    case VK_FORMAT_R16_UINT:
+    case VK_FORMAT_R16_SINT:
+    case VK_FORMAT_R16_UNORM:
+    case VK_FORMAT_R16_SNORM:
+        return 2;
+
+    case VK_FORMAT_R16G16_SFLOAT:
+    case VK_FORMAT_R16G16_UINT:
+    case VK_FORMAT_R16G16_SINT:
+    case VK_FORMAT_R16G16_UNORM:
+    case VK_FORMAT_R16G16_SNORM:
+        return 4;
+
+    case VK_FORMAT_R16G16B16A16_SFLOAT:
+    case VK_FORMAT_R16G16B16A16_UINT:
+    case VK_FORMAT_R16G16B16A16_SINT:
+    case VK_FORMAT_R16G16B16A16_UNORM:
+    case VK_FORMAT_R16G16B16A16_SNORM:
+        return 8;
+
+    // 32-bit float/int
+    case VK_FORMAT_R32_SFLOAT:
+    case VK_FORMAT_R32_UINT:
+    case VK_FORMAT_R32_SINT:
+        return 4;
+
+    case VK_FORMAT_R32G32_SFLOAT:
+    case VK_FORMAT_R32G32_UINT:
+    case VK_FORMAT_R32G32_SINT:
+        return 8;
+
+    case VK_FORMAT_R32G32B32_SFLOAT:
+    case VK_FORMAT_R32G32B32_UINT:
+    case VK_FORMAT_R32G32B32_SINT:
+        return 12;
+
+    case VK_FORMAT_R32G32B32A32_SFLOAT:
+    case VK_FORMAT_R32G32B32A32_UINT:
+    case VK_FORMAT_R32G32B32A32_SINT:
+        return 16;
+
+    default:
+        assert(false && "Unsupported VkFormat in GetFormatSize");
+        return 0;
+    }
+}
+
 void SFLVertexInput::RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
 {
     attributeDescriptions.emplace_back(location, binding, format, offset);
-    vertexStride += offset;
+    vertexStride += GetFormatSize(format);
 }
 
 const std::vector<VkVertexInputAttributeDescription>& SFLVertexInput::GetVertexDataAttributeDescriptions() const
