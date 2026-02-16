@@ -164,7 +164,7 @@ vk::backend::impl::impl(bool enableValidation,
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
 
         frameCmd.TransitionImageLayout(m_Multisampler->GetTexture()->GetImage(), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
-                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1);
 
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
@@ -657,10 +657,10 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
                 FVkSingleTimeCommandBuffer frameCmd =
                     FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
                 frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                                               VK_IMAGE_ASPECT_COLOR_BIT, 1, imageView->layerCount);
                 frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
                 frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, imageView->layerCount);
                 frameCmd.Submit(m_Device->GetGraphicsQueue());
             }
             gpuTexture.CreateImaveView();
@@ -820,7 +820,7 @@ void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLI
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
-        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels);
+        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels, 1);
         frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
         if (mipLevels > 1)
         {
@@ -828,7 +828,8 @@ void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLI
         }
         else
         {
-            frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels);
+            frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels,
+                                           1);
         }
 
         frameCmd.Submit(m_Device->GetGraphicsQueue());
@@ -862,7 +863,7 @@ void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
-                                       mimLevels);
+                                       mimLevels, 1);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 }

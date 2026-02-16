@@ -224,7 +224,7 @@ FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 }
 
 void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
-                                                       VkImageAspectFlags aspectMask, uint32_t mimMapCount)
+                                                       VkImageAspectFlags aspectMask, uint32_t mipMapCount, uint32_t layerCount)
 {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -235,9 +235,9 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
     barrier.image = image;
     barrier.subresourceRange.aspectMask = aspectMask;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mimMapCount;
+    barrier.subresourceRange.levelCount = mipMapCount;
     barrier.subresourceRange.baseArrayLayer = 0;
-    barrier.subresourceRange.layerCount = 1;
+    barrier.subresourceRange.layerCount = layerCount;
 
     VkPipelineStageFlags sourceStage;
     VkPipelineStageFlags destinationStage;

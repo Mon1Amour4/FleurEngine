@@ -81,7 +81,7 @@ public:
     ~FVkSingleTimeCommandBuffer();
 
     void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,
-                               uint32_t mimMapCount);
+                               uint32_t mipMapCount, uint32_t layerCount);
     void CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t size, uint32_t layerCount);
     void Submit(VkQueue queue);
 
