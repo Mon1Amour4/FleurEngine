@@ -208,13 +208,15 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb");
 
-    assetsManager->get()->LoadCubemapAsync("skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
-                                           [this](CubemapAsset asset)
-                                           {
-                                               m_skybox = new Fleur::Graphics::Skybox(asset.ID);
-                                               auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
-                                               renderer->SetSkybox(asset.ID);
-                                           });
+    assetsManager->get()->LoadCubemapAsync(
+        "skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
+        [this](CubemapAsset asset)
+        {
+            m_skybox = new Fleur::Graphics::Skybox(asset.ID);
+            auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+            renderer->SetSkybox(asset.ID);
+        },
+        Fleur::CallbackInvocationPoint::AFTER_GPU_UPLOAD);
 
     m_IsInitialized = true;
     m_IsRunning = true;

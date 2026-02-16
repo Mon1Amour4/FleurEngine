@@ -34,6 +34,14 @@ using CubemapAsyncOpShared = std::shared_ptr<CubemapAsyncOp>;
 
 namespace Fleur
 {
+
+enum CallbackInvocationPoint
+{
+    AFTER_CPU_LOAD,
+    AFTER_GPU_UPLOAD,
+    _MAX_VALUE
+};
+
 enum ImageSource
 {
     IMAGE_SOURCE_MEMORY,
@@ -84,6 +92,7 @@ struct AssetLoadResult
     const void* pResource = nullptr;
     AssetID ID = 0;
     EAsyncOperationStatus loadingStatus = LOADING_STATUS_MAX_VALUE;
+    bool* notifyOnGpuUpload{nullptr};
 };
 
 class AssetsManager;
@@ -270,8 +279,10 @@ public:
 
     // ---------- Async ----------
     ModelAsyncOpShared LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback = nullptr);
-    ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback = nullptr);
-    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback = nullptr);
+    ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback = nullptr,
+                                      CallbackInvocationPoint callbackType = _MAX_VALUE);
+    CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback = nullptr,
+                                          CallbackInvocationPoint callbackType = _MAX_VALUE);
 
     template <typename T>
     Asset<T> Get(std::string_view name)
@@ -360,20 +371,22 @@ private:
     Fleur::AssetCache<Fleur::Graphics::Model> m_ModelCache;
     Fleur::AssetCache<Fleur::Graphics::CubemapImage> m_CubemapCache;
 
-
     struct ImagesUpload
     {
         uint32_t framesSinceLastUpload = 0;
         std::vector<Fleur::Graphics::SFLImageView> images;
+        std::list<bool*> notifyMap;
 
         bool ReadyToUpload()
         {
             return (framesSinceLastUpload > 5 && images.size() > 0) || images.size() > 10;
         };
-        void Add(Fleur::Graphics::SFLImageView view)
+        void Add(Fleur::Graphics::SFLImageView view, bool* notify)
         {
             std::lock_guard<std::mutex> lc(mx);
             images.push_back(view);
+            if (notify)
+                notifyMap.emplace_back(notify);
         }
         void Clear()
         {
@@ -385,6 +398,7 @@ private:
 
     std::mutex m_MessageMutex;
     std::deque<AssetLoadResult> m_MessageQueue;
+
     void PollMessages();
 
     AssetID GetNextID();
@@ -400,10 +414,10 @@ private:
                                 std::function<void(ModelAsset&)> clientCallback);
 
     void LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings, AssetLoadCallback& callback,
-                                std::function<void(ImageAsset&)> clientCallback);
+                                std::function<void(ImageAsset&)> clientCallback, CallbackInvocationPoint callbackType);
 
     void LoadCubemapAsyncInternal(std::string_view path, CubemapAsyncOpShared sharedOperation, CubemapImportSettings& cubemapSettings,
-                                  AssetLoadCallback& internalCallback, std::function<void(CubemapAsset&)> clientCallback);
+                                  AssetLoadCallback& internalCallback, std::function<void(CubemapAsset&)> clientCallback, CallbackInvocationPoint callbackType);
 
     constexpr static std::string_view CORRUPTED_ASSET_ERROR_MESSAGE = "[AssetsManager] Error occured during asset loading";
 };

@@ -610,6 +610,9 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
     for (size_t i = 0; i < pInfo->count; i++)
     {
         auto imageView = pInfo->pData + i;
+        if (m_TextureMap.contains(imageView->ID))
+            continue;
+
         auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
 
         uint32_t mimMapLevel = 1;

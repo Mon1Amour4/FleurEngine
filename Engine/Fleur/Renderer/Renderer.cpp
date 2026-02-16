@@ -303,53 +303,6 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
     modelView.meshes.count = meshes.size();
 
     m_Backend->AddToDrawList(&modelView);
-
-    /* return;
-     switch (stage)
-     {
-     case STATIC_GEOMETRY:
-     {
-         auto it = m_StaticGeometryModels.find(model->GetName().data());
-         if (it != m_StaticGeometryModels.end())
-         {
-             it->second.ModelMatrix = model_pos;
-             return;
-         }
-
-         DrawInfo draw{model, model_pos};
-
-         draw.VertexGlobalOffsetBytes =
-             m_StaticGeometryCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
-
-         draw.IndexGlobalOffsetBytes = m_StaticGeometryCmd->UpdateBufferSubData(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
-
-         m_StaticGeometryModels.emplace(model->GetName().data(), draw);
-         m_StaticGeometryModelsVector.emplace_back(draw);
-         break;
-     }
-     case GIZMO:
-     {
-         auto it = m_GizmoModels.find(model->GetName().data());
-         if (it != m_GizmoModels.end())
-         {
-             it->second.ModelMatrix = model_pos;
-             return;
-         }
-
-         DrawInfo draw{model, model_pos};
-
-         draw.VertexGlobalOffsetBytes =
-             m_GizmoCmd->UpdateBufferSubData<VertexData>(Buffer::Vertex, std::span(model->GetVerticesData(), model->GetVertexCount()));
-
-         draw.IndexGlobalOffsetBytes = m_GizmoCmd->UpdateBufferSubData<uint32_t>(Buffer::Index, std::span(model->GetIndicesData(), model->GetIndicesCount()));
-
-         m_GizmoModels.emplace(model->GetName().data(), draw);
-         m_GizmoModelsVector.emplace_back(draw);
-         break;
-     }
-     case DYNAMIC_DRAW:
-         break;
-     }*/
 }
 
 void Fleur::Graphics::Renderer::SetSkybox(AssetID id)

@@ -61,6 +61,7 @@ struct AsyncOperation
 {
     Asset<T> asset;
     FLAsyncLoadStatus status;
+    bool isGpuUploaded{false};
 };
 
 template <typename T>

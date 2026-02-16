@@ -57,8 +57,12 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
         imagesWereUploaded = true;
         m_ImagesToUpload.framesSinceLastUpload = 0;
-
+        for (auto item : m_ImagesToUpload.notifyMap)
+        {
+            *item = true;
+        }
         m_ImagesToUpload.Clear();
+        m_ImagesToUpload.notifyMap.clear();
     }
 
 
@@ -136,6 +140,10 @@ void Fleur::AssetsManager::PollMessages()
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
                 m_ImagesToUpload.images.push_back(view);
+
+                if (message.notifyOnGpuUpload)
+                    m_ImagesToUpload.notifyMap.emplace_back(message.notifyOnGpuUpload);
+
                 m_Image2DCache.RemoveFromAsyncOperations(loadedImage->GetName());
                 break;
             }
@@ -159,6 +167,10 @@ void Fleur::AssetsManager::PollMessages()
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
                 m_ImagesToUpload.images.push_back(view);
+
+                if (message.notifyOnGpuUpload)
+                    m_ImagesToUpload.notifyMap.emplace_back(message.notifyOnGpuUpload);
+
                 m_CubemapCache.RemoveFromAsyncOperations(loadedImage->GetName());
                 break;
             }
@@ -197,7 +209,7 @@ ImageAsset Fleur::AssetsManager::LoadImage(std::string_view path, ImageImportSet
 
     Fleur::Graphics::SFLImageView imageView = imageRecord.asset.obj->GetView();
     imageView.ID = imageRecord.asset.ID;
-    m_ImagesToUpload.Add(imageView);
+    m_ImagesToUpload.Add(imageView, nullptr);
 
     return imageRecord.asset;
 }
@@ -227,7 +239,7 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 
     Fleur::Graphics::SFLImageView imageView = cubemapRecord.asset.obj->GetView();
     imageView.ID = cubemapRecord.asset.ID;
-    m_ImagesToUpload.Add(imageView);
+    m_ImagesToUpload.Add(imageView, nullptr);
 
     delete tmpImageAsset.obj;
 
@@ -252,7 +264,8 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, s
 
     return sharedOperation;
 }
-ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback)
+ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings = {.imageSource = IMAGE_SOURCE_DISK},
+                                                        std::function<void(ImageAsset&)> callback, CallbackInvocationPoint callbackType)
 {
     ImageAsyncOpShared sharedOperation = m_Image2DCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -264,12 +277,12 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
     internalCallback.manager = this;
     internalCallback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadImageAsyncInternal(path, sharedOperation, imageSettings, internalCallback, callback);
+    LoadImageAsyncInternal(path, sharedOperation, imageSettings, internalCallback, callback, callbackType);
 
     return sharedOperation;
 }
 CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings,
-                                                            std::function<void(CubemapAsset&)> clientCallback)
+                                                            std::function<void(CubemapAsset&)> clientCallback, CallbackInvocationPoint callbackType)
 {
     CubemapAsyncOpShared sharedOperation = m_CubemapCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
@@ -281,7 +294,7 @@ CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view pat
     internalCallback.manager = this;
     internalCallback.callback = &Fleur::AssetsManager::OnAssetLoaded;
 
-    LoadCubemapAsyncInternal(path, sharedOperation, cubemapSettings, internalCallback, clientCallback);
+    LoadCubemapAsyncInternal(path, sharedOperation, cubemapSettings, internalCallback, clientCallback, callbackType);
 
     return sharedOperation;
 }
@@ -430,15 +443,19 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
 }
 
 void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAsyncOpShared sharedOperation, ImageImportSettings& imageSettings,
-                                                  AssetLoadCallback& internalCallback, std::function<void(ImageAsset&)> clientCallback)
+                                                  AssetLoadCallback& internalCallback, std::function<void(ImageAsset&)> clientCallback,
+                                                  CallbackInvocationPoint callbackType)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
         [this](std::string_view path, ImageAsyncOpShared handle, ImageImportSettings imageSettings, AssetLoadCallback internalCallback,
-               std::function<void(ImageAsset&)> clientCallback)
+               std::function<void(ImageAsset&)> clientCallback, CallbackInvocationPoint callbackType)
         {
             ImageType* imagePtr = handle->asset.obj;
+
+            if (callbackType == AFTER_GPU_UPLOAD)
+                internalCallback.result.notifyOnGpuUpload = &handle->isGpuUploaded;
 
             if (!handle->status.SetStatus(EAsyncOperationStatus::LOADING))
             {
@@ -469,7 +486,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     assert(false);
                     handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
                     internalCallback.result.loadingStatus = handle->status.GetStatus();
-                    internalCallback.operator()();
+                    internalCallback();
                     return;
                 }
 
@@ -487,7 +504,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     assert(false);
                     handle->status.SetStatus(EAsyncOperationStatus::CORRUPTED);
                     internalCallback.result.loadingStatus = handle->status.GetStatus();
-                    internalCallback.operator()();
+                    internalCallback();
                     return;
                 }
 
@@ -527,27 +544,47 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
 
             handle->status.SetStatus(EAsyncOperationStatus::LOADED);
             internalCallback.result.loadingStatus = handle->status.GetStatus();
-            internalCallback.operator()();
+            internalCallback();
 
             if (clientCallback)
-                clientCallback.operator()(handle->asset);
+            {
+                if (callbackType == AFTER_CPU_LOAD)
+                {
+                    clientCallback(handle->asset);
+                    return;
+                }
+                else if (callbackType == AFTER_GPU_UPLOAD)
+                {
+                    while (!handle->isGpuUploaded)
+                    {
+                    };
+                    clientCallback(handle->asset);
+                }
+                else
+                {
+                    assert(false);
+                }
+            }
         },
-        path, sharedOperation, imageSettings, internalCallback, clientCallback);
+        path, sharedOperation, imageSettings, internalCallback, clientCallback, callbackType);
 }
 // clang-format off
 void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
                                                     CubemapAsyncOpShared sharedOperation, 
                                                     CubemapImportSettings& cubemapSettings,
                                                     AssetLoadCallback& internalCallback,
-                                                    std::function<void(CubemapAsset&)> clientCallback)
+                                                    std::function<void(CubemapAsset&)> clientCallback, 
+                                                    CallbackInvocationPoint callbackType)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
 
     threadPool->Submit(
         [this](std::string_view path, CubemapAsyncOpShared asyncOperation, CubemapImportSettings cubemapSettings, AssetLoadCallback internalCallback,
-               std::function<void(CubemapAsset&)> clientCallback)
+               std::function<void(CubemapAsset&)> clientCallback, CallbackInvocationPoint callbackType)
         {
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADING);
+            if (callbackType == AFTER_GPU_UPLOAD)
+                internalCallback.result.notifyOnGpuUpload = &asyncOperation->isGpuUploaded;
 
             Fleur::Graphics::Image2D* image2d = new Fleur::Graphics::Image2D(path);
             ImageAsset tmpImageAsset{asyncOperation->asset.ID, image2d};
@@ -574,16 +611,29 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
             internalCallback.result.pResource = asyncOperation->asset.obj;
             internalCallback.result.type = EVENT_TYPE_CUBEMAP_LOADED;
             internalCallback.result.ID = asyncOperation->asset.ID;
-
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADED);
-
             internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
-            internalCallback.operator()();
-
-            if(clientCallback)
-                clientCallback.operator()(asyncOperation->asset);
+            internalCallback();
+            
+            if (clientCallback)
+            {
+                if (callbackType == AFTER_CPU_LOAD)
+                {
+                    clientCallback(asyncOperation->asset);
+                    return;
+                }
+                else if (callbackType == AFTER_GPU_UPLOAD)
+                {
+                    while(!asyncOperation->isGpuUploaded){};
+                    clientCallback(asyncOperation->asset);
+                }
+                else
+                {
+                    assert(false);
+                }
+            }
         },
-        path, sharedOperation, cubemapSettings, internalCallback, clientCallback);
+        path, sharedOperation, cubemapSettings, internalCallback, clientCallback, callbackType);
 }
 // clang-format on
 
