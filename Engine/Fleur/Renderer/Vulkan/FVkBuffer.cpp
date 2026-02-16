@@ -47,9 +47,7 @@ void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferU
     bufferInfo.usage = usage;
 
     if (vkCreateBuffer(m_Device, &bufferInfo, nullptr, &m_VkBuffer) != VK_SUCCESS)
-    {
         assert(false);
-    }
 
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(m_Device, m_VkBuffer, &memRequirements);
@@ -61,14 +59,10 @@ void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferU
         FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_Memory) != VK_SUCCESS)
-    {
         assert(true);
-    }
 
     if (vkBindBufferMemory(m_Device, m_VkBuffer, m_Memory, 0) != VK_SUCCESS)
-    {
         assert(false);
-    }
 }
 
 void FVkBuffer::CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer)

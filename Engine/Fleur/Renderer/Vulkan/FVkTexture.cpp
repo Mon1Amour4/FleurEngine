@@ -50,9 +50,7 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
     allocInfo.memoryTypeIndex = FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
 
     if (vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_Memory) != VK_SUCCESS)
-    {
         assert(true);
-    }
 
     vkBindImageMemory(m_Device, m_Image, m_Memory, 0);
 
