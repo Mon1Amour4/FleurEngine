@@ -255,7 +255,8 @@ void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage imag
             .bufferOffset = size * i,
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
-            .imageSubresource = VkImageSubresourceLayers{.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .mipLevel = 0, .baseArrayLayer = 0, .layerCount = 1},
+            .imageSubresource =
+                VkImageSubresourceLayers{.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .mipLevel = 0, .baseArrayLayer = (uint32_t)i, .layerCount = 1},
             .imageOffset = {0, 0, 0},
             .imageExtent = VkExtent3D{imageExtent.width, imageExtent.height, 1},
         };
