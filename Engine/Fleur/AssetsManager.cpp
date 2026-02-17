@@ -80,7 +80,7 @@ void Fleur::AssetsManager::load_all_shaders()
 
     for (const auto& path : paths)
     {
-        AssetID id = m_GlobalId++;
+        AssetID id = GetNextID();
         auto vec = fileSystem->ReadFileBinary(path);
         auto name = fileSystem->GetFileNameWithoutExtFromPath(path);
 
