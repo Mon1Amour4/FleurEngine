@@ -403,6 +403,7 @@ private:
 
     AssetID GetNextID();
 
+    bool m_ForceAlpha;
     void LoadModelInternal(std::string_view path, ModelAsset* asset);
     void LoadImageInternal(std::string_view path, ImageAsset* asset, ImageImportSettings& imageSettings);
 

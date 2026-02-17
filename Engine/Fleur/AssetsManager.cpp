@@ -23,6 +23,7 @@
 #include "Services/ServiceLocator.h"
 
 Fleur::AssetsManager::AssetsManager()
+    : m_ForceAlpha(true)
 {
 }
 Fleur::AssetsManager::~AssetsManager()
@@ -493,10 +494,12 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                 int width = 0;
                 int height = 0;
                 int channels = 0;
-                uint32_t desiredChannels = 4;
+                int desiredChannels = STBI_default;
+                if (m_ForceAlpha)
+                    desiredChannels = STBI_rgb_alpha;
 
                 stbi_set_flip_vertically_on_load_thread(static_cast<int>(imageSettings.flip));
-                unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+                unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, desiredChannels);
 
                 if (!imgData)
                 {
@@ -655,10 +658,12 @@ void Fleur::AssetsManager::LoadImageFromDisk(std::string_view path, ImageAsset* 
     int width = 0;
     int height = 0;
     int channels = 0;
-    uint32_t desiredChannels = 4;
+    int desiredChannels = STBI_default;
+    if (m_ForceAlpha)
+        desiredChannels = STBI_rgb_alpha;
 
     stbi_set_flip_vertically_on_load_thread(imageSettings.flip);
-    unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, desiredChannels);
     if (!imgData)
     {
         FL_CORE_ERROR("{0} ID: {1}, Name: {2}, Reason: {3}", CORRUPTED_ASSET_ERROR_MESSAGE, imageID, imagePtr->GetName(), stbi_failure_reason());
@@ -705,11 +710,14 @@ void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::Im
     int width = 0;
     int height = 0;
     int channels = 0;
-    int desiredChannels = 4;
+    int desiredChannels = STBI_default;
+    if (m_ForceAlpha)
+        desiredChannels = STBI_rgb_alpha;
+
 
     stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
     unsigned char* imgData =
-        stbi_load_from_memory(imageSettings.pMemoryData, static_cast<int>(imageSettings.sizeInMemory), &width, &height, &channels, STBI_rgb_alpha);
+        stbi_load_from_memory(imageSettings.pMemoryData, static_cast<int>(imageSettings.sizeInMemory), &width, &height, &channels, desiredChannels);
 
     Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
 
