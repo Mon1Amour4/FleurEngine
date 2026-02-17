@@ -62,6 +62,8 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily.familyIndex, 0, &m_GraphicsQueue);
     vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily.familyIndex, 1, &m_PresentQueue);
 
+    QuerySupportedVkFormats();
+
     return m_Device;
 }
 
@@ -178,4 +180,51 @@ bool FVkDevice::CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice, st
     }
 
     return requiredExtensions.empty();
+}
+
+void FVkDevice::QuerySupportedVkFormats()
+{
+    // ---------- 4 channels ----------
+    std::vector<VkFormat> fourChannelsFormats{VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM, VK_FORMAT_B8G8R8A8_UNORM};
+    for (size_t i = 0; i < fourChannelsFormats.size(); i++)
+    {
+        if (CheckVkFormatSupport(fourChannelsFormats[i]))
+        {
+            m_SupportedFormatsMap.emplace(4, fourChannelsFormats[i]);
+            break;
+        }
+
+        if (i == fourChannelsFormats.size() - 1)
+            assert(false);
+    }
+
+
+    // ---------- 3 channels ----------
+    std::vector<VkFormat> threeChannelsFormats{VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_UNORM};
+    for (size_t i = 0; i < fourChannelsFormats.size(); i++)
+    {
+        if (CheckVkFormatSupport(threeChannelsFormats[i]))
+        {
+            m_SupportedFormatsMap.emplace(3, threeChannelsFormats[i]);
+            break;
+        }
+
+        if (i == fourChannelsFormats.size() - 1)
+            assert(false);
+    }
+    assert(false);
+}
+
+bool FVkDevice::CheckVkFormatSupport(VkFormat format)
+{
+    VkImageFormatProperties formatProperties{};
+    VkResult result = vkGetPhysicalDeviceImageFormatProperties(m_PhysicalDevice,
+                                                               format,                                                            // Format
+                                                               VK_IMAGE_TYPE_2D,                                                  // Type
+                                                               VK_IMAGE_TILING_OPTIMAL,                                           // Tiling
+                                                               VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,  // Usage
+                                                               0,                                                                 // Flags
+                                                               &formatProperties);
+
+    return result == VK_SUCCESS;
 }

@@ -4,6 +4,7 @@
 
 #include <list>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "FVkBuffer.h"
@@ -69,6 +70,8 @@ private:
     static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo);
     static SQueueFamily FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
     static bool CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice, std::vector<const char*>& requiredDeviceExtensions);
+    void QuerySupportedVkFormats();
+    bool CheckVkFormatSupport();
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
@@ -79,4 +82,6 @@ private:
     VkQueue m_PresentQueue;
 
     std::list<FVkBuffer> m_StagingBuffers;
+
+    std::unordered_map<uint32_t, VkFormat> m_SupportedFormatsMap;
 };
