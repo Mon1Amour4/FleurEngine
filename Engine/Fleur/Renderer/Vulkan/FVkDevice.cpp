@@ -15,6 +15,7 @@ bool SQueueFamily::IsValid()
 FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
     , m_GraphicsQueueFamily(graphicsQueueFamily)
+    , m_ForceAlpha(true)
 {
 }
 
@@ -212,7 +213,6 @@ void FVkDevice::QuerySupportedVkFormats()
         if (i == fourChannelsFormats.size() - 1)
             assert(false);
     }
-    assert(false);
 }
 
 bool FVkDevice::CheckVkFormatSupport(VkFormat format)

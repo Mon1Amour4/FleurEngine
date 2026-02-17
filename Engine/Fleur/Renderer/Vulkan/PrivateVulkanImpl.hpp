@@ -221,7 +221,8 @@ struct backend::impl
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
 
-    void createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels);
+    void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
+                       uint32_t layerCount);
 
     void createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
 

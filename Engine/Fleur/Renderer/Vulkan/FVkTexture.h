@@ -8,7 +8,7 @@ public:
     FVkTexture();
     ~FVkTexture();
 
-    VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo createInfo, VkMemoryPropertyFlags properties,
+    VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties,
                         VkImageAspectFlags aspect);
     VkImageView CreateImaveView();
 

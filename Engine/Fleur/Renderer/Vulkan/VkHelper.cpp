@@ -88,23 +88,23 @@ uint32_t GetChannelsNumFromFormat(VkFormat format)
     }
 }
 
-VkFormat GetVkFormat(uint32_t channels)
-{
-    VkFormat format{};
-    switch (channels)
-    {
-    case 1:
-        format = VK_FORMAT_R8_UNORM;
-        break;
-    case 3:
-        format = VK_FORMAT_R8G8B8A8_SRGB;
-        break;
-    case 4:
-        format = VK_FORMAT_R8G8B8A8_SRGB;
-        break;
-    }
-    return format;
-}
+// VkFormat GetVkFormat(uint32_t channels)
+//{
+//     VkFormat format{};
+//     switch (channels)
+//     {
+//     case 1:
+//         format = VK_FORMAT_R8_UNORM;
+//         break;
+//     case 3:
+//         format = VK_FORMAT_R8G8B8_SRGB;
+//         break;
+//     case 4:
+//         format = VK_FORMAT_R8G8B8A8_SRGB;
+//         break;
+//     }
+//     return format;
+// }
 
 VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
 {

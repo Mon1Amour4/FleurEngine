@@ -247,12 +247,12 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
     vkCmdPipelineBarrier(m_CommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
 
-void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t size, uint32_t layerCount)
+void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t layerSize, uint32_t layerCount)
 {
     for (size_t i = 0; i < layerCount; i++)
     {
         VkBufferImageCopy region{
-            .bufferOffset = size * i,
+            .bufferOffset = layerSize * i,
             .bufferRowLength = 0,
             .bufferImageHeight = 0,
             .imageSubresource =

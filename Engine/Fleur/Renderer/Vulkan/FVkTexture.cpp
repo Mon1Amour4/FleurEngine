@@ -26,7 +26,7 @@ FVkTexture::~FVkTexture()
     }
 }
 
-VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo createInfo, VkMemoryPropertyFlags properties,
+VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties,
                                 VkImageAspectFlags aspect)
 {
     m_Device = device;
@@ -62,7 +62,7 @@ VkImageView FVkTexture::CreateImaveView()
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = m_Image;
-    viewInfo.viewType = m_ImageFlags == VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.viewType = (m_ImageFlags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
     viewInfo.format = m_Format;
     viewInfo.subresourceRange.aspectMask = m_Aspect;
     viewInfo.subresourceRange.baseMipLevel = 0;

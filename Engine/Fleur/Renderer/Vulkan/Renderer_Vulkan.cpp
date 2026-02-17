@@ -616,58 +616,19 @@ void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInf
         if (m_TextureMap.contains(imageView->ID))
             continue;
 
-        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
-
+        VkFormat format = m_Device->GetTextureFormat(imageView->channels);
+        VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
+        uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
+        uint32_t imageSize = layerSize * imageView->layerCount;
         uint32_t mimMapLevel = 1;
         if (imageView->layerCount == 1)
-        {
             mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
 
-            createTexture(gpuTexture, *imageView, GetVkFormat(imageView->channels), VK_IMAGE_ASPECT_COLOR_BIT, mimMapLevel);
+        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
 
-            updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
-        }
-        else if (imageView->layerCount == CUBEMAP_LAYERS_COUNT)
-        {
-            VkFormat format = GetVkFormat(imageView->channels);
-            uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
-            uint32_t imageSize = layerSize * imageView->layerCount;
+        createTexture(*imageView, gpuTexture, format, aspect, mimMapLevel, imageView->layerCount);
 
-            VkImageCreateInfo imageInfo{};
-            imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-            imageInfo.extent.width = imageView->w;
-            imageInfo.extent.height = imageView->h;
-            imageInfo.extent.depth = 1;
-            imageInfo.mipLevels = 1;
-            imageInfo.arrayLayers = imageView->layerCount;
-            imageInfo.format = format;
-            imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-            imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-            imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-            imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-            imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-
-            FVkBuffer stagingBuffer{};
-            stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
-            stagingBuffer.MemCopy(imageView->pData, imageSize);
-
-            VkImage cubemapImage = gpuTexture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
-                                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-
-            {
-                FVkSingleTimeCommandBuffer frameCmd =
-                    FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
-                frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               VK_IMAGE_ASPECT_COLOR_BIT, 1, imageView->layerCount);
-                frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {imageView->w, imageView->h}, layerSize, imageView->layerCount);
-                frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(imageView->channels), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                               VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, imageView->layerCount);
-                frameCmd.Submit(m_Device->GetGraphicsQueue());
-            }
-            gpuTexture.CreateImaveView();
-        }
+        updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
     }
 }
 
@@ -751,10 +712,11 @@ VkSampler vk::backend::impl::createTextureSampler()
 
 void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& view)
 {
-    VkFormat format{VK_FORMAT_R8G8B8A8_UNORM};
+    VkFormat format = m_Device->GetTextureFormat(view.channels);
+    VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 
     m_FallbackTexture = new FVkTexture();
-    createTexture(*m_FallbackTexture, view, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    createTexture(view, *m_FallbackTexture, format, aspect, 1, 1);
     m_FallbackTextureIdx = view.ID;
 
     m_FallbackCubemapTexture = &m_TextureMap.emplace(999, FVkTexture()).first->second;
@@ -794,10 +756,9 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
-        frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(4), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
-                                       1, 6);
+        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 6);
         frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {1, 1}, layerSize, 6);
-        frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(4), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                        VK_IMAGE_ASPECT_COLOR_BIT, 1, 6);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
@@ -832,53 +793,54 @@ void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer,
 }
 
 
-void vk::backend::impl::createTexture(FVkTexture& texture, Fleur::Graphics::SFLImageView& view, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels)
+void vk::backend::impl::createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
+                                      uint32_t layerCount)
 {
+    uint32_t channels = GetChannelsNumFromFormat(format);
+
     if (mipLevels == 0)
         mipLevels = 1;
 
-    VkImageCreateInfo imageInfo{};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.extent.width = view.w;
-    imageInfo.extent.height = view.h;
-    imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = mipLevels;
-    imageInfo.arrayLayers = 1;
-    imageInfo.format = format;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-
-    if (mipLevels > 1)
-        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-    else
-        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    VkImageCreateInfo imageInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = VkExtent3D{.width = view.w, .height = view.h, .depth = 1},
+        .mipLevels = mipLevels,
+        .arrayLayers = layerCount,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+    if (layerCount == 6)
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    imageInfo.usage = (mipLevels > 1) ? VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+                                      : VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
 
     VkImage vkImage = texture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
 
-    VkDeviceSize bufferImageSize = view.w * view.h * GetChannelsNumFromFormat(format);
-    VkDeviceSize mapImageSize = view.w * view.h * view.channels;
+    VkDeviceSize layerSize = view.w * view.h * channels;
+    VkDeviceSize imageSize = layerSize * view.layerCount;
+
 
     FVkBuffer stagingBuffer{};
-    stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, bufferImageSize, bufferImageSize);
+    stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
 
-    stagingBuffer.MemCopy(view.pData, static_cast<size_t>(mapImageSize));
+    stagingBuffer.MemCopy(view.pData, imageSize);
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
-        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels, 1);
-        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, bufferImageSize, 1);
+        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, aspect, mipLevels, layerCount);
+        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), vkImage, {view.w, view.h}, layerSize, layerCount);
         if (mipLevels > 1)
         {
-            frameCmd.GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, VK_FORMAT_R8G8B8A8_SRGB, view.w, view.h, mipLevels);
+            frameCmd.GenerateMipMaps(m_Device->GetPhysicalDevice(), vkImage, format, view.w, view.h, mipLevels);
         }
         else
         {
             frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aspect, mipLevels,
-                                           1);
+                                           layerCount);
         }
 
         frameCmd.Submit(m_Device->GetGraphicsQueue());

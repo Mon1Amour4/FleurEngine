@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
+#include <cassert>
 #include <list>
 #include <string>
 #include <unordered_map>
@@ -65,13 +66,24 @@ public:
     {
         return m_PresentQueue;
     }
+    inline VkFormat GetTextureFormat(uint32_t channels)
+    {
+        assert(channels <= 4);
+
+        if (m_ForceAlpha)
+            return m_SupportedFormatsMap[4];
+
+        assert(m_SupportedFormatsMap.contains(channels));
+
+        return m_SupportedFormatsMap[channels];
+    }
 
 private:
     static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo);
     static SQueueFamily FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
     static bool CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice, std::vector<const char*>& requiredDeviceExtensions);
     void QuerySupportedVkFormats();
-    bool CheckVkFormatSupport();
+    bool CheckVkFormatSupport(VkFormat format);
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
@@ -84,4 +96,6 @@ private:
     std::list<FVkBuffer> m_StagingBuffers;
 
     std::unordered_map<uint32_t, VkFormat> m_SupportedFormatsMap;
+
+    bool m_ForceAlpha;
 };
