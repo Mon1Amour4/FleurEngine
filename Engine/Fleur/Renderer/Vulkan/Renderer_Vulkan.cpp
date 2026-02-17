@@ -151,10 +151,14 @@ vk::backend::impl::impl(bool enableValidation,
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         1024u * 1024ul * 256ul, indexInputDescriptorSize);
 
-    createFallbackTexture(fallback);
+
     m_ImageSampler = createTextureSampler();
+    createFallbackTexture(fallback);
 
     createStaticGeometryPass();
+
+    updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(),
+                                          m_ImageSampler);
 
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
                                                 m_Multisampler->GetSamplesCount());
@@ -202,7 +206,7 @@ vk::backend::impl::~impl()
 
     // 7. All ImageViews
     delete m_Multisampler;
-    delete m_FallbackTexture;
+    delete m_FallbackCubemapTexture;
     delete m_Depth.depthTexture;
     // delete m_Depth.depthTexture;
     m_TextureMap.clear();
@@ -536,9 +540,10 @@ void vk::backend::impl::createDescriptorSets()
         assert(true);
     }
 
+    VkImageView placeholderImageView = m_TextureMap[m_FallbackTextureIdx].GetImageView();
     VkDescriptorImageInfo imageSamplerInfo{};
     imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageSamplerInfo.imageView = m_FallbackTexture->GetImageView();
+    imageSamplerInfo.imageView = placeholderImageView;
     imageSamplerInfo.sampler = m_ImageSampler;
 
     VkWriteDescriptorSet descriptorImageWrites{};
@@ -715,25 +720,30 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     VkFormat format = m_Device->GetTextureFormat(view.channels);
     VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
 
-    m_FallbackTexture = new FVkTexture();
-    createTexture(view, *m_FallbackTexture, format, aspect, 1, 1);
     m_FallbackTextureIdx = view.ID;
+    auto fallbackTexture = &m_TextureMap.emplace(m_FallbackTextureIdx, FVkTexture()).first->second;
 
-    m_FallbackCubemapTexture = &m_TextureMap.emplace(999, FVkTexture()).first->second;
-    // fallback cubemap texture
+    uint32_t mimMapCount = CalculateMimMapLevel(view.w, view.h);
+    createTexture(view, *fallbackTexture, format, aspect, mimMapCount, 1);
 
-    uint32_t layerSize = 1 * 1 * 4;
-    uint32_t imageSize = layerSize * 6;
+
+    // ---------- cubemap texture placeholder ----------
+    m_FallbackCubemapTexture = new FVkTexture();
+
+    VkImageAspectFlagBits cubemapAspect = VK_IMAGE_ASPECT_COLOR_BIT;
+    uint32_t cubemapMimMapCount = 1;
+    uint32_t layerSize = view.w * view.h * view.channels;
+    uint32_t imageSize = layerSize * CUBEMAP_LAYERS_COUNT;
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-    imageInfo.extent.width = 1;
-    imageInfo.extent.height = 1;
+    imageInfo.extent.width = view.w;
+    imageInfo.extent.height = view.h;
     imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 6;
+    imageInfo.mipLevels = cubemapMimMapCount;
+    imageInfo.arrayLayers = CUBEMAP_LAYERS_COUNT;
     imageInfo.format = format;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -741,10 +751,10 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    char buffer[4 * 6]{};
-    for (size_t i = 0; i < 6; i++)
+    char* buffer = new char[imageSize];
+    for (size_t i = 0; i < CUBEMAP_LAYERS_COUNT; i++)
     {
-        memcpy(buffer + (4 * i), view.pData + (4 * i), 4);
+        memcpy(buffer + (layerSize * i), view.pData, layerSize);
     }
 
     FVkBuffer stagingBuffer{};
@@ -752,17 +762,20 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     stagingBuffer.MemCopy(buffer, imageSize);
 
     VkImage cubemapImage = m_FallbackCubemapTexture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
-                                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+                                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubemapAspect);
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
-        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 6);
-        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {1, 1}, layerSize, 6);
-        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                       VK_IMAGE_ASPECT_COLOR_BIT, 1, 6);
+        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, cubemapAspect, cubemapMimMapCount,
+                                       CUBEMAP_LAYERS_COUNT);
+        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {view.w, view.h}, layerSize, CUBEMAP_LAYERS_COUNT);
+        frameCmd.TransitionImageLayout(cubemapImage, format, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, cubemapAspect,
+                                       cubemapMimMapCount, CUBEMAP_LAYERS_COUNT);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
     m_FallbackCubemapTexture->CreateImaveView();
+
+    delete buffer;
 }
 
 void vk::backend::impl::updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
