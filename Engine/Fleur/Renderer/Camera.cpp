@@ -16,7 +16,6 @@ Fleur::Graphics::Camera::Camera()
     , m_MouseSensitivity(10.f)
     , m_CameraForward(0.0f, 0.0f, -1.0f)
     , m_View(glm::mat4(1.0f))
-    , m_Dir(glm::vec3(0.0f, 0.0f, 0.0f))
     , m_Projection(glm::mat4(1.0f))
     , m_FOV(60)
     , m_NearClip(0.1f)
@@ -40,10 +39,7 @@ const mat4* Fleur::Graphics::Camera::GetViewPtr() const
 {
     return &m_View;
 }
-vec3 Fleur::Graphics::Camera::GetDir() const
-{
-    return m_Dir;
-}
+
 Fleur::Graphics::Camera* Fleur::Graphics::Camera::GetActiveCamera()
 {
     return s_ActiveCamera;

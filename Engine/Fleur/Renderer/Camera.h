@@ -33,9 +33,13 @@ public:
     {
         return m_Projection;
     }
+    inline vec3 GetCameraForward() const
+    {
+        return m_CameraForward;
+    }
 
     const mat4* GetViewPtr() const;
-    vec3 GetDir() const;
+
     static Camera* GetActiveCamera();
 
     void Activate();
@@ -55,7 +59,7 @@ private:
     vec3 m_Position;
     mat4 m_View;
     mat4 m_Projection;
-    vec3 m_Dir;
+
     vec3 m_CameraForward;
     vec3 m_Up;
     uint16_t m_FOV;
