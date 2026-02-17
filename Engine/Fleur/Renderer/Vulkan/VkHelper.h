@@ -12,7 +12,6 @@ void FindBarrierAccessMask(VkImageLayout oldLayout, VkImageLayout newLayout,
                            VkPipelineStageFlags& sourceStage, VkPipelineStageFlags& destinationStage);
 
 uint32_t GetChannelsNumFromFormat(VkFormat format);
-// VkFormat GetVkFormat(uint32_t channels);
 VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 VkFormat FindDepthFormat(VkPhysicalDevice device);
 VkImageAspectFlags GetDepthAspect(VkFormat format);

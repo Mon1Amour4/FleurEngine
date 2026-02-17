@@ -63,6 +63,7 @@ vk::backend::impl::impl(bool enableValidation,
     , m_FrameContext(nullptr)
     , m_Skybox(nullptr)
     , m_FallbackCubemapTexture(nullptr)
+    , m_DepthRenderTarget(nullptr)
 {
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
@@ -130,8 +131,10 @@ vk::backend::impl::impl(bool enableValidation,
     m_FrameContext->m_FrameCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
 
-    m_Depth.depthTexture = new FVkTexture();
-    createDepthBuffer(m_Depth, m_Device->GetPhysicalDevice(), m_Multisampler->GetSamplesCount(), 1);
+    m_DepthRenderTarget = new FVkTexture();
+    VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
+    createDepthTexture(*m_DepthRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
+                       m_Multisampler->GetSamplesCount(), 1);
 
 
     uint32_t vertexInputDescriptorSize = 0;
@@ -207,8 +210,8 @@ vk::backend::impl::~impl()
     // 7. All ImageViews
     delete m_Multisampler;
     delete m_FallbackCubemapTexture;
-    delete m_Depth.depthTexture;
-    // delete m_Depth.depthTexture;
+    delete m_DepthRenderTarget;
+
     m_TextureMap.clear();
     m_Swapchain->ReleaseSwapchainImageViews();
 
@@ -798,14 +801,6 @@ void vk::backend::impl::updateStaticGeometryUboDescriptorSets(VkDescriptorSet& s
 }
 
 
-void vk::backend::impl::createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount,
-                                          uint32_t mimLevels)
-{
-    createDepthTexture(*depthBuffer.depthTexture, m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, FindDepthFormat(device),
-                       samplesCount, mimLevels);
-}
-
-
 void vk::backend::impl::createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                                       uint32_t layerCount)
 {
@@ -862,22 +857,24 @@ void vk::backend::impl::createTexture(Fleur::Graphics::SFLImageView& view, FVkTe
     texture.CreateImaveView();
 }
 
-void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount,
-                                           uint32_t mimLevels)
+void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
+                                           uint32_t mipMapCount)
 {
+    uint32_t layerCount = 1;
+
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
     imageInfo.imageType = VK_IMAGE_TYPE_2D;
     imageInfo.extent.width = width;
     imageInfo.extent.height = height;
     imageInfo.extent.depth = 1;
-    imageInfo.mipLevels = mimLevels;
-    imageInfo.arrayLayers = 1;
+    imageInfo.mipLevels = mipMapCount;
+    imageInfo.arrayLayers = layerCount;
     imageInfo.format = format;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    imageInfo.samples = samplesCount;
+    imageInfo.samples = sampleCount;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     VkImage vkImage = texture.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -887,7 +884,7 @@ void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
-                                       mimLevels, 1);
+                                       mipMapCount, layerCount);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 }
@@ -942,7 +939,7 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea,
 
     VkRenderingAttachmentInfoKHR depthAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
                                                  .pNext = nullptr,
-                                                 .imageView = m_Depth.depthTexture->GetImageView(),
+                                                 .imageView = m_DepthRenderTarget->GetImageView(),
                                                  .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                                  .resolveMode = VK_RESOLVE_MODE_NONE,
                                                  .resolveImageView = nullptr,
@@ -995,7 +992,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     {
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
         m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_Multisampler->GetTexture()->GetImageView(),
-                              m_Depth.depthTexture->GetImageView());
+                              m_DepthRenderTarget->GetImageView());
     }
 
 

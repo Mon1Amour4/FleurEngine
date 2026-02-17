@@ -194,7 +194,7 @@ struct backend::impl
 
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
-    uint32_t m_FallbackTextureIdx;
+
     void updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
     struct SFLDescriptorSetImage
@@ -204,19 +204,9 @@ struct backend::impl
     };
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViewsToUpload;
 
-    FVkTexture* m_FallbackTexture;
+    uint32_t m_FallbackTextureIdx;
     FVkTexture* m_FallbackCubemapTexture;
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
-
-
-    // ---------- depth ----------
-    struct Depth
-    {
-        Depth() = default;
-        FVkTexture* depthTexture;
-    };
-    void createDepthBuffer(vk::backend::impl::Depth& depthBuffer, VkPhysicalDevice device, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
-    Depth m_Depth;
 
     SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_Multisampler;
@@ -224,7 +214,9 @@ struct backend::impl
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                        uint32_t layerCount);
 
-    void createDepthTexture(FVkTexture& texture, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits samplesCount, uint32_t mimLevels);
+    FVkTexture* m_DepthRenderTarget;
+    void createDepthTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
+                            uint32_t mipMapCount);
 
     void startResize();
     void endResize(Fleur::SRect& rect);
