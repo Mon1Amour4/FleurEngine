@@ -11,6 +11,7 @@
 #include "FVkPipeline.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
+#include "Graphics.hpp"
 
 class FVkSkybox
 {
@@ -28,7 +29,7 @@ public:
 
     void SetSkybox(VkImageView imageView);
 
-    void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, glm::vec3& cameraDir);
+    void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, Fleur::Graphics::SFLCameraData& cameraData);
 
 private:
     void createDescriptorSetLayout();
@@ -43,7 +44,6 @@ private:
     VkPhysicalDevice m_PhysicalDevice;
     FVkDescriptorSetLayout* m_DescriptorSetLayout;
     SFLVertexInput* m_VertexInput;
-    VkPushConstantRange m_PushConstant;
     FVkPipeline* m_Pipeline;
 
     VkSampler m_Sampler;
@@ -60,6 +60,8 @@ private:
     VkRect2D m_DefaultRect;
 
     FVkBuffer* m_VertexBuffer;
+    const uint32_t m_SizeOfUniformBuffer;
+    FVkBuffer* m_UniformBuffer;
 
     static const uint32_t m_VertexCount = 36;
     static const uint32_t m_VertexBufferSize = m_VertexCount * sizeof(glm::vec3);

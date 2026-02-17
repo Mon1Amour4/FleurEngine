@@ -215,6 +215,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
             m_skybox = new Fleur::Graphics::Skybox(asset.ID);
             auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
             renderer->SetSkybox(asset.ID);
+            FL_CORE_INFO("Skybox has uploaded to GPU");
         },
         Fleur::CallbackInvocationPoint::AFTER_GPU_UPLOAD);
 

@@ -20,6 +20,8 @@ FVkPipeline::~FVkPipeline()
 void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 {
     assert(desc.descriptorSetLayouts.size() > 0);
+    assert(desc.cullMode != VK_CULL_MODE_NONE);
+    assert(desc.frontFace != VK_FRONT_FACE_MAX_ENUM);
 
     m_Device = device;
     m_DescriptorSetLayouts = desc.descriptorSetLayouts;
@@ -35,8 +37,8 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                                                   .setLayoutCount = (uint32_t)m_DescriptorSetLayouts.size(),
                                                   .pSetLayouts = m_DescriptorSetLayouts.data(),
-                                                  .pushConstantRangeCount = (uint32_t)desc.pushConstants->size(),
-                                                  .pPushConstantRanges = desc.pushConstants->empty() ? nullptr : desc.pushConstants->data()};
+                                                  .pushConstantRangeCount = desc.pushConstants ? (uint32_t)desc.pushConstants->size() : 0,
+                                                  .pPushConstantRanges = desc.pushConstants ? desc.pushConstants->data() : nullptr};
 
 
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
@@ -78,8 +80,8 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-    rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    rasterizer.cullMode = desc.cullMode;
+    rasterizer.frontFace = desc.frontFace;
     rasterizer.depthBiasEnable = VK_FALSE;
     rasterizer.depthBiasConstantFactor = 0.0f;  // Optional
     rasterizer.depthBiasClamp = 0.0f;           // Optional

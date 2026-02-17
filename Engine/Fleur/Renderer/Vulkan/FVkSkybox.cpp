@@ -69,8 +69,8 @@ FVkSkybox::FVkSkybox()
     , m_Extent(0, 0)
     , m_DefaultViewport(0, 0)
     , m_DefaultRect({0, 0}, {0, 0})
-    , m_PushConstant(0, 0, 0)
-
+    , m_UniformBuffer(nullptr)
+    , m_SizeOfUniformBuffer(sizeof(glm::mat4) * 2)
 {
 }
 
@@ -80,6 +80,7 @@ FVkSkybox::~FVkSkybox()
     delete m_VertexInput;
     delete m_DescriptorSetLayout;
     delete m_VertexBuffer;
+    delete m_UniformBuffer;
 
     if (m_DescriptorPool)
         vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
@@ -113,44 +114,50 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     // 2. Vertex Input
     m_VertexInput = new SFLVertexInput();
     m_VertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
-    // 3. Push constant
-    m_PushConstant = {VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(glm::vec3)};
-    // 4. Pipeline
+    // 3. Pipeline
     createPipeline();
     // 4. Descriptor pool
     createDescriptorPool();
     // 5. Sampler
     createSampler();
-    // 6. Descriptor Set
+    // 6. Uniform Buffer
+    m_UniformBuffer = new FVkBuffer();
+    m_UniformBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_SizeOfUniformBuffer, m_SizeOfUniformBuffer);
+    std::array<glm::mat4, 2> initialMatrices = {glm::mat4(1.0f), glm::mat4(1.0f)};
+    m_UniformBuffer->MemCopy(initialMatrices.data(), m_SizeOfUniformBuffer);
+    // 7. Descriptor Set
     createDescriptorSet(imageView);
-    // 7. VertexBuffer
+    // 8. VertexBuffer
     m_VertexBuffer = new FVkBuffer();
     m_VertexBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VertexBufferSize,
                          sizeof(glm::vec3));
-    // 8. Copy vertices to vertex buffer
+    // 9. Copy vertices to vertex buffer
     m_VertexBuffer->MemCopy(m_Vertices, m_VertexBufferSize);
 }
 
 void FVkSkybox::createDescriptorSetLayout()
 {
-    m_DescriptorSetLayout =
-        (FVkDescriptorSetLayout::Builder(m_Device).add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1).build());
+    m_DescriptorSetLayout = (FVkDescriptorSetLayout::Builder(m_Device)
+                                 .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
+                                 .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+                                 .build());
 }
 void FVkSkybox::createPipeline()
 {
     const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts{m_DescriptorSetLayout->GetDescriptorSetLayout()};
-    std::vector<VkPushConstantRange> skyboxPushConstants{m_PushConstant};
 
     FGraphicsPipelineDesc skyboxDesc{.descriptorSetLayouts = descriptorSetLayouts,
                                      .vertexShader = m_VertexShader,
                                      .fragmentShader = m_FragmentShader,
-                                     .pushConstants = &skyboxPushConstants,
+                                     .pushConstants = nullptr,
                                      .vertexInput = m_VertexInput,
                                      .depthWriteEnable = false,
-                                     .depthCompareOp = VK_COMPARE_OP_ALWAYS,
+                                     .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
                                      .colorFormat = m_ColorFormat,
                                      .depthFormat = FindDepthFormat(m_PhysicalDevice),
                                      .samplesCount = VK_SAMPLE_COUNT_8_BIT,
+                                     .cullMode = VK_CULL_MODE_FRONT_BIT,
+                                     .frontFace = VK_FRONT_FACE_CLOCKWISE,
                                      .extent = m_Extent};
 
     m_Pipeline = new FVkPipeline();
@@ -158,14 +165,18 @@ void FVkSkybox::createPipeline()
 }
 void FVkSkybox::createDescriptorPool()
 {
-    VkDescriptorPoolSize descriptorPoolSize{.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1};
+    std::array<VkDescriptorPoolSize, 2> descriptorPoolSize{};
+    descriptorPoolSize[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorPoolSize[0].descriptorCount = 1;
+    descriptorPoolSize[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    descriptorPoolSize[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
         .maxSets = 1,
-        .poolSizeCount = 1,
-        .pPoolSizes = &descriptorPoolSize,
+        .poolSizeCount = descriptorPoolSize.size(),
+        .pPoolSizes = descriptorPoolSize.data(),
     };
 
     if (vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool) != VK_SUCCESS)
@@ -211,6 +222,19 @@ void FVkSkybox::createDescriptorSet(VkImageView imageView)
     if (vkAllocateDescriptorSets(m_Device, &skyboxDescriptorSetAllocInfo, &m_DescriptorSet) != VK_SUCCESS)
         assert(true);
 
+    VkDescriptorBufferInfo uniformBufferInfo{.buffer = m_UniformBuffer->GetBuffer(), .offset = VkDeviceSize{0}, .range = m_SizeOfUniformBuffer};
+    VkWriteDescriptorSet descriptorUniformBufferWrite{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .pNext = nullptr,
+        .dstSet = m_DescriptorSet,
+        .dstBinding = 0,
+        .dstArrayElement = 0,
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+        .pBufferInfo = &uniformBufferInfo,
+    };
+    vkUpdateDescriptorSets(m_Device, 1, &descriptorUniformBufferWrite, 0, nullptr);
+
     VkDescriptorImageInfo imageSamplerInfo{};
     imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     imageSamplerInfo.imageView = imageView;
@@ -220,7 +244,7 @@ void FVkSkybox::createDescriptorSet(VkImageView imageView)
     descriptorImageWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorImageWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorImageWrites.dstSet = m_DescriptorSet;
-    descriptorImageWrites.dstBinding = 0;
+    descriptorImageWrites.dstBinding = 1;
     descriptorImageWrites.dstArrayElement = 0;
     descriptorImageWrites.descriptorCount = 1;
     descriptorImageWrites.pImageInfo = &imageSamplerInfo;
@@ -239,7 +263,7 @@ void FVkSkybox::updateDescriptorSet(VkImageView imageView)
     descriptorImageWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     descriptorImageWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     descriptorImageWrites.dstSet = m_DescriptorSet;
-    descriptorImageWrites.dstBinding = 0;
+    descriptorImageWrites.dstBinding = 1;
     descriptorImageWrites.dstArrayElement = 0;
     descriptorImageWrites.descriptorCount = 1;
     descriptorImageWrites.pImageInfo = &imageSamplerInfo;
@@ -252,7 +276,7 @@ void FVkSkybox::SetSkybox(VkImageView imageView)
     updateDescriptorSet(imageView);
 }
 
-void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, glm::vec3& cameraDir)
+void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, Fleur::Graphics::SFLCameraData& cameraData)
 {
     VkDeviceSize offsets{0};
     vkCmdBindVertexBuffers(cmd, 0, 1, &m_VertexBuffer->GetBuffer(), &offsets);
@@ -264,6 +288,7 @@ void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, glm::ve
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &m_DescriptorSet, 0, nullptr);
 
-    vkCmdPushConstants(cmd, m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, 0, m_PushConstant.size, &cameraDir);
+    m_UniformBuffer->MemCopy(&cameraData.view, sizeof(glm::mat4) * 2);
+
     vkCmdDraw(cmd, m_VertexCount, 1, 0, 0);
 }

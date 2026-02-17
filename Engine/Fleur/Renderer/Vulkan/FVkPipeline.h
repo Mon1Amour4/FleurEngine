@@ -39,6 +39,9 @@ struct FGraphicsPipelineDesc
     // MSAA
     VkSampleCountFlagBits samplesCount = VK_SAMPLE_COUNT_1_BIT;
 
+    VkCullModeFlags cullMode{VK_CULL_MODE_NONE};
+    VkFrontFace frontFace{VK_FRONT_FACE_MAX_ENUM};
+
     // Optional
     VkExtent2D extent{};
 };
@@ -77,10 +80,11 @@ public:
                                                                 VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/
                 ;
 
+            std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(flags, m_Bindings.size());
             VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
             binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
             binding_flags.bindingCount = m_Bindings.size();
-            binding_flags.pBindingFlags = &flags;
+            binding_flags.pBindingFlags = bindingFlags.data();
 
             VkDescriptorSetLayoutCreateInfo info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
                                                  .pNext = &binding_flags,
@@ -92,7 +96,7 @@ public:
             if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
                 assert(false);
 
-            return new FVkDescriptorSetLayout(m_Device, layout);
+            return new FVkDescriptorSetLayout(m_Device, layout, m_Bindings.size());
         }
 
     private:
@@ -111,16 +115,22 @@ public:
     {
         return m_Layout;
     }
+    inline uint32_t GetBindingCount() const
+    {
+        return m_BindingCount;
+    }
 
 private:
-    FVkDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout layout)
+    FVkDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout layout, uint32_t bindingCount)
         : m_Device(device)
         , m_Layout(layout)
+        , m_BindingCount(bindingCount)
     {
     }
 
     VkDevice m_Device;
     VkDescriptorSetLayout m_Layout = VK_NULL_HANDLE;
+    uint32_t m_BindingCount;
 };
 
 class FVkPipeline

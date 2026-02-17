@@ -62,6 +62,7 @@ vk::backend::impl::impl(bool enableValidation,
     , m_StaticGeometryUboDsl(nullptr)
     , m_FrameContext(nullptr)
     , m_Skybox(nullptr)
+    , m_FallbackCubemapTexture(nullptr)
 {
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
@@ -433,6 +434,8 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
         .colorFormat = m_Swapchain->GetImageFormat(),
         .depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice()),
         .samplesCount = m_Multisampler->GetSamplesCount(),
+        .cullMode = VK_CULL_MODE_BACK_BIT,
+        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .extent = VkExtent2D{.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height}};
 
 
@@ -753,6 +756,52 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     m_FallbackTexture = new FVkTexture();
     createTexture(*m_FallbackTexture, view, format, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_FallbackTextureIdx = view.ID;
+
+    m_FallbackCubemapTexture = &m_TextureMap.emplace(999, FVkTexture()).first->second;
+    // fallback cubemap texture
+
+    uint32_t layerSize = 1 * 1 * 4;
+    uint32_t imageSize = layerSize * 6;
+
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+    imageInfo.extent.width = 1;
+    imageInfo.extent.height = 1;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = 1;
+    imageInfo.arrayLayers = 6;
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    char buffer[4 * 6]{};
+    for (size_t i = 0; i < 6; i++)
+    {
+        memcpy(buffer + (4 * i), view.pData + (4 * i), 4);
+    }
+
+    FVkBuffer stagingBuffer{};
+    stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
+    stagingBuffer.MemCopy(buffer, imageSize);
+
+    VkImage cubemapImage = m_FallbackCubemapTexture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
+                                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+
+    {
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+        frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(4), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT,
+                                       1, 6);
+        frameCmd.CopyBufferToImage(stagingBuffer.GetBuffer(), cubemapImage, {1, 1}, layerSize, 6);
+        frameCmd.TransitionImageLayout(cubemapImage, GetVkFormat(4), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                       VK_IMAGE_ASPECT_COLOR_BIT, 1, 6);
+        frameCmd.Submit(m_Device->GetGraphicsQueue());
+    }
+    m_FallbackCubemapTexture->CreateImaveView();
 }
 
 void vk::backend::impl::updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
@@ -889,7 +938,7 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
     VkShaderModule skyboxFragmentShader = createShaderModule(pFragmentShaderInfo);
 
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader);
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader);
 }
 void vk::backend::impl::setSkybox(AssetID id)
 {
@@ -961,7 +1010,7 @@ void vk::backend::impl::createStaticGeometryPass()
     createDescriptorSets();
 }
 
-void vk::backend::impl::update(Fleur::Graphics::SFLCameraData& cameraData)
+void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
 {
     if (m_WindowResizeIsInProgress)
     {
@@ -1010,7 +1059,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData& cameraData)
 
     if (m_Skybox)
     {
-        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), cameraData.cameraDir);
+        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), cameraData);
     }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());

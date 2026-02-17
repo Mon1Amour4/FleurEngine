@@ -97,7 +97,7 @@ struct backend::impl
     impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~impl();
 
-    void update(Fleur::Graphics::SFLCameraData& cameraData);
+    void update(Fleur::Graphics::SFLCameraData cameraData);
 
     // Instance
     struct
@@ -205,6 +205,7 @@ struct backend::impl
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViewsToUpload;
 
     FVkTexture* m_FallbackTexture;
+    FVkTexture* m_FallbackCubemapTexture;
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
 
