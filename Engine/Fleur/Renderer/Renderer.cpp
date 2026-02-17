@@ -207,7 +207,7 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Graphics::SFLFrame frame{};
     frame.pPass = &geometryPass;
 
-    auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("Fallback");
+    auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
     Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
     fallbackView.ID = fallbackAsset.ID;
 

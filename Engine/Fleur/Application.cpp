@@ -197,10 +197,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
-    assetsManager.value()->LoadImage("Fallback", {
-                                                     .imageSource = IMAGE_SOURCE_COLOR,
-                                                     .color = Fleur::Graphics::Color(255, 0, 255, 255),
-                                                 });
+    assetsManager.value()->LoadImage("Placeholders/wall_placeholder2.png", {.imageSource = IMAGE_SOURCE_DISK});
 
     auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
     renderer.value()->Init();
