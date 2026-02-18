@@ -98,9 +98,9 @@ vk::backend::impl::impl(bool enableValidation,
     m_GeometryVertexInput->RegisterAttribute(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, TexCoord));
     m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
 
-    m_Multisampler = new FVkMultisampler();
-    m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT, m_Swapchain->GetSwapchainExtent().width,
-                         m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
+    m_MultisampledRenderTarget = new FVkMultisampler();
+    m_MultisampledRenderTarget->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT,
+                                     m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
 
@@ -134,7 +134,7 @@ vk::backend::impl::impl(bool enableValidation,
     m_DepthRenderTarget = new FVkTexture();
     VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
     createDepthTexture(*m_DepthRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
-                       m_Multisampler->GetSamplesCount(), 1);
+                       m_MultisampledRenderTarget->GetSamplesCount(), 1);
 
 
     uint32_t vertexInputDescriptorSize = 0;
@@ -164,14 +164,14 @@ vk::backend::impl::impl(bool enableValidation,
                                           m_ImageSampler);
 
     m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
-                                                m_Multisampler->GetSamplesCount());
+                                                m_MultisampledRenderTarget->GetSamplesCount());
 
     m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
 
-        frameCmd.TransitionImageLayout(m_Multisampler->GetTexture()->GetImage(), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+        frameCmd.TransitionImageLayout(m_MultisampledRenderTarget->GetTexture()->GetImage(), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
                                        VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1);
 
         frameCmd.Submit(m_Device->GetGraphicsQueue());
@@ -208,7 +208,7 @@ vk::backend::impl::~impl()
     // 5. Swapchain & Framebuffers & swapchain image views
 
     // 7. All ImageViews
-    delete m_Multisampler;
+    delete m_MultisampledRenderTarget;
     delete m_FallbackCubemapTexture;
     delete m_DepthRenderTarget;
 
@@ -912,7 +912,7 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
 
     m_Skybox = new FVkSkybox();
     m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader,
-                     m_Multisampler->GetSamplesCount());
+                     m_MultisampledRenderTarget->GetSamplesCount());
 }
 void vk::backend::impl::setSkybox(AssetID id)
 {
@@ -938,10 +938,10 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea,
                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
                                                  .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                                                  .clearValue = clearColor};
-    VkSampleCountFlagBits sampleCount = m_Multisampler->GetSamplesCount();
+    VkSampleCountFlagBits sampleCount = m_MultisampledRenderTarget->GetSamplesCount();
     if (sampleCount > VK_SAMPLE_COUNT_1_BIT)
     {
-        colorAttachment.imageView = m_Multisampler->GetTexture()->GetImageView();
+        colorAttachment.imageView = m_MultisampledRenderTarget->GetTexture()->GetImageView();
         colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
         colorAttachment.resolveImageView = m_Swapchain->GetSwapchainImageView(currentImage);
         colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -1002,7 +1002,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     if (!m_Swapchain->ReadyToPresent())
     {
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
-        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_Multisampler->GetTexture()->GetImageView(),
+        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
                               m_DepthRenderTarget->GetImageView());
     }
 

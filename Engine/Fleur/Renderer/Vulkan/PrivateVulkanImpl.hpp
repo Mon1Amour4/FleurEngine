@@ -209,7 +209,7 @@ struct backend::impl
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
     SFLVertexInput* m_GeometryVertexInput;
-    FVkMultisampler* m_Multisampler;
+    FVkMultisampler* m_MultisampledRenderTarget;
 
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                        uint32_t layerCount);
