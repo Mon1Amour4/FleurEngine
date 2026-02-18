@@ -99,7 +99,7 @@ vk::backend::impl::impl(bool enableValidation,
     m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
 
     m_Multisampler = new FVkMultisampler();
-    m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_2_BIT, m_Swapchain->GetSwapchainExtent().width,
+    m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT, m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
@@ -930,14 +930,23 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea,
 
     VkRenderingAttachmentInfoKHR colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
                                                  .pNext = nullptr,
-                                                 .imageView = m_Multisampler->GetTexture()->GetImageView(),
+                                                 .imageView = m_Swapchain->GetSwapchainImageView(currentImage),
                                                  .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                 .resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT,
-                                                 .resolveImageView = m_Swapchain->GetSwapchainImageView(currentImage),
-                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
+                                                 .resolveImageView = nullptr,
+                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
                                                  .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                 .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
                                                  .clearValue = clearColor};
+    VkSampleCountFlagBits sampleCount = m_Multisampler->GetSamplesCount();
+    if (sampleCount > VK_SAMPLE_COUNT_1_BIT)
+    {
+        colorAttachment.imageView = m_Multisampler->GetTexture()->GetImageView();
+        colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        colorAttachment.resolveImageView = m_Swapchain->GetSwapchainImageView(currentImage);
+        colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    }
 
     VkRenderingAttachmentInfoKHR depthAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
                                                  .pNext = nullptr,
