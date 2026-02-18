@@ -95,7 +95,7 @@ FVkSkybox::~FVkSkybox()
 }
 
 void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkImageView imageView, VkShaderModule vertexShader,
-                       VkShaderModule fragmentShader)
+                       VkShaderModule fragmentShader, VkSampleCountFlagBits sampleCount)
 {
     m_Device = device->GetLogicalDevice();
     m_PhysicalDevice = device->GetPhysicalDevice();
@@ -108,6 +108,7 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
         .offset = VkOffset2D{.x = 0, .y = 0},
         .extent = m_Extent,
     };
+    m_SampleCount = sampleCount;
 
     // 1. Descriptor set layout
     createDescriptorSetLayout();
@@ -155,7 +156,7 @@ void FVkSkybox::createPipeline()
                                      .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
                                      .colorFormat = m_ColorFormat,
                                      .depthFormat = FindDepthFormat(m_PhysicalDevice),
-                                     .samplesCount = VK_SAMPLE_COUNT_8_BIT,
+                                     .samplesCount = m_SampleCount,
                                      .cullMode = VK_CULL_MODE_FRONT_BIT,
                                      .frontFace = VK_FRONT_FACE_CLOCKWISE,
                                      .extent = m_Extent};

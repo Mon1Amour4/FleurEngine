@@ -11,12 +11,15 @@ FVkMultisampler::~FVkMultisampler()
 {
 }
 
-void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, VkFormat format)
+void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkSampleCountFlagBits desiredSampleCount, uint32_t width, uint32_t height,
+                           VkFormat format)
 {
     m_Device = device;
     m_PhysicalDevice = physicalDevice;
 
     m_MSAASamples = getMaxUsableSampleCount(true);
+    if (desiredSampleCount <= m_MSAASamples)
+        m_MSAASamples = desiredSampleCount;
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;

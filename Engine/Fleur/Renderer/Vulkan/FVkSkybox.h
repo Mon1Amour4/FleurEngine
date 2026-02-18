@@ -24,7 +24,8 @@ public:
                 const FVkSwapchain* swapchain, 
                 VkImageView imageView, 
                 VkShaderModule vertexShader,
-                VkShaderModule fragmentShader);
+                VkShaderModule fragmentShader,
+                VkSampleCountFlagBits sampleCount);
     // clang-format on
 
     void SetSkybox(VkImageView imageView);
@@ -49,6 +50,8 @@ private:
     VkSampler m_Sampler;
     VkDescriptorPool m_DescriptorPool;
     VkDescriptorSet m_DescriptorSet;
+
+    VkSampleCountFlagBits m_SampleCount;
 
     VkShaderModule m_VertexShader;
     VkShaderModule m_FragmentShader;

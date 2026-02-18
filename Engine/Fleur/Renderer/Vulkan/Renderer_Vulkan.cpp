@@ -99,7 +99,7 @@ vk::backend::impl::impl(bool enableValidation,
     m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
 
     m_Multisampler = new FVkMultisampler();
-    m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Swapchain->GetSwapchainExtent().width,
+    m_Multisampler->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_2_BIT, m_Swapchain->GetSwapchainExtent().width,
                          m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
     uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
@@ -440,7 +440,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
         .depthCompareOp = VK_COMPARE_OP_LESS,
         .colorFormat = m_Swapchain->GetImageFormat(),
         .depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice()),
-        .samplesCount = m_Multisampler->GetSamplesCount(),
+        .samplesCount = samplesCount,
         .cullMode = VK_CULL_MODE_BACK_BIT,
         .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
         .extent = VkExtent2D{.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height}};
@@ -910,7 +910,8 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
     VkShaderModule skyboxFragmentShader = createShaderModule(pFragmentShaderInfo);
 
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader);
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader,
+                     m_Multisampler->GetSamplesCount());
 }
 void vk::backend::impl::setSkybox(AssetID id)
 {
