@@ -1016,6 +1016,9 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
         assert(false);
     }
 
+    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), cameraData.view, cameraData.proj};
+    updateUniformBuffer(currentFrame, &ubo);
+
     // ---------- issuing commands ----------
     vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[currentFrame].GetCommandPool(), 0);
 
@@ -1073,9 +1076,6 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     cmd.End();
 
-
-    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), cameraData.view, cameraData.proj};
-    updateUniformBuffer(currentFrame, &ubo);
 
     VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
