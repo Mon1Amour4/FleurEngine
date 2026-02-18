@@ -152,6 +152,7 @@ void FVkSkybox::createPipeline()
                                      .fragmentShader = m_FragmentShader,
                                      .pushConstants = nullptr,
                                      .vertexInput = m_VertexInput,
+                                     .depthTestEnable = true,
                                      .depthWriteEnable = false,
                                      .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
                                      .colorFormat = m_ColorFormat,

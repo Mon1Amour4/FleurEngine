@@ -29,6 +29,7 @@ struct FGraphicsPipelineDesc
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
     // Raster / Depth
+    bool depthTestEnable = false;
     bool depthWriteEnable = true;
     VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
 

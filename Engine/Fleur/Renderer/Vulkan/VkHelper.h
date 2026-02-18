@@ -19,7 +19,7 @@ uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight);
 bool HasStencilComponent(VkFormat format);
 
 void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,
-                           uint32_t mimMapCount);
+                           uint32_t mipMapCount);
 
 uint32_t GetFormatSize(VkFormat format);
 

@@ -436,6 +436,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
         .pushConstants = &pushConstants,
         .vertexInput = m_GeometryVertexInput,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+        .depthTestEnable = true,
         .depthWriteEnable = true,
         .depthCompareOp = VK_COMPARE_OP_LESS,
         .colorFormat = m_Swapchain->GetImageFormat(),

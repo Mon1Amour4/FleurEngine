@@ -116,7 +116,7 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     dynamicState.pDynamicStates = dynamicStates.data();
 
     VkPipelineDepthStencilStateCreateInfo depthStencil{.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-                                                       .depthTestEnable = VK_TRUE,
+                                                       .depthTestEnable = desc.depthTestEnable,
                                                        .depthWriteEnable = desc.depthWriteEnable,
                                                        .depthCompareOp = desc.depthCompareOp,
                                                        .depthBoundsTestEnable = VK_FALSE,

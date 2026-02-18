@@ -143,7 +143,7 @@ bool HasStencilComponent(VkFormat format)
 }
 
 void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,
-                           uint32_t mimMapCount)
+                           uint32_t mipMapCount)
 {
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -154,7 +154,7 @@ void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, 
     barrier.image = image;
     barrier.subresourceRange.aspectMask = aspectMask;
     barrier.subresourceRange.baseMipLevel = 0;
-    barrier.subresourceRange.levelCount = mimMapCount;
+    barrier.subresourceRange.levelCount = mipMapCount;
     barrier.subresourceRange.baseArrayLayer = 0;
     barrier.subresourceRange.layerCount = 1;
 
