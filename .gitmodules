@@ -19,3 +19,6 @@
 [submodule "Engine/External/VulkanMemoryAllocator"]
 	path = Engine/External/VulkanMemoryAllocator
 	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+[submodule "Engine/External/SPIRV-Reflect"]
+	path = Engine/External/SPIRV-Reflect
+	url = https://github.com/KhronosGroup/SPIRV-Reflect
