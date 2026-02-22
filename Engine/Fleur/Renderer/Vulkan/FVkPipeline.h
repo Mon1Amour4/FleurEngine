@@ -17,13 +17,13 @@ struct FGraphicsPipelineDesc
     const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts;
 
     // Shaders
-    VkShaderModule vertexShader = VK_NULL_HANDLE;
-    VkShaderModule fragmentShader = VK_NULL_HANDLE;
+    VkShaderModule vertexShader;
+    VkShaderModule fragmentShader;
 
     const std::vector<VkPushConstantRange>* pushConstants;
 
     // Vertex input
-    const SFLVertexInput* vertexInput;
+    const VkPipelineVertexInputStateCreateInfo* pVertexInputState;
 
     // IA
     VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
@@ -44,7 +44,12 @@ struct FGraphicsPipelineDesc
     VkFrontFace frontFace{VK_FRONT_FACE_MAX_ENUM};
 
     // Optional
-    VkExtent2D extent{};
+    // VkExtent2D extent{};
+
+    const char* vertexEntryPointName;
+    const char* fragmentEntryPointName;
+
+    std::vector<VkPipelineShaderStageCreateInfo>* shaderStages;
 };
 
 class FVkDescriptorSetLayout

@@ -423,37 +423,29 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
 FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
 {
-    VkShaderModule vertexShaderModule = createShaderModule(pVertexInfo);
-    VkShaderModule vertexFragmentModule = createShaderModule(pFragmentInfo);
-
-    std::vector<VkPushConstantRange> pushConstants{VkPushConstantRange{VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(uint32_t)}};
-
-    std::vector<VkDescriptorSetLayout> dsl{m_StaticGeometryUboDsl->GetDescriptorSetLayout(), m_StaticGeometryTexturesDsl->GetDescriptorSetLayout()};
-    FGraphicsPipelineDesc pipelineInfo{
-        .descriptorSetLayouts = dsl,
-        .vertexShader = vertexShaderModule,
-        .fragmentShader = vertexFragmentModule,
-        .pushConstants = &pushConstants,
-        .vertexInput = m_GeometryVertexInput,
-        .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
-        .depthTestEnable = true,
-        .depthWriteEnable = true,
-        .depthCompareOp = VK_COMPARE_OP_LESS,
-        .colorFormat = m_Swapchain->GetImageFormat(),
-        .depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice()),
-        .samplesCount = samplesCount,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-        .extent = VkExtent2D{.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height}};
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo->shaderCode,
+                                          .vertexSize = pVertexInfo->sizeBytes,
+                                          .pFragmentData = pFragmentInfo->shaderCode,
+                                          .fragmentSize = pFragmentInfo->sizeBytes};
 
 
-    FVkPipeline* geometryPipeline = new FVkPipeline();
-    geometryPipeline->Init(m_Device->GetLogicalDevice(), pipelineInfo);
+    auto& opaqueShader = m_ShaderMap.emplace(0, vk::FVkShader()).first->second;
+    opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
-    vkDestroyShaderModule(m_Device->GetLogicalDevice(), vertexShaderModule, nullptr);
-    vkDestroyShaderModule(m_Device->GetLogicalDevice(), vertexFragmentModule, nullptr);
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.depthWriteEnable = true;
+    pipelineInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pipelineInfo.samplesCount = samplesCount;
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
+    pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
 
-    return geometryPipeline;
+    FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
+
+    return pipeline;
 }
 
 
@@ -907,16 +899,27 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInf
     if (m_Skybox)
         return;
 
-    VkShaderModule skyboxVertexShader = createShaderModule(pVertexShaderInfo);
-    VkShaderModule skyboxFragmentShader = createShaderModule(pFragmentShaderInfo);
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexShaderInfo->shaderCode,
+                                          .vertexSize = pVertexShaderInfo->sizeBytes,
+                                          .pFragmentData = pFragmentShaderInfo->shaderCode,
+                                          .fragmentSize = pFragmentShaderInfo->sizeBytes};
+
+
+    auto& skyboxShader = m_ShaderMap.emplace(1, vk::FVkShader()).first->second;
+    skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), skyboxVertexShader, skyboxFragmentShader,
-                     m_MultisampledRenderTarget->GetSamplesCount());
+    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), &skyboxShader, m_MultisampledRenderTarget->GetSamplesCount(),
+                     FindDepthFormat(m_Device->GetPhysicalDevice()));
 }
 void vk::backend::impl::setSkybox(AssetID id)
 {
     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
+}
+
+vk::FVkShader* vk::backend::impl::AddShader(ShaderCreateInfo& shaderInfo)
+{
+    return nullptr;
 }
 
 void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage)

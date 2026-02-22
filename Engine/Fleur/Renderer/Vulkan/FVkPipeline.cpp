@@ -22,17 +22,10 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     assert(desc.descriptorSetLayouts.size() > 0);
     assert(desc.cullMode != VK_CULL_MODE_NONE);
     assert(desc.frontFace != VK_FRONT_FACE_MAX_ENUM);
+    assert(desc.shaderStages && desc.shaderStages->size() > 0);
 
     m_Device = device;
     m_DescriptorSetLayouts = desc.descriptorSetLayouts;
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_VERTEX_BIT, .module = desc.vertexShader, .pName = "main"};
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO, .stage = VK_SHADER_STAGE_FRAGMENT_BIT, .module = desc.fragmentShader, .pName = "main"};
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
                                                   .setLayoutCount = (uint32_t)m_DescriptorSetLayouts.size(),
@@ -44,21 +37,12 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
         assert(false);
 
-    VkVertexInputBindingDescription vertexInputBindingDescription = desc.vertexInput->GetVertexDataBindingDescriptor();
-    VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
-    vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 1;
-    vertexInputInfo.pVertexBindingDescriptions = &vertexInputBindingDescription;
-    vertexInputInfo.vertexAttributeDescriptionCount = desc.vertexInput->GetAttributeCount();
-    vertexInputInfo.pVertexAttributeDescriptions = desc.vertexInput->GetVertexDataAttributeDescriptions().data();
-
-
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
     inputAssembly.topology = desc.topology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{desc.extent}};
+    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{1,1}};
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -136,9 +120,9 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.pNext = &renderingInfo;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
-    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.stageCount = desc.shaderStages->size();
+    pipelineInfo.pStages = desc.shaderStages->data();
+    pipelineInfo.pVertexInputState = desc.pVertexInputState;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
     pipelineInfo.pRasterizationState = &rasterizer;

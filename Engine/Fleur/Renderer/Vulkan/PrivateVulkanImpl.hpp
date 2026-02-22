@@ -28,6 +28,7 @@
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
+#include "FVkShader.h"
 #include "FVkSkybox.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
@@ -246,5 +247,8 @@ struct backend::impl
     FVkSkybox* m_Skybox;
     void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
     void setSkybox(AssetID id);
+
+    vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
+    std::unordered_map<AssetID, vk::FVkShader> m_ShaderMap;
 };
 }  // namespace vk

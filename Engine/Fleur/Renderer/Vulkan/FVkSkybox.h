@@ -9,6 +9,7 @@
 #include "FVkCommand.h"
 #include "FVkDevice.h"
 #include "FVkPipeline.h"
+#include "FVkShader.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
 #include "Graphics.hpp"
@@ -23,9 +24,9 @@ public:
     void Create(const FVkDevice* device, 
                 const FVkSwapchain* swapchain, 
                 VkImageView imageView, 
-                VkShaderModule vertexShader,
-                VkShaderModule fragmentShader,
-                VkSampleCountFlagBits sampleCount);
+                vk::FVkShader* skyboxShader,
+                VkSampleCountFlagBits sampleCount,
+                VkFormat depthFormat);
     // clang-format on
 
     void SetSkybox(VkImageView imageView);
@@ -34,7 +35,6 @@ public:
 
 private:
     void createDescriptorSetLayout();
-    void createPipeline();
     void createDescriptorPool();
     void createSampler();
     void createDescriptorSet(VkImageView imageView);
@@ -53,10 +53,11 @@ private:
 
     VkSampleCountFlagBits m_SampleCount;
 
-    VkShaderModule m_VertexShader;
-    VkShaderModule m_FragmentShader;
+    vk::FVkShader* m_SkyboxShader;
 
     VkFormat m_ColorFormat;
+    VkFormat m_DepthFormat;
+
     VkExtent2D m_Extent;
 
     VkViewport m_DefaultViewport;

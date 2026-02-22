@@ -24,6 +24,7 @@ SET(PROJECT_HEADERS
     FVkSwapchain.h
     FVkSkybox.h
     VkHelper.h
+    FVkShader.h
     ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
@@ -40,6 +41,7 @@ SET(PROJECT_SOURCES
     FVkSwapchain.cpp
     FVkSkybox.cpp
     VkHelper.cpp
+    FVkShader.cpp
      ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.c
 )
 
@@ -56,9 +58,6 @@ TARGET_COMPILE_DEFINITIONS(VulkanBackend
 )
 
 TARGET_COMPILE_DEFINITIONS(VulkanBackend PRIVATE ${PRIVATE_COMPILE_DEFINITIONS})
-target_compile_definitions(VulkanBackend
-    PUBLIC SPIRV_REFLECT_USE_SYSTEM_SPIRV_H
-)
 
 # Vulkan
 FIND_PACKAGE(Vulkan REQUIRED)

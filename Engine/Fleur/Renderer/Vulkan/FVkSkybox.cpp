@@ -3,6 +3,7 @@
 #include <Graphics.hpp>
 #include <array>
 
+
 const glm::vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
     // back
     {-1.f, 1.f, -1.f},
@@ -62,10 +63,10 @@ FVkSkybox::FVkSkybox()
     , m_Sampler(nullptr)
     , m_DescriptorPool(nullptr)
     , m_DescriptorSet(nullptr)
-    , m_VertexShader(nullptr)
-    , m_FragmentShader(nullptr)
+    , m_SkyboxShader(nullptr)
     , m_VertexBuffer(nullptr)
     , m_ColorFormat(VK_FORMAT_UNDEFINED)
+    , m_DepthFormat(VK_FORMAT_UNDEFINED)
     , m_Extent(0, 0)
     , m_DefaultViewport(0, 0)
     , m_DefaultRect({0, 0}, {0, 0})
@@ -87,20 +88,14 @@ FVkSkybox::~FVkSkybox()
 
     if (m_Sampler)
         vkDestroySampler(m_Device, m_Sampler, nullptr);
-
-    if (m_VertexShader)
-        vkDestroyShaderModule(m_Device, m_VertexShader, nullptr);
-    if (m_FragmentShader)
-        vkDestroyShaderModule(m_Device, m_FragmentShader, nullptr);
 }
 
-void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkImageView imageView, VkShaderModule vertexShader,
-                       VkShaderModule fragmentShader, VkSampleCountFlagBits sampleCount)
+void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkImageView imageView, vk::FVkShader* skyboxShader,
+                       VkSampleCountFlagBits sampleCount, VkFormat depthFormat)
 {
     m_Device = device->GetLogicalDevice();
     m_PhysicalDevice = device->GetPhysicalDevice();
-    m_VertexShader = vertexShader;
-    m_FragmentShader = fragmentShader;
+    m_SkyboxShader = skyboxShader;
     m_ColorFormat = swapchain->GetImageFormat();
     m_Extent = swapchain->GetSwapchainExtent();
     m_DefaultViewport = {.x = 0, .y = 0, .width = (float)m_Extent.width, .height = (float)m_Extent.height, .minDepth = 0, .maxDepth = 1.0f};
@@ -109,6 +104,7 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
         .extent = m_Extent,
     };
     m_SampleCount = sampleCount;
+    m_DepthFormat = depthFormat;
 
     // 1. Descriptor set layout
     createDescriptorSetLayout();
@@ -116,7 +112,19 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     m_VertexInput = new SFLVertexInput();
     m_VertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
     // 3. Pipeline
-    createPipeline();
+
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
+    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.depthWriteEnable = false;
+    pipelineInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    pipelineInfo.samplesCount = m_SampleCount;
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.colorFormat = m_ColorFormat;
+    pipelineInfo.depthFormat = m_DepthFormat;
+
+    m_Pipeline = m_SkyboxShader->GetPipeline(pipelineInfo);
     // 4. Descriptor pool
     createDescriptorPool();
     // 5. Sampler
@@ -143,28 +151,7 @@ void FVkSkybox::createDescriptorSetLayout()
                                  .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
                                  .build());
 }
-void FVkSkybox::createPipeline()
-{
-    const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts{m_DescriptorSetLayout->GetDescriptorSetLayout()};
 
-    FGraphicsPipelineDesc skyboxDesc{.descriptorSetLayouts = descriptorSetLayouts,
-                                     .vertexShader = m_VertexShader,
-                                     .fragmentShader = m_FragmentShader,
-                                     .pushConstants = nullptr,
-                                     .vertexInput = m_VertexInput,
-                                     .depthTestEnable = true,
-                                     .depthWriteEnable = false,
-                                     .depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL,
-                                     .colorFormat = m_ColorFormat,
-                                     .depthFormat = FindDepthFormat(m_PhysicalDevice),
-                                     .samplesCount = m_SampleCount,
-                                     .cullMode = VK_CULL_MODE_FRONT_BIT,
-                                     .frontFace = VK_FRONT_FACE_CLOCKWISE,
-                                     .extent = m_Extent};
-
-    m_Pipeline = new FVkPipeline();
-    m_Pipeline->Init(m_Device, skyboxDesc);
-}
 void FVkSkybox::createDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> descriptorPoolSize{};
