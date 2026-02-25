@@ -15,6 +15,11 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     Fleur::Graphics::Model::SFLPostCreateInfo info{};
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    Fleur::AssetHandle defaultProgramHandle{};
+    {
+        auto defaultProgram = assetsManager->LoadShaderProgram("opaque_program", "vertex.spv", "opaque.spv");
+        defaultProgramHandle = defaultProgram.handle;
+    }
 
     info.meshes.reserve(m_Data->meshes_count);
     info.materials.reserve(m_Data->materials_count);
@@ -27,6 +32,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
         if ((m_Data->materials + i)->has_pbr_metallic_roughness)
         {
             Fleur::Graphics::Material flMaterial{};
+            flMaterial.shaderProgram = defaultProgramHandle;
 
             auto currentMaterial = m_Data->materials + i;
             bool hasTexture = false;

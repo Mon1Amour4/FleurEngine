@@ -37,7 +37,6 @@ Fleur::AssetsManager::~AssetsManager()
 void Fleur::AssetsManager::OnInit()
 {
     m_Stopping.store(false, std::memory_order_release);
-    load_all_shaders();
 }
 void Fleur::AssetsManager::OnShutdown()
 {
@@ -59,6 +58,8 @@ void Fleur::AssetsManager::OnShutdown()
         m_ImagesToUpload.notifyMap.clear();
         m_ImagesToUpload.framesSinceLastUpload = 0;
     }
+
+    m_ShaderLibrary.Clear();
 }
 void Fleur::AssetsManager::OnUpdate(float dtTime)
 {
@@ -91,24 +92,6 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
     if (!imagesWereUploaded)
         m_ImagesToUpload.framesSinceLastUpload++;
-}
-
-void Fleur::AssetsManager::load_all_shaders()
-{
-    auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-    auto path = fileSystem->GetFullPathToFolder("Shaders");
-
-    std::vector<std::string> paths = fileSystem->GetAllFilesInFolder(path->c_str(), ".spv");
-
-    for (const auto& path : paths)
-    {
-        AssetID id = GetNextID();
-        auto vec = fileSystem->ReadFileBinary(path);
-        auto name = fileSystem->GetFileNameWithoutExtFromPath(path);
-
-        m_ShaderMapString.emplace(std::move(name), id);
-        m_ShaderMap.emplace(id, ShaderType(vec.data(), vec.size()));
-    }
 }
 
 void Fleur::AssetsManager::PollMessages()
@@ -263,6 +246,69 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
     delete tmpImageAsset.obj;
 
     return cubemapRecord.asset;
+}
+
+ShaderAsset Fleur::AssetsManager::LoadShader(std::string_view path)
+{
+    return m_ShaderLibrary.Load(path);
+}
+
+ShaderProgramAsset Fleur::AssetsManager::LoadShaderProgram(std::string_view programName, std::string_view vertexPath, std::string_view fragmentPath)
+{
+    if (programName.empty())
+        return {{}, nullptr};
+
+    auto tryUploadProgramToGpu = [this](const ShaderProgramAsset& programAsset)
+    {
+        if (!programAsset.obj || !programAsset.handle.IsValid())
+            return;
+
+        auto vertex = m_ShaderLibrary.Get(programAsset.obj->vertexShader);
+        auto fragment = m_ShaderLibrary.Get(programAsset.obj->fragmentShader);
+        if (!vertex.obj || !fragment.obj)
+            return;
+
+        auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+        if (!renderer)
+            return;
+
+        renderer->CreateOrGetGraphicsProgram(programAsset.handle, *vertex.obj, *fragment.obj);
+    };
+
+    if (auto existing = m_ShaderLibrary.GetProgram(programName); existing.obj)
+    {
+        tryUploadProgramToGpu(existing);
+        return existing;
+    }
+
+    ShaderAsset vertex = LoadShader(vertexPath);
+    ShaderAsset fragment = LoadShader(fragmentPath);
+    if (!vertex.handle.IsValid() || !fragment.handle.IsValid())
+        return {{}, nullptr};
+
+    ShaderProgramAsset programAsset = m_ShaderLibrary.CreateProgram(programName, vertex.handle, fragment.handle);
+    tryUploadProgramToGpu(programAsset);
+    return programAsset;
+}
+
+ShaderAsset Fleur::AssetsManager::GetShaderByName(std::string_view name)
+{
+    return m_ShaderLibrary.Get(name);
+}
+
+ShaderAsset Fleur::AssetsManager::GetShaderByHandle(const AssetHandle& handle)
+{
+    return m_ShaderLibrary.Get(handle);
+}
+
+ShaderProgramAsset Fleur::AssetsManager::GetShaderProgramByName(std::string_view name)
+{
+    return m_ShaderLibrary.GetProgram(name);
+}
+
+ShaderProgramAsset Fleur::AssetsManager::GetShaderProgramByHandle(const AssetHandle& handle)
+{
+    return m_ShaderLibrary.GetProgram(handle);
 }
 
 

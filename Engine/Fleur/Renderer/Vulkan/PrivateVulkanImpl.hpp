@@ -3,6 +3,7 @@
 #pragma region Includes& Definitions
 
 #include "Renderer_Vulkan.h"
+#include "../../AssetHandle.h"
 
 
 #define VMA_IMPLEMENTATION
@@ -57,6 +58,7 @@ struct SGPUMaterial
 {
     uint32_t albedo;
     uint32_t normal;
+    Fleur::AssetHandle shaderProgram;
 };
 struct DrawInfo
 {
@@ -99,6 +101,8 @@ struct backend::impl
     ~impl();
 
     void update(Fleur::Graphics::SFLCameraData cameraData);
+    bool createOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, Fleur::Graphics::SFLShaderInfo* pVertexShaderInfo,
+                                    Fleur::Graphics::SFLShaderInfo* pFragmentShaderInfo);
 
     // Instance
     struct
@@ -131,6 +135,7 @@ struct backend::impl
     FVkPipeline* m_GeometryPipeline;
     FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
                                         Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
+    FVkPipeline* getGraphicsPipeline(const Fleur::AssetHandle& programHandle);
 
 
     // ---------- shaders ----------
@@ -250,5 +255,7 @@ struct backend::impl
 
     vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
     std::unordered_map<AssetID, vk::FVkShader> m_ShaderMap;
+    std::unordered_map<uint64_t, vk::FVkShader> m_GraphicsProgramShaders;
+    vk::GetPipelineInfo m_DefaultGeometryPipelineInfo{};
 };
 }  // namespace vk

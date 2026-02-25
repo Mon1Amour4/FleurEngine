@@ -103,16 +103,37 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::Application& application = Fleur::Application::instance();
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    auto opaqueProgramAsset = assetsManager->LoadShaderProgram("opaque_program", "vertex.spv", "opaque.spv");
+    if (!opaqueProgramAsset.obj)
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader program: opaque_program");
+        assert(false);
+        return;
+    }
 
-    auto pVertexShader = assetsManager->Get<Shader>("vertex").obj;
+    auto vertexAsset = assetsManager->Get<Shader>(opaqueProgramAsset.obj->vertexShader);
+    auto pVertexShader = vertexAsset.obj;
+    if (!pVertexShader || !vertexAsset.handle.IsValid())
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader: vertex");
+        assert(false);
+        return;
+    }
     Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
-    vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
-    vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
+    vertexShaderInfo.shaderCode = pVertexShader->Data();
+    vertexShaderInfo.sizeBytes = pVertexShader->SizeBytes();
 
-    auto pFragmentShader = assetsManager->Get<Shader>("opaque").obj;
+    auto fragmentAsset = assetsManager->Get<Shader>(opaqueProgramAsset.obj->fragmentShader);
+    auto pFragmentShader = fragmentAsset.obj;
+    if (!pFragmentShader || !fragmentAsset.handle.IsValid())
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader: opaque");
+        assert(false);
+        return;
+    }
     Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
-    fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
-    fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
+    fragmentShaderInfo.shaderCode = pFragmentShader->Data();
+    fragmentShaderInfo.sizeBytes = pFragmentShader->SizeBytes();
 
     Fleur::Graphics::SFLGeometryPass geometryPass{};
     geometryPass.pVertexShaderInfo = &vertexShaderInfo;
@@ -133,17 +154,40 @@ void Fleur::Graphics::Renderer::OnInit()
     bool validation = true;
 
     m_Backend = new vk::backend(validation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+    CreateOrGetGraphicsProgram(opaqueProgramAsset.handle, *pVertexShader, *pFragmentShader);
 
 
-    auto pSkyboxVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;
+    auto skyboxProgramAsset = assetsManager->LoadShaderProgram("skybox_program", "skyboxVertex.spv", "skyboxFragment.spv");
+    if (!skyboxProgramAsset.obj)
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader program: skybox_program");
+        assert(false);
+        return;
+    }
+
+    auto skyboxVertexAsset = assetsManager->Get<Shader>(skyboxProgramAsset.obj->vertexShader);
+    auto pSkyboxVertexShader = skyboxVertexAsset.obj;
+    if (!pSkyboxVertexShader || !skyboxVertexAsset.handle.IsValid())
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader: skyboxVertex");
+        assert(false);
+        return;
+    }
     Fleur::Graphics::SFLShaderInfo skyboxVertexShaderInfo{};
-    skyboxVertexShaderInfo.shaderCode = pSkyboxVertexShader->GetShaderCode();
-    skyboxVertexShaderInfo.sizeBytes = pSkyboxVertexShader->GetShaderCodeSizeB();
+    skyboxVertexShaderInfo.shaderCode = pSkyboxVertexShader->Data();
+    skyboxVertexShaderInfo.sizeBytes = pSkyboxVertexShader->SizeBytes();
 
-    auto pSkyboxFragmentShader = assetsManager->Get<Shader>("skyboxFragment").obj;
+    auto skyboxFragmentAsset = assetsManager->Get<Shader>(skyboxProgramAsset.obj->fragmentShader);
+    auto pSkyboxFragmentShader = skyboxFragmentAsset.obj;
+    if (!pSkyboxFragmentShader || !skyboxFragmentAsset.handle.IsValid())
+    {
+        FL_CORE_ERROR("[Renderer] missing required shader: skyboxFragment");
+        assert(false);
+        return;
+    }
     Fleur::Graphics::SFLShaderInfo skyboxFragmentShaderInfo{};
-    skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->GetShaderCode();
-    skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->GetShaderCodeSizeB();
+    skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->Data();
+    skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->SizeBytes();
 
     m_Backend->CreateSkybox(fallbackAsset.handle.id, &skyboxVertexShaderInfo, &skyboxFragmentShaderInfo);
 }
@@ -154,6 +198,7 @@ void Fleur::Graphics::Renderer::OnShutdown()
      m_Swapchain->Release();*/
 
     delete m_Backend;
+    m_Backend = nullptr;
 }
 
 void Fleur::Graphics::Renderer::StartResize()
@@ -193,7 +238,7 @@ void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model
     for (size_t i = 0; i < model->GetMaterialsCount(); i++)
     {
         const auto& material = model->GetMaterialsData() + i;
-        materials.emplace_back(material->albedo, material->normal);
+        materials.push_back({material->albedo, material->normal, material->shaderProgram});
     }
     Fleur::Graphics::SFLMaterialViewInfo materialViewInfo{};
     materialViewInfo.pData = materials.data();
@@ -392,6 +437,23 @@ void Fleur::Graphics::Renderer::OnFixedUpdate()
 void Fleur::Graphics::Renderer::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     m_Backend->SubmitImageViews(pInfo);
+}
+
+bool Fleur::Graphics::Renderer::CreateOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, const Fleur::Graphics::Shader& vertexShader,
+                                                           const Fleur::Graphics::Shader& fragmentShader)
+{
+    if (!m_Backend || !programHandle.IsValid())
+        return false;
+
+    Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
+    vertexShaderInfo.shaderCode = vertexShader.Data();
+    vertexShaderInfo.sizeBytes = vertexShader.SizeBytes();
+
+    Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
+    fragmentShaderInfo.shaderCode = fragmentShader.Data();
+    fragmentShaderInfo.sizeBytes = fragmentShader.SizeBytes();
+
+    return m_Backend->CreateOrGetGraphicsProgram(programHandle, &vertexShaderInfo, &fragmentShaderInfo);
 }
 
 void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)

@@ -103,6 +103,8 @@ public:
     }
 
     void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
+    bool CreateOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, const Fleur::Graphics::Shader& vertexShader,
+                                    const Fleur::Graphics::Shader& fragmentShader);
     void UpdateViewport(Fleur::SRect& rect);
 
     void OnShutdown();

@@ -19,6 +19,8 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void AddToDrawList(SFLModelView* pModelView) override;
     virtual void Update(SFLCameraData& cameraData) override;
     virtual void SubmitImageViews(SFLImageViewInfo* pInfo) override;
+    virtual bool CreateOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, SFLShaderInfo* pVertexShaderInfo,
+                                            SFLShaderInfo* pFragmentShaderInfo) override;
 
     virtual void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo) override;
     virtual void SetSkybox(AssetID id) override;

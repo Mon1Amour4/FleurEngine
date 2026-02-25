@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../AssetHandle.h"
+
 namespace Fleur::Graphics
 {
 using AssetID = uint32_t;
@@ -23,6 +25,7 @@ struct SFLMaterialView
 {
     uint32_t albedoID{};
     uint32_t normalID{};
+    Fleur::AssetHandle shaderProgram{};
 };
 struct SFLMaterialViewInfo
 {

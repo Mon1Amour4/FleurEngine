@@ -32,6 +32,10 @@ void vk::backend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->submitImageViews(pInfo);
 }
+bool vk::backend::CreateOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
+{
+    return pImpl->createOrGetGraphicsProgram(programHandle, pVertexShaderInfo, pFragmentShaderInfo);
+}
 void vk::backend::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
     pImpl->createSkybox(id, pVertexShaderInfo, pFragmentShaderInfo);
@@ -203,7 +207,7 @@ vk::backend::impl::~impl()
     delete m_StaticGeometryUboDsl;
 
     // 4. Pipeline
-    delete m_GeometryPipeline;
+    m_GeometryPipeline = nullptr;
 
     // 5. Swapchain & Framebuffers & swapchain image views
 
@@ -237,6 +241,8 @@ vk::backend::impl::~impl()
     vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
 
     // 12. LogicalDevice
+    m_GraphicsProgramShaders.clear();
+    m_ShaderMap.clear();
     delete m_Device;
 
     // 13. Debug Utills & Validation Layers
@@ -442,10 +448,49 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
     pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
+    m_DefaultGeometryPipelineInfo = pipelineInfo;
 
     FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
 
     return pipeline;
+}
+
+bool vk::backend::impl::createOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, Fleur::Graphics::SFLShaderInfo* pVertexShaderInfo,
+                                                   Fleur::Graphics::SFLShaderInfo* pFragmentShaderInfo)
+{
+    if (!programHandle.IsValid() || !pVertexShaderInfo || !pFragmentShaderInfo || !pVertexShaderInfo->shaderCode || !pFragmentShaderInfo->shaderCode)
+        return false;
+
+    const uint64_t programKey = (static_cast<uint64_t>(programHandle.generation) << 32) | programHandle.id;
+    auto it = m_GraphicsProgramShaders.find(programKey);
+    if (it != m_GraphicsProgramShaders.end())
+        return true;
+
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexShaderInfo->shaderCode,
+                                          .vertexSize = pVertexShaderInfo->sizeBytes,
+                                          .pFragmentData = pFragmentShaderInfo->shaderCode,
+                                          .fragmentSize = pFragmentShaderInfo->sizeBytes};
+
+    auto& shader = m_GraphicsProgramShaders.emplace(programKey, vk::FVkShader()).first->second;
+    shader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+    auto pipelineInfo = m_DefaultGeometryPipelineInfo;
+    shader.GetPipeline(pipelineInfo);
+    return true;
+}
+
+FVkPipeline* vk::backend::impl::getGraphicsPipeline(const Fleur::AssetHandle& programHandle)
+{
+    if (!programHandle.IsValid())
+        return nullptr;
+
+    const uint64_t programKey = (static_cast<uint64_t>(programHandle.generation) << 32) | programHandle.id;
+    auto it = m_GraphicsProgramShaders.find(programKey);
+    if (it == m_GraphicsProgramShaders.end())
+        return nullptr;
+
+    auto pipelineInfo = m_DefaultGeometryPipelineInfo;
+    return it->second.GetPipeline(pipelineInfo);
 }
 
 
@@ -605,6 +650,8 @@ void vk::backend::impl::addToDrawList(Fleur::Graphics::SFLModelView* pModelView)
         draw.vertexOffset = globalVertexOffset;
 
         draw.material.albedo = pModelView->materials.pData[mesh.materialIdx].albedoID;
+        draw.material.normal = pModelView->materials.pData[mesh.materialIdx].normalID;
+        draw.material.shaderProgram = pModelView->materials.pData[mesh.materialIdx].shaderProgram;
 
         globalIndexOffset += draw.indexCount;
     }
@@ -1057,8 +1104,6 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     else if (m_IndexBuffer->StrideBytes() == 2)
         cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
 
-    cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
-
     VkViewport defaultViewport{.x = 0,
                                .y = 0,
                                .width = (float)m_Swapchain->GetSwapchainExtent().width,
@@ -1074,13 +1119,25 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     cmd.SetScissors(defaultScissors);
 
     std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[currentFrame], m_StaticGeometryDescriptorSetTextures};
-    vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline->GetPipelineLayout(), 0, dst.size(), dst.data(), 0,
-                            nullptr);
+    VkPipelineLayout currentPipelineLayout = VK_NULL_HANDLE;
 
     for (const auto& draw : m_DrawList)
     {
+        FVkPipeline* pipeline = getGraphicsPipeline(draw.material.shaderProgram);
+        if (!pipeline)
+            pipeline = m_GeometryPipeline;
+        if (!pipeline)
+            continue;
+
+        if (pipeline->GetPipelineLayout() != currentPipelineLayout)
+        {
+            currentPipelineLayout = pipeline->GetPipelineLayout();
+            cmd.BindPipeline(pipeline->GetPipeline());
+            vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipelineLayout, 0, dst.size(), dst.data(), 0, nullptr);
+        }
+
         SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
-        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.PushConstant(currentPipelineLayout, VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
     }
     cmd.EndRendering();

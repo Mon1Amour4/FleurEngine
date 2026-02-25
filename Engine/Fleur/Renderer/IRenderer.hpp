@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "../WindowPrimitives.hpp"
 #include "Graphics.hpp"
 #include "RenderViews.hpp"
@@ -31,8 +33,8 @@ enum EFLIndexInputDescription
 
 struct SFLShaderInfo
 {
-    const char* shaderCode = nullptr;
-    uint32_t sizeBytes = 0;
+    const void* shaderCode = nullptr;
+    size_t sizeBytes = 0;
 };
 
 struct SFLGeometryPass
@@ -66,6 +68,8 @@ struct IRenderer
     virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) = 0;
     virtual void Update(Fleur::Graphics::SFLCameraData& cameraData) = 0;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
+    virtual bool CreateOrGetGraphicsProgram(const Fleur::AssetHandle& programHandle, SFLShaderInfo* pVertexShaderInfo,
+                                            SFLShaderInfo* pFragmentShaderInfo) = 0;
 
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;

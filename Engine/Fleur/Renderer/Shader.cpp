@@ -1,17 +1,25 @@
 #include "Shader.h"
 
-Fleur::Graphics::Shader::Shader(const char* shaderCode, size_t size)
-    : byteCode(size)
+#include <cstring>
+
+Fleur::Graphics::Shader::Shader(const void* byteCode, size_t sizeBytes)
+    : m_ByteCode(sizeBytes)
 {
-    memmove(byteCode.data(), shaderCode, size);
+    if (byteCode && sizeBytes > 0)
+        std::memcpy(m_ByteCode.data(), byteCode, sizeBytes);
 }
 
-const char* Fleur::Graphics::Shader::GetShaderCode() const
+const void* Fleur::Graphics::Shader::Data() const
 {
-    return byteCode.data();
+    return m_ByteCode.data();
 }
 
-uint32_t Fleur::Graphics::Shader::GetShaderCodeSizeB() const
+size_t Fleur::Graphics::Shader::SizeBytes() const
 {
-    return byteCode.size();
+    return m_ByteCode.size();
+}
+
+bool Fleur::Graphics::Shader::Empty() const
+{
+    return m_ByteCode.empty();
 }

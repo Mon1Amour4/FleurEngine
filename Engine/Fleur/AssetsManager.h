@@ -9,11 +9,13 @@
 #include "Renderer/Color.h"
 #include "Renderer/RenderViews.hpp"
 #include "Renderer/Shader.h"
+#include "Renderer/ShaderLibrary.h"
 #include "Renderer/Skybox.h"
 #include "Services/ServiceInterfaces.hpp"
 
 using ImageType = Fleur::Graphics::Image2D;
 using ShaderType = Fleur::Graphics::Shader;
+using ShaderProgramType = Fleur::Graphics::ShaderProgram;
 using ModelType = Fleur::Graphics::Model;
 using CubemapType = Fleur::Graphics::CubemapImage;
 
@@ -22,6 +24,8 @@ using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
 using CubemapRecord = Fleur::AssetRecord<Fleur::Graphics::CubemapImage>;
 
 using ImageAsset = Fleur::Asset<ImageType>;
+using ShaderAsset = Fleur::Asset<ShaderType>;
+using ShaderProgramAsset = Fleur::Asset<ShaderProgramType>;
 using ModelAsset = Fleur::Asset<ModelType>;
 using CubemapAsset = Fleur::Asset<CubemapType>;
 
@@ -137,6 +141,10 @@ public:
     ImageAsset LoadImage(std::string_view path, ImageImportSettings imageSettings);
     /// Loads a cubemap immediately and returns an asset with a valid handle.
     CubemapAsset LoadCubemap(std::string_view path, CubemapImportSettings settings);
+    /// Loads shader binary into shader library.
+    ShaderAsset LoadShader(std::string_view path);
+    /// Creates or returns a shader program by name from vertex/fragment shader paths.
+    ShaderProgramAsset LoadShaderProgram(std::string_view programName, std::string_view vertexPath, std::string_view fragmentPath);
 
     // ---------- Async ----------
     /// Registers async model loading and returns operation state.
@@ -157,13 +165,7 @@ public:
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
-            const std::string key{name};
-            if (auto idIt = m_ShaderMapString.find(key); idIt != m_ShaderMapString.end())
-            {
-                if (auto shaderIt = m_ShaderMap.find(idIt->second); shaderIt != m_ShaderMap.end())
-                    return Fleur::Asset<T>{{idIt->second, 1}, &shaderIt->second};
-            }
-            return Asset<T>({{}, nullptr});
+            return GetShaderByName(name);
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -172,6 +174,10 @@ public:
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
         {
             return m_ModelCache.Get(name);
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::ShaderProgram>)
+        {
+            return GetShaderProgramByName(name);
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
         {
@@ -193,8 +199,7 @@ public:
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
-            if (auto it = m_ShaderMap.find(handle.id); it != m_ShaderMap.end())
-                return Fleur::Asset<T>{handle, &it->second};
+            return GetShaderByHandle(handle);
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -203,6 +208,10 @@ public:
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
         {
             return m_ModelCache.Get(handle);
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::ShaderProgram>)
+        {
+            return GetShaderProgramByHandle(handle);
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
         {
@@ -274,10 +283,7 @@ private:
     std::atomic<uint32_t> m_GlobalId = 1;
     std::atomic_bool m_Stopping{false};
     std::atomic<uint32_t> m_InFlightTasks{0};
-
-    void load_all_shaders();
-    std::unordered_map<std::string, AssetID> m_ShaderMapString;
-    std::unordered_map<AssetID, Fleur::Graphics::Shader> m_ShaderMap;
+    Fleur::Graphics::ShaderLibrary m_ShaderLibrary;
 
     Fleur::AssetCache<Fleur::Graphics::Image2D> m_Image2DCache;
     Fleur::AssetCache<Fleur::Graphics::Model> m_ModelCache;
@@ -316,6 +322,10 @@ private:
     std::condition_variable m_ShutdownCv;
 
     void PollMessages();
+    ShaderAsset GetShaderByName(std::string_view name);
+    ShaderAsset GetShaderByHandle(const AssetHandle& handle);
+    ShaderProgramAsset GetShaderProgramByName(std::string_view name);
+    ShaderProgramAsset GetShaderProgramByHandle(const AssetHandle& handle);
 
     AssetID GetNextID();
 

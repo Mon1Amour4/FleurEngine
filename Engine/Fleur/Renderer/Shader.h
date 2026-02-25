@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <vector>
+
 namespace Fleur::Graphics
 {
 
@@ -7,15 +11,16 @@ class Shader
 {
 public:
     Shader() = default;
-    Shader(const char* shaderCode, size_t size);
+    Shader(const void* byteCode, size_t sizeBytes);
 
     ~Shader() = default;
 
-    const char* GetShaderCode() const;
-    uint32_t GetShaderCodeSizeB() const;
+    const void* Data() const;
+    size_t SizeBytes() const;
+    bool Empty() const;
 
 private:
-    std::vector<char> byteCode;
+    std::vector<uint8_t> m_ByteCode;
 };
 
 }  // namespace Fleur::Graphics

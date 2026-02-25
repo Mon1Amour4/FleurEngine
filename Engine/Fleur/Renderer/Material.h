@@ -8,8 +8,9 @@ namespace Fleur::Graphics
 
 struct Material
 {
-    Fleur::AssetID albedo;
-    Fleur::AssetID normal;
+    Fleur::AssetID albedo{};
+    Fleur::AssetID normal{};
+    Fleur::AssetHandle shaderProgram{};
 };
 
 // class TextureBase;
