@@ -7,6 +7,7 @@ namespace Fleur::Graphics
 {
 struct SVertexData;
 class Material;
+class MeshBuilder;
 
 class FLEUR_API Model
 {
