@@ -1,5 +1,7 @@
 #pragma once
 
+#include <condition_variable>
+#include <string>
 #include <type_traits>
 
 #include "AssetCache.h"
@@ -93,7 +95,7 @@ struct AssetLoadResult
     AssetID ID = 0;
     AssetHandle handle{};
     EAsyncOperationStatus loadingStatus = LOADING_STATUS_MAX_VALUE;
-    bool* notifyOnGpuUpload{nullptr};
+    std::shared_ptr<std::atomic_bool> notifyOnGpuUpload;
 };
 
 class AssetsManager;
@@ -141,10 +143,10 @@ public:
     ModelAsyncOpShared LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback = nullptr);
     /// Registers async image loading and returns operation state.
     ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback = nullptr,
-                                      CallbackInvocationPoint callbackType = _MAX_VALUE);
+                                      CallbackInvocationPoint callbackType = AFTER_CPU_LOAD);
     /// Registers async cubemap loading and returns operation state.
     CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback = nullptr,
-                                          CallbackInvocationPoint callbackType = _MAX_VALUE);
+                                          CallbackInvocationPoint callbackType = AFTER_CPU_LOAD);
 
     template <typename T>
     /// Returns an asset by logical name.
@@ -155,8 +157,13 @@ public:
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
-            AssetID id = m_ShaderMapString[name.data()];
-            return Fleur::Asset<T>{{id, 1}, &m_ShaderMap[id]};
+            const std::string key{name};
+            if (auto idIt = m_ShaderMapString.find(key); idIt != m_ShaderMapString.end())
+            {
+                if (auto shaderIt = m_ShaderMap.find(idIt->second); shaderIt != m_ShaderMap.end())
+                    return Fleur::Asset<T>{{idIt->second, 1}, &shaderIt->second};
+            }
+            return Asset<T>({{}, nullptr});
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -166,8 +173,16 @@ public:
         {
             return m_ModelCache.Get(name);
         }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
+        {
+            return m_CubemapCache.Get(name);
+        }
+        else
+        {
+            static_assert(false, "AssetsManager::Get(name): unsupported asset type");
+        }
 
-        return Asset<T>({{}, nullptr});
+        return Asset<T>{{}, nullptr};
     }
     template <typename T>
     /// Returns an asset by stable handle (ID + generation).
@@ -189,8 +204,16 @@ public:
         {
             return m_ModelCache.Get(handle);
         }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
+        {
+            return m_CubemapCache.Get(handle);
+        }
+        else
+        {
+            static_assert(false, "AssetsManager::Get(handle): unsupported asset type");
+        }
 
-        return Asset<T>({{}, nullptr});
+        return Asset<T>{{}, nullptr};
     }
 
     template <typename T>
@@ -204,6 +227,14 @@ public:
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
         {
             return m_ModelCache.Release(name);
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
+        {
+            return m_CubemapCache.Release(name);
+        }
+        else
+        {
+            static_assert(false, "AssetsManager::Release(name): unsupported asset type");
         }
     }
     template <typename T>
@@ -221,16 +252,28 @@ public:
         {
             return m_ModelCache.Release(handle);
         }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::CubemapImage>)
+        {
+            return m_CubemapCache.Release(handle);
+        }
+        else
+        {
+            static_assert(false, "AssetsManager::Release(handle): unsupported asset type");
+        }
     }
 
     void OnAssetLoaded(AssetLoadResult info)
     {
+        if (m_Stopping.load(std::memory_order_acquire))
+            return;
         std::lock_guard<std::mutex> lc(m_MessageMutex);
         m_MessageQueue.push_back(info);
     }
 
 private:
     std::atomic<uint32_t> m_GlobalId = 1;
+    std::atomic_bool m_Stopping{false};
+    std::atomic<uint32_t> m_InFlightTasks{0};
 
     void load_all_shaders();
     std::unordered_map<std::string, AssetID> m_ShaderMapString;
@@ -244,13 +287,13 @@ private:
     {
         uint32_t framesSinceLastUpload = 0;
         std::vector<Fleur::Graphics::SFLImageView> images;
-        std::list<bool*> notifyMap;
+        std::list<std::shared_ptr<std::atomic_bool>> notifyMap;
 
         bool ReadyToUpload()
         {
             return (framesSinceLastUpload > 5 && images.size() > 0) || images.size() > 10;
         };
-        void Add(Fleur::Graphics::SFLImageView view, bool* notify)
+        void Add(Fleur::Graphics::SFLImageView view, const std::shared_ptr<std::atomic_bool>& notify)
         {
             std::lock_guard<std::mutex> lc(mx);
             images.push_back(view);
@@ -267,6 +310,10 @@ private:
 
     std::mutex m_MessageMutex;
     std::deque<AssetLoadResult> m_MessageQueue;
+    std::mutex m_GpuUploadMutex;
+    std::condition_variable m_GpuUploadCv;
+    std::mutex m_ShutdownMutex;
+    std::condition_variable m_ShutdownCv;
 
     void PollMessages();
 

@@ -1,5 +1,7 @@
 #include "AssetsManager.h"
 
+#include <chrono>
+
 #include "FleurAllocator.hpp"
 #include "Renderer/ModelFabric.h"
 
@@ -34,10 +36,29 @@ Fleur::AssetsManager::~AssetsManager()
 // ---------- Service ----------
 void Fleur::AssetsManager::OnInit()
 {
+    m_Stopping.store(false, std::memory_order_release);
     load_all_shaders();
 }
 void Fleur::AssetsManager::OnShutdown()
 {
+    m_Stopping.store(true, std::memory_order_release);
+
+    {
+        std::unique_lock<std::mutex> lock(m_ShutdownMutex);
+        m_ShutdownCv.wait_for(lock, std::chrono::seconds(5), [this]() { return m_InFlightTasks.load(std::memory_order_acquire) == 0; });
+    }
+
+    {
+        std::lock_guard<std::mutex> messageLock(m_MessageMutex);
+        m_MessageQueue.clear();
+    }
+
+    {
+        std::lock_guard<std::mutex> uploadLock(m_ImagesToUpload.mx);
+        m_ImagesToUpload.images.clear();
+        m_ImagesToUpload.notifyMap.clear();
+        m_ImagesToUpload.framesSinceLastUpload = 0;
+    }
 }
 void Fleur::AssetsManager::OnUpdate(float dtTime)
 {
@@ -60,10 +81,11 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
         m_ImagesToUpload.framesSinceLastUpload = 0;
         for (auto item : m_ImagesToUpload.notifyMap)
         {
-            *item = true;
+            item->store(true, std::memory_order_release);
         }
         m_ImagesToUpload.Clear();
         m_ImagesToUpload.notifyMap.clear();
+        m_GpuUploadCv.notify_all();
     }
 
 
@@ -140,10 +162,7 @@ void Fleur::AssetsManager::PollMessages()
 
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
-                m_ImagesToUpload.images.push_back(view);
-
-                if (message.notifyOnGpuUpload)
-                    m_ImagesToUpload.notifyMap.emplace_back(message.notifyOnGpuUpload);
+                m_ImagesToUpload.Add(view, message.notifyOnGpuUpload);
 
                 m_Image2DCache.RemoveFromAsyncOperations(loadedImage->GetName());
                 break;
@@ -167,10 +186,7 @@ void Fleur::AssetsManager::PollMessages()
 
                 Fleur::Graphics::SFLImageView view = loadedImage->GetView();
                 view.ID = message.ID;
-                m_ImagesToUpload.images.push_back(view);
-
-                if (message.notifyOnGpuUpload)
-                    m_ImagesToUpload.notifyMap.emplace_back(message.notifyOnGpuUpload);
+                m_ImagesToUpload.Add(view, message.notifyOnGpuUpload);
 
                 m_CubemapCache.RemoveFromAsyncOperations(loadedImage->GetName());
                 break;
@@ -217,6 +233,8 @@ ImageAsset Fleur::AssetsManager::LoadImage(std::string_view path, ImageImportSet
 CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImportSettings cubemapSettings)
 {
     CubemapRecord cubemapRecord = m_CubemapCache.Register(path, GetNextID());
+    if (cubemapRecord.alreadyExist)
+        return CubemapAsset{cubemapRecord.asset};
 
     ImageAsset tmpImageAsset{{}, new Fleur::Graphics::Image2D};
 
@@ -251,6 +269,9 @@ CubemapAsset Fleur::AssetsManager::LoadCubemap(std::string_view path, CubemapImp
 // ---------- Async ----------
 ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback)
 {
+    if (m_Stopping.load(std::memory_order_acquire))
+        return std::make_shared<ModelAsyncOp>(ModelAsset{{}, nullptr}, EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+
     ModelAsyncOpShared sharedOperation = m_ModelCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
         return sharedOperation;
@@ -265,9 +286,12 @@ ModelAsyncOpShared Fleur::AssetsManager::LoadModelAsync(std::string_view path, s
 
     return sharedOperation;
 }
-ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings = {.imageSource = IMAGE_SOURCE_DISK},
-                                                        std::function<void(ImageAsset&)> callback, CallbackInvocationPoint callbackType)
+ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback,
+                                                        CallbackInvocationPoint callbackType)
 {
+    if (m_Stopping.load(std::memory_order_acquire))
+        return std::make_shared<ImageAsyncOp>(ImageAsset{{}, nullptr}, EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+
     ImageAsyncOpShared sharedOperation = m_Image2DCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
         return sharedOperation;
@@ -285,6 +309,9 @@ ImageAsyncOpShared Fleur::AssetsManager::LoadImageAsync(std::string_view path, I
 CubemapAsyncOpShared Fleur::AssetsManager::LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings,
                                                             std::function<void(CubemapAsset&)> clientCallback, CallbackInvocationPoint callbackType)
 {
+    if (m_Stopping.load(std::memory_order_acquire))
+        return std::make_shared<CubemapAsyncOp>(CubemapAsset{{}, nullptr}, EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+
     CubemapAsyncOpShared sharedOperation = m_CubemapCache.RegisterAsync(path, GetNextID());
     if (sharedOperation->status.GetStatus() != REGISTERED)
         return sharedOperation;
@@ -372,9 +399,28 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
                                                   std::function<void(ModelAsset&)> clientCallback)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+    m_InFlightTasks.fetch_add(1, std::memory_order_acq_rel);
     threadPool->Submit(
         [this](ModelAsyncOpShared handle, std::string_view path, AssetLoadCallback internalCallback, std::function<void(ModelAsset&)> clientCallback)
         {
+            struct TaskScope
+            {
+                Fleur::AssetsManager* manager;
+                ~TaskScope()
+                {
+                    if (manager->m_InFlightTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                        manager->m_ShutdownCv.notify_all();
+                }
+            } taskScope{this};
+
+            if (m_Stopping.load(std::memory_order_acquire))
+            {
+                handle->status.SetStatus(EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
+                return;
+            }
+
             handle->status.SetStatus(EAsyncOperationStatus::LOADING);
 
             ModelType* modelPtr = handle->asset.obj;
@@ -439,7 +485,7 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
             internalCallback.result.loadingStatus = handle->status.GetStatus();
             internalCallback.operator()();
 
-            if (clientCallback)
+            if (clientCallback && !m_Stopping.load(std::memory_order_acquire))
                 clientCallback.operator()(handle->asset);
         },
         sharedOperation, path, internalCallback, clientCallback);
@@ -450,15 +496,34 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                                                   CallbackInvocationPoint callbackType)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+    m_InFlightTasks.fetch_add(1, std::memory_order_acq_rel);
 
     threadPool->Submit(
         [this](std::string_view path, ImageAsyncOpShared handle, ImageImportSettings imageSettings, AssetLoadCallback internalCallback,
                std::function<void(ImageAsset&)> clientCallback, CallbackInvocationPoint callbackType)
         {
+            struct TaskScope
+            {
+                Fleur::AssetsManager* manager;
+                ~TaskScope()
+                {
+                    if (manager->m_InFlightTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                        manager->m_ShutdownCv.notify_all();
+                }
+            } taskScope{this};
+
             ImageType* imagePtr = handle->asset.obj;
 
+            if (m_Stopping.load(std::memory_order_acquire))
+            {
+                handle->status.SetStatus(EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+                internalCallback.result.loadingStatus = handle->status.GetStatus();
+                internalCallback.operator()();
+                return;
+            }
+
             if (callbackType == AFTER_GPU_UPLOAD)
-                internalCallback.result.notifyOnGpuUpload = &handle->isGpuUploaded;
+                internalCallback.result.notifyOnGpuUpload = handle->isGpuUploaded;
 
             if (!handle->status.SetStatus(EAsyncOperationStatus::LOADING))
             {
@@ -528,12 +593,13 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                 size_t size = width * height * channels;
 
                 uint32_t colorData = imageSettings.color.Data();
+                const unsigned char* colorBytes = reinterpret_cast<const unsigned char*>(&colorData);
 
                 Fleur::Memory::FleurAllocator<unsigned char> alloc;
                 unsigned char* pData = alloc.allocate(size);
                 for (size_t i = 0; i < size; i += channels)
                 {
-                    std::memcpy(pData + i, &colorData + i, channels);
+                    std::memcpy(pData + i, colorBytes, channels);
                 }
 
                 Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
@@ -552,7 +618,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
             internalCallback.result.loadingStatus = handle->status.GetStatus();
             internalCallback();
 
-            if (clientCallback)
+            if (clientCallback && !m_Stopping.load(std::memory_order_acquire))
             {
                 if (callbackType == AFTER_CPU_LOAD)
                 {
@@ -561,14 +627,16 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                 }
                 else if (callbackType == AFTER_GPU_UPLOAD)
                 {
-                    while (!handle->isGpuUploaded)
-                    {
-                    };
+                    std::unique_lock<std::mutex> lock(m_GpuUploadMutex);
+                    m_GpuUploadCv.wait(lock, [this, &handle]()
+                                       { return m_Stopping.load(std::memory_order_acquire) || handle->isGpuUploaded->load(std::memory_order_acquire); });
+                    if (m_Stopping.load(std::memory_order_acquire))
+                        return;
                     clientCallback(handle->asset);
                 }
                 else
                 {
-                    assert(false);
+                    clientCallback(handle->asset);
                 }
             }
         },
@@ -583,14 +651,33 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
                                                     CallbackInvocationPoint callbackType)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
+    m_InFlightTasks.fetch_add(1, std::memory_order_acq_rel);
 
     threadPool->Submit(
         [this](std::string_view path, CubemapAsyncOpShared asyncOperation, CubemapImportSettings cubemapSettings, AssetLoadCallback internalCallback,
                std::function<void(CubemapAsset&)> clientCallback, CallbackInvocationPoint callbackType)
         {
+            struct TaskScope
+            {
+                Fleur::AssetsManager* manager;
+                ~TaskScope()
+                {
+                    if (manager->m_InFlightTasks.fetch_sub(1, std::memory_order_acq_rel) == 1)
+                        manager->m_ShutdownCv.notify_all();
+                }
+            } taskScope{this};
+
+            if (m_Stopping.load(std::memory_order_acquire))
+            {
+                asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
+                internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
+                internalCallback();
+                return;
+            }
+
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADING);
             if (callbackType == AFTER_GPU_UPLOAD)
-                internalCallback.result.notifyOnGpuUpload = &asyncOperation->isGpuUploaded;
+                internalCallback.result.notifyOnGpuUpload = asyncOperation->isGpuUploaded;
 
             Fleur::Graphics::Image2D* image2d = new Fleur::Graphics::Image2D(path);
             ImageAsset tmpImageAsset{asyncOperation->asset.handle, image2d};
@@ -622,7 +709,7 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
             internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
             internalCallback();
             
-            if (clientCallback)
+            if (clientCallback && !m_Stopping.load(std::memory_order_acquire))
             {
                 if (callbackType == AFTER_CPU_LOAD)
                 {
@@ -631,12 +718,16 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
                 }
                 else if (callbackType == AFTER_GPU_UPLOAD)
                 {
-                    while(!asyncOperation->isGpuUploaded){};
+                    std::unique_lock<std::mutex> lock(m_GpuUploadMutex);
+                    m_GpuUploadCv.wait(lock, [this, &asyncOperation]()
+                                       { return m_Stopping.load(std::memory_order_acquire) || asyncOperation->isGpuUploaded->load(std::memory_order_acquire); });
+                    if (m_Stopping.load(std::memory_order_acquire))
+                        return;
                     clientCallback(asyncOperation->asset);
                 }
                 else
                 {
-                    assert(false);
+                    clientCallback(asyncOperation->asset);
                 }
             }
         },
@@ -691,12 +782,13 @@ void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::Ima
     size_t size = width * height * channels;
 
     uint32_t colorData = imageSettings.color.Data();
+    const unsigned char* colorBytes = reinterpret_cast<const unsigned char*>(&colorData);
 
     Fleur::Memory::FleurAllocator<unsigned char> alloc;
     unsigned char* pData = alloc.allocate(size);
     for (size_t i = 0; i < size; i += channels)
     {
-        std::memcpy(pData + i, &colorData + i, channels);
+        std::memcpy(pData + i, colorBytes, channels);
     }
 
     Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
@@ -722,8 +814,15 @@ void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::Im
     stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));
     unsigned char* imgData =
         stbi_load_from_memory(imageSettings.pMemoryData, static_cast<int>(imageSettings.sizeInMemory), &width, &height, &channels, desiredChannels);
+    if (!imgData)
+    {
+        FL_CORE_ERROR("{0} ID: {1}, Name: {2}, Reason: {3}", CORRUPTED_ASSET_ERROR_MESSAGE, imageID, imagePtr->GetName(), stbi_failure_reason());
+        assert(false);
+        return;
+    }
 
     Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
 
     imagePtr->PostCreate(info);
+    stbi_image_free(imgData);
 }

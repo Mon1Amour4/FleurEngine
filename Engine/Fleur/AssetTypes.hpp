@@ -1,5 +1,8 @@
 #pragma once
 
+#include <atomic>
+#include <memory>
+
 #include "AssetHandle.h"
 #include "Renderer/Image2D.h"
 #include "Renderer/Model.h"
@@ -33,20 +36,21 @@ public:
 
     bool SetStatus(Fleur::EAsyncOperationStatus status)
     {
-        if (currentStatus == LOADING_STATUS_TO_TERMINATE || (currentStatus == LOADING_STATUS_TO_TERMINATE && status == !CORRUPTED))
+        const EAsyncOperationStatus current = currentStatus.load(std::memory_order_acquire);
+        if (current == LOADING_STATUS_TO_TERMINATE && status != CORRUPTED)
             return false;
 
-        currentStatus = status;
+        currentStatus.store(status, std::memory_order_release);
         return true;
     }
 
     inline EAsyncOperationStatus GetStatus() const
     {
-        return currentStatus;
+        return currentStatus.load(std::memory_order_acquire);
     }
 
 private:
-    EAsyncOperationStatus currentStatus;
+    std::atomic<EAsyncOperationStatus> currentStatus{LOADING_STATUS_MAX_VALUE};
 };
 
 
@@ -62,7 +66,7 @@ struct AsyncOperation
 {
     Asset<T> asset;
     FLAsyncLoadStatus status;
-    bool isGpuUploaded{false};
+    std::shared_ptr<std::atomic_bool> isGpuUploaded = std::make_shared<std::atomic_bool>(false);
 };
 
 template <typename T>

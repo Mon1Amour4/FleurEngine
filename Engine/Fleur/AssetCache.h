@@ -36,8 +36,6 @@ public:
         stringMap.emplace(name, handle);
         generationMap.emplace(id, handle.generation);
         T* ptr = &map.emplace(id, name).first->second;
-        m_size++;
-
         return {true, false, {handle, ptr}};
     };
 
@@ -62,14 +60,14 @@ public:
         T* ptr = &map.emplace(id, name).first->second;
         stringMap.emplace(name, handle);
         generationMap.emplace(id, handle.generation);
-        m_size++;
         return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset{handle, ptr}, REGISTERED)).first->second;
     };
 
     /// Returns existing async operation for asset name or sentinel operation.
     TAsyncOpShared FindExistingAsyncOperation(std::string_view name)
     {
-        if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
+        const std::string key{name};
+        if (auto operation = asyncMap.find(key); operation != asyncMap.end())
             return operation->second;
         else
             return {std::make_shared<TAsyncOp>(TAsset{{}, nullptr}, EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)};
@@ -79,8 +77,9 @@ public:
     AssetRecord<T> Exist(std::string_view name)
     {
         TRecord record{false, false, {{}, nullptr}};
+        const std::string key{name};
 
-        if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
+        if (auto rec = stringMap.find(key); rec != stringMap.end())
         {
             const AssetHandle handle = rec->second;
             if (auto gen = generationMap.find(handle.id); gen != generationMap.end() && gen->second == handle.generation)
@@ -121,7 +120,8 @@ public:
     void Release(std::string_view name)
     {
         std::lock_guard<std::mutex> lc(mutex);
-        if (auto record = stringMap.find(name.data()); record != stringMap.end())
+        const std::string key{name};
+        if (auto record = stringMap.find(key); record != stringMap.end())
         {
             AssetHandle handle = record->second;
             if (auto operation = asyncMap.find(GetNameFromPath(name)); operation != asyncMap.end())
@@ -130,7 +130,7 @@ public:
                 operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
                 return;
             }
-            stringMap.erase(name.data());
+            stringMap.erase(key);
             generationMap.erase(handle.id);
             map.erase(handle.id);
         }
@@ -145,13 +145,14 @@ public:
         if (auto record = map.find(handle.id); record != map.end())
         {
             std::string_view name = record->second.GetName();
-            if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
+            const std::string key{name};
+            if (auto operation = asyncMap.find(key); operation != asyncMap.end())
             {
                 asyncOperationsToRelease.emplace(operation->first, operation->second);
                 operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
                 return;
             }
-            stringMap.erase(name.data());
+            stringMap.erase(key);
             generationMap.erase(handle.id);
             map.erase(handle.id);
         }
@@ -175,7 +176,8 @@ public:
     /// Removes finished async operation by logical name.
     void RemoveFromAsyncOperations(std::string_view name)
     {
-        asyncMap.erase(name.data());
+        std::lock_guard<std::mutex> lc(mutex);
+        asyncMap.erase(std::string(name));
     }
 
 private:
@@ -189,7 +191,6 @@ private:
     std::unordered_map<std::string, AssetHandle> stringMap;
     std::unordered_map<AssetID, uint32_t> generationMap;
     std::unordered_map<AssetID, T> map;
-    std::atomic<uint32_t> m_size;
     std::mutex mutex;
 };
 
