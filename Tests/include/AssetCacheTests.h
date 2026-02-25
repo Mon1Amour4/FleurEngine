@@ -161,7 +161,7 @@ TEST(AssetCacheTest, ComplexSingleThreadLoadReleaseCombinations)
     ++getOps;
     EXPECT_EQ(releasedByName.obj, nullptr);
 
-    cache.Release(ids[3]);
+    cache.Release(Fleur::AssetHandle{ids[3], 1});
     ++releaseOps;
     auto releasedById = cache.Get(Fleur::AssetHandle{ids[3], 1});
     ++getOps;
@@ -174,7 +174,7 @@ TEST(AssetCacheTest, ComplexSingleThreadLoadReleaseCombinations)
     EXPECT_EQ(releasedByHandle.obj, nullptr);
 
     cache.RemoveFromAsyncOperations("metal.png");
-    cache.Release(ids[1]);
+    cache.Release(asyncOp->asset.handle);
     ++releaseOps;
     auto releasedAfterAsync = cache.Get(Fleur::AssetHandle{ids[1], 1});
     ++getOps;
@@ -301,7 +301,7 @@ TEST(AssetCacheTest, ComplexMultiThreadLoadReleaseCombinations)
                     case 6:
                     {
                         ++releaseByIdOps;
-                        cache.Release(id);
+                        cache.Release(Fleur::AssetHandle{id, 1});
                         break;
                     }
                     case 7:
@@ -378,7 +378,6 @@ TEST(AssetCacheTest, CornerCase_ReleaseUnknownIsNoOp)
     ASSERT_NE(record.asset.obj, nullptr);
 
     cache.Release("missing.png");
-    cache.Release(static_cast<Fleur::AssetID>(999999));
     cache.Release(Fleur::AssetHandle{999999, 1});
 
     auto existingById = cache.Get(record.asset.handle);
@@ -429,14 +428,12 @@ TEST(AssetCacheTest, CornerCase_ReleaseByNameWithActiveAsyncRequiresAsyncRemoval
     ASSERT_NE(asyncOp, nullptr);
     ASSERT_NE(asyncOp->asset.obj, nullptr);
     const std::string name = "async_release.png";
-    const Fleur::AssetID id = asyncOp->asset.handle.id;
-
     cache.Release(name);
     auto stillPresent = cache.Get(asyncOp->asset.handle);
     ASSERT_NE(stillPresent.obj, nullptr);
 
     cache.RemoveFromAsyncOperations(name);
-    cache.Release(id);
+    cache.Release(asyncOp->asset.handle);
     auto released = cache.Get(asyncOp->asset.handle);
     EXPECT_EQ(released.obj, nullptr);
 }

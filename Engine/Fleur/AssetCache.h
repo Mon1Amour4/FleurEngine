@@ -136,25 +136,6 @@ public:
         }
     };
 
-    /// Releases asset by numeric ID.
-    void Release(AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto record = map.find(id); record != map.end())
-        {
-            std::string_view name = record->second.GetName();
-            if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
-            {
-                asyncOperationsToRelease.emplace(operation->first, operation->second);
-                operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
-                return;
-            }
-            stringMap.erase(name.data());
-            generationMap.erase(id);
-            map.erase(id);
-        }
-    };
-
     /// Releases asset by handle if generation matches.
     void Release(const AssetHandle& handle)
     {

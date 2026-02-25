@@ -207,19 +207,6 @@ public:
         }
     }
     template <typename T>
-    /// Releases an asset by numeric ID.
-    void Release(AssetID id)
-    {
-        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
-        {
-            return m_Image2DCache.Release(id);
-        }
-        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
-        {
-            return m_ModelCache.Release(id);
-        }
-    }
-    template <typename T>
     /// Releases an asset by handle if generation matches.
     void Release(const AssetHandle& handle)
     {
