@@ -52,6 +52,8 @@ SET(ENGINE_HEADERS
     # Primitives
     Fleur/WindowPrimitives.hpp
     Fleur/AssetTypes.hpp
+    Fleur/AssetHandle.h
+    Fleur/AssetCache.h
 )
 
 SET(ENGINE_SOURCES
