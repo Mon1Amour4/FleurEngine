@@ -44,7 +44,8 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
     QuerySwapChainSupport(surface);
 
     uint32_t imageCount = m_SurfaceCapabilities.minImageCount + 1;
-    imageCount = std::clamp(imageCount, m_SurfaceCapabilities.minImageCount, m_SurfaceCapabilities.maxImageCount);
+    imageCount = std::clamp(imageCount, m_SurfaceCapabilities.minImageCount,
+                            m_SurfaceCapabilities.maxImageCount == 0 ? std::numeric_limits<uint32_t>::max() : m_SurfaceCapabilities.maxImageCount);
     m_SwapcainImageCount = imageCount;
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(m_SurfaceFormats);
