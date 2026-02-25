@@ -9,6 +9,7 @@ namespace Fleur
 class EventQueueWin final : public EventQueue
 {
     friend class WindowWin;
+    friend class WindowLinux;
 
 public:
     virtual void OnUpdate(float dtTime) override;
