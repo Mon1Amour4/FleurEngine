@@ -5,6 +5,10 @@
 #define NOMINMAX
 #include <windows.h>
 #define VK_USE_PLATFORM_WIN32_KHR
+#elif defined(FLEUR_PLATFORM_LINUX)
+#define VK_USE_PLATFORM_WAYLAND_KHR
+#else
+#error
 #endif
 
 #include "PrivateVulkanImpl.hpp"
@@ -72,6 +76,10 @@ vk::backend::impl::impl(bool enableValidation,
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
 #if defined(FLEUR_PLATFORM_WIN)
     instanceExtensions.push_back("VK_KHR_win32_surface");
+#elif defined(FLEUR_PLATFORM_LINUX)
+    instanceExtensions.push_back("VK_KHR_wayland_surface");
+#else
+#error
 #endif
     m_VulkanInstance = createInstance(enableValidation, instanceExtensions, validationLayers);
     setupDebugMessenger();
@@ -416,8 +424,17 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
     {
         assert(false);
     }
-#endif
+#else
+    VkWaylandSurfaceCreateInfoKHR createInfo{};
+    createInfo.sType = VK_STRUCTURE_TYPE_WAYLAND_SURFACE_CREATE_INFO_KHR;
+    createInfo.display = static_cast<struct wl_display**>(pNativeHandle)[0];
+    createInfo.surface = static_cast<struct wl_surface**>(pNativeHandle)[1];
 
+    if (vkCreateWaylandSurfaceKHR(instance, &createInfo, nullptr, &m_Surface) != VK_SUCCESS)
+    {
+        assert(false);
+    }
+#endif
     return m_Surface;
 }
 
