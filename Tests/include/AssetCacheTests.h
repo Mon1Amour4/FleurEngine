@@ -134,7 +134,7 @@ TEST(AssetCacheTest, ComplexSingleThreadLoadReleaseCombinations)
         ASSERT_NE(byName.obj, nullptr);
         EXPECT_EQ(byName.handle.id, ids[i]);
 
-        auto byId = cache.Get(ids[i]);
+        auto byId = cache.Get(Fleur::AssetHandle{ids[i], 1});
         ++getOps;
         ASSERT_NE(byId.obj, nullptr);
         EXPECT_EQ(byId.handle.id, ids[i]);
@@ -163,7 +163,7 @@ TEST(AssetCacheTest, ComplexSingleThreadLoadReleaseCombinations)
 
     cache.Release(ids[3]);
     ++releaseOps;
-    auto releasedById = cache.Get(ids[3]);
+    auto releasedById = cache.Get(Fleur::AssetHandle{ids[3], 1});
     ++getOps;
     EXPECT_EQ(releasedById.obj, nullptr);
 
@@ -176,7 +176,7 @@ TEST(AssetCacheTest, ComplexSingleThreadLoadReleaseCombinations)
     cache.RemoveFromAsyncOperations("metal.png");
     cache.Release(ids[1]);
     ++releaseOps;
-    auto releasedAfterAsync = cache.Get(ids[1]);
+    auto releasedAfterAsync = cache.Get(Fleur::AssetHandle{ids[1], 1});
     ++getOps;
     EXPECT_EQ(releasedAfterAsync.obj, nullptr);
 
@@ -282,7 +282,7 @@ TEST(AssetCacheTest, ComplexMultiThreadLoadReleaseCombinations)
                     case 4:
                     {
                         ++getByIdOps;
-                        auto asset = cache.Get(id);
+                        auto asset = cache.Get(Fleur::AssetHandle{id, 1});
                         if (asset.obj && asset.handle.id != id)
                         {
                             failed.store(true);
@@ -381,7 +381,7 @@ TEST(AssetCacheTest, CornerCase_ReleaseUnknownIsNoOp)
     cache.Release(static_cast<Fleur::AssetID>(999999));
     cache.Release(Fleur::AssetHandle{999999, 1});
 
-    auto existingById = cache.Get(record.asset.handle.id);
+    auto existingById = cache.Get(record.asset.handle);
     ASSERT_NE(existingById.obj, nullptr);
     EXPECT_EQ(existingById.handle.id, record.asset.handle.id);
 }
@@ -413,7 +413,7 @@ TEST(AssetCacheTest, CornerCase_RemoveBrokenAsyncAssetClearsState)
     ASSERT_NE(asyncOp->asset.obj, nullptr);
 
     cache.RemoveBrokenAsyncAsset(asyncOp->asset.handle.id);
-    auto removed = cache.Get(asyncOp->asset.handle.id);
+    auto removed = cache.Get(asyncOp->asset.handle);
     EXPECT_EQ(removed.obj, nullptr);
 
     auto reRegistered = cache.Register("Textures/A/broken.png", 142);
@@ -432,11 +432,11 @@ TEST(AssetCacheTest, CornerCase_ReleaseByNameWithActiveAsyncRequiresAsyncRemoval
     const Fleur::AssetID id = asyncOp->asset.handle.id;
 
     cache.Release(name);
-    auto stillPresent = cache.Get(id);
+    auto stillPresent = cache.Get(asyncOp->asset.handle);
     ASSERT_NE(stillPresent.obj, nullptr);
 
     cache.RemoveFromAsyncOperations(name);
     cache.Release(id);
-    auto released = cache.Get(id);
+    auto released = cache.Get(asyncOp->asset.handle);
     EXPECT_EQ(released.obj, nullptr);
 }

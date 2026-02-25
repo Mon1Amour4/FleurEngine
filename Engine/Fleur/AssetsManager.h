@@ -170,29 +170,6 @@ public:
         return Asset<T>({{}, nullptr});
     }
     template <typename T>
-    /// Returns an asset by numeric ID.
-    Asset<T> Get(AssetID id)
-    {
-        if (id == 0)
-            return Asset<T>({{}, nullptr});
-
-        if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
-        {
-            /*AssetID id = m_ShaderMapString[name.data()];
-            return Fleur::Asset<T>{id, &m_ShaderMap[id]};*/
-        }
-        else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
-        {
-            return m_Image2DCache.Get(id);
-        }
-        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
-        {
-            return m_ModelCache.Get(id);
-        }
-
-        return Asset<T>({{}, nullptr});
-    }
-    template <typename T>
     /// Returns an asset by stable handle (ID + generation).
     Asset<T> Get(const AssetHandle& handle)
     {

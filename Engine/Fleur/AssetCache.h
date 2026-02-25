@@ -105,21 +105,6 @@ public:
         return Exist(name).asset;
     };
 
-    /// Returns asset by numeric ID.
-    Asset<T> Get(AssetID id)
-    {
-        TAsset asset{{}, nullptr};
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto rec = map.find(id); rec != map.end())
-        {
-            if (auto gen = generationMap.find(id); gen != generationMap.end())
-                asset.handle = AssetHandle{id, gen->second};
-            asset.obj = &rec->second;
-        }
-
-        return asset;
-    };
-
     /// Returns asset by stable handle (ID + generation).
     Asset<T> Get(const AssetHandle& handle)
     {
