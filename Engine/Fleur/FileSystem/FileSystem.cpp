@@ -12,6 +12,12 @@
 
 #include "FileSystemPathsMacOS.h"
 #endif
+
+#if defined(FLEUR_PLATFORM_LINUX)
+#include <libgen.h>
+#include "FileSystemPathsLinux.h"
+#endif
+
 #include <Application.h>
 
 class Fleur::FS::FileSystem::FileSystemImpl
@@ -90,6 +96,14 @@ std::string Fleur::FS::FileSystem::FileSystemImpl::GetExecutablePath()
     {
         throw std::runtime_error("Buffer too small for executable path");
     }
+#elif defined(FLEUR_PLATFORM_LINUX)
+    char path[PATH_MAX];
+    size_t length = readlink ("/proc/self/exe", path, sizeof(path) - 1);
+    if (length == -1)
+        throw std::runtime_error(strerror(errno));
+	basename(path);
+#else
+#error
 #endif
     return std::filesystem::path(path).parent_path().string();
 }
