@@ -3,7 +3,7 @@
 #if defined(FLEUR_PLATFORM_WIN)
 #define EXPORT __declspec(dllexport)
 #define FLEUR_IMPORT __declspec(dllimport)
-#elif defined(FLEUR_PLATFORM_MACOS)
+#elif defined(FLEUR_PLATFORM_MACOS) || defined(FLEUR_PLATFORM_LINUX)
 #define EXPORT __attribute__((visibility("default")))
 #define FLEUR_IMPORT __attribute__((visibility("default")))
 #else

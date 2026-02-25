@@ -84,10 +84,12 @@ struct MemoryInfo
     } while (0);
 
 #define MM_PRINT(str) \
-    //do                    \
-    //{                     \
-    //    std::cout << str; \
-    //} while (0);
+    do                    \
+    {                     \
+        std::cout << str; \
+    } while (0);
+#undef MM_PRINT
+#define MM_PRINT(str)
 
 
 #else

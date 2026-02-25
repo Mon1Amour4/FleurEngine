@@ -70,6 +70,23 @@ public:
             __builtin_debugtrap();                              \
         }                                                       \
     }
+#elif defined(FLEUR_PLATFORM_LINUX)
+#define FL_ASSERT(x, ...)                                  \
+    {                                                      \
+        if (!(x))                                          \
+        {                                                  \
+            FL_ERROR("Assertion Failed {0}", __VA_ARGS__); \
+            __builtin_trap();                              \
+        }                                                  \
+    }
+#define FL_CORE_ASSERT(x, ...)                                  \
+    {                                                           \
+        if (!(x))                                               \
+        {                                                       \
+            FL_CORE_ERROR("Assertion Failed {0}", __VA_ARGS__); \
+            __builtin_trap();                                   \
+        }                                                       \
+    }
 #endif
 #else
 #define FL_ASSERT(x, ...)
