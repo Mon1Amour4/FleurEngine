@@ -100,10 +100,10 @@ public:
 
     ~Bitmap() = default;
 
-    Bitmap<Fmt>(const Bitmap<Fmt>& other) = delete;
+    Bitmap(const Bitmap& other) = delete;
     Bitmap<Fmt>& operator=(const Bitmap<Fmt>& other) = delete;
 
-    Bitmap<Fmt>(Bitmap<Fmt>&& other) noexcept
+    Bitmap(Bitmap&& other) noexcept
     {
         m_Width = other.m_Width;
         m_Height = other.m_Height;
@@ -131,13 +131,13 @@ public:
         return *this;
     }
 
-    Bitmap(const void* IN inData, uint32_t width, uint32_t height, uint32_t channels)
+    Bitmap(const void* inData, uint32_t width, uint32_t height, uint32_t channels)
         : m_Width(width)
         , m_Height(height)
         , m_Components(channels)
         , m_Data(width * height * channels * Fmt<Bitmap>::GetBytesPerComponent())
     {
-        memcpy_s(m_Data.data(), m_Data.size(), inData, m_Data.size());
+        memcpy(m_Data.data(), inData, m_Data.size());
     }
     Bitmap(uint32_t width, uint32_t height, uint32_t components)
         : m_Width(width)
