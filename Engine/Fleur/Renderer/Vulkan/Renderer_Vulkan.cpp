@@ -893,7 +893,7 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
 {
     m_WindowResizeIsInProgress = false;
     m_Swapchain->OnWindowResized(rect);
-    std::cout << "\EndResize\n";
+    std::cout << "EndResize\n";
 }
 
 void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
@@ -1025,7 +1025,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
     {
         assert(false);
-        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
+        std::cout << "VK_ERROR_OUT_OF_DATE_KHR\n";
     }
     else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
     {
