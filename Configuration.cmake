@@ -65,6 +65,13 @@ ELSEIF(WIN32)
       "x64"
       CACHE STRING "Current platform"
   )
+ELSEIF(UNIX)
+  SET(FLEUR_PLATFORM
+      "linux"
+      CACHE STRING "Current platform"
+  )
+ELSE()
+  MESSAGE(FATAL_ERROR "Unsupported platform")
 ENDIF()
 
 # Testing configuration
@@ -76,8 +83,14 @@ SET(FLEUR_LIB_TYPE
     CACHE STRING "Library type (STATIC/SHARED)"
 )
 
-set (FLEUR_COPILATION_FLAGS 
-    /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope 
-    /GR- /EHsc /volatile:iso /utf-8 /W4  
-    #/WX
-)
+IF(FLEUR_PLATFORM STREQUAL "x64")
+  set (FLEUR_COPILATION_FLAGS
+      /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope
+      /GR- /EHsc /volatile:iso /utf-8 /W4
+      #/WX
+  )
+ELSE()
+  set(FLEUR_COMPILATION_FLAGS
+      -Wall -Wextra -Wpedantic -Wno-unknown-pragmas -fno-rtti
+  )
+endif()

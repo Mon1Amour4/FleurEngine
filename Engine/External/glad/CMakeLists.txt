@@ -1,23 +1,25 @@
 # === Glad ===
 
-SET(PROJECT_HEADERS 
-        include/glad/wgl.h
-        include/KHR/khrplatform.h
-)
+SET(PROJECT_HEADERS include/KHR/khrplatform.h)
 
-SET(PROJECT_SOURCES 
-        src/gl.c
-        src/wgl.c
-)
+SET(PROJECT_SOURCES src/gl.c)
+
+IF(FLEUR_PLATFORM_WIN)
+  LIST(APPEND PROJECT_HEADERS include/glad/wgl.h)
+  LIST(APPEND PROJECT_SOURCES src/wgl.c)
+ENDIF()
 
 # === Create Library ===
 ADD_LIBRARY(Glad STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
 # === Link Libraries ===
-TARGET_LINK_LIBRARIES(Glad PRIVATE opengl32)
+IF(FLEUR_PLATFORM_WIN)
+  TARGET_LINK_LIBRARIES(Glad PRIVATE opengl32)
+ENDIF()
 
 # === Include Directories ===
 TARGET_INCLUDE_DIRECTORIES(Glad PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # === Target Properties ===
 SET_TARGET_PROPERTIES(Glad PROPERTIES LANGUAGES C)
+set_target_properties(Glad PROPERTIES LINKER_LANGUAGE C)
