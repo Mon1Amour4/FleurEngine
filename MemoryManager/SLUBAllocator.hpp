@@ -209,8 +209,8 @@ public:
             oss << nextChunk;
             next = oss.str();
         }
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{%-16s} |\n", chunkNum, this, m_SlotSize,
-                            m_CapacityBytes / m_SlotSize, m_UsedBytes, m_CapacityBytes, sign.c_str(), next.c_str());
+        buffer += snprintf(buffer, 1024l * 1024l * 50, " |%-3d| 0x%-16p |%4d/%-4d|%4d/%-d|%-7s|\tnext{%-16s} |\n", chunkNum, this, m_SlotSize,
+                           m_CapacityBytes / m_SlotSize, m_UsedBytes, m_CapacityBytes, sign.c_str(), next.c_str());
         if (nextChunk)
             nextChunk->ChunkSnapshot(++chunkNum, buffer);
     }
@@ -608,7 +608,7 @@ struct SLUBAllocator
 
     void GetSnapshot(char*& buffer) const
     {
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "%s", "//-------------------------- SLUB ALLOCATOR ----------------------------\\\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "%s", "//-------------------------- SLUB ALLOCATOR ----------------------------\\\n");
 
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);
@@ -619,7 +619,7 @@ struct SLUBAllocator
             pool->PoolSpapshot(buffer);
         }
 
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF SLUB ALLOCATOR ----------------------------\\ \n\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF SLUB ALLOCATOR ----------------------------\\ \n\n");
     }
 
 private:

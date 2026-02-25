@@ -251,7 +251,7 @@ void Fleur::Application::Run()
         m_TimeManager->Tick();
 
         char buffer[32];
-        sprintf_s(buffer, "%d", m_TimeManager->FPS());
+        snprintf(buffer, sizeof(buffer), "%d", m_TimeManager->FPS());
         m_Window->SetTitle(buffer);
 
         float dtTime = m_TimeManager->DeltaTime();

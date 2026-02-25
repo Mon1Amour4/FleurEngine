@@ -1,7 +1,11 @@
 #include "MemoryManager.h"
 
+#if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#else
+#include <sys/mman.h>
+#endif
 
 //======================================================================
 // Benchmark
@@ -84,50 +88,50 @@ void MM::Benchmark::Print()
     char* tmp = buffer;
     int written = 0;
     // clang-format off
-    written += sprintf_s(tmp + written, bufferSize - written, "%s", "\n\n\n");
-    written += sprintf_s(tmp + written, bufferSize - written,
+    written += snprintf(tmp + written, bufferSize - written, "%s", "\n\n\n");
+    written += snprintf(tmp + written, bufferSize - written,
         "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
         "//                                                                                                                                                //\n"
         "//                                                         MEMORY BENCHMARK REPORT                                                                //\n"
         "//                                                                                                                                                //\n"
         "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 
-    written += sprintf_s(tmp + written, bufferSize - written, 
-        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", 
-        "Number of Allocation", 
-        "Average allocation time per second", 
+    written += snprintf(tmp + written, bufferSize - written,
+        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n",
+        "Number of Allocation",
+        "Average allocation time per second",
         "Longest allocation time",
         "Overall Allocation time", "Overall Time");
 
-    written += sprintf_s(tmp + written, bufferSize - written, 
-        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", 
-        static_cast<int>(m_NumAllocations), 
+    written += snprintf(tmp + written, bufferSize - written,
+        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n",
+        static_cast<int>(m_NumAllocations),
         FormatToSeconds(m_AverageAllocTime).c_str(),
-        FormatToSeconds(m_LongestAllocTime).c_str(), 
-        FormatToSeconds(m_OverallAllocTime).c_str(), 
+        FormatToSeconds(m_LongestAllocTime).c_str(),
+        FormatToSeconds(m_OverallAllocTime).c_str(),
         FormatToSeconds(m_OverallTime).c_str());
 
-    written += sprintf_s(tmp + written, bufferSize - written, 
-        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n", 
-        "Number of Deallocation", 
-        "Average deallocation time per second", 
+    written += snprintf(tmp + written, bufferSize - written,
+        "|%-23s|%-37s|%-26s|%-26s|%-35s|\n",
+        "Number of Deallocation",
+        "Average deallocation time per second",
         "Longest deallocation time",
         "Overall Deallocation time","");
 
-    written += sprintf_s(tmp + written, bufferSize - written, 
-        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n", 
-        static_cast<int>(m_NumDeallocations), 
+    written += snprintf(tmp + written, bufferSize - written,
+        "|%-23d|%-37s|%-26s|%-26s|%-35s|\n",
+        static_cast<int>(m_NumDeallocations),
         FormatToSeconds(m_AverageDeallocTime).c_str(),
-        FormatToSeconds(m_LongestDeallocTime).c_str(), 
+        FormatToSeconds(m_LongestDeallocTime).c_str(),
         FormatToSeconds(m_OverallDeallocTime).c_str(), "");
 
-    written += sprintf_s(tmp + written, bufferSize - written, 
+    written += snprintf(tmp + written, bufferSize - written,
         "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n"
         "//                                                                                                                                                //\n"
         "//                                                      END OF MEMORY BENCHMARK REPORT                                                            //\n"
         "//                                                                                                                                                //\n"
         "////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
-    written += sprintf_s(tmp + written, bufferSize - written, "%s", "\n\n\n");
+    written += snprintf(tmp + written, bufferSize - written, "%s", "\n\n\n");
     // clang-format on
     std::cout << buffer;
 
@@ -242,8 +246,15 @@ MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity)
 
     size_t alignedCapacity = capacity / 4096 * 4096;
 
+#if defined(FLEUR_PLATFORM_WIN)
     void* rawPtr = VirtualAlloc(NULL, alignedCapacity, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
     MM_ASSERT(rawPtr);
+#else
+    void* rawPtr = mmap(nullptr, alignedCapacity, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (rawPtr == MAP_FAILED)
+		throw std::runtime_error("failed to mmap");
+#endif
+
 
     unsigned char* charPtr = reinterpret_cast<unsigned char*>(rawPtr);
     return new (rawPtr) MM::MemoryManager(charPtr, sizeof(MM::MemoryManager), alignedCapacity);

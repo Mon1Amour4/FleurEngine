@@ -98,17 +98,17 @@ struct PageAllocator
         if (!m_CachedPage)
             return;
 
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "%s", "\n//---------------------------- PAGE ALLOCATOR ----------------------------\\\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "%s", "\n//---------------------------- PAGE ALLOCATOR ----------------------------\\\n");
 
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "{%zu/%zu}\n", m_UsedBytes, m_Capacity);
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "Cached page:{0x%p}, ", static_cast<void*>(m_CachedPage));
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "{%zu/%zu}\n", m_UsedBytes, m_Capacity);
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "Cached page:{0x%p}, ", static_cast<void*>(m_CachedPage));
         unsigned char* next = *reinterpret_cast<unsigned char**>(m_CachedPage);
         while (next)
         {
-            buffer += sprintf_s(buffer, 1024l * 1024l * 50, "{0x%p}", static_cast<void*>(next));
+            buffer += snprintf(buffer, 1024l * 1024l * 50, "{0x%p}", static_cast<void*>(next));
             next = *reinterpret_cast<unsigned char**>(next);
         }
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "\n//------------------------ END OF PAGE ALLOCATOR ------------------------------\\\n\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "\n//------------------------ END OF PAGE ALLOCATOR ------------------------------\\\n\n");
     }
 
 private:

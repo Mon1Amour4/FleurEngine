@@ -448,9 +448,9 @@ private:
 public:
     void GetSnapshot(char*& buffer) const
     {
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "//-------------------------- TLSF ALLOCATOR ----------------------------\\\n");
 
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "FLI:     {%-32s}\n", m_FL_Bitmap.StringRepresentation().c_str());
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "FLI:     {%-32s}\n", m_FL_Bitmap.StringRepresentation().c_str());
 
         uint32_t fl_idx = 0;
 
@@ -491,11 +491,11 @@ public:
                 if (i == 15)
                     str += '\t';
             }
-            buffer += sprintf_s(buffer, 1024l * 1024l * 50, "SLI[%-2d]: {%s}\n", fl_idx, str.c_str());
+            buffer += snprintf(buffer, 1024l * 1024l * 50, "SLI[%-2d]: {%s}\n", fl_idx, str.c_str());
             fl_idx++;
         }
 
 
-        buffer += sprintf_s(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
+        buffer += snprintf(buffer, 1024l * 1024l * 50, "\n//---------------------- END OF TLSF ALLOCATOR ----------------------------\\ \n\n");
     }
 };
