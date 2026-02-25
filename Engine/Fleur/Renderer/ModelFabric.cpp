@@ -52,12 +52,12 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                                             ->LoadImage(textureName, {.imageSource = IMAGE_SOURCE_MEMORY,
                                                                       .pMemoryData = imageData,
                                                                       .sizeInMemory = static_cast<uint32_t>(imageBuffer->size)})
-                                            .ID;
+                                            .handle.id;
                 }
                 else if (baseColorTexture->image->uri)
                 {
                     // Texture somewhere in folder
-                    flMaterial.albedo = assetsManager->LoadImage(baseColorTexture->image->uri, {.imageSource = IMAGE_SOURCE_DISK}).ID;
+                    flMaterial.albedo = assetsManager->LoadImage(baseColorTexture->image->uri, {.imageSource = IMAGE_SOURCE_DISK}).handle.id;
                 }
             }
             else
@@ -84,7 +84,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                 else
                     c = Color(*color);
 
-                flMaterial.albedo = assetsManager->LoadImage(materialName, {.color = c}).ID;
+                flMaterial.albedo = assetsManager->LoadImage(materialName, {.color = c}).handle.id;
 
                 ++solidTextureIdx;
             }

@@ -209,9 +209,9 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
         "skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
         [this](CubemapAsset asset)
         {
-            m_skybox = new Fleur::Graphics::Skybox(asset.ID);
+            m_skybox = new Fleur::Graphics::Skybox(asset.handle.id);
             auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
-            renderer->SetSkybox(asset.ID);
+            renderer->SetSkybox(asset.handle.id);
             FL_CORE_INFO("Skybox has uploaded to GPU");
         },
         Fleur::CallbackInvocationPoint::AFTER_GPU_UPLOAD);

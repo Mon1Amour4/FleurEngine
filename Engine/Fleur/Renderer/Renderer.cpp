@@ -126,7 +126,7 @@ void Fleur::Graphics::Renderer::OnInit()
 
     auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
     Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
-    fallbackView.ID = fallbackAsset.ID;
+    fallbackView.ID = fallbackAsset.handle.id;
 
     Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
 
@@ -145,7 +145,7 @@ void Fleur::Graphics::Renderer::OnInit()
     skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->GetShaderCode();
     skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->GetShaderCodeSizeB();
 
-    m_Backend->CreateSkybox(fallbackAsset.ID, &skyboxVertexShaderInfo, &skyboxFragmentShaderInfo);
+    m_Backend->CreateSkybox(fallbackAsset.handle.id, &skyboxVertexShaderInfo, &skyboxFragmentShaderInfo);
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
