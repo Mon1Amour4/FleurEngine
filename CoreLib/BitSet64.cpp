@@ -43,9 +43,10 @@ bool Fleur::Core::BitSet64::IsBitOccupied(uint8_t idx) const
 
 void Fleur::Core::BitSet64::SetBit(uint8_t idx)
 {
+#if defined(_MSC_VER)
     if (idx > m_Bits - 1)
         __debugbreak();
-
+#endif
     m_Bitmap = bit_set(m_Bitmap, idx);
 }
 

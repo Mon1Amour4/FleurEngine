@@ -1,6 +1,8 @@
 #pragma once
 
+#if _MSC_VER
 #include <intrin.h>
+#endif
 
 #include <bit>
 #include <cassert>
@@ -42,6 +44,14 @@ inline bool bit_scan_forward(uint32_t number, uint32_t* idx)
 
 #if _MSC_VER
     return _BitScanForward(reinterpret_cast<unsigned long*>(idx), number);
+#elif defined(__GNUC__) || defined(__clang__)
+    if (number == 0)
+    {
+        *idx = 0;
+        return false;
+    }
+    *idx = uint32_t(__builtin_ctz(number));
+    return number != 0;
 #else
     assert(false);
 #endif
@@ -54,6 +64,14 @@ inline bool bit_scan_forward64(uint64_t number, uint32_t* idx)
 
 #if _MSC_VER
     return _BitScanForward64(reinterpret_cast<unsigned long*>(idx), number);
+#elif defined(__GNUC__) || defined(__clang__)
+    if (number == 0)
+    {
+        *idx = 0;
+        return false;
+    }
+    *idx = uint64_t(__builtin_ctzll(number));
+    return number != 0;
 #else
     assert(false);
 #endif
@@ -78,6 +96,14 @@ inline bool bit_scan_reverse(uint32_t number, uint32_t* idx)
 {
 #if _MSC_VER
     return _BitScanReverse(reinterpret_cast<unsigned long*>(idx), number);
+#elif defined(__GNUC__) || defined(__clang__)
+    if (number == 0)
+    {
+        *idx = 0;
+        return false;
+    }
+    *idx = 31 - uint32_t(__builtin_clz(number));
+    return number != 0;
 #else
     assert(false);
 #endif
@@ -86,6 +112,14 @@ inline bool bit_scan_reverse64(uint64_t number, uint32_t* idx)
 {
 #if _MSC_VER
     return _BitScanReverse64(reinterpret_cast<unsigned long*>(idx), number);
+#elif defined(__GNUC__) || defined(__clang__)
+    if (number == 0)
+    {
+        *idx = 0;
+        return false;
+    }
+    *idx = 63 - uint64_t(__builtin_clzll(number));
+    return number != 0;
 #else
     assert(false);
 #endif
