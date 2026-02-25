@@ -345,3 +345,98 @@ TEST(AssetCacheTest, ComplexMultiThreadLoadReleaseCombinations)
               << ", release_by_name=" << releaseByNameOps.load() << ", release_by_id=" << releaseByIdOps.load()
               << ", release_by_handle=" << releaseByHandleOps.load() << ", invariant_failures=" << invariantFailures.load() << std::endl;
 }
+
+TEST(AssetCacheTest, CornerCase_FilenameCollisionAcrossDirectories)
+{
+    Fleur::AssetCache<TestAsset> cache;
+
+    auto first = cache.Register("Textures/A/brick.png", 101);
+    auto second = cache.Register("Textures/B/brick.png", 202);
+
+    EXPECT_FALSE(first.alreadyExist);
+    EXPECT_TRUE(second.alreadyExist);
+    EXPECT_EQ(second.asset.handle.id, first.asset.handle.id);
+}
+
+TEST(AssetCacheTest, CornerCase_RegisterAsyncOnAlreadyLoadedAssetReturnsLoadedStatus)
+{
+    Fleur::AssetCache<TestAsset> cache;
+    auto syncRecord = cache.Register("Textures/A/metal.png", 111);
+    ASSERT_NE(syncRecord.asset.obj, nullptr);
+
+    auto asyncOp = cache.RegisterAsync("Textures/A/metal.png", 999);
+    ASSERT_NE(asyncOp, nullptr);
+    EXPECT_EQ(asyncOp->status.GetStatus(), Fleur::LOADED);
+    EXPECT_EQ(asyncOp->asset.handle.id, syncRecord.asset.handle.id);
+    EXPECT_EQ(asyncOp->asset.obj, syncRecord.asset.obj);
+}
+
+TEST(AssetCacheTest, CornerCase_ReleaseUnknownIsNoOp)
+{
+    Fleur::AssetCache<TestAsset> cache;
+    auto record = cache.Register("Textures/A/stone.png", 121);
+    ASSERT_NE(record.asset.obj, nullptr);
+
+    cache.Release("missing.png");
+    cache.Release(static_cast<Fleur::AssetID>(999999));
+    cache.Release(Fleur::AssetHandle{999999, 1});
+
+    auto existingById = cache.Get(record.asset.handle.id);
+    ASSERT_NE(existingById.obj, nullptr);
+    EXPECT_EQ(existingById.handle.id, record.asset.handle.id);
+}
+
+TEST(AssetCacheTest, CornerCase_StaleHandleInvalidAfterReleaseAndReRegister)
+{
+    Fleur::AssetCache<TestAsset> cache;
+
+    auto first = cache.Register("Textures/A/reload.png", 131);
+    auto staleHandle = first.asset.handle;
+
+    cache.Release(staleHandle);
+    auto second = cache.Register("Textures/A/reload.png", 132);
+
+    auto staleLookup = cache.Get(staleHandle);
+    auto currentLookup = cache.Get(second.asset.handle);
+
+    EXPECT_EQ(staleLookup.obj, nullptr);
+    ASSERT_NE(currentLookup.obj, nullptr);
+    EXPECT_EQ(currentLookup.handle.id, 132u);
+}
+
+TEST(AssetCacheTest, CornerCase_RemoveBrokenAsyncAssetClearsState)
+{
+    Fleur::AssetCache<TestAsset> cache;
+
+    auto asyncOp = cache.RegisterAsync("Textures/A/broken.png", 141);
+    ASSERT_NE(asyncOp, nullptr);
+    ASSERT_NE(asyncOp->asset.obj, nullptr);
+
+    cache.RemoveBrokenAsyncAsset(asyncOp->asset.handle.id);
+    auto removed = cache.Get(asyncOp->asset.handle.id);
+    EXPECT_EQ(removed.obj, nullptr);
+
+    auto reRegistered = cache.Register("Textures/A/broken.png", 142);
+    ASSERT_NE(reRegistered.asset.obj, nullptr);
+    EXPECT_EQ(reRegistered.asset.handle.id, 142u);
+}
+
+TEST(AssetCacheTest, CornerCase_ReleaseByNameWithActiveAsyncRequiresAsyncRemoval)
+{
+    Fleur::AssetCache<TestAsset> cache;
+
+    auto asyncOp = cache.RegisterAsync("Textures/A/async_release.png", 151);
+    ASSERT_NE(asyncOp, nullptr);
+    ASSERT_NE(asyncOp->asset.obj, nullptr);
+    const std::string name = "async_release.png";
+    const Fleur::AssetID id = asyncOp->asset.handle.id;
+
+    cache.Release(name);
+    auto stillPresent = cache.Get(id);
+    ASSERT_NE(stillPresent.obj, nullptr);
+
+    cache.RemoveFromAsyncOperations(name);
+    cache.Release(id);
+    auto released = cache.Get(id);
+    EXPECT_EQ(released.obj, nullptr);
+}
