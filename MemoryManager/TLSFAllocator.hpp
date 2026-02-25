@@ -2,6 +2,7 @@
 
 #include "BitSet64.h"
 #include "PageAllocator.hpp"
+#include <string.h>
 
 #define PS sizeof(char*)
 #define SIZE_TRASHHOLD 2032 + sizeof(used_block_header)

@@ -1,6 +1,7 @@
 #include "FVkBuffer.h"
 
 #include <cassert>
+#include <string.h>
 
 #include "VkHelper.h"
 

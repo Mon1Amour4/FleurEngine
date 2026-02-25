@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <limits>
 
 FVkSwapchain::FVkSwapchain()
     : m_Device(nullptr)

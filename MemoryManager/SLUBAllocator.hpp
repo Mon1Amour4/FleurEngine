@@ -1,6 +1,7 @@
 #pragma once
 #include "MemoryDefinitions.hpp"
 #include "PageAllocator.hpp"
+#include <cmath>
 
 #define CHUNK_PAYLOAD_SIZE(pageSize) (pageSize - sizeof(Chunk))
 #pragma region Chunk

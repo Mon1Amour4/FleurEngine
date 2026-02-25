@@ -3,6 +3,7 @@
 #include <condition_variable>
 #include <string>
 #include <type_traits>
+#include <list>
 
 #include "AssetCache.h"
 #include "AssetTypes.hpp"

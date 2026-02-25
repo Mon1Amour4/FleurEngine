@@ -1,6 +1,8 @@
 ﻿#pragma once
 
 #include <concepts>
+#include <stddef.h>
+#include <inttypes.h>
 
 namespace Fleur
 {

@@ -1,6 +1,7 @@
 #include "VkHelper.h"
 
 #include <cassert>
+#include <math.h>
 
 
 uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties)

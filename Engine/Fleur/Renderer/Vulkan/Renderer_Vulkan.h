@@ -1,8 +1,7 @@
 #pragma once
 
 #include <cassert>
-
-#include "IRenderer.hpp"
+#include "../IRenderer.hpp"
 
 using namespace Fleur::Graphics;
 
