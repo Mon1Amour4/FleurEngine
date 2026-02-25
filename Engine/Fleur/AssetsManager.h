@@ -1,8 +1,8 @@
 #pragma once
 
-#include <filesystem>
 #include <type_traits>
 
+#include "AssetCache.h"
 #include "AssetTypes.hpp"
 #include "Renderer/Color.h"
 #include "Renderer/RenderViews.hpp"
@@ -91,6 +91,7 @@ struct AssetLoadResult
     AssetEventType type = EVENT_TYPE_MAX_VALUE;
     const void* pResource = nullptr;
     AssetID ID = 0;
+    AssetHandle handle{};
     EAsyncOperationStatus loadingStatus = LOADING_STATUS_MAX_VALUE;
     bool* notifyOnGpuUpload{nullptr};
 };
@@ -111,154 +112,6 @@ struct AssetLoadCallback
     CallbackFn callback = nullptr;
 };
 
-template <typename T>
-class AssetCache
-{
-    using TRecord = Fleur::AssetRecord<T>;
-    using TAsset = Fleur::Asset<T>;
-    using TAsyncOp = Fleur::AsyncOperation<T>;
-    using TAsyncOpShared = std::shared_ptr<TAsyncOp>;
-
-public:
-    TRecord Register(std::string_view path, AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-
-        std::string name = GetNameFromPath(path);
-        TRecord record = Exist(name);
-        if (record.alreadyExist)
-            return record;
-
-        stringMap.emplace(name, id);
-        T* ptr = &map.emplace(id, name).first->second;
-        m_size++;
-
-        return {true, false, {id, ptr}};
-    };
-    TAsyncOpShared RegisterAsync(std::string_view path, AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-
-        std::string name = GetNameFromPath(path);
-
-        // 1. Check async map first
-        TAsyncOpShared asyncOperation = FindExistingAsyncOperation(name);
-        if (asyncOperation.get()->status.GetStatus() != EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)
-            return asyncOperation;
-
-        // 2. Check map
-        TRecord completedRecord = Exist(name);
-        if (completedRecord.alreadyExist)
-            return std::make_shared<TAsyncOp>(completedRecord.asset, EAsyncOperationStatus::LOADED);
-
-        T* ptr = &map.emplace(id, name).first->second;
-        stringMap.emplace(name, id);
-        m_size++;
-        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset(id, ptr), REGISTERED)).first->second;
-    };
-
-    TAsyncOpShared FindExistingAsyncOperation(std::string_view name)
-    {
-        // Check only async map is enought
-        if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
-            return operation->second;
-        else
-            return {std::make_shared<TAsyncOp>(TAsset(0, nullptr), EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)};
-    }
-
-    AssetRecord<T> Exist(std::string_view name)
-    {
-        TRecord record{false, false, {0, nullptr}};
-
-        if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
-        {
-            record.registered = true;
-            record.alreadyExist = true;
-            record.asset.ID = stringMap[name.data()];
-            record.asset.obj = &map[record.asset.ID];
-        }
-
-        return record;
-    };
-    Asset<T> Get(std::string_view name)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        return Exist(name).asset;
-    };
-    Asset<T> Get(AssetID id)
-    {
-        TAsset asset{0, nullptr};
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto rec = map.find(id); rec != map.end())
-        {
-            asset.ID = id;
-            asset.obj = &rec->second;
-        }
-
-        return asset;
-    };
-    void Release(std::string_view name)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto record = stringMap.find(name.data()); record != stringMap.end())
-        {
-            AssetID id = record->second;
-            if (auto operation = asyncMap.find(GetNameFromPath(name)); operation != asyncMap.end())
-            {
-                asyncOperationsToRelease.emplace(operation->first, operation->second);
-                operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
-                return;
-            }
-            stringMap.erase(name.data());
-            map.erase(id);
-        }
-    };
-    void Release(AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto record = map.find(id); record != map.end())
-        {
-            std::string_view name = record->second.GetName();
-            if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
-            {
-                asyncOperationsToRelease.emplace(operation->first, operation->second);
-                operation->second->status.SetStatus(Fleur::EAsyncOperationStatus::LOADING_STATUS_TO_TERMINATE);
-                return;
-            }
-            stringMap.erase(name.data());
-            map.erase(id);
-        }
-    };
-    void RemoveBrokenAsyncAsset(AssetID id)
-    {
-        std::lock_guard<std::mutex> lc(mutex);
-        if (auto record = map.find(id); record != map.end())
-        {
-            std::string name = record->second.GetName().data();
-            asyncMap.erase(name);
-            stringMap.erase(name);
-            map.erase(id);
-            asyncOperationsToRelease.erase(name);
-        }
-    };
-    void RemoveFromAsyncOperations(std::string_view name)
-    {
-        asyncMap.erase(name.data());
-    }
-
-private:
-    std::string GetNameFromPath(std::string_view path)
-    {
-        return std::filesystem::path(path).filename().string();
-    }
-    std::unordered_map<std::string, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncOperationsToRelease;
-    std::unordered_map<std::string, std::shared_ptr<Fleur::AsyncOperation<T>>> asyncMap;
-    std::unordered_map<std::string, AssetID> stringMap;
-    std::unordered_map<AssetID, T> map;
-    std::atomic<uint32_t> m_size;
-    std::mutex mutex;
-};
-
 class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
 public:
@@ -268,32 +121,42 @@ public:
     AssetsManager();
     ~AssetsManager();
 
+    /// Stops asset operations and releases resources managed by the service.
     void OnShutdown();
+    /// Initializes the service and preloads built-in assets.
     void OnInit();
+    /// Advances async loading and GPU upload state.
     void OnUpdate(float dtTime);
 
     // ---------- Sync ----------
+    /// Loads a model immediately and returns an asset with a valid handle.
     ModelAsset LoadModel(std::string_view path);
+    /// Loads a 2D image immediately and returns an asset with a valid handle.
     ImageAsset LoadImage(std::string_view path, ImageImportSettings imageSettings);
+    /// Loads a cubemap immediately and returns an asset with a valid handle.
     CubemapAsset LoadCubemap(std::string_view path, CubemapImportSettings settings);
 
     // ---------- Async ----------
+    /// Registers async model loading and returns operation state.
     ModelAsyncOpShared LoadModelAsync(std::string_view path, std::function<void(ModelAsset&)> callback = nullptr);
+    /// Registers async image loading and returns operation state.
     ImageAsyncOpShared LoadImageAsync(std::string_view path, ImageImportSettings imageSettings, std::function<void(ImageAsset&)> callback = nullptr,
                                       CallbackInvocationPoint callbackType = _MAX_VALUE);
+    /// Registers async cubemap loading and returns operation state.
     CubemapAsyncOpShared LoadCubemapAsync(std::string_view path, CubemapImportSettings cubemapSettings, std::function<void(CubemapAsset&)> callback = nullptr,
                                           CallbackInvocationPoint callbackType = _MAX_VALUE);
 
     template <typename T>
+    /// Returns an asset by logical name.
     Asset<T> Get(std::string_view name)
     {
         if (name.empty())
-            return Asset<T>({0, nullptr});
+            return Asset<T>({0, nullptr, {}});
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
             AssetID id = m_ShaderMapString[name.data()];
-            return Fleur::Asset<T>{id, &m_ShaderMap[id]};
+            return Fleur::Asset<T>{id, &m_ShaderMap[id], {id, 1}};
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -304,13 +167,14 @@ public:
             return m_ModelCache.Get(name);
         }
 
-        return Asset<T>({0, nullptr});
+        return Asset<T>({0, nullptr, {}});
     }
     template <typename T>
+    /// Returns an asset by numeric ID.
     Asset<T> Get(AssetID id)
     {
         if (id == 0)
-            return Asset<T>({0, nullptr});
+            return Asset<T>({0, nullptr, {}});
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
@@ -326,10 +190,34 @@ public:
             return m_ModelCache.Get(id);
         }
 
-        return Asset<T>({0, nullptr});
+        return Asset<T>({0, nullptr, {}});
+    }
+    template <typename T>
+    /// Returns an asset by stable handle (ID + generation).
+    Asset<T> Get(const AssetHandle& handle)
+    {
+        if (!handle.IsValid())
+            return Asset<T>({0, nullptr, {}});
+
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
+        {
+            if (auto it = m_ShaderMap.find(handle.id); it != m_ShaderMap.end())
+                return Fleur::Asset<T>{handle.id, &it->second, handle};
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            return m_Image2DCache.Get(handle);
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
+        {
+            return m_ModelCache.Get(handle);
+        }
+
+        return Asset<T>({0, nullptr, {}});
     }
 
     template <typename T>
+    /// Releases an asset by logical name.
     void Release(std::string_view name)
     {
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
@@ -342,6 +230,7 @@ public:
         }
     }
     template <typename T>
+    /// Releases an asset by numeric ID.
     void Release(AssetID id)
     {
         if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
@@ -351,6 +240,22 @@ public:
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
         {
             return m_ModelCache.Release(id);
+        }
+    }
+    template <typename T>
+    /// Releases an asset by handle if generation matches.
+    void Release(const AssetHandle& handle)
+    {
+        if (!handle.IsValid())
+            return;
+
+        if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
+        {
+            return m_Image2DCache.Release(handle);
+        }
+        else if constexpr (std::is_same_v<T, Fleur::Graphics::Model>)
+        {
+            return m_ModelCache.Release(handle);
         }
     }
 

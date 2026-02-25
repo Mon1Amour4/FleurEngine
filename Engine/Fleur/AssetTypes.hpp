@@ -1,5 +1,6 @@
 #pragma once
 
+#include "AssetHandle.h"
 #include "Renderer/Image2D.h"
 #include "Renderer/Model.h"
 
@@ -52,8 +53,9 @@ private:
 template <typename T>
 struct Asset
 {
-    Fleur::AssetID ID;
-    T* obj;
+    Fleur::AssetID ID = 0;
+    T* obj = nullptr;
+    Fleur::AssetHandle handle{};
 };
 
 template <typename T>

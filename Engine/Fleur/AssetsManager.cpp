@@ -381,6 +381,7 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
             internalCallback.result.pResource = modelPtr;
             internalCallback.result.type = EVENT_TYPE_MODEL_LOADED;
             internalCallback.result.ID = handle->asset.ID;
+            internalCallback.result.handle = handle->asset.handle;
 
             auto fs = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
 
@@ -471,6 +472,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
             internalCallback.result.pResource = imagePtr;
             internalCallback.result.type = EVENT_TYPE_IMAGE2D_LOADED;
             internalCallback.result.ID = handle->asset.ID;
+            internalCallback.result.handle = handle->asset.handle;
 
             internalCallback.result.loadingStatus = handle->status.GetStatus();
 
@@ -614,6 +616,7 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
             internalCallback.result.pResource = asyncOperation->asset.obj;
             internalCallback.result.type = EVENT_TYPE_CUBEMAP_LOADED;
             internalCallback.result.ID = asyncOperation->asset.ID;
+            internalCallback.result.handle = asyncOperation->asset.handle;
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADED);
             internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
             internalCallback();
