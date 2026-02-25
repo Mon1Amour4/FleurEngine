@@ -589,6 +589,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                 uint32_t width = 1;
                 uint32_t height = 1;
                 uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+                FL_CORE_ASSERT(channels <= 4, "");
 
                 size_t size = width * height * channels;
 
@@ -602,7 +603,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     std::memcpy(pData + i, colorBytes, channels);
                 }
 
-                Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+                Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, (uint16_t)channels, 1, pData};
                 imagePtr->PostCreate(info);
 
                 alloc.deallocate(pData, size);
@@ -644,10 +645,10 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
 }
 // clang-format off
 void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
-                                                    CubemapAsyncOpShared sharedOperation, 
+                                                    CubemapAsyncOpShared sharedOperation,
                                                     CubemapImportSettings& cubemapSettings,
                                                     AssetLoadCallback& internalCallback,
-                                                    std::function<void(CubemapAsset&)> clientCallback, 
+                                                    std::function<void(CubemapAsset&)> clientCallback,
                                                     CallbackInvocationPoint callbackType)
 {
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
@@ -708,7 +709,7 @@ void Fleur::AssetsManager::LoadCubemapAsyncInternal(std::string_view path,
             asyncOperation->status.SetStatus(EAsyncOperationStatus::LOADED);
             internalCallback.result.loadingStatus = asyncOperation->status.GetStatus();
             internalCallback();
-            
+
             if (clientCallback && !m_Stopping.load(std::memory_order_acquire))
             {
                 if (callbackType == AFTER_CPU_LOAD)
@@ -778,6 +779,7 @@ void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::Ima
     uint32_t width = 1;
     uint32_t height = 1;
     uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+    FL_CORE_ASSERT(channels <= 4, "");
 
     size_t size = width * height * channels;
 
@@ -791,7 +793,7 @@ void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::Ima
         std::memcpy(pData + i, colorBytes, channels);
     }
 
-    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, (uint16_t)channels, 1, pData};
     imagePtr->PostCreate(info);
 
     alloc.deallocate(pData, size);
@@ -821,7 +823,7 @@ void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::Im
         return;
     }
 
-    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, (uint16_t)desiredChannels, 1, imgData};
 
     imagePtr->PostCreate(info);
     stbi_image_free(imgData);

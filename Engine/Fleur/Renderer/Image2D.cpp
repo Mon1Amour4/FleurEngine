@@ -93,7 +93,7 @@ Fleur::Graphics::Image2D::Image2D(std::string_view name, unsigned char* data, in
     memcpy(m_Bitmap.GetData(), data, m_Bitmap.GetSizeBytes());
     m_IsCreated = true;
 }
-Fleur::Graphics::Image2D::Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& IN inBitmap, int w, int h, uint16_t channels, uint16_t depth)
+Fleur::Graphics::Image2D::Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& inBitmap, int w, int h, uint16_t channels, uint16_t depth)
     : ImageBase(name, w, h, channels, depth, 1)
     , m_Bitmap(std::move(inBitmap))
 {
@@ -156,7 +156,8 @@ void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
     ImageBase::PostCreate(settings);
 
     m_Bitmap = Bitmap<BitmapFormat_UnsignedByte>(settings.width, settings.height, settings.channels);
-    memcpy_s(m_Bitmap.GetData(), m_Bitmap.GetSizeBytes(), settings.data, settings.width * settings.height * settings.channels * settings.depthBytes);
+    FL_CORE_ASSERT(m_Bitmap.GetSizeBytes() == settings.width * settings.height * settings.channels * settings.depthBytes, "data size mismatch");
+    memcpy(m_Bitmap.GetData(), settings.data, m_Bitmap.GetSizeBytes());
 
     m_IsCreated = true;
 }

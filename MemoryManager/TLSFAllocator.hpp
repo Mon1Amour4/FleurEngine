@@ -289,20 +289,17 @@ private:
 
     inline used_block_header* get_block(uint32_t size, uint32_t* fl, uint32_t* sl)
     {
-        free_block_header* foundBlock = nullptr;
-
         if (Fleur::Core::bit_scan_reverse(size, fl))
         {
             SLI(&size, fl, sl);
-            foundBlock = search_suitable_block(fl, sl);
+            free_block_header* foundBlock = search_suitable_block(fl, sl);
             if (foundBlock)
             {
                 return use_block(*fl, *sl);
             }
         }
 
-        if (!foundBlock)
-            return request_and_use_block(size, *fl, *sl);
+        return request_and_use_block(size, *fl, *sl);
     }
 
     inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)

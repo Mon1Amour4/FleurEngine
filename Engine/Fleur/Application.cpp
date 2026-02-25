@@ -92,7 +92,10 @@ bool Fleur::Application::OnStartResizeWindow(WindowStartResizeEvent& event)
 bool Fleur::Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 {
     event.SetHandled();
-    Fleur::SRect rect{event.X(), event.Y(), event.Width(), event.Height()};
+    auto w = event.Width();
+    auto h = event.Height();
+    FL_CORE_ASSERT(w >= 0 and h >= 0, "event with negative window size");
+    Fleur::SRect rect{event.X(), event.Y(), uint32_t(w), uint32_t(h)};
     ServiceLocator::instance().GetService<Renderer>()->EndResize(rect);
     return true;
 }

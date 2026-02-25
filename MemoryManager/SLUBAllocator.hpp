@@ -147,8 +147,6 @@ public:
     }
     void Print(uint32_t chunkNum)
     {
-        static constexpr char emptyCell = ' ';
-        static constexpr char occupiedCell = 'x';
         static constexpr uint32_t cellsPerRow = 40;
 
         std::cout << "\nChunk_" << chunkNum << "{" << this << "}" << "{" << m_SlotSize << ", " << m_CapacityBytes / m_SlotSize << "}: " << m_UsedBytes << "/"
@@ -326,10 +324,10 @@ private:
 struct Pool
 {
     Pool(uint32_t slotSize, uint32_t slotCount)
-        : m_NumChunks(0)
+        : m_HeadOffsetBytes(INVALID_OFFSET)
+        , m_NumChunks(0)
         , m_SlotSize(slotSize)
         , m_SlotsCount(slotCount)
-        , m_HeadOffsetBytes(INVALID_OFFSET)
     {
         MM_ASSERT(m_SlotSize > 0);
         MM_ASSERT(m_SlotsCount > 0);
@@ -514,8 +512,8 @@ struct SLUBAllocator
     SLUBAllocator(PageAllocator* pageAlloc, uint32_t pageSize, uint32_t minSlotSize)
         : m_PageSize(pageSize)
         , m_MinSlotSize(minSlotSize)
-        , m_PageAlloc(pageAlloc)
         , m_BasePool(nullptr)
+        , m_PageAlloc(pageAlloc)
     {
         uint32_t poolsCount = CountSlots(CHUNK_PAYLOAD_SIZE(m_PageSize), 16);
         uint32_t offset = sizeof(Pool);

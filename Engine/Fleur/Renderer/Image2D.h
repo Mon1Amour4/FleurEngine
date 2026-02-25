@@ -135,7 +135,7 @@ public:
 private:
     Bitmap<BitmapFormat_UnsignedByte> m_Bitmap;
 
-    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& IN bitmap, int w, int h, uint16_t channels, uint16_t depth);
+    Image2D(std::string_view name, Bitmap<BitmapFormat_UnsignedByte>&& bitmap, int w, int h, uint16_t channels, uint16_t depth);
 };
 
 

@@ -280,6 +280,7 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
     return slotSize;
 }
 
+#if defined(_DEBUG) && defined(MEMORYMANAGER_PROFILING)
 //======================================================================
 // MemoryInfo
 void MemoryInfo::AddAlloc(size_t slotSize)
@@ -350,3 +351,4 @@ void MemoryInfo::Print() const
 
     delete[] buffer;
 }
+#endif

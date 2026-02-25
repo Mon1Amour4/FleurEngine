@@ -148,7 +148,7 @@ private:
 
     struct DrawInfo
     {
-        const Model* Model;
+        const Model* _Model;
         glm::mat4 ModelMatrix;
         size_t IndexGlobalOffsetBytes;
         size_t VertexGlobalOffsetBytes;

@@ -4,7 +4,7 @@
 
 //======================================================================
 // CGLTFModelFabric
-Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const cgltf_data const* data)
+Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const cgltf_data* data)
     : m_Name(name)
     , m_Data(data)
 {
@@ -19,7 +19,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     info.meshes.reserve(m_Data->meshes_count);
     info.materials.reserve(m_Data->materials_count);
 
-    int textureIdx = MAXINT;
+    int textureIdx = std::numeric_limits<int>::max();
     for (size_t i = 0; i < info.materials.capacity(); i++)
     {
         uint32_t solidTextureIdx = 0;

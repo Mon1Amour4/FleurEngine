@@ -59,7 +59,7 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Textur
 
 std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::Load_Texture(std::string_view name, Color color, int width, int height)
 {
-    if (name.empty())
+    // if (name.empty())
         return GetLoadedTexture("fallback");
 
     // Try to find first across loaded textures:

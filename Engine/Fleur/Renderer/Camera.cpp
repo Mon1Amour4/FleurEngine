@@ -119,7 +119,7 @@ void Fleur::Graphics::Camera::RotateCamera(float dtTime)
     {
         m_Yaw += mouseDir.x * m_MouseSensitivity * dtTime;
         m_Pitch += mouseDir.y * -1.0f * m_MouseSensitivity * dtTime;
-        glm::fclamp(m_Pitch, -89.0f, 89.0f);
+        m_Pitch = glm::fclamp(m_Pitch, -89.0f, 89.0f);
 
         UpdateForward();
     }
