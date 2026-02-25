@@ -53,9 +53,8 @@ private:
 template <typename T>
 struct Asset
 {
-    Fleur::AssetID ID = 0;
-    T* obj = nullptr;
     Fleur::AssetHandle handle{};
+    T* obj = nullptr;
 };
 
 template <typename T>

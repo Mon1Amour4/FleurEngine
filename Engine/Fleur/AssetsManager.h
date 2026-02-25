@@ -151,12 +151,12 @@ public:
     Asset<T> Get(std::string_view name)
     {
         if (name.empty())
-            return Asset<T>({0, nullptr, {}});
+            return Asset<T>({{}, nullptr});
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
             AssetID id = m_ShaderMapString[name.data()];
-            return Fleur::Asset<T>{id, &m_ShaderMap[id], {id, 1}};
+            return Fleur::Asset<T>{{id, 1}, &m_ShaderMap[id]};
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -167,14 +167,14 @@ public:
             return m_ModelCache.Get(name);
         }
 
-        return Asset<T>({0, nullptr, {}});
+        return Asset<T>({{}, nullptr});
     }
     template <typename T>
     /// Returns an asset by numeric ID.
     Asset<T> Get(AssetID id)
     {
         if (id == 0)
-            return Asset<T>({0, nullptr, {}});
+            return Asset<T>({{}, nullptr});
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
@@ -190,19 +190,19 @@ public:
             return m_ModelCache.Get(id);
         }
 
-        return Asset<T>({0, nullptr, {}});
+        return Asset<T>({{}, nullptr});
     }
     template <typename T>
     /// Returns an asset by stable handle (ID + generation).
     Asset<T> Get(const AssetHandle& handle)
     {
         if (!handle.IsValid())
-            return Asset<T>({0, nullptr, {}});
+            return Asset<T>({{}, nullptr});
 
         if constexpr (std::is_same_v<T, Fleur::Graphics::Shader>)
         {
             if (auto it = m_ShaderMap.find(handle.id); it != m_ShaderMap.end())
-                return Fleur::Asset<T>{handle.id, &it->second, handle};
+                return Fleur::Asset<T>{handle, &it->second};
         }
         else if constexpr (std::is_same_v<T, Fleur::Graphics::Image2D>)
         {
@@ -213,7 +213,7 @@ public:
             return m_ModelCache.Get(handle);
         }
 
-        return Asset<T>({0, nullptr, {}});
+        return Asset<T>({{}, nullptr});
     }
 
     template <typename T>

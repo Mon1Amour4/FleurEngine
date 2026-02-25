@@ -38,7 +38,7 @@ public:
         T* ptr = &map.emplace(id, name).first->second;
         m_size++;
 
-        return {true, false, {id, ptr, handle}};
+        return {true, false, {handle, ptr}};
     };
 
     /// Registers an asynchronous asset operation by path and numeric ID.
@@ -63,7 +63,7 @@ public:
         stringMap.emplace(name, handle);
         generationMap.emplace(id, handle.generation);
         m_size++;
-        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset{id, ptr, handle}, REGISTERED)).first->second;
+        return asyncMap.emplace(name, std::make_shared<TAsyncOp>(TAsset{handle, ptr}, REGISTERED)).first->second;
     };
 
     /// Returns existing async operation for asset name or sentinel operation.
@@ -72,13 +72,13 @@ public:
         if (auto operation = asyncMap.find(name.data()); operation != asyncMap.end())
             return operation->second;
         else
-            return {std::make_shared<TAsyncOp>(TAsset{0, nullptr, {}}, EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)};
+            return {std::make_shared<TAsyncOp>(TAsset{{}, nullptr}, EAsyncOperationStatus::LOADING_STATUS_MAX_VALUE)};
     }
 
     /// Returns cache record by asset logical name.
     AssetRecord<T> Exist(std::string_view name)
     {
-        TRecord record{false, false, {0, nullptr, {}}};
+        TRecord record{false, false, {{}, nullptr}};
 
         if (auto rec = stringMap.find(name.data()); rec != stringMap.end())
         {
@@ -89,7 +89,6 @@ public:
                 {
                     record.registered = true;
                     record.alreadyExist = true;
-                    record.asset.ID = handle.id;
                     record.asset.handle = handle;
                     record.asset.obj = &byId->second;
                 }
@@ -109,11 +108,10 @@ public:
     /// Returns asset by numeric ID.
     Asset<T> Get(AssetID id)
     {
-        TAsset asset{0, nullptr, {}};
+        TAsset asset{{}, nullptr};
         std::lock_guard<std::mutex> lc(mutex);
         if (auto rec = map.find(id); rec != map.end())
         {
-            asset.ID = id;
             if (auto gen = generationMap.find(id); gen != generationMap.end())
                 asset.handle = AssetHandle{id, gen->second};
             asset.obj = &rec->second;
@@ -129,9 +127,9 @@ public:
         if (auto gen = generationMap.find(handle.id); gen != generationMap.end() && gen->second == handle.generation)
         {
             if (auto rec = map.find(handle.id); rec != map.end())
-                return TAsset{handle.id, &rec->second, handle};
+                return TAsset{handle, &rec->second};
         }
-        return TAsset{0, nullptr, {}};
+        return TAsset{{}, nullptr};
     }
 
     /// Releases asset by logical name.
