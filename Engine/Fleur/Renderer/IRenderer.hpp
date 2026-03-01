@@ -31,30 +31,50 @@ enum EFLIndexInputDescription
 
 struct SFLShaderInfo
 {
-    const char* shaderCode = nullptr;
-    uint32_t sizeBytes = 0;
+    const char* shaderCode;
+    uint32_t sizeBytes;
+
+    SFLShaderInfo()
+        : shaderCode(nullptr)
+        , sizeBytes(0) {};
 };
 
 struct SFLGeometryPass
 {
-    SFLShaderInfo* pVertexShaderInfo = nullptr;
-    SFLShaderInfo* pFragmentShaderInfo = nullptr;
-    EFLVertexInputDescription vertexInputInfo = VERTEX_INPUT_MAX_VALUE;
-    EFLIndexInputDescription indexInputInfo = INDEX_INPUT_MAX_VALUE;
-    EFLInputAssemblyTopology inputAssemblyTopology = FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_MAX_VALUE;
+    SFLShaderInfo* pVertexShaderInfo;
+    SFLShaderInfo* pFragmentShaderInfo;
+    EFLVertexInputDescription vertexInputInfo;
+    EFLIndexInputDescription indexInputInfo;
+    EFLInputAssemblyTopology inputAssemblyTopology;
+
+    SFLGeometryPass()
+        : pVertexShaderInfo(nullptr)
+        , pFragmentShaderInfo(nullptr)
+        , vertexInputInfo(VERTEX_INPUT_MAX_VALUE)
+        , indexInputInfo(INDEX_INPUT_MAX_VALUE)
+        , inputAssemblyTopology(FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_MAX_VALUE) {};
 };
 
 struct SFLFrame
 {
-    SFLGeometryPass* pPass = nullptr;
+    SFLGeometryPass* pPass;
+
+    SFLFrame()
+        : pPass(nullptr) {};
 };
 
 struct SFLDrawUploadInfo
 {
-    const void* pVertex = nullptr;
-    uint64_t vertexCount = 0;
-    const void* pIndex = nullptr;
+    const void* pVertex;
+    uint64_t vertexCount;
+    const void* pIndex;
     uint64_t indexCount;
+
+    SFLDrawUploadInfo()
+        : pVertex(nullptr)
+        , vertexCount(0)
+        , pIndex(nullptr)
+        , indexCount(0) {};
 };
 
 #pragma endregion

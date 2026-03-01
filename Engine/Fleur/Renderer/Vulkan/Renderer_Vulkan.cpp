@@ -65,6 +65,9 @@ vk::backend::impl::impl(bool enableValidation,
     , m_FallbackCubemapTexture(nullptr)
     , m_DepthRenderTarget(nullptr)
 {
+    assert(pFrame.pPass->pVertexShaderInfo->shaderCode);
+    assert(pFrame.pPass->pFragmentShaderInfo->shaderCode);
+
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
 #if defined(FLEUR_PLATFORM_WIN)
@@ -87,8 +90,7 @@ vk::backend::impl::impl(bool enableValidation,
 
     initializeVma();
     m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Surface,
-                                 {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height},
-                                 m_Device->GetGraphicsQueueFamilyIndex());
+                                 {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height}, m_Device->GetPresentQueueFamilyIndex());
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
@@ -896,6 +898,9 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
 
 void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
 {
+    assert(pVertexShaderInfo && pVertexShaderInfo->shaderCode);
+    assert(pFragmentShaderInfo && pFragmentShaderInfo->shaderCode);
+
     if (m_Skybox)
         return;
 
@@ -1005,7 +1010,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     if (!m_Swapchain->ReadyToPresent())
     {
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
-        m_Swapchain->Recreate(m_Surface, m_Device->GetGraphicsQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
+        m_Swapchain->Recreate(m_Surface, m_Device->GetPresentQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
                               m_DepthRenderTarget->GetImageView());
     }
 

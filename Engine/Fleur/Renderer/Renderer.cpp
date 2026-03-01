@@ -104,15 +104,21 @@ void Fleur::Graphics::Renderer::OnInit()
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-    auto pVertexShader = assetsManager->Get<Shader>("vertex").obj;
     Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
-    vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
-    vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
+    auto pVertexShader = assetsManager->Get<Shader>("opaqueVertex").obj;
+    if (pVertexShader)
+    {
+        vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
+        vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
+    }
 
-    auto pFragmentShader = assetsManager->Get<Shader>("opaque").obj;
     Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
-    fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
-    fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
+    auto pFragmentShader = assetsManager->Get<Shader>("opaqueFragment").obj;
+    if (pFragmentShader)
+    {
+        fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
+        fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
+    }
 
     Fleur::Graphics::SFLGeometryPass geometryPass{};
     geometryPass.pVertexShaderInfo = &vertexShaderInfo;
@@ -135,24 +141,27 @@ void Fleur::Graphics::Renderer::OnInit()
     m_Backend = new vk::backend(validation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 
 
-    auto pSkyboxVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;
     Fleur::Graphics::SFLShaderInfo skyboxVertexShaderInfo{};
-    skyboxVertexShaderInfo.shaderCode = pSkyboxVertexShader->GetShaderCode();
-    skyboxVertexShaderInfo.sizeBytes = pSkyboxVertexShader->GetShaderCodeSizeB();
+    auto pSkyboxVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;
+    if (pSkyboxVertexShader)
+    {
+        skyboxVertexShaderInfo.shaderCode = pSkyboxVertexShader->GetShaderCode();
+        skyboxVertexShaderInfo.sizeBytes = pSkyboxVertexShader->GetShaderCodeSizeB();
+    }
 
-    auto pSkyboxFragmentShader = assetsManager->Get<Shader>("skyboxFragment").obj;
     Fleur::Graphics::SFLShaderInfo skyboxFragmentShaderInfo{};
-    skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->GetShaderCode();
-    skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->GetShaderCodeSizeB();
+    auto pSkyboxFragmentShader = assetsManager->Get<Shader>("skyboxFragment").obj;
+    if (pSkyboxFragmentShader)
+    {
+        skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->GetShaderCode();
+        skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->GetShaderCodeSizeB();
+    }
 
     m_Backend->CreateSkybox(fallbackAsset.handle.id, &skyboxVertexShaderInfo, &skyboxFragmentShaderInfo);
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
 {
-    /* m_Device->Release();
-     m_Swapchain->Release();*/
-
     delete m_Backend;
 }
 

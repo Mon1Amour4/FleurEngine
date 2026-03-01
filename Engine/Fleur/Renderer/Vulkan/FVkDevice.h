@@ -11,18 +11,28 @@
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
 
-struct SQueueFamily
+struct FleurQueueFamilies
 {
-    SQueueFamily()
-        : familyIndex(-1)
-        , queueFamiliesCount(-1)
-        , familyQueueFlag(VK_QUEUE_FLAG_BITS_MAX_ENUM) {};
+    FleurQueueFamilies() = default;
 
-    int familyIndex{};
-    int queueFamiliesCount{};
-    VkQueueFlagBits familyQueueFlag{};
+    struct QueueFamily
+    {
+        int m_Idx;
+        int m_Count;
+        VkQueueFlags m_Flags;
 
-    bool IsValid();
+        QueueFamily()
+            : m_Idx(-1)
+            , m_Count(-1)
+            , m_Flags(VK_QUEUE_FLAG_BITS_MAX_ENUM) {};
+
+        void Set(uint32_t familyIdx, uint32_t count, VkQueueFlags flags);
+        bool IsValid();
+    };
+
+    QueueFamily m_GraphicsFamily;
+    QueueFamily m_PresentFamily;
+
 };
 
 struct SDeviceInfo
@@ -37,7 +47,7 @@ struct SDeviceInfo
 class FVkDevice
 {
 public:
-    FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily);
+    FVkDevice(VkPhysicalDevice physicalDevice, FleurQueueFamilies graphicsQueueFamily);
     ~FVkDevice();
 
 
@@ -54,9 +64,13 @@ public:
     {
         return m_PhysicalDevice;
     }
-    inline uint32_t GetGraphicsQueueFamilyIndex() const
+    inline int GetGraphicsQueueFamilyIndex() const
     {
-        return m_GraphicsQueueFamily.familyIndex;
+        return m_QueueFamilies.m_GraphicsFamily.m_Idx;
+    }
+    inline int GetPresentQueueFamilyIndex() const
+    {
+        return m_QueueFamilies.m_PresentFamily.m_Idx;
     }
     inline VkQueue GetGraphicsQueue() const
     {
@@ -80,7 +94,8 @@ public:
 
 private:
     static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo);
-    static SQueueFamily FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+    static FleurQueueFamilies FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
+    static std::string QueueFlagsToString(VkQueueFlags flags);
     static bool CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice, std::vector<const char*>& requiredDeviceExtensions);
     void QuerySupportedVkFormats();
     bool CheckVkFormatSupport(VkFormat format);
@@ -88,7 +103,8 @@ private:
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
     bool m_SwapchainSupport;
-    SQueueFamily m_GraphicsQueueFamily;
+
+    FleurQueueFamilies m_QueueFamilies;
 
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
@@ -98,4 +114,14 @@ private:
     std::unordered_map<uint32_t, VkFormat> m_SupportedFormatsMap;
 
     bool m_ForceAlpha;
+
+    struct QueueFamiliesProperties
+    {
+        std::vector<bool> presentSupport;
+        std::vector<VkQueueFamilyProperties> properties;
+
+        void Print() const;
+    };
+    QueueFamiliesProperties m_QueueFamilySupport;
+    static void getPresentSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, std::vector<bool>& vec);
 };

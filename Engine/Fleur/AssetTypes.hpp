@@ -59,6 +59,11 @@ struct Asset
 {
     Fleur::AssetHandle handle{};
     T* obj = nullptr;
+
+    explicit operator bool() const noexcept
+    {
+        return obj;
+    }
 };
 
 template <typename T>

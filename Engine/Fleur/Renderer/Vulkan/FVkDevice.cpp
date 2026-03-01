@@ -5,16 +5,11 @@
 #include <array>
 #include <cassert>
 #include <set>
+#include <iostream>
 
-bool SQueueFamily::IsValid()
-{
-    return (familyIndex != -1 && queueFamiliesCount != -1);
-}
-
-
-FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, SQueueFamily graphicsQueueFamily)
+FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, FleurQueueFamilies graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
-    , m_GraphicsQueueFamily(graphicsQueueFamily)
+    , m_QueueFamilies(graphicsQueueFamily)
     , m_ForceAlpha(true)
 {
 }
@@ -28,11 +23,34 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
 {
     std::array<float, 2> queuePriority{1.0f, 1.0f};
     uint32_t queueCount = 2;
-    VkDeviceQueueCreateInfo uniqueFamilyQueueCreateInfo{};
-    uniqueFamilyQueueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    uniqueFamilyQueueCreateInfo.queueFamilyIndex = m_GraphicsQueueFamily.familyIndex;
-    uniqueFamilyQueueCreateInfo.queueCount = 2;  // Queues count in this Family
-    uniqueFamilyQueueCreateInfo.pQueuePriorities = queuePriority.data();
+    std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfo{};
+    if (m_QueueFamilies.m_GraphicsFamily.m_Idx != m_QueueFamilies.m_PresentFamily.m_Idx)
+    {
+        // GraphicsQueue
+        VkDeviceQueueCreateInfo graphicsFamilyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                                              .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_GraphicsFamily.m_Idx,
+                                                              .queueCount = 1,
+                                                              .pQueuePriorities = queuePriority.data()};
+
+        deviceQueueCreateInfo.push_back(graphicsFamilyQueueCreateInfo);
+
+        // PresentQueue
+        VkDeviceQueueCreateInfo presentFamilyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                                             .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_PresentFamily.m_Idx,
+                                                              .queueCount = 1,
+                                                              .pQueuePriorities = queuePriority.data()};
+
+        deviceQueueCreateInfo.push_back(presentFamilyQueueCreateInfo);
+    }
+    else
+    {  // GraphicsQueue &&  // PresentQueue
+        VkDeviceQueueCreateInfo familyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                                                              .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_GraphicsFamily.m_Idx,
+                                                              .queueCount = 2,
+                                                              .pQueuePriorities = queuePriority.data()};
+        deviceQueueCreateInfo.push_back(familyQueueCreateInfo);
+    }
+    
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
@@ -50,8 +68,8 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
 
     VkDeviceCreateInfo deviceCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
                                         .pNext = &dynamicRenderingFeature,
-                                        .queueCreateInfoCount = 1,
-                                        .pQueueCreateInfos = &uniqueFamilyQueueCreateInfo,
+                                        .queueCreateInfoCount = (uint32_t)deviceQueueCreateInfo.size(),
+                                        .pQueueCreateInfos = deviceQueueCreateInfo.data(),
                                         .enabledExtensionCount = (uint32_t)deivceExtensions.size(),
                                         .ppEnabledExtensionNames = deivceExtensions.data(),
                                         .pEnabledFeatures = &deviceFeatures};
@@ -60,8 +78,8 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     {
         assert(true);
     }
-    vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily.familyIndex, 0, &m_GraphicsQueue);
-    vkGetDeviceQueue(m_Device, m_GraphicsQueueFamily.familyIndex, 1, &m_PresentQueue);
+    vkGetDeviceQueue(m_Device, m_QueueFamilies.m_GraphicsFamily.m_Idx, 0, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, m_QueueFamilies.m_PresentFamily.m_Idx, 1, &m_PresentQueue);
 
     QuerySupportedVkFormats();
 
@@ -108,15 +126,21 @@ FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& dev
 
 bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo)
 {
-    SQueueFamily family{};
+    FleurQueueFamilies families{};
 
     bool isDeviceExtensionsSupported = false;
     bool isSwapchainDetailsSupported = false;
 
     if (deviceInfo.presentationSupport)
-        family = FindGraphicsQueueFamily(physicalDevice, deviceInfo.surface);
+        families = FindGraphicsQueueFamily(physicalDevice, deviceInfo.surface);
 
-    if (!family.IsValid())
+    bool res = false;
+    if (deviceInfo.presentationSupport)
+        res = families.m_GraphicsFamily.IsValid() && families.m_PresentFamily.IsValid();
+    else
+        res = families.m_GraphicsFamily.IsValid();
+
+    if (!res)
         return false;
 
     VkPhysicalDeviceProperties deviceProperties;
@@ -130,21 +154,27 @@ bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& d
     return true;
 }
 
-SQueueFamily FVkDevice::FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
+FleurQueueFamilies FVkDevice::FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface)
 {
-    SQueueFamily family{};
-    family.familyQueueFlag = VK_QUEUE_GRAPHICS_BIT;
+    FleurQueueFamilies families{};
+    VkQueueFlagBits flagToFind = VK_QUEUE_GRAPHICS_BIT;
 
     uint32_t queueFamilyCount = 0;
 
     vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
 
-    std::vector<VkQueueFamilyProperties> familyProperties(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, familyProperties.data());
+    QueueFamiliesProperties familiesProperties{};
+    familiesProperties.properties.resize(queueFamilyCount);
+    familiesProperties.presentSupport.resize(queueFamilyCount);
 
+    vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, familiesProperties.properties.data());
+    getPresentSupport(physicalDevice, surface, familiesProperties.presentSupport);
+    familiesProperties.Print();
+
+    bool graphicsFamilyFound = false;
     for (size_t i = 0; i < queueFamilyCount; i++)
     {
-        if (familyProperties[i].queueCount > 0 && familyProperties[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        if (familiesProperties.properties[i].queueCount > 0 && familiesProperties.properties[i].queueFlags & flagToFind)
         {
             if (surface)
             {
@@ -152,18 +182,77 @@ SQueueFamily FVkDevice::FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice,
                 vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
                 if (presentSupport)
                 {
-                    family.familyIndex = i;
-                    family.queueFamiliesCount = familyProperties[i].queueCount;
+                    families.m_GraphicsFamily.Set(i, familiesProperties.properties[i].queueCount, familiesProperties.properties[i].queueFlags);
+                    families.m_PresentFamily.Set(i, familiesProperties.properties[i].queueCount, familiesProperties.properties[i].queueFlags);
                     break;
                 }
             }
-            family.familyIndex = i;
-            family.queueFamiliesCount = familyProperties[i].queueCount;
-            break;
+            if (!graphicsFamilyFound)
+            {
+                graphicsFamilyFound = true;
+                families.m_GraphicsFamily.Set(i, familiesProperties.properties[i].queueCount, familiesProperties.properties[i].queueFlags);
+            }
         }
     }
 
-    return family;
+    if (surface && !families.m_PresentFamily.IsValid())
+    {
+        for (size_t i = 0; i < queueFamilyCount; i++)
+        {
+            if (familiesProperties.properties[i].queueCount > 0)
+            {
+                VkBool32 presentSupport = false;
+                vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+                if (presentSupport)
+                {
+                    families.m_PresentFamily.Set(i, familiesProperties.properties[i].queueCount, familiesProperties.properties[i].queueFlags);
+                    break;
+                }
+            }
+        }
+    }
+    return families;
+}
+
+std::string FVkDevice::QueueFlagsToString(VkQueueFlags flags)
+{
+    std::string result;
+    
+    auto append = [&](const char* name)
+    {
+        if (!result.empty())
+            result += " | ";
+        result += name;
+    };
+    
+    if (flags & VK_QUEUE_GRAPHICS_BIT)
+        append("GRAPHICS");
+    
+    if (flags & VK_QUEUE_COMPUTE_BIT)
+        append("COMPUTE");
+    
+    if (flags & VK_QUEUE_TRANSFER_BIT)
+        append("TRANSFER");
+    
+    if (flags & VK_QUEUE_SPARSE_BINDING_BIT)
+        append("SPARSE_BINDING");
+    
+    if (flags & VK_QUEUE_PROTECTED_BIT)
+        append("PROTECTED");
+    
+    if (flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
+        append("VIDEO_DECODE");
+    
+    if (flags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR)
+        append("VIDEO_ENCODE");
+    
+    if (flags & VK_QUEUE_OPTICAL_FLOW_BIT_NV)
+        append("OPTICAL_FLOW");
+    
+    if (result.empty())
+        return "NONE";
+    
+    return result;
 }
 
 bool FVkDevice::CheckDeviceExtensionSupport(VkPhysicalDevice m_LogicalDevice, std::vector<const char*>& requiredDeviceExtensions)
@@ -227,4 +316,41 @@ bool FVkDevice::CheckVkFormatSupport(VkFormat format)
                                                                &formatProperties);
 
     return result == VK_SUCCESS;
+}
+
+void FVkDevice::getPresentSupport(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface, std::vector<bool>& vec)
+{
+    for (size_t i = 0; i < vec.size(); i++)
+    {
+        VkBool32 presentSupport;
+        std::string str{};
+        vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, surface, &presentSupport);
+        vec[i] = (bool)presentSupport;
+    }
+}
+
+void FVkDevice::QueueFamiliesProperties::Print() const
+{
+    assert(properties.size() > 0);
+    assert(properties.size() == presentSupport.size());
+
+    for (size_t i = 0; i < properties.size(); i++)
+    {
+        std::string str = presentSupport[i] == true ? "PRESENT | " : "";
+
+        std::cout << "Available QueueFamily: " << str.c_str() << QueueFlagsToString(properties[i].queueFlags).c_str() << ", count: " << properties[i].queueCount
+                  << std::endl;
+    }
+}
+
+void FleurQueueFamilies::QueueFamily::Set(uint32_t familyIdx, uint32_t count, VkQueueFlags flags)
+{
+    m_Idx = familyIdx;
+    m_Count = count;
+    m_Flags = flags;
+}
+
+bool FleurQueueFamilies::QueueFamily::IsValid()
+{
+    return (m_Idx != -1 && m_Count != -1);
 }

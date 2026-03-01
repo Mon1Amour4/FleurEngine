@@ -12,6 +12,8 @@
 #include "Renderer/Skybox.h"
 #include "Services/ServiceInterfaces.hpp"
 
+#pragma region TypeAliases
+
 using ImageType = Fleur::Graphics::Image2D;
 using ShaderType = Fleur::Graphics::Shader;
 using ModelType = Fleur::Graphics::Model;
@@ -33,9 +35,12 @@ using ImageAsyncOpShared = std::shared_ptr<ImageAsyncOp>;
 using ModelAsyncOpShared = std::shared_ptr<ModelAsyncOp>;
 using CubemapAsyncOpShared = std::shared_ptr<CubemapAsyncOp>;
 
+#pragma endregion
 
 namespace Fleur
 {
+
+#pragma region Enums&Structs
 
 enum CallbackInvocationPoint
 {
@@ -114,6 +119,11 @@ struct AssetLoadCallback
     CallbackFn callback = nullptr;
 };
 
+#pragma endregion
+
+template <typename>
+inline constexpr bool always_false_v = false;
+
 class AssetsManager : public Service<AssetsManager>, public IUpdatable
 {
 public:
@@ -134,7 +144,7 @@ public:
     /// Loads a model immediately and returns an asset with a valid handle.
     ModelAsset LoadModel(std::string_view path);
     /// Loads a 2D image immediately and returns an asset with a valid handle.
-    ImageAsset LoadImage(std::string_view path, ImageImportSettings imageSettings);
+    ImageAsset LoadImage(std::string_view path, ImageImportSettings imageSettings = {.imageSource = IMAGE_SOURCE_DISK});
     /// Loads a cubemap immediately and returns an asset with a valid handle.
     CubemapAsset LoadCubemap(std::string_view path, CubemapImportSettings settings);
 
@@ -179,7 +189,7 @@ public:
         }
         else
         {
-            static_assert(false, "AssetsManager::Get(name): unsupported asset type");
+            static_assert(always_false_v<T>, "AssetsManager::Get(name): unsupported asset type");
         }
 
         return Asset<T>{{}, nullptr};
@@ -210,7 +220,7 @@ public:
         }
         else
         {
-            static_assert(false, "AssetsManager::Get(handle): unsupported asset type");
+            static_assert(always_false_v<T>, "AssetsManager::Get(handle): unsupported asset type");
         }
 
         return Asset<T>{{}, nullptr};
@@ -234,7 +244,7 @@ public:
         }
         else
         {
-            static_assert(false, "AssetsManager::Release(name): unsupported asset type");
+            static_assert(always_false_v<T>, "AssetsManager::Release(name): unsupported asset type");
         }
     }
     template <typename T>
@@ -258,7 +268,7 @@ public:
         }
         else
         {
-            static_assert(false, "AssetsManager::Release(handle): unsupported asset type");
+            static_assert(always_false_v<T>, "AssetsManager::Release(handle): unsupported asset type");
         }
     }
 
