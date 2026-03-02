@@ -1029,6 +1029,12 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
         m_Swapchain->Recreate(m_Surface, m_Device->GetPresentQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
                               m_DepthRenderTarget->GetImageView());
+
+        auto extent = m_Swapchain->GetSwapchainExtent();
+        m_DepthRenderTarget->~FVkTexture();
+        new (m_DepthRenderTarget) FVkTexture();
+        createDepthTexture(*m_DepthRenderTarget, extent.width, extent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
+                           m_MultisampledRenderTarget->GetSamplesCount(), 1);
     }
 
 
