@@ -789,7 +789,7 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     }
     m_FallbackCubemapTexture->CreateImaveView();
 
-    delete buffer;
+    delete[] buffer;
 }
 
 void vk::backend::impl::updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
