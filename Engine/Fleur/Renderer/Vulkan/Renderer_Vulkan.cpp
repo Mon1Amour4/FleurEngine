@@ -212,9 +212,6 @@ vk::backend::impl::~impl()
     delete m_StaticGeometryTexturesDsl;
     delete m_StaticGeometryUboDsl;
 
-    // 4. Pipeline
-    delete m_GeometryPipeline;
-
     // 5. Swapchain & Framebuffers & swapchain image views
 
     // 7. All ImageViews

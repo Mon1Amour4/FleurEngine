@@ -77,7 +77,6 @@ FVkSkybox::FVkSkybox()
 
 FVkSkybox::~FVkSkybox()
 {
-    delete m_Pipeline;
     delete m_VertexInput;
     delete m_DescriptorSetLayout;
     delete m_VertexBuffer;
