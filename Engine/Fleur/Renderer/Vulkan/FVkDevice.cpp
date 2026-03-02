@@ -23,8 +23,10 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
 {
     std::array<float, 2> queuePriority{1.0f, 1.0f};
     uint32_t queueCount = 2;
+
     std::vector<VkDeviceQueueCreateInfo> deviceQueueCreateInfo{};
-    if (m_QueueFamilies.m_GraphicsFamily.m_Idx != m_QueueFamilies.m_PresentFamily.m_Idx)
+    bool same_present_queue = m_QueueFamilies.m_GraphicsFamily.m_Idx == m_QueueFamilies.m_PresentFamily.m_Idx;
+    if (!same_present_queue)
     {
         // GraphicsQueue
         VkDeviceQueueCreateInfo graphicsFamilyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
@@ -46,11 +48,11 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     {  // GraphicsQueue &&  // PresentQueue
         VkDeviceQueueCreateInfo familyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                                                               .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_GraphicsFamily.m_Idx,
-                                                              .queueCount = 2,
+                                                              .queueCount = 1,
                                                               .pQueuePriorities = queuePriority.data()};
         deviceQueueCreateInfo.push_back(familyQueueCreateInfo);
     }
-    
+
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
@@ -78,8 +80,9 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     {
         assert(true);
     }
+
     vkGetDeviceQueue(m_Device, m_QueueFamilies.m_GraphicsFamily.m_Idx, 0, &m_GraphicsQueue);
-    vkGetDeviceQueue(m_Device, m_QueueFamilies.m_PresentFamily.m_Idx, 1, &m_PresentQueue);
+    vkGetDeviceQueue(m_Device, m_QueueFamilies.m_PresentFamily.m_Idx, same_present_queue? 0 : 1, &m_PresentQueue);
 
     QuerySupportedVkFormats();
 
