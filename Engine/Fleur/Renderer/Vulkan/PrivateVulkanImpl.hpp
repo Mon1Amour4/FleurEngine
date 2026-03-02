@@ -159,6 +159,11 @@ struct backend::impl
             , m_RenderFinished(m_FramesInFlight)
             , m_FrameCommandPool(nullptr) {};
 
+        ~FrameContext()
+        {
+            delete m_FrameCommandPool;
+        }
+
         uint32_t m_FramesInFlight;
         std::vector<FVkCommandPool> m_CommandPools;
         std::vector<FVkCommandBuffer> m_CommandBuffers;

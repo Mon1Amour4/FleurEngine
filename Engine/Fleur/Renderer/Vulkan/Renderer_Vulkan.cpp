@@ -243,6 +243,8 @@ vk::backend::impl::~impl()
     // 11. Surface
     vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
 
+    m_ShaderMap.clear();
+
     // 12. LogicalDevice
     delete m_Device;
 
