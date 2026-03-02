@@ -1,7 +1,8 @@
 #pragma once
 
-#include "../Windows/EventQueueWin.h"
+#include "EventQueueLinux.h"
 #include "Input.h"
+#include "Wayland.h"
 #include "Window.h"
 
 namespace Fleur
@@ -63,7 +64,7 @@ public:
 
     inline virtual bool IsActive() const override
     {
-        return m_HasInputFocus;
+        return m_Wayland_ctx->focused;
     }
 
     virtual void SetTitle(std::string title) override;
@@ -71,16 +72,26 @@ public:
     virtual Fleur::SRect GetFramebufferSize() const override;
 
 private:
+    struct NativeHandle
+    {
+        wl_display* display;
+        wl_surface* surface;
+    };
 
-    EventQueueWin* m_EventQueue;
+    EventQueueLinux* m_EventQueue;
 
+    std::shared_ptr<Wayland::Context> m_Wayland_ctx;
+    std::shared_ptr<Wayland::Window> m_Wayland_window;
+    NativeHandle m_Wayland_handle;
+
+    float m_DPIScale;
     uint32_t m_CurrentWidth, m_CurrentHeigth;
     int m_XPos, m_YPos;
 
 
     WindowProps m_Props;
 
-    bool m_IsFirstLaunch, m_IsResizing, m_IsPainted, m_HasInputFocus, m_IsAppActive, m_IsFrameAction;
+    bool m_IsFirstLaunch, m_IsResizing, m_IsPainted, m_IsAppActive, m_IsFrameAction;
 
     virtual inline void SetPainted() override
     {
@@ -94,7 +105,6 @@ private:
     glm::ivec2 m_MouseDir;
     glm::ivec2 m_PrevMouseDir;
     Input::MouseInfo m_LastMouse;
-    Input::EKeyState m_PressedKeys[256];
     glm::ivec2 m_CursorPos;
     glm::ivec2 m_PrevCursorPos;
 

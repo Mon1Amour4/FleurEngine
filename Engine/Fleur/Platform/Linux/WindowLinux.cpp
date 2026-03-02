@@ -1,35 +1,33 @@
 ﻿#include "WindowLinux.h"
 
-#include "InputLinux.h"
 #include "Log.h"
+#include "Wayland.h"
 
 void Fleur::WindowLinux::SetTitle(std::string title)
 {
-    UNUSED(title);
+    m_Wayland_window->setTitle(std::string(m_Props.Title + " " + title).c_str());
 }
 
 Fleur::SRect Fleur::WindowLinux::GetFramebufferSize() const
 {
-    return {0, 0, 0, 0};
+    return {0, 0, m_Wayland_window->width, m_Wayland_window->height};
 }
 
 Fleur::WindowLinux::WindowLinux(const WindowProps& props, EventQueue& eventQueue)
-    : m_EventQueue(static_cast<EventQueueWin*>(&eventQueue))
+    : m_EventQueue(static_cast<EventQueueLinux*>(&eventQueue))
     , m_Props(props)
     , m_LastMouse{Input::MOUSE_NONE, Mouse::None}
     , m_CursorPos{0.f, 0.f}
     , m_IsResizing(false)
     , m_IsPainted(true)
     , m_IsFrameAction(false)
-    , m_CurrentWidth(props.Width)
-    , m_CurrentHeigth(props.Height)
+    , m_CurrentWidth(0)
+    , m_CurrentHeigth(0)
     , m_XPos(props.x)
     , m_YPos(props.y)
     , m_PrevCursorPos(m_CursorPos)
-    , m_PressedKeys{Input::EKeyState::KEY_NONE}
     , m_InteractionMode(EInteractionMode::GAMING)
     , m_IsFirstLaunch(true)
-    , m_HasInputFocus(false)
     , m_IsAppActive(false)
     , m_BufferX(0)
     , m_BufferY(0)
@@ -37,10 +35,27 @@ Fleur::WindowLinux::WindowLinux(const WindowProps& props, EventQueue& eventQueue
     , m_MouseDir(0, 0)
     , m_MouseWheelData(std::make_pair(0, 0))
 {
+    m_Wayland_ctx = std::make_shared<Wayland::Context>();
+    m_Wayland_window = std::make_shared<Wayland::Window>();
+    if (!m_Wayland_ctx->Open(m_EventQueue) or !m_Wayland_window->Open(m_Wayland_ctx))
+        throw std::runtime_error("failed to create Wayland window");
+
+    m_Wayland_window->flush();
+
+    m_Wayland_handle.display = m_Wayland_ctx->display.get();
+    m_Wayland_handle.surface = m_Wayland_window->m_surface.get();
+
+    m_DPIScale = 96.0f / 96.0f;
 }
 
 void Fleur::WindowLinux::OnUpdate(float dtTime)
 {
+    m_Wayland_ctx->poll();
+
+    // TODO thread
+    // std::atomic<bool> stopFlag = true;
+    // m_Wayland_ctx->eventLoop(&stopFlag);
+
     UNUSED(dtTime);
     glm::ivec2 tmp = m_MouseDir;
     m_MouseDir.x = static_cast<int>(std::lerp(m_PrevMouseDir.x, m_BufferX, 0.5f));
@@ -49,12 +64,6 @@ void Fleur::WindowLinux::OnUpdate(float dtTime)
 
     m_BufferX = 0;
     m_BufferY = 0;
-    if (!m_HasInputFocus)
-        if (m_IsResizing || m_Props.mode == MINIMIZED)
-        {
-            FL_CORE_INFO("stop rendering");
-            return;
-        }
     m_EventQueue->PushEvent(std::make_shared<EventVariant>(AppRenderEvent()));
 }
 
@@ -69,12 +78,12 @@ void Fleur::WindowLinux::OnFixedUpdate()
 
 void* Fleur::WindowLinux::GetNativeHandle() const
 {
-    throw std::runtime_error("TODO");
+    return const_cast<void*>(reinterpret_cast<const void*>(&m_Wayland_handle));
 }
 
 Fleur::Input::EKeyState Fleur::WindowLinux::GetKeyState(EKeyCode keyCode) const
 {
-    return m_PressedKeys[keyCode];
+    return m_Wayland_ctx->key_states[keyCode];
 }
 
 Fleur::Input::EMouseState Fleur::WindowLinux::GetMouseState(EMouseCode mouseCode) const

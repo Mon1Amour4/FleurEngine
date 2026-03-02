@@ -4,11 +4,17 @@
 
 #include "EventQueue.h"
 
+namespace Wayland
+{
+struct Context;
+}
+
 namespace Fleur
 {
-class EventQueueWin final : public EventQueue
+class EventQueueLinux final : public EventQueue
 {
-    friend class WindowWin;
+    friend class WindowLinux;
+    friend struct Wayland::Context;
 
 public:
     virtual void OnUpdate(float dtTime) override;
@@ -20,9 +26,9 @@ public:
     virtual void Pop() override;
     virtual bool Empty() override;
 
-private:
     virtual void PushEvent(std::shared_ptr<EventVariant>&& e);
 
+private:
     std::queue<std::shared_ptr<EventVariant>, std::deque<std::shared_ptr<EventVariant>>> m_Queue;
     std::mutex m_Mutex;
 };
