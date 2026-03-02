@@ -1,6 +1,7 @@
 #include "FVkShader.h"
 
 #include <cassert>
+#include <memory>
 
 vk::FVkShader::DescriptorSetDefaultValues vk::FVkShader::m_DefaultValues;
 
@@ -52,8 +53,8 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
     result = spvReflectEnumerateInputVariables(&module, &var_count, NULL);
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-    SpvReflectInterfaceVariable** input_vars = (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
-    result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars);
+    auto input_vars = std::unique_ptr<SpvReflectInterfaceVariable*[]>(new SpvReflectInterfaceVariable*[var_count]);
+    result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars.get());
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
     shaderData.entryPoint = module.entry_point_name;
@@ -93,29 +94,37 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
                                                  .pVertexAttributeDescriptions = m_VertexInput.m_VertexInputAttributes.data()};
     }
 
-    for (size_t i = 0; i < 64; i++)
+    for (size_t i = 0; i < module.descriptor_set_count; i++)
     {
-        SpvReflectDescriptorSet* currentDescriptorSet = module.descriptor_sets + i;
-        if (currentDescriptorSet->binding_count != 0)
+        SpvReflectDescriptorSet* currentDescriptorSet = &module.descriptor_sets[i];
+        for (size_t j = 0; j < currentDescriptorSet->binding_count; j++)
         {
-            for (size_t j = 0; j < currentDescriptorSet->binding_count; j++)
+            if (currentDescriptorSet->set >= m_DescriptorSetLayoutBindings.size())
+                m_DescriptorSetLayoutBindings.resize(currentDescriptorSet->set + 1);
+
+            auto& vec = m_DescriptorSetLayoutBindings[currentDescriptorSet->set];
+            auto& emplacedBinding = vec.emplace_back();
+
+            SpvReflectDescriptorBinding* reflectBinding = currentDescriptorSet->bindings[j];
+            emplacedBinding.binding = reflectBinding->binding;
+            emplacedBinding.descriptorType = convertReflectionDescriptorType(reflectBinding->descriptor_type);
+            emplacedBinding.descriptorCount = reflectBinding->count;
+            if (emplacedBinding.descriptorCount == 0)
             {
-                auto& vec = m_GlobalDescriptorSetLayoutBindingsMap[currentDescriptorSet->set];
-                auto& emplacedBinding = vec.emplace_back();
-
-                SpvReflectDescriptorBinding* reflectBinding = *currentDescriptorSet->bindings + j;
-                emplacedBinding.binding = reflectBinding->binding;
-                emplacedBinding.descriptorType = convertReflectionDescriptorType(reflectBinding->descriptor_type);
-                emplacedBinding.descriptorCount = reflectBinding->count;
-                if (emplacedBinding.descriptorCount == 0)
-                {
-                    if (emplacedBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                        emplacedBinding.descriptorCount = m_DefaultValues.sampler2d;
-                }
-
-                emplacedBinding.stageFlags = shaderData.shaderStage;
-                emplacedBinding.pImmutableSamplers = nullptr;
+                if (emplacedBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
+                    emplacedBinding.descriptorCount = m_DefaultValues.sampler2d;
             }
+
+            emplacedBinding.stageFlags = 0;
+            if (module.shader_stage & SPV_REFLECT_SHADER_STAGE_VERTEX_BIT)
+                emplacedBinding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+            if (module.shader_stage & SPV_REFLECT_SHADER_STAGE_FRAGMENT_BIT)
+                emplacedBinding.stageFlags |= VK_SHADER_STAGE_FRAGMENT_BIT;
+            if (module.shader_stage & SPV_REFLECT_SHADER_STAGE_COMPUTE_BIT)
+                emplacedBinding.stageFlags |= VK_SHADER_STAGE_COMPUTE_BIT;
+
+            emplacedBinding.stageFlags = module.shader_stage;
+            emplacedBinding.pImmutableSamplers = nullptr;
         }
     }
 
@@ -139,9 +148,19 @@ void vk::FVkShader::createDescriptorSetLayouts()
 {
     const VkDescriptorBindingFlagsEXT flags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
 
-    for (const auto& it : m_GlobalDescriptorSetLayoutBindingsMap)
+    m_GlobalDescriptorSetLayouts.resize(m_DescriptorSetLayoutBindings.size());
+    for (size_t i = 0; i < m_DescriptorSetLayoutBindings.size(); ++i)
     {
-        uint32_t bindingCount = it.second.size();
+        const auto& layoutBindings = m_DescriptorSetLayoutBindings[i];
+        const auto layout = &m_GlobalDescriptorSetLayouts[i];
+
+        uint32_t bindingCount = layoutBindings.size();
+        if (bindingCount == 0)
+        {
+            *layout = nullptr;
+            continue;
+        }
+
         std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(flags, bindingCount);
 
         VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
@@ -153,10 +172,9 @@ void vk::FVkShader::createDescriptorSetLayouts()
                                              .pNext = &binding_flags,
                                              .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
                                              .bindingCount = bindingCount,
-                                             .pBindings = it.second.data()};
+                                             .pBindings = layoutBindings.data()};
 
-        auto& descriptorSetLayout = m_GlobalDescriptorSetLayouts.emplace_back();
-        if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &descriptorSetLayout) != VK_SUCCESS)
+        if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, layout) != VK_SUCCESS)
             assert(false);
     }
 }

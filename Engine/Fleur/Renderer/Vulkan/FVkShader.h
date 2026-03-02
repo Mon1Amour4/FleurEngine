@@ -147,7 +147,7 @@ private:
 
 
     std::vector<VkPushConstantRange> m_PushConstants;
-    std::unordered_map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> m_GlobalDescriptorSetLayoutBindingsMap;
+    std::vector<std::vector<VkDescriptorSetLayoutBinding>> m_DescriptorSetLayoutBindings;
     std::vector<VkDescriptorSetLayout> m_GlobalDescriptorSetLayouts;
 
     void getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize);
