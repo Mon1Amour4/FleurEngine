@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <unordered_map>
 #pragma region MemoryManager Debug profiling definitions
@@ -13,16 +14,12 @@ struct MemoryInfo
 {
     struct record
     {
-        record()
-            : allocAmount(0)
-            , deallocAmount(0)
-            , allocatedOverallMemoryBytes(0)
-            , deallocatedOverallMemoryBytes(0) {};
+        record() = default;
 
-        size_t allocAmount;
-        size_t deallocAmount;
-        size_t allocatedOverallMemoryBytes;
-        size_t deallocatedOverallMemoryBytes;
+        size_t allocAmount{0};
+        size_t deallocAmount{0};
+        size_t allocatedOverallMemoryBytes{0};
+        size_t deallocatedOverallMemoryBytes{0};
 
         inline bool operator<(const record& other) const
         {
@@ -71,7 +68,7 @@ struct MemoryInfo
 #define MM_DEBUG_BREAK(expression) \
     do                             \
     {                              \
-        if (expression == true)    \
+        if ((expression) == true)  \
         {                          \
             __debugbreak();        \
         }                          \
@@ -96,6 +93,22 @@ struct MemoryInfo
 #define MM_DEBUG_EXPRESSION(code) ((void)0);
 #define MM_PRINT(str) ((void)0);
 #endif
+
+// Release-ACTIVE contract check (unlike MM_DEBUG_BREAK / MM_ASSERT, which are
+// debug-only invariants compiled out in release). A failure means unrecoverable
+// corruption or a broken build-time contract, so fail loud instead of continuing
+// into silent UB. Use ONLY on cold paths (init, fatal-corruption detection) —
+// never the hot allocate/free path. Recoverable conditions (OOM) must NOT use
+// this; they return nullptr instead.
+#define MM_VERIFY(expr)                                                                            \
+    do                                                                                             \
+    {                                                                                              \
+        if (!(expr))                                                                               \
+        {                                                                                          \
+            std::cerr << "MM_VERIFY failed: " #expr " (" << __FILE__ << ":" << __LINE__ << ")\n";  \
+            std::abort();                                                                          \
+        }                                                                                          \
+    } while (0)
 
 #define II_NULL_INDEX 0xffffffff
 #define INVALID_OFFSET 0xFFFFFFFF

@@ -3,7 +3,6 @@
 #include <fstream>
 #include <limits>
 
-#include "../Engine/Fleur/Concepts.hpp"
 #include "MemoryDefinitions.hpp"
 #include "PageAllocator.hpp"
 #include "SLUBAllocator.hpp"
@@ -75,38 +74,38 @@ public:
 
 private:
     // Overall Allocations\Deallocations
-    size_t m_NumAllocations;
-    size_t m_NumDeallocations;
+    size_t m_NumAllocations{0};
+    size_t m_NumDeallocations{0};
 
     // Overall Allocations\Deallocations time
-    std::chrono::microseconds m_OverallAllocTime;
-    std::chrono::microseconds m_OverallDeallocTime;
+    std::chrono::microseconds m_OverallAllocTime{0};
+    std::chrono::microseconds m_OverallDeallocTime{0};
 
     // Longest Allocations\Deallocation time
-    std::chrono::microseconds m_LongestAllocTime;
-    std::chrono::microseconds m_LongestDeallocTime;
+    std::chrono::microseconds m_LongestAllocTime{0};
+    std::chrono::microseconds m_LongestDeallocTime{0};
 
     // Average Allocations\Deallocations time Per Second
-    std::chrono::microseconds m_AverageAllocTime;
-    std::chrono::microseconds m_AverageDeallocTime;
+    std::chrono::microseconds m_AverageAllocTime{0};
+    std::chrono::microseconds m_AverageDeallocTime{0};
 
     // Allocation\Deallocation time within one second
-    std::chrono::microseconds m_FrameAllocTime;
-    std::chrono::microseconds m_FrameDeallocTime;
+    std::chrono::microseconds m_FrameAllocTime{0};
+    std::chrono::microseconds m_FrameDeallocTime{0};
 
     // Overall time
-    std::chrono::microseconds m_OverallTime;
+    std::chrono::microseconds m_OverallTime{0};
 
     std::chrono::time_point<std::chrono::steady_clock> m_StartAllocTimer;
     std::chrono::time_point<std::chrono::steady_clock> m_StartDeallocTimer;
 
-    size_t m_FramesPerSecond;
-    float m_FramesPerSecondTimer;
+    size_t m_FramesPerSecond{0};
+    float m_FramesPerSecondTimer{0};
 
-    float m_AverageTimer;
+    float m_AverageTimer{0};
 
-    float m_AveragePeriodTime;
-    size_t m_FramesAverage;
+    float m_AveragePeriodTime{0};
+    size_t m_FramesAverage{0};
     float m_AveragePeriod;
 };
 #pragma endregion
@@ -281,6 +280,13 @@ public:
      * @return String containing human-readable debug information.
      */
     std::string GetSnapshot() const;
+
+    // Debug: run the TLSF free-list/bitmap integrity check. Returns true if
+    // consistent; on failure sets *outErr to a static reason string.
+    bool CheckTlsf(const char** outErr = nullptr)
+    {
+        return tlsfAlloc->Check(outErr);
+    }
 
 private:
     /**

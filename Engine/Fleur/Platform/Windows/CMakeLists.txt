@@ -1,7 +1,6 @@
-# === Windows Dependencies ===
+# === Windows Platform Dependencies ===
 
-# === Source Files ===
-SET(PROJECT_HEADERS
+set(PROJECT_HEADERS
     WindowWin.h
     EventQueueWin.h
     InputWin.h
@@ -9,7 +8,7 @@ SET(PROJECT_HEADERS
     TimeWin.h
 )
 
-SET(PROJECT_SOURCES
+set(PROJECT_SOURCES
     EventQueueWin.cpp
     InputWin.cpp
     WindowWin.cpp
@@ -17,23 +16,18 @@ SET(PROJECT_SOURCES
     TimeWin.cpp
 )
 
-# cmake-lint: disable=E1126
-
 # === Create Library ===
-ADD_LIBRARY(Platform STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
+add_library(Platform STATIC ${PROJECT_SOURCES} ${PROJECT_HEADERS})
 
-# === WindowsDep Configuration ===
-TARGET_COMPILE_FEATURES(Platform PUBLIC cxx_std_20)
+target_compile_features(Platform PUBLIC cxx_std_${FL_CPP_LANG_VER})
 
 # === Link Libraries ===
-TARGET_LINK_LIBRARIES(
-  Platform  
-  PRIVATE FleurInterface TBB::tbb
-)
+# CoreLib pulls in singleton.hpp and (transitively) MemoryManager headers used by Application.h.
+# opengl32 is needed regardless of render backend — WindowWin.cpp uses WGL extensions.
+target_link_libraries(Platform PRIVATE FleurInterface TBB::tbb CoreLib opengl32)
 
 # === Include Directories ===
-TARGET_INCLUDE_DIRECTORIES(
-  Platform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(Platform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # === Target Properties ===
-SET_TARGET_PROPERTIES(Platform PROPERTIES FOLDER "Platform/Windows")
+set_target_properties(Platform PROPERTIES FOLDER "Platform/Windows")

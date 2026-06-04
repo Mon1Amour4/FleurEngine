@@ -46,7 +46,4 @@ TARGET_LINK_LIBRARIES(Sandbox PRIVATE FleurEngine)
 TARGET_COMPILE_FEATURES(Sandbox PRIVATE cxx_std_20)
 
 # === IDE Organization ===
-SET_TARGET_PROPERTIES(
-  Sandbox
-  PROPERTIES FOLDER "Applications" DEBUG_POSTFIX "_d"
-)
+set_target_properties(Sandbox PROPERTIES FOLDER "Applications")

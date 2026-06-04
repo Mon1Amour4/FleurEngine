@@ -42,8 +42,9 @@ def generate_project(platform, enable_test, build_dll):
     root_folder = Path(__file__).parent.parent.resolve()
     build_dir = os.path.join(root_folder, 'Build')
 
-    # Clean up any existing build directories
-    if os.path.exists(build_dir):
+    # CMake reconfigures incrementally — no need to wipe the build dir.
+    # Pass --clean if the user explicitly wants a fresh start.
+    if '--clean' in sys.argv and os.path.exists(build_dir):
         print(f'Cleaning up existing build directory: {build_dir}')
         shutil.rmtree(build_dir)
 

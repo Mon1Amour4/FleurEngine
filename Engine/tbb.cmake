@@ -1,14 +1,4 @@
-function(fix_target_output target)
-    foreach(CONFIG Debug Release RelWithDebInfo MinSizeRel)
-        string(TOUPPER ${CONFIG} CONFIG_UPPER)
-        set_target_properties(${target} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${CMAKE_BINARY_DIR}/${CONFIG}/bin"
-            LIBRARY_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${CMAKE_BINARY_DIR}/${CONFIG}/lib"
-            ARCHIVE_OUTPUT_DIRECTORY_${CONFIG_UPPER} "${CMAKE_BINARY_DIR}/${CONFIG}/lib"
-            PDB_OUTPUT_DIRECTORY_${CONFIG_UPPER}     "${CMAKE_BINARY_DIR}/${CONFIG}/bin"
-        )
-    endforeach()
-endfunction()
+# TBB integration. Output dirs unified via fleur_set_output_dirs (Configuration.cmake).
 
 set(TBBMALLOC_BUILD OFF CACHE BOOL "" FORCE)
 set(TBBMALLOC_PROXY_BUILD OFF CACHE BOOL "" FORCE)
@@ -25,8 +15,5 @@ option(TBB_ENABLE_RUNTIME_DEPENDENCY_VERIFICATION "Enable runtime dependency sig
 
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/External/tbb)
 
-SET_TARGET_PROPERTIES(
-  tbb
-  PROPERTIES FOLDER "External"
-)
-fix_target_output(tbb)
+set_target_properties(tbb PROPERTIES FOLDER "External")
+fleur_set_output_dirs(tbb)

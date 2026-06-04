@@ -1,5 +1,3 @@
-#pragma once
-
 #include <random>
 
 #include "MemoryManager.h"
@@ -100,7 +98,7 @@ void RangedTest(uint32_t from, uint32_t to)
     manager->~MemoryManager();
 }
 
-#if 1 MemoryManagerRandomAllocationTestBenchmark
+#if 1  // MemoryManagerRandomAllocationTestBenchmark
 TEST(TEST_SUITE_NAME, MemoryManagerRandomAllocationTestBenchmark)
 {
     using namespace MM;
@@ -203,7 +201,7 @@ TEST(TEST_SUITE_NAME, MemoryManagerRandomAllocationTestBenchmark)
 }
 #endif
 
-#if 0 TLSFManualTests
+#if 0  // TLSFManualTests
 TEST(TEST_SUITE_NAME, TLSFManualTests)
 {
     using namespace MM;
@@ -349,7 +347,7 @@ TEST(TEST_SUITE_NAME, TLSFManualTests)
 }
 #endif
 
-#if 0 TLSFRandomTests
+#if 0  // TLSFRandomTests
 TEST(TEST_SUITE_NAME, TLSFRandomTests)
 {
     using namespace MM;
@@ -409,7 +407,7 @@ TEST(TEST_SUITE_NAME, TLSFRandomTests)
 }
 #endif
 
-#if 0 ChunksFreeListTest
+#if 0  // ChunksFreeListTest
 TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 {
     using namespace MM;
@@ -466,7 +464,7 @@ TEST(TEST_SUITE_NAME, ChunksFreeListTest)
 }
 #endif
 
-#if 0 Array Allocations
+#if 0  // ArrayAllocations
 TEST(TEST_SUITE_NAME, ArrayAllocations)
 {
     using namespace MM;
@@ -482,7 +480,7 @@ TEST(TEST_SUITE_NAME, ArrayAllocations)
 }
 #endif
 
-#if 0 Random Allocations
+#if 0  // RandomAllocations
 TEST(TEST_SUITE_NAME, RandomAllocations)
 {
     using namespace MM;
@@ -610,102 +608,57 @@ TEST(TEST_SUITE_NAME, RandomAllocations)
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom2048To2097152
+#if 0  // FixedRangeAllocationsFrom2048To2097152
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To2097152)
 {
     RangedTest(2048, 2097152);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom64To86
+#if 0  // FixedRangeAllocationsFrom64To86
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom64To128)
 {
     RangedTest(33, 46);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom128To256
+#if 0  // FixedRangeAllocationsFrom128To256
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom128To256)
 {
     RangedTest(65, 256);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom256To512
+#if 0  // FixedRangeAllocationsFrom256To512
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom256To512)
 {
     RangedTest(129, 512);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom512To1024
+#if 0  // FixedRangeAllocationsFrom512To1024
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom512To1024)
 {
     RangedTest(260, 1024);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom1024To2048
+#if 0  // FixedRangeAllocationsFrom1024To2048
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom1024To2048)
 {
     RangedTest(513, 2048);
 }
 #endif
 
-#if 0 FixedRangeAllocationsFrom2048To4096
+#if 0  // FixedRangeAllocationsFrom2048To4096
 TEST(TEST_SUITE_NAME, FixedRangeAllocationsFrom2048To4096)
 {
     RangedTest(1025, 4096);
 }
 #endif
 
-#if 0
- TEST(TEST_SUITE_NAME, AllocateStoresData)
+int main(int argc, char** argv)
 {
-     MM::MemoryManager manager(ManagerConfig);
-     int* ptr = manager.allocate<int>(40);
-
-     for (int i = 0; i < 40; i++)
-     {
-         ptr[i] = i;
-     }
-
-     for (int i = 0; i < 40; i++)
-     {
-         EXPECT_EQ(ptr[i], i) << "Data corrupted at index " << i;
-     }
- }
-
- TEST(TEST_SUITE_NAME, MultipleAllocations)
-{
-     MM::MemoryManager manager(ManagerConfig);  // 1 KB
-
-     int* ptr1 = manager.allocate<int>(10);
-     float* ptr2 = manager.allocate<float>(20);
-
-     EXPECT_NE(ptr1, nullptr);
-     EXPECT_NE(ptr2, nullptr);
-
-     EXPECT_LT(reinterpret_cast<uintptr_t>(ptr1), reinterpret_cast<uintptr_t>(ptr2));
- }
-
- TEST(TEST_SUITE_NAME, OverflowReturnsNull)
-{
-     MM::MemoryManager manager(ManagerConfig);
-
-     int* ptr1 = manager.allocate<int>(10);
-     EXPECT_NE(ptr1, nullptr);
-
-     int* ptr2 = manager.allocate<int>(100);
-     EXPECT_EQ(ptr2, nullptr);
- }
-
- TEST(TEST_SUITE_NAME, Alignment)
-{
-     MM::MemoryManager manager(ManagerConfig);
-
-     double* ptr = manager.allocate<double>(1);
-
-     EXPECT_EQ(reinterpret_cast<uintptr_t>(ptr) % alignof(double), 0) << "Pointer is not properly aligned for double";
- }
-#endif
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

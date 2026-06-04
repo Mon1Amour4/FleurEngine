@@ -1,0 +1,39 @@
+# Fleur Engine — clang-tidy configuration
+#
+# Conservative, high-signal check set: catches real bugs and perf/portability
+# issues without fighting the codebase's deliberate style.
+#
+# Naming enforcement (readability-identifier-naming) is intentionally OFF:
+# the engine uses a dual convention on purpose — STL-style lowercase for
+# allocator-shaped APIs (allocate/deallocate/construct_at) and PascalCase for
+# engine methods (Print/StartAlloc). No single rule expresses that, so any
+# naming check would flood false positives.
+#
+# Third-party code under */External/ is excluded two ways:
+#   1. those targets never enable clang-tidy (see fleur_enable_clang_tidy);
+#   2. HeaderFilterRegex below restricts diagnostics to first-party headers.
+---
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  modernize-*,
+  misc-*,
+  portability-*,
+  clang-analyzer-*,
+  -modernize-use-trailing-return-type,
+  -modernize-avoid-c-arrays,
+  -modernize-use-nodiscard,
+  -bugprone-easily-swappable-parameters,
+  -misc-non-private-member-variables-in-classes,
+  -misc-no-recursion,
+  -misc-include-cleaner
+
+# Only diagnose headers that live in first-party source roots.
+# Matches MemoryManager/, CoreLib/, Tessera/, Sandbox/ and Engine/Fleur/ —
+# never Engine/External/.
+HeaderFilterRegex: '.*[/\\](MemoryManager|CoreLib|Tessera|Sandbox|Fleur)[/\\].*'
+
+WarningsAsErrors: ''
+FormatStyle: file
+...

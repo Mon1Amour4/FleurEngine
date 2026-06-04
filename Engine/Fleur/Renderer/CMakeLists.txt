@@ -1,11 +1,11 @@
-# Renderer dependencies
+# === Renderer ===
+#
+# Files commented out below (Buffer.h, CommandBuffer.h, Surface.h, Swapchain.h, ...)
+# are the abstract-interface headers from the OpenGL era. They live on disk and
+# remain #include-able from Renderer.h; they are intentionally not advertised
+# in the IDE filters until the OpenGL backend is reactivated.
 
-# cmake-lint: disable=E1126
-
-SET(RENDERER_PUBLIC_INCLUDE_DIRECTORIES "")
-SET(RENDERER_PRIVATE_INCLUDE_DIRECTORIES "")
-
-SET(PROJECT_HEADERS
+set(PROJECT_HEADERS
     IRenderer.hpp
     RenderViews.hpp
     # Buffer.h
@@ -34,7 +34,7 @@ SET(PROJECT_HEADERS
     ModelFabric.h
 )
 
-SET(PROJECT_SOURCES
+set(PROJECT_SOURCES
     Renderer.cpp
     Model.cpp
     Camera.cpp
@@ -46,24 +46,21 @@ SET(PROJECT_SOURCES
 )
 
 # === Create Library ===
-ADD_LIBRARY(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
+add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 # === Link Libraries ===
-TARGET_LINK_LIBRARIES(Renderer PRIVATE FleurInterface TBB::tbb)
-
-# === Include Directories ===
-TARGET_INCLUDE_DIRECTORIES(
-  Renderer
-  PRIVATE ${RENDERER_PRIVATE_INCLUDE_DIRECTORIES}
-  PUBLIC ${RENDERER_PUBLIC_INCLUDE_DIRECTORIES}
-)
+# CoreLib is linked because Renderer.cpp / Image2D.h pull FleurAllocator.hpp / Bitmap.hpp.
+target_link_libraries(Renderer PRIVATE FleurInterface TBB::tbb CoreLib)
 
 # === Target Properties ===
-SET_TARGET_PROPERTIES(Renderer PROPERTIES FOLDER "Engine/Renderer")
+set_target_properties(Renderer PROPERTIES FOLDER "Engine/Renderer")
 
-# Vulkan
-TARGET_LINK_LIBRARIES(Renderer PRIVATE VulkanBackend)
-TARGET_INCLUDE_DIRECTORIES(Renderer PRIVATE "Vulkan")
-# OpenGL
-TARGET_LINK_LIBRARIES(Renderer PRIVATE OpenGLBackend)
-TARGET_INCLUDE_DIRECTORIES(Renderer PRIVATE "OpenGL")
+# === Backend Selection (driven by FLEUR_RENDER_BACKEND) ===
+if(FLEUR_RENDER_BACKEND STREQUAL "Vulkan" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
+  target_link_libraries(Renderer PRIVATE VulkanBackend)
+  target_include_directories(Renderer PRIVATE "Vulkan")
+endif()
+if(FLEUR_RENDER_BACKEND STREQUAL "OpenGL" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
+  target_link_libraries(Renderer PRIVATE OpenGLBackend)
+  target_include_directories(Renderer PRIVATE "OpenGL")
+endif()

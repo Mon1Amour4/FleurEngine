@@ -1,0 +1,41 @@
+name: Clang-Tidy
+
+# Static analysis via Scripts/run_clang_tidy.py. The script self-bootstraps the
+# MSVC environment (vcvars) and configures a throwaway Ninja build to obtain a
+# compile_commands.json, so no separate developer-shell step is needed.
+#
+# NOTE: runs in report-only mode (no --strict) so it does not fail CI on the
+# pre-existing findings. Add --strict to the run step below to turn it into a
+# hard gate once the current findings are addressed.
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  clang-tidy:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # FIND_PACKAGE(Vulkan REQUIRED) in the Vulkan backend needs the SDK present
+      # for the configure step (we only configure, never compile the backend).
+      - name: Install Vulkan SDK
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: 1.4.335.0
+          install_runtime: false
+          cache: true
+
+      - name: Run clang-tidy
+        shell: bash
+        run: python Scripts/run_clang_tidy.py

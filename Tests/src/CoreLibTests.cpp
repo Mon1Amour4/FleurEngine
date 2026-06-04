@@ -448,51 +448,65 @@ public:
     }
 };
 
-TEST(CoreLibTest, Uptr_Single_LeakTest)
+// Fixture for the live-instance leak checks: resets the shared counter before
+// each test and asserts it returned to zero afterwards. This removes the
+// order-dependence the bare global had (a prior test leaking would otherwise
+// poison the next one).
+class CoreLibLeakTest : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        Counter = 0;
+    }
+
+    void TearDown() override
+    {
+        EXPECT_EQ(Counter, 0u);
+    }
+};
+
+TEST_F(CoreLibLeakTest, Uptr_Single)
 {
     auto ptr = MakeUnique<MemLeaker>();
 
     ptr.Reset();
 
-    EXPECT_EQ(Counter, 0);
+    EXPECT_EQ(Counter, 0u);
 }
 
-TEST(CoreLibTest, Uptr_Single_LeadTestMove)
+TEST_F(CoreLibLeakTest, Uptr_Single_Move)
 {
     auto ptr = MakeUnique<MemLeaker>();
 
     ptr.Reset();
 
-    EXPECT_EQ(Counter, 0);
+    EXPECT_EQ(Counter, 0u);
 }
 
-TEST(CoreLibTest, Uptr_Array_LeakTest)
+TEST_F(CoreLibLeakTest, Uptr_Array)
 {
     auto ptr = MakeUnique<MemLeaker[]>(5);
 
     ptr.Reset();
 
-    EXPECT_EQ(Counter, 0);
+    EXPECT_EQ(Counter, 0u);
 }
 
-TEST(CoreLibTest, Sptr_Single_LeakTest)
+TEST_F(CoreLibLeakTest, Sptr_Single)
 {
     auto ptr = MakeShared<MemLeaker>();
 
     ptr.Reset();
 
-    EXPECT_EQ(Counter, 0);
+    EXPECT_EQ(Counter, 0u);
 }
 
-TEST(CoreLibTest, Sptr_Array_LeakTest)
+TEST_F(CoreLibLeakTest, Sptr_Array)
 {
     auto ptr = MakeShared<MemLeaker[]>(5);
 
     ptr.Reset();
 
-    EXPECT_EQ(Counter, 0);
-
-    std::shared_ptr<int> uptr(new int(3));
-
-    std::weak_ptr<int> wptr(uptr);
+    EXPECT_EQ(Counter, 0u);
 }

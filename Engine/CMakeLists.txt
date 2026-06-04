@@ -1,13 +1,11 @@
 # === Fleur Engine ===
 
 # === External Dependencies ===
-INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
-INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/tbb.cmake)
-
-SET(MemoryManagerPath ${CMAKE_CURRENT_SOURCE_DIR}/../MemoryManager)
+include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
+include(${CMAKE_CURRENT_SOURCE_DIR}/tbb.cmake)
 
 # === Source Files ===
-SET(ENGINE_HEADERS
+set(ENGINE_HEADERS
     # Core Engine
     Fleur/Application.h
     Fleur/Core.h
@@ -29,8 +27,6 @@ SET(ENGINE_HEADERS
     Fleur/Layer.h
     Fleur/LayerStack.h
     Fleur/ImGui/ImGuiLayer.h
-    # Renderer
-    Fleur/Renderer
     # File System
     Fleur/FileSystem/FileSystem.h
     # Service System
@@ -56,7 +52,7 @@ SET(ENGINE_HEADERS
     Fleur/AssetCache.h
 )
 
-SET(ENGINE_SOURCES
+set(ENGINE_SOURCES
     # Core Engine
     Fleur/Application.cpp
     Fleur/Log.cpp
@@ -78,95 +74,83 @@ SET(ENGINE_SOURCES
 )
 
 # === Engine Configuration ===
-SET(ENGINE_PUBLIC_DEFINITIONS FLEUR_ENABLE_ASSERTS FLEUR_BUILD_LIB)
+set(ENGINE_PUBLIC_DEFINITIONS FLEUR_ENABLE_ASSERTS FLEUR_BUILD_LIB)
 
-# Ensure _ITERATOR_DEBUG_LEVEL is set for all targets
-SET(ENGINE_PRIVATE_DEFINITIONS _ITERATOR_DEBUG_LEVEL=${_ITERATOR_DEBUG_LEVEL})
+if(FLEUR_LIB_TYPE STREQUAL "SHARED")
+  list(APPEND ENGINE_PUBLIC_DEFINITIONS FLEUR_DLL_LIB)
+endif()
 
-IF(FLEUR_LIB_TYPE STREQUAL "SHARED")
-  LIST(APPEND ENGINE_PUBLIC_DEFINITIONS FLEUR_DLL_LIB)
-ENDIF()
-
-# === Compiler Options ===
-IF(MSVC)
-  # SET(ENGINE_PRIVATE_COMPILE_OPTIONS /W4 /permissive-)
-  # SET(ENGINE_PUBLIC_COMPILE_OPTIONS /utf-8)
-ELSE()
-  SET(ENGINE_PRIVATE_COMPILE_OPTIONS -Wall -Wextra -Werror)
-  SET(ENGINE_PUBLIC_COMPILE_OPTIONS "")
-ENDIF()
+# === Compiler Options (non-MSVC) ===
+if(NOT MSVC)
+  set(ENGINE_PRIVATE_COMPILE_OPTIONS -Wall -Wextra -Werror)
+endif()
 
 # === Platform Dependencies ===
-SET(ENGINE_DEPENDENCIES ImGui TBB::tbb)
+set(ENGINE_DEPENDENCIES ImGui TBB::tbb)
 
-IF(FLEUR_PLATFORM_WIN)
-  LIST(APPEND ENGINE_DEPENDENCIES Platform)
-  SET(PLATFORM_SUBDIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Platform/Windows)
-ELSEIF(FLEUR_PLATFORM_MACOS STREQUAL "macos")
-  LIST(APPEND ENGINE_DEPENDENCIES MacOSDep)
-  SET(PLATFORM_SUBDIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Fleur/MacOS)
-ENDIF()
+if(WIN32)
+  list(APPEND ENGINE_DEPENDENCIES Platform)
+  set(PLATFORM_SUBDIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Platform/Windows)
+elseif(APPLE)
+  list(APPEND ENGINE_DEPENDENCIES MacOSDep)
+  set(PLATFORM_SUBDIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/Fleur/MacOS)
+endif()
 
 # === Include Directories ===
-SET(ENGINE_PUBLIC_INCLUDES
+# CoreLib/MemoryManager paths arrive transitively via target_link_libraries — no manual paths needed.
+set(ENGINE_PUBLIC_INCLUDES
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/Fleur
     ${CMAKE_CURRENT_SOURCE_DIR}/External/glm
     ${CMAKE_CURRENT_SOURCE_DIR}/External/imgui
     ${CMAKE_CURRENT_SOURCE_DIR}/External/spdlog/include
-    ${CMAKE_SOURCE_DIR}/CoreLib
-    ${MemoryManagerPath}
 )
 
-# === FleurInterface - Shared Configuration ===
-ADD_LIBRARY(FleurInterface INTERFACE)
+# === FleurInterface — Shared Configuration ===
+add_library(FleurInterface INTERFACE)
 
-TARGET_INCLUDE_DIRECTORIES(FleurInterface INTERFACE ${ENGINE_PUBLIC_INCLUDES})
+target_include_directories(FleurInterface INTERFACE ${ENGINE_PUBLIC_INCLUDES})
 
-TARGET_PRECOMPILE_HEADERS(FleurInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/flpch.h)
+target_precompile_headers(FleurInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/flpch.h)
 
-TARGET_COMPILE_FEATURES(FleurInterface INTERFACE cxx_std_20)
+target_compile_features(FleurInterface INTERFACE cxx_std_${FL_CPP_LANG_VER})
 
-TARGET_COMPILE_DEFINITIONS(
-  FleurInterface INTERFACE ${ENGINE_PUBLIC_DEFINITIONS} _ITERATOR_DEBUG_LEVEL=${_ITERATOR_DEBUG_LEVEL}
-)
+target_compile_definitions(FleurInterface INTERFACE ${ENGINE_PUBLIC_DEFINITIONS})
 
-#TARGET_COMPILE_OPTIONS(FleurInterface INTERFACE ${ENGINE_PUBLIC_COMPILE_OPTIONS} ${ENGINE_PRIVATE_COMPILE_OPTIONS})
-TARGET_COMPILE_OPTIONS(FleurInterface INTERFACE ${FLEUR_COPILATION_FLAGS})
+target_compile_options(FleurInterface INTERFACE ${FLEUR_COMPILATION_FLAGS})
 
 # === Subdirectories ===
-ADD_SUBDIRECTORY(${PLATFORM_SUBDIRECTORY})
-ADD_SUBDIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer)
-ADD_SUBDIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/OpenGL)
-ADD_SUBDIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/Vulkan)
+add_subdirectory(${PLATFORM_SUBDIRECTORY})
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer)
+
+if(FLEUR_RENDER_BACKEND STREQUAL "OpenGL" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/OpenGL)
+endif()
+if(FLEUR_RENDER_BACKEND STREQUAL "Vulkan" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
+  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/Vulkan)
+endif()
 
 # === FleurEngine Target ===
-ADD_LIBRARY(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
+add_library(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 
-TARGET_LINK_LIBRARIES(
+target_link_libraries(
   FleurEngine
-  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib MemoryManager
+  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib
   PRIVATE Renderer
 )
+# CoreLib already brings MemoryManager transitively (PUBLIC dep).
 
-TARGET_INCLUDE_DIRECTORIES(FleurEngine PRIVATE)
+if(NOT MSVC AND ENGINE_PRIVATE_COMPILE_OPTIONS)
+  target_compile_options(FleurEngine PRIVATE ${ENGINE_PRIVATE_COMPILE_OPTIONS})
+endif()
 
-TARGET_COMPILE_DEFINITIONS(FleurEngine PRIVATE ${ENGINE_PRIVATE_DEFINITIONS})
-
-TARGET_COMPILE_FEATURES(FleurEngine PUBLIC cxx_std_20)
+target_compile_features(FleurEngine PUBLIC cxx_std_${FL_CPP_LANG_VER})
 
 # === IDE Organization ===
-SET_TARGET_PROPERTIES(
-  FleurEngine
-  PROPERTIES FOLDER "Engine" DEBUG_POSTFIX "_d"
-)
+set_target_properties(FleurEngine PROPERTIES FOLDER "Engine")
+set_target_properties(ImGui PROPERTIES FOLDER "External")
 
-SET_TARGET_PROPERTIES(
-  ImGui
-  PROPERTIES FOLDER "External"
-)
-IF(FLEUR_PLATFORM_WIN)
-  FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/Platform/Windows" REAL_WINDOWS_PATH)
-  TARGET_LINK_LIBRARIES(FleurEngine PUBLIC Platform)
-  TARGET_INCLUDE_DIRECTORIES(FleurEngine PUBLIC Platform)
-ENDIF()
+if(WIN32)
+  target_link_libraries(FleurEngine PUBLIC Platform)
+  target_include_directories(FleurEngine PUBLIC Platform)
+endif()

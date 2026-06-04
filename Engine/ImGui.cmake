@@ -113,10 +113,7 @@ ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
 ENDIF()
 
 # === Folder Organization ===
-SET_TARGET_PROPERTIES(
-  ImGui
-  PROPERTIES FOLDER "External/ImGui" DEBUG_POSTFIX "_d"
-)
+set_target_properties(ImGui PROPERTIES FOLDER "External/ImGui")
 
 # === Additional ImGui Configuration ===
 TARGET_COMPILE_DEFINITIONS(ImGui PUBLIC IMGUI_USER_CONFIG="imconfig.h")

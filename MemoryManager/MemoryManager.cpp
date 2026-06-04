@@ -7,24 +7,8 @@
 // Benchmark
 MM::Benchmark::Benchmark(float AvgPeriodSecs)
     : m_AveragePeriod(AvgPeriodSecs)
-    , m_FramesAverage(0)
-    , m_AverageTimer(0)
-    , m_FramesPerSecondTimer(0)
-    , m_NumAllocations(0)
-    , m_NumDeallocations(0)
-    , m_LongestAllocTime(0)
-    , m_LongestDeallocTime(0)
-    , m_AverageAllocTime(0)
-    , m_AverageDeallocTime(0)
-    , m_OverallAllocTime(0)
-    , m_OverallDeallocTime(0)
-    , m_OverallTime(0)
-    , m_FrameAllocTime(0)
-    , m_FrameDeallocTime(0)
-    , m_FramesPerSecond(0)
     , m_StartAllocTimer(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero()))
     , m_StartDeallocTimer(std::chrono::time_point<std::chrono::steady_clock>(std::chrono::steady_clock::duration::zero()))
-    , m_AveragePeriodTime(0)
 {
     assert(m_AveragePeriod > 0);
 }
@@ -78,7 +62,7 @@ void MM::Benchmark::EndDealloc()
 
 void MM::Benchmark::Print()
 {
-    uint64_t bufferSize = 4096;
+    const uint64_t bufferSize = 4096;
     char* buffer = new char[bufferSize];
     buffer[bufferSize - 1] = '\0';
     char* tmp = buffer;
@@ -216,7 +200,12 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     if (pageAllocContent % 4096)
         pageAllocContentOffsetAligned++;
     pageAllocContentOffsetAligned = pageAllocContentOffsetAligned * 4096;
-    pageAlloc = new (m_Head + pageAllocOffset) PageAllocator(memoryStart + pageAllocContentOffsetAligned, m_Capacity, m_PageSize);
+    // Fix: PageAllocator's usable region starts AFTER the header block, so its
+    // capacity must exclude that offset — otherwise base + capacity runs
+    // pageAllocContentOffsetAligned bytes past the VirtualAlloc end, and the last
+    // page handed out lies outside the arena (write -> access violation).
+    pageAlloc = new (m_Head + pageAllocOffset)
+        PageAllocator(memoryStart + pageAllocContentOffsetAligned, m_Capacity - pageAllocContentOffsetAligned, m_PageSize);
 
     MM_ASSERT(pageAlloc);
 
@@ -227,9 +216,12 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     tlsfAlloc = new (m_Head + offset + sizeof(SLUBAllocator)) TLSFAllocator(pageAlloc, 5, 2048, memoryStart + capacity);
 
     MM_ASSERT(slubAlloc);
-    MM_DEBUG_BREAK(TOCHARPTR(slubAlloc) - memoryStart != sizeof(MM::MemoryManager));
-    MM_DEBUG_BREAK(TOCHARPTR(tlsfAlloc) - memoryStart != sizeof(MM::MemoryManager) + sizeof(SLUBAllocator));
-    MM_DEBUG_BREAK(TOCHARPTR(pageAlloc) - memoryStart != (sizeof(MM::MemoryManager) + sizeof(SLUBAllocator) + sizeof(TLSFAllocator)));
+    // Cross-boundary placement contract: if these offsets are wrong the allocators
+    // overlap and silently corrupt each other. Keep active in release (cold path,
+    // runs once per manager) — fail loud rather than continue into UB.
+    MM_VERIFY(TOCHARPTR(slubAlloc) - memoryStart == sizeof(MM::MemoryManager));
+    MM_VERIFY(TOCHARPTR(tlsfAlloc) - memoryStart == sizeof(MM::MemoryManager) + sizeof(SLUBAllocator));
+    MM_VERIFY(TOCHARPTR(pageAlloc) - memoryStart == (sizeof(MM::MemoryManager) + sizeof(SLUBAllocator) + sizeof(TLSFAllocator)));
 }
 MM::MemoryManager::~MemoryManager()
 {
@@ -243,7 +235,8 @@ MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity)
     size_t alignedCapacity = capacity / 4096 * 4096;
 
     void* rawPtr = VirtualAlloc(NULL, alignedCapacity, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-    MM_ASSERT(rawPtr);
+    if (rawPtr == nullptr)  // OS allocation failed — recoverable, return null to caller
+        return nullptr;
 
     unsigned char* charPtr = reinterpret_cast<unsigned char*>(rawPtr);
     return new (rawPtr) MM::MemoryManager(charPtr, sizeof(MM::MemoryManager), alignedCapacity);
@@ -281,7 +274,10 @@ uint32_t MM::MemoryManager::CalculateSlotSize(uint32_t original)
 }
 
 //======================================================================
-// MemoryInfo
+// MemoryInfo — the type is declared under this same guard in
+// MemoryDefinitions.hpp, so its definitions must be guarded to match;
+// otherwise MemoryManager.cpp fails to compile in Release (no MemoryInfo).
+#if defined(_DEBUG) && defined(MEMORYMANAGER_PROFILING)
 void MemoryInfo::AddAlloc(size_t slotSize)
 {
     if (auto info = infos.find(slotSize); info != infos.end())
@@ -350,3 +346,4 @@ void MemoryInfo::Print() const
 
     delete[] buffer;
 }
+#endif  // _DEBUG && MEMORYMANAGER_PROFILING

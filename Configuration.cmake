@@ -1,83 +1,62 @@
-# --- Fleur Global Configuration --- # This file defines global configuration variables for the Fleur project
+# --- Fleur Global Configuration ---
+# Defines project-wide variables, helpers, and compile defaults.
+# Included once from the root CMakeLists.txt before PROJECT().
 
-# C++ Language standard version
-SET(FL_CPP_LANG_VER
-    "20"
-    CACHE STRING "C++ Language standard version"
-)
+# C++ language standard version
+set(FL_CPP_LANG_VER "20" CACHE STRING "C++ Language standard version")
 
-# Iterator Debug Level configuration
-SET(_ITERATOR_DEBUG_LEVEL
-    "0"
-    CACHE STRING "Iterator Debug Level (0=disabled, 1=basic, 2=extended)"
-)
+# Iterator Debug Level
+set(_ITERATOR_DEBUG_LEVEL "0" CACHE STRING "Iterator Debug Level (0=disabled, 1=basic, 2=extended)")
 
-# Add to global definitions
-ADD_DEFINITIONS(-D_ITERATOR_DEBUG_LEVEL=${_ITERATOR_DEBUG_LEVEL})
-
-# MSVC Runtime Library configuration
-SET(FL_MSVC_RUNTIME_DEBUG
-    "MultiThreadedDebugDLL"
-    CACHE STRING "MSVC Runtime Library for Debug"
-)
-SET(FL_MSVC_RUNTIME_RELEASE
-    "MultiThreadedDLL"
-    CACHE STRING "MSVC Runtime Library for Release"
-)
-
-# Build configuration detection and setup
-IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  SET(FL_CONF_DEBUG
-      ON
-      CACHE BOOL "Debug configuration flag"
-  )
-  SET(FL_CONF_RELEASE
-      OFF
-      CACHE BOOL "Release configuration flag"
-  )
-  SET(FL_CONF_STR
-      "Debug"
-      CACHE STRING "Current configuration string"
-  )
-ELSEIF(CMAKE_BUILD_TYPE STREQUAL "Release")
-  SET(FL_CONF_DEBUG
-      OFF
-      CACHE BOOL "Debug configuration flag"
-  )
-  SET(FL_CONF_RELEASE
-      ON
-      CACHE BOOL "Release configuration flag"
-  )
-  SET(FL_CONF_STR
-      "Release"
-      CACHE STRING "Current configuration string"
-  )
-ENDIF()
+# MSVC runtime: single generator expression handles both Debug and Release
+# in single-config (Ninja) and multi-config (VS) generators.
+if(MSVC)
+  set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+endif()
 
 # Platform detection
-IF(APPLE)
-  SET(FLEUR_PLATFORM
-      "macos"
-      CACHE STRING "Current platform"
-  )
-ELSEIF(WIN32)
-  SET(FLEUR_PLATFORM
-      "x64"
-      CACHE STRING "Current platform"
-  )
-ENDIF()
+if(APPLE)
+  set(FLEUR_PLATFORM "macos" CACHE STRING "Current platform")
+elseif(WIN32)
+  set(FLEUR_PLATFORM "x64" CACHE STRING "Current platform")
+endif()
 
-# Testing configuration
-OPTION(ENABLE_FLEUR_TEST "Enable Fleur testing" OFF)
+# Testing toggle (consumed by root)
+option(ENABLE_FLEUR_TEST "Enable Fleur testing" OFF)
 
-# Library type configuration
-SET(FLEUR_LIB_TYPE
-    "STATIC"
-    CACHE STRING "Library type (STATIC/SHARED)"
+# Library type for the FleurEngine target (STATIC or SHARED)
+set(FLEUR_LIB_TYPE "STATIC" CACHE STRING "Library type (STATIC/SHARED)")
+
+# Render backend selection — controls which backends are built.
+# OpenGL files are preserved on disk; toggle to re-enable them.
+set(FLEUR_RENDER_BACKEND "Vulkan" CACHE STRING "Render backend: Vulkan, OpenGL, or Both")
+set_property(CACHE FLEUR_RENDER_BACKEND PROPERTY STRINGS "Vulkan" "OpenGL" "Both")
+
+# Project-wide compiler flags (MSVC). Consumed via FleurInterface and per-module options.
+set(FLEUR_COMPILATION_FLAGS
+    /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope
+    /GR- /EHsc /volatile:iso /utf-8 /W4
+    # /WX
 )
 
-set (FLEUR_COPILATION_FLAGS 
-    /permissive- /Zc:checkGwOdr /Zc:enumTypes /Zc:inline /Zc:templateScope 
-    /GR- /EHsc /volatile:iso /utf-8 /W4  
-    #/WX
-)
+# --- Helpers ---
+
+# Apply standard Fleur output directories to a target.
+# Works for both single-config (Ninja, Make) and multi-config (VS, Xcode) generators.
+function(fleur_set_output_dirs target)
+  set_target_properties(${target} PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin"
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib"
+    ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/lib"
+    PDB_OUTPUT_DIRECTORY     "${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/bin"
+  )
+  foreach(cfg ${CMAKE_CONFIGURATION_TYPES})
+    string(TOUPPER ${cfg} cfg_upper)
+    set_target_properties(${target} PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY_${cfg_upper} "${CMAKE_BINARY_DIR}/${cfg}/bin"
+      LIBRARY_OUTPUT_DIRECTORY_${cfg_upper} "${CMAKE_BINARY_DIR}/${cfg}/lib"
+      ARCHIVE_OUTPUT_DIRECTORY_${cfg_upper} "${CMAKE_BINARY_DIR}/${cfg}/lib"
+      PDB_OUTPUT_DIRECTORY_${cfg_upper}     "${CMAKE_BINARY_DIR}/${cfg}/bin"
+    )
+  endforeach()
+endfunction()

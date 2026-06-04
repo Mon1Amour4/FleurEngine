@@ -7,7 +7,7 @@ set(CMAKE_DEBUG_POSTFIX "")
 # For Windows: Prevent overriding the parent project's compiler/linker settings "Use shared (DLL) run-time lib even when
 # Google Test is built as static lib."
 ENABLE_TESTING()
-IF(FLEUR_PLATFORM_WIN)
+IF(WIN32)
   SET(GTEST_FORCE_SHARED_CRT
       ON
       CACHE BOOL "" FORCE

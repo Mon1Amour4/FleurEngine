@@ -38,3 +38,28 @@ TEST(IsDefaultConstreactible, CVType)
     EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<const volatile DefaultConstractible>, true);
     EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<const volatile NotDefaultConstractible>, false);
 }
+
+struct AbstractType
+{
+    virtual ~AbstractType() = default;
+    virtual void f() = 0;
+};
+
+TEST(IsDefaultConstreactible, FundamentalTypes)
+{
+    EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<int>, true);
+    EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<void>, false);
+}
+
+TEST(IsDefaultConstreactible, ArrayTypes)
+{
+    // Bounded array of default-constructible elements is constructible; an
+    // unbounded array type is not.
+    EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<int[4]>, true);
+    EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<int[]>, false);
+}
+
+TEST(IsDefaultConstreactible, AbstractTypeIsNot)
+{
+    EXPECT_EQ(Fleur::Concepts::IsDefaultConstructible<AbstractType>, false);
+}

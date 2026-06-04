@@ -1,5 +1,8 @@
 #pragma once
 
+#include <utility>
+#include <vector>
+
 #include "BitSet64.h"
 #include "PageAllocator.hpp"
 
@@ -101,6 +104,9 @@ struct TLSFAllocator
     PageAllocator* m_PageAlloc;
     unsigned char* m_EndOfMemory;
 
+    // {pool start, page-rounded extent} for the physical integrity walk (CheckPhysical).
+    std::vector<std::pair<free_block_header*, size_t>> m_DebugPools;
+
     TLSFAllocator(PageAllocator* alloc, uint32_t sli, uint32_t mbs, unsigned char* memoryEnd)
         : m_FLI(32)
         , m_SLI(sli)
@@ -123,9 +129,14 @@ struct TLSFAllocator
         used_block_header* foundBlock = nullptr;
         free_block_header* remainingBlock = nullptr;
 
-        size_t size = sizeof(T) * count + sizeof(used_block_header);
+        // Fix A: round the user portion up to 8 so block starts (and payloads,
+        // which sit at block + sizeof(used_block_header)) stay 8-aligned through splits.
+        size_t size = ((static_cast<size_t>(sizeof(T)) * count + 7u) & ~static_cast<size_t>(7u)) + sizeof(used_block_header);
         uint32_t originalSize = size;
         foundBlock = get_block(size, &firstIndex, &secondIndex);
+
+        if (foundBlock == nullptr)  // out of memory — recoverable, not a debug invariant
+            return nullptr;
 
         MM_DEBUG_BREAK(foundBlock->_size < originalSize)
 
@@ -146,7 +157,8 @@ struct TLSFAllocator
     template <typename T>
     void deallocate(void* ptr, uint32_t count = 1)
     {
-        MM_DEBUG_BREAK(ptr == nullptr)
+        if (ptr == nullptr)  // defined no-op (router already guards, but be safe)
+            return;
 
         unsigned char* bytePtr = reinterpret_cast<unsigned char*>(ptr);
         free_block_header* block = reinterpret_cast<free_block_header*>(bytePtr - sizeof(used_block_header));
@@ -164,6 +176,131 @@ struct TLSFAllocator
             sli_no_rounding(mergedBlock->_size, &firstIndex, &secondIndex);
             free_block(mergedBlock, firstIndex, secondIndex);
         }
+    }
+
+    // Debug integrity checker (port of tlsf_check, level 1: free-list <-> bitmap
+    // consistency). Returns true if consistent; on failure sets *outErr to a
+    // static reason string. Must run BETWEEN operations (not mid split/merge).
+    // Non-const: the block header accessors (is_free) are non-const.
+    bool Check(const char** outErr = nullptr)
+    {
+        auto fail = [&](const char* m)
+        {
+            if (outErr)
+                *outErr = m;
+            return false;
+        };
+
+        // The second-level dimension of m_FreeListHead / valid sli is 32; clamp in
+        // case 2^m_SLI is configured larger than the array can hold.
+        const uint32_t numSL = (1u << m_SLI) < 32u ? (1u << m_SLI) : 32u;
+
+        for (uint32_t fli = 0; fli < m_FLI; ++fli)
+        {
+            bool anySl = false;
+
+            for (uint32_t sli = 0; sli < numSL; ++sli)
+            {
+                free_block_header* head = m_FreeListHead[fli][sli];
+                const bool bit = m_SL_Bitmap[fli].IsBitOccupied(static_cast<uint8_t>(sli));
+
+                if ((head != nullptr) != bit)
+                    return fail("SL bitmap disagrees with free-list head");
+                if (bit)
+                    anySl = true;
+
+                free_block_header* prev = nullptr;
+                uint32_t guard = 0;
+                for (free_block_header* b = head; b; b = b->next_free)
+                {
+                    if (++guard > (1u << 24))
+                        return fail("free-list cycle / too long");
+                    if (!b->is_free())
+                        return fail("used block on free-list");
+                    if (b->_size < SIZE_TRASHHOLD || b->_size > MAX_VALUE)
+                        return fail("free block size out of range");
+                    if (reinterpret_cast<uintptr_t>(b) % 8 != 0)
+                        return fail("free block not 8-byte aligned");
+                    if (b->prev_free != prev)
+                        return fail("free-list prev_free broken");
+
+                    uint32_t efl = 0, esl = 0;
+                    sli_no_rounding(b->_size, &efl, &esl);
+                    if (efl != fli || esl != sli)
+                        return fail("free block in wrong size-class bin");
+
+                    prev = b;
+                }
+            }
+
+            if (m_FL_Bitmap.IsBitOccupied(static_cast<uint8_t>(fli)) != anySl)
+                return fail("FL bitmap disagrees with SL bitmap");
+        }
+
+        if (!CheckPhysical(outErr))
+            return false;
+
+        if (outErr)
+            *outErr = nullptr;
+        return true;
+    }
+
+    // Level 2: physical-block walk per pool. Catches boundary-tag corruption that
+    // the free-list/bitmap walk cannot see (prev_phys chain, size==distance,
+    // overruns, missed coalescing).
+    bool CheckPhysical(const char** outErr)
+    {
+        auto fail = [&](const char* m)
+        {
+            if (outErr)
+                *outErr = m;
+            return false;
+        };
+
+        for (auto& pool : m_DebugPools)
+        {
+            free_block_header* start = pool.first;
+            unsigned char* poolEnd = reinterpret_cast<unsigned char*>(start) + pool.second;
+
+            free_block_header* prevPhys = nullptr;
+            free_block_header* b = start;
+            uint32_t guard = 0;
+
+            while (true)
+            {
+                if (++guard > (1u << 24))
+                    return fail("physical walk too long");
+                if (reinterpret_cast<uintptr_t>(b) % 8 != 0)
+                    return fail("phys block misaligned");
+
+                unsigned char* bp = reinterpret_cast<unsigned char*>(b);
+                if (bp < reinterpret_cast<unsigned char*>(start) || bp >= poolEnd)
+                    return fail("phys block outside pool");
+                if (b->prev_phys_block != prevPhys)
+                    return fail("prev_phys_block chain broken");
+                if (b->_size == 0 || b->_size > MAX_VALUE)
+                    return fail("phys block bad _size");
+
+                unsigned char* next = bp + b->_size;
+                if (next > poolEnd)
+                    return fail("phys block _size overruns pool");
+
+                if (b->is_last_physical_block())
+                {
+                    if (next != poolEnd)
+                        return fail("last phys block does not reach pool end (extent mismatch)");
+                    break;
+                }
+
+                free_block_header* nb = reinterpret_cast<free_block_header*>(next);
+                if (b->is_free() && nb->is_free())
+                    return fail("adjacent free blocks not coalesced");
+
+                prevPhys = b;
+                b = nb;
+            }
+        }
+        return true;
     }
 
 private:
@@ -196,15 +333,25 @@ private:
     inline free_block_header* request_block(uint32_t size)
     {
         auto ptr = m_PageAlloc->allocate_pages_size(size, nullptr);
-        MM_DEBUG_BREAK(ptr == nullptr);
+        if (ptr == nullptr)  // page pool exhausted — propagate OOM as nullptr
+            return nullptr;
+
+        // Fix C: the block must own the whole page-rounded extent it was given,
+        // not just the requested size — otherwise the trailing slack is untracked
+        // and the physical chain never reaches the pool end. The existing split
+        // path then carves the requested portion and re-inserts the remainder.
+        uint32_t ps = m_PageAlloc->m_PageSize;
+        size_t extent = ((static_cast<size_t>(size) + ps - 1) / ps) * ps;
 
         auto block = reinterpret_cast<free_block_header*>(ptr);
-        block->_size = size;
+        block->_size = static_cast<uint32_t>(extent);
         block->set_free();
         block->set_last_physical_block();
         block->prev_phys_block = nullptr;
         block->prev_free = nullptr;
         block->next_free = nullptr;
+
+        m_DebugPools.push_back({block, extent});
 
         return block;
     }
@@ -239,6 +386,8 @@ private:
     inline used_block_header* request_and_use_block(uint32_t size, uint32_t fli, uint32_t sli)
     {
         free_block_header* block = request_block(size);
+        if (block == nullptr)  // OOM
+            return nullptr;
         insert(block, fli, sli);
         return use_block(fli, sli);
     }
@@ -262,6 +411,30 @@ private:
             m_FreeListHead[fli][sli] = deallocatedBlock;
         }
         deallocatedBlock->prev_free = nullptr;
+    }
+
+    // Fix B: remove a SPECIFIC free block from its size-class list by splicing its
+    // links (use_block only pops the list head — wrong for coalescing when the
+    // neighbor block is not the current head of its bin).
+    inline void remove_free_block(free_block_header* b, uint32_t fli, uint32_t sli)
+    {
+        if (b->prev_free)
+            b->prev_free->next_free = b->next_free;
+        else
+            m_FreeListHead[fli][sli] = b->next_free;
+
+        if (b->next_free)
+            b->next_free->prev_free = b->prev_free;
+
+        if (m_FreeListHead[fli][sli] == nullptr)
+        {
+            m_SL_Bitmap[fli].ClearBit(static_cast<uint8_t>(sli));
+            if (!m_SL_Bitmap[fli].ScanFirstSetForward(nullptr))
+                m_FL_Bitmap.ClearBit(static_cast<uint8_t>(fli));
+        }
+
+        b->next_free = nullptr;
+        b->prev_free = nullptr;
     }
 
     inline free_block_header* search_suitable_block(uint32_t* fl, uint32_t* sl)
@@ -300,12 +473,18 @@ private:
             }
         }
 
-        if (!foundBlock)
-            return request_and_use_block(size, *fl, *sl);
+        // No suitable free block: grow from the page pool. May be nullptr on OOM.
+        // (Single return here also fixes the prior C4715 missing-return path.)
+        return request_and_use_block(size, *fl, *sl);
     }
 
     inline free_block_header* split(used_block_header* usedBlock, uint32_t usedSize)
     {
+        // Fix C: the remainder inherits usedBlock's is_last status. Splitting a
+        // block from the MIDDLE of a pool must NOT mark the remainder as last, and
+        // must repoint the following physical block's prev_phys_block at it.
+        bool wasLast = usedBlock->is_last_physical_block();
+
         uint32_t remainingSize = usedBlock->_size - usedSize;
 
         usedBlock->_size = usedSize;
@@ -319,10 +498,21 @@ private:
 
         remainingBlock->_size = remainingSize;
         remainingBlock->set_free();
-        remainingBlock->set_last_physical_block();
         remainingBlock->prev_phys_block = reinterpret_cast<free_block_header*>(usedBlock);
         remainingBlock->next_free = nullptr;
         remainingBlock->prev_free = nullptr;
+
+        if (wasLast)
+        {
+            remainingBlock->set_last_physical_block();
+        }
+        else
+        {
+            remainingBlock->set_not_last_physical_block();
+            unsigned char* afterPtr = remainingBlockBytePtr + remainingSize;
+            if (afterPtr < m_EndOfMemory)
+                reinterpret_cast<free_block_header*>(afterPtr)->prev_phys_block = remainingBlock;
+        }
 
         MM_DEBUG_BREAK(remainingBlock->_size < SIZE_TRASHHOLD || remainingBlock->_size > MAX_VALUE)
 
@@ -357,7 +547,7 @@ private:
             uint32_t fli = 0, sli = 0;
             mapping(prevBlock->_size, &fli, &sli);
 
-            use_block(fli, sli);
+            remove_free_block(prevBlock, fli, sli);
             prevBlock->set_free();
             prevBlock->prev_free = nullptr;
 
@@ -414,7 +604,7 @@ private:
                 uint32_t fli = 0, sli = 0;
                 mapping(rightBlock->_size, &fli, &sli);
 
-                use_block(fli, sli);
+                remove_free_block(rightBlock, fli, sli);
 
                 MM_DEBUG_BREAK(block->_size < SIZE_TRASHHOLD || block->_size > MAX_VALUE)
 
