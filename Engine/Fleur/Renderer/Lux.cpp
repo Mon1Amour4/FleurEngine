@@ -5,7 +5,10 @@
 #include "Image2D.h"
 #include "Services/ServiceLocator.h"
 #include "Shader.h"
-#include "Vulkan/Renderer_Vulkan.h"  // vk::backend
+
+// All backends are compiled in; the active one is selected at runtime.
+#include "OpenGL/Renderer_OpenGL.h"
+#include "Vulkan/Renderer_Vulkan.h"
 
 namespace Lux
 {
@@ -14,7 +17,20 @@ Renderer::~Renderer()
     OnShutdown();
 }
 
-void Renderer::OnInit()
+void Renderer::OnInit() {}  // the backend is created on demand via SetBackend (runtime-selected)
+
+void Renderer::SetBackend(Fleur::Graphics::EGraphicsAPI api)
+{
+    if (m_Backend && m_Api == api)
+        return;
+
+    delete m_Backend;
+    m_Backend = nullptr;
+    m_Api = api;
+    initBackend();
+}
+
+void Renderer::initBackend()
 {
     Fleur::Application& application = Fleur::Application::instance();
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
@@ -24,9 +40,13 @@ void Renderer::OnInit()
     fallbackView.ID = fallbackAsset.handle.id;
 
     Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
-
+    void* window = application.GetWindow().GetNativeHandle();
     bool validation = true;
-    m_Backend = new vk::backend(validation, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+
+    if (m_Api == Fleur::Graphics::EGraphicsAPI::OpenGL)
+        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView);
+    else
+        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView);
 
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Opaque,
                           {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueVertex").obj),

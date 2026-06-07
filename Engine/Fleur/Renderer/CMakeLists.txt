@@ -50,17 +50,12 @@ add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 # === Link Libraries ===
 # CoreLib is linked because Renderer.cpp / Image2D.h pull FleurAllocator.hpp / Bitmap.hpp.
-target_link_libraries(Renderer PRIVATE FleurInterface TBB::tbb CoreLib)
+target_link_libraries(Renderer PRIVATE FleurInterface CoreLib)
 
 # === Target Properties ===
 set_target_properties(Renderer PROPERTIES FOLDER "Engine/Renderer")
 
 # === Backend Selection (driven by FLEUR_RENDER_BACKEND) ===
-if(FLEUR_RENDER_BACKEND STREQUAL "Vulkan" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
-  target_link_libraries(Renderer PRIVATE VulkanBackend)
-  target_include_directories(Renderer PRIVATE "Vulkan")
-endif()
-if(FLEUR_RENDER_BACKEND STREQUAL "OpenGL" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
-  target_link_libraries(Renderer PRIVATE OpenGLBackend)
-  target_include_directories(Renderer PRIVATE "OpenGL")
-endif()
+# All backends compiled; runtime selection (no compile-time backend define).
+target_link_libraries(Renderer PRIVATE VulkanBackend OpenGLBackend)
+target_include_directories(Renderer PRIVATE "Vulkan" "OpenGL")

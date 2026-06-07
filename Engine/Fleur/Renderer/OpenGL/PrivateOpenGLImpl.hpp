@@ -55,12 +55,30 @@ struct backend::impl
 
     std::unordered_map<AssetID, GLuint> m_TextureMap;
     AssetID m_FallbackTexture{0};
+    GLuint createTexture(const SFLImageView& view);
     void uploadTextures(SFLImageViewInfo* pInfo);
     void removeTexture(AssetID id);
 
-    // ---------- passes / skybox (filled in later stages) ----------
+    // ---------- geometry pass ----------
+    GLuint m_GeometryProgram{0};
+    GLuint m_Vao{0};
+    GLuint m_Vbo{0};
+    GLuint m_Ebo{0};
+    uint32_t m_VertexCursor{0};  // bump cursor into the shared VBO (in vertices)
+    uint32_t m_IndexCursor{0};   // bump cursor into the shared EBO (in indices)
+    void createGeometry();
+
+    // ---------- passes ----------
     void createPass(EFLPassKind kind, SFLShaderStages shaderStages);
+
+    // ---------- skybox ----------
+    GLuint m_SkyboxProgram{0};
+    GLuint m_SkyboxVao{0};
+    GLuint m_SkyboxVbo{0};
+    GLuint m_SkyboxCubemap{0};
+    GLuint createCubemap(const SFLImageView& view);
     void createSkybox(AssetID id, SFLShaderStages shaderStages);
     void setSkybox(AssetID id);
+    void renderSkybox();
 };
 }  // namespace gl

@@ -111,6 +111,13 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
     case Key::D2:
         m_Window->SwitchInteractionMode();
         break;
+    case Key::D3:
+    {
+        auto renderer = ServiceLocator::instance().GetService<Renderer>();
+        auto next = (renderer->GetBackendApi() == Fleur::Graphics::Vulkan) ? Fleur::Graphics::OpenGL : Fleur::Graphics::Vulkan;
+        renderer->SetBackend(next);
+        break;
+    }
     }
     event.SetHandled();
     return true;
@@ -160,6 +167,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     auto renderer = ServiceLocator::instance().Register<Renderer>();
     renderer.value()->Init();
+    renderer.value()->SetBackend(settings.Renderer);
     renderer.value()->SetVSync(settings.Vsync);
 
     m_Scene = std::make_unique<Scene>();

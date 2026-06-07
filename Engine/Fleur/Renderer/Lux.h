@@ -52,14 +52,20 @@ public:
     void SetVSync(bool active) { m_Vsync = active; }
     bool IsVSync() const { return m_Vsync; }
 
+    // Runtime backend selection / live switching (all backends are compiled in).
+    void SetBackend(Fleur::Graphics::EGraphicsAPI api);
+    Fleur::Graphics::EGraphicsAPI GetBackendApi() const { return m_Api; }
+
 protected:
     void OnInit();
     void OnShutdown();
 
 private:
     Fleur::Graphics::SFLShaderInfo shaderInfo(Fleur::Graphics::Shader* shader);
+    void initBackend();
 
     Fleur::Graphics::IRenderer* m_Backend{nullptr};
+    Fleur::Graphics::EGraphicsAPI m_Api{Fleur::Graphics::EGraphicsAPI::Vulkan};
     bool m_Vsync{true};
 };
 }  // namespace Lux

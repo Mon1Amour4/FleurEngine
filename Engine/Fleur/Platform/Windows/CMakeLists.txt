@@ -24,7 +24,7 @@ target_compile_features(Platform PUBLIC cxx_std_${FL_CPP_LANG_VER})
 # === Link Libraries ===
 # CoreLib pulls in singleton.hpp and (transitively) MemoryManager headers used by Application.h.
 # opengl32 is needed regardless of render backend — WindowWin.cpp uses WGL extensions.
-target_link_libraries(Platform PRIVATE FleurInterface TBB::tbb CoreLib opengl32)
+target_link_libraries(Platform PRIVATE FleurInterface CoreLib opengl32)
 
 # === Include Directories ===
 target_include_directories(Platform PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")

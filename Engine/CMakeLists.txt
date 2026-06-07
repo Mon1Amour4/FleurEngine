@@ -2,7 +2,6 @@
 
 # === External Dependencies ===
 include(${CMAKE_CURRENT_SOURCE_DIR}/ImGui.cmake)
-include(${CMAKE_CURRENT_SOURCE_DIR}/tbb.cmake)
 
 # === Source Files ===
 set(ENGINE_HEADERS
@@ -90,7 +89,7 @@ if(NOT MSVC)
 endif()
 
 # === Platform Dependencies ===
-set(ENGINE_DEPENDENCIES ImGui TBB::tbb)
+set(ENGINE_DEPENDENCIES ImGui)
 
 if(WIN32)
   list(APPEND ENGINE_DEPENDENCIES Platform)
@@ -133,12 +132,9 @@ target_compile_options(FleurInterface INTERFACE ${FLEUR_COMPILATION_FLAGS})
 add_subdirectory(${PLATFORM_SUBDIRECTORY})
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer)
 
-if(FLEUR_RENDER_BACKEND STREQUAL "OpenGL" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/OpenGL)
-endif()
-if(FLEUR_RENDER_BACKEND STREQUAL "Vulkan" OR FLEUR_RENDER_BACKEND STREQUAL "Both")
-  add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/Vulkan)
-endif()
+# All backends are compiled; the active one is chosen at runtime.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/OpenGL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/Vulkan)
 
 # === FleurEngine Target ===
 add_library(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
