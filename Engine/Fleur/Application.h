@@ -9,7 +9,7 @@
 #include "FlTime.h"
 #include "Layer.h"
 #include "LayerStack.h"
-#include "Renderer/Graphics.hpp"
+#include "Lux/Graphics.hpp"
 #include "Services/ServiceLocator.h"
 #include "Tessera.h"
 #include "Window.h"

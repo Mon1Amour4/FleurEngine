@@ -2,7 +2,7 @@
 
 #include <Metal/Metal.hpp>
 
-#include "Renderer/Shader.h"
+#include "Lux/Shader.h"
 
 namespace Fleur::Renderer
 {

@@ -1,8 +1,8 @@
-# === Renderer ===
+# === Lux ===
 #
 # Files commented out below (Buffer.h, CommandBuffer.h, Surface.h, Swapchain.h, ...)
 # are the abstract-interface headers from the OpenGL era. They live on disk and
-# remain #include-able from Renderer.h; they are intentionally not advertised
+# remain #include-able from Lux.h; they are intentionally not advertised
 # in the IDE filters until the OpenGL backend is reactivated.
 
 set(PROJECT_HEADERS
@@ -46,16 +46,16 @@ set(PROJECT_SOURCES
 )
 
 # === Create Library ===
-add_library(Renderer STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
+add_library(Lux STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 # === Link Libraries ===
-# CoreLib is linked because Renderer.cpp / Image2D.h pull FleurAllocator.hpp / Bitmap.hpp.
-target_link_libraries(Renderer PRIVATE FleurInterface CoreLib)
+# CoreLib is linked because Lux.cpp / Image2D.h pull FleurAllocator.hpp / Bitmap.hpp.
+target_link_libraries(Lux PRIVATE FleurInterface CoreLib)
 
 # === Target Properties ===
-set_target_properties(Renderer PROPERTIES FOLDER "Engine/Renderer")
+set_target_properties(Lux PROPERTIES FOLDER "Engine/Lux")
 
 # === Backend Selection (driven by FLEUR_RENDER_BACKEND) ===
 # All backends compiled; runtime selection (no compile-time backend define).
-target_link_libraries(Renderer PRIVATE VulkanBackend OpenGLBackend)
-target_include_directories(Renderer PRIVATE "Vulkan" "OpenGL")
+target_link_libraries(Lux PRIVATE VulkanBackend OpenGLBackend)
+target_include_directories(Lux PRIVATE "Vulkan" "OpenGL")

@@ -5,8 +5,8 @@
 #include "Metal/ShaderMetal.h"
 #include "Metal/SurfaceMetal.h"
 #include "Metal/SwapchainMetal.h"
-#include "Renderer/Device.h"
-#include "Renderer/TextureMetal.h"
+#include "Lux/Device.h"
+#include "Lux/TextureMetal.h"
 
 #include <QuartzCore/CAMetalLayer.hpp>
 #include <QuartzCore/QuartzCore.hpp>

@@ -3,7 +3,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "FleurAllocator.hpp"
-#include "Renderer/Camera.h"
+#include "Lux/Camera.h"
 
 namespace Fleur
 {

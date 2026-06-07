@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "AssetHandle.h"
-#include "Renderer/Image2D.h"
-#include "Renderer/Model.h"
+#include "Lux/Image2D.h"
+#include "Lux/Model.h"
 
 namespace Fleur
 {

@@ -2,7 +2,7 @@
 
 #include <Metal/Metal.hpp>
 
-#include "Renderer/Surface.h"
+#include "Lux/Surface.h"
 
 namespace MTL
 {

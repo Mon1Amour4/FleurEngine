@@ -2,7 +2,7 @@
 
 #include <Metal/Metal.hpp>
 
-#include "Renderer/Buffer.h"
+#include "Lux/Buffer.h"
 
 namespace Fleur::Renderer
 {

@@ -3,8 +3,8 @@
 #include <chrono>
 
 #include "FleurAllocator.hpp"
-#include "Renderer/Lux.h"
-#include "Renderer/ModelFabric.h"
+#include "Lux/Lux.h"
+#include "Lux/ModelFabric.h"
 
 #if !defined(CGLTF_IMPLEMENTATION)
 #define CGLTF_IMPLEMENTATION

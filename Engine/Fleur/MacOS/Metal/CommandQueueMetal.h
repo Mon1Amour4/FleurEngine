@@ -3,7 +3,7 @@
 
 #include <Metal/Metal.hpp>
 
-#include "Renderer/CommandQueue.h"
+#include "Lux/CommandQueue.h"
 
 namespace Fleur::Renderer
 {

@@ -9,7 +9,7 @@ project(
   Fleur
   VERSION 0.1
   DESCRIPTION "Fleur Engine Sandbox Project"
-  LANGUAGES CXX
+  LANGUAGES C CXX
 )
 
 # === C++ Standard ===

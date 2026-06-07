@@ -3,8 +3,8 @@
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
-#include "Renderer/Lux.h"
-#include "Renderer/Toolchain.h"
+#include "Lux/Lux.h"
+#include "Lux/Toolchain.h"
 #include "Scene/Scene.h"
 #include "ThreadPool.h"
 

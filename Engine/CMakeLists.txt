@@ -130,11 +130,11 @@ target_compile_options(FleurInterface INTERFACE ${FLEUR_COMPILATION_FLAGS})
 
 # === Subdirectories ===
 add_subdirectory(${PLATFORM_SUBDIRECTORY})
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Lux)
 
 # All backends are compiled; the active one is chosen at runtime.
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/OpenGL)
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Renderer/Vulkan)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Lux/OpenGL)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Fleur/Lux/Vulkan)
 
 # === FleurEngine Target ===
 add_library(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
@@ -142,7 +142,7 @@ add_library(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 target_link_libraries(
   FleurEngine
   PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib
-  PRIVATE Renderer
+  PRIVATE Lux
 )
 # Tessera arrives via FleurInterface (see above).
 # CoreLib already brings MemoryManager transitively (PUBLIC dep).

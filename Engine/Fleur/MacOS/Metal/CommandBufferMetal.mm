@@ -3,7 +3,7 @@
 #include "Metal/ShaderMetal.h"
 #include "Metal/SurfaceMetal.h"
 #include "Metal/TextureMetal.h"
-#include "Renderer/VertexLayout.h"
+#include "Lux/VertexLayout.h"
 
 #include <QuartzCore/CAMetalLayer.hpp>
 

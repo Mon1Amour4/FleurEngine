@@ -4,7 +4,7 @@
 
 #include <vector>
 
-#include "Renderer/Lux.h"  // Lux::Renderer, Lux::CameraView, AssetID
+#include "Lux/Lux.h"  // Lux::Renderer, Lux::CameraView, AssetID
 
 namespace Fleur::Graphics
 {

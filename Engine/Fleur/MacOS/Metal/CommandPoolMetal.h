@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Renderer/CommandPool.h"
+#include "Lux/CommandPool.h"
 
 namespace MTL
 {

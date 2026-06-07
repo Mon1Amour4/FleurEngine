@@ -2,7 +2,7 @@
 #include <flpch.h>
 
 #include "Bitmap.hpp"
-#include "Renderer/RenderViews.hpp"
+#include "Lux/RenderViews.hpp"
 
 #define CUBEMAP_LAYERS_COUNT 6
 

@@ -2,7 +2,7 @@
 
 #include <Metal/Metal.hpp>
 
-#include "Renderer/Device.h"
+#include "Lux/Device.h"
 
 namespace Fleur::Renderer
 {

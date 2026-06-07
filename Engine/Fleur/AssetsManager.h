@@ -6,10 +6,10 @@
 
 #include "AssetCache.h"
 #include "AssetTypes.hpp"
-#include "Renderer/Color.h"
-#include "Renderer/RenderViews.hpp"
-#include "Renderer/Shader.h"
-#include "Renderer/Skybox.h"
+#include "Lux/Color.h"
+#include "Lux/RenderViews.hpp"
+#include "Lux/Shader.h"
+#include "Lux/Skybox.h"
 #include "Services/ServiceInterfaces.hpp"
 
 #pragma region TypeAliases
