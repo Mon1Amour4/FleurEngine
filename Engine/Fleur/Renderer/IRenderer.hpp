@@ -33,11 +33,7 @@ struct IRenderer
 {
     virtual ~IRenderer() = default;
 
-    virtual void AddModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
-                          uint32_t itemsCount) = 0;
-
-    virtual void Update(Fleur::Graphics::SFLCameraData& cameraData) = 0;
-    virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
+    virtual void UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
 
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;
@@ -47,7 +43,7 @@ struct IRenderer
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
 
-    // --- new frame API (cutover in progress; AddModel/Update retire once Lux + Application switch over) ---
+    // --- frame API (immediate, per-AssetID) ---
     virtual void RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
                                const FLDrawItem* primitives, uint32_t primitiveCount) = 0;
     virtual void UnregisterModel(AssetID model) = 0;

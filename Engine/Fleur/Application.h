@@ -17,7 +17,6 @@
 
 namespace Fleur::Graphics
 {
-class Renderer;
 class Model;
 class Texture;
 class Skybox;
@@ -25,6 +24,8 @@ class Skybox;
 
 namespace Fleur
 {
+class Scene;
+
 class FLEUR_API Application : public singleton<Application>
 {
     friend class singleton<Application>;
@@ -77,10 +78,8 @@ protected:
     Application();
     virtual ~Application() override;
 
-    Fleur::Graphics::EGraphicsAPI m_GraphicsAPI;
-
 private:
-    Fleur::Graphics::Skybox* m_skybox;
+    std::unique_ptr<Scene> m_Scene;
 };
 
 }  // namespace Fleur

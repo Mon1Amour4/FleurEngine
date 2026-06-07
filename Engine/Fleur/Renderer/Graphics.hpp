@@ -23,7 +23,12 @@ struct SVertexData
     glm::vec2 TexCoord;
     glm::vec3 Normal;
 
-    SVertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f));
+    SVertexData(glm::vec3 pos = glm::vec3(0.0f), glm::vec3 text_coord = glm::vec3(0.0f), glm::vec3 normal = glm::vec3(0.0f))
+        : Position(pos)
+        , TexCoord(text_coord)
+        , Normal(normal)
+    {
+    }
 };
 #pragma pack(pop)
 

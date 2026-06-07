@@ -6,7 +6,6 @@
 
 #include "AssetsManager.h"
 #include "FileSystem/FileSystem.h"
-#include "Renderer/Renderer.h"
 #include "ServiceInterfaces.hpp"
 #include "ThreadPool.h"
 #include "singleton.hpp"

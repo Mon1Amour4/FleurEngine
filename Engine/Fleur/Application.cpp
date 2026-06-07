@@ -3,15 +3,16 @@
 #include "Events/EventVisitor.h"
 #include "FileSystem/FileSystem.h"
 #include "KeyCodes.h"
-#include "Renderer/Renderer.h"
+#include "Renderer/Lux.h"
 #include "Renderer/Toolchain.h"
+#include "Scene/Scene.h"
 #include "ThreadPool.h"
 
 using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;
 using CubemapImage = Fleur::Graphics::CubemapImage;
 using Model = Fleur::Graphics::Model;
-using Renderer = Fleur::Graphics::Renderer;
+using Renderer = Lux::Renderer;
 using Color = Fleur::Graphics::Color;
 
 template <>
@@ -29,7 +30,6 @@ Fleur::Application::Application()
 
 Fleur::Application::~Application()
 {
-    delete m_skybox;
 }
 
 void Fleur::Application::PushLayer(Layer* layer)
@@ -78,8 +78,6 @@ bool Fleur::Application::OnWindowClose(WindowCloseEvent& event)
 }
 bool Fleur::Application::OnWindowResize(WindowResizeEvent& event)
 {
-    Fleur::SRect rect{event.GetX(), event.GetY(), event.GetWidth(), event.GetHeight()};
-    ServiceLocator::instance().GetService<Renderer>()->UpdateViewport(rect);
     event.SetHandled();
     return true;
 }
@@ -98,7 +96,6 @@ bool Fleur::Application::OnEndResizeWindow(WindowEndResizeEvent& event)
 }
 bool Fleur::Application::OnValidateWindow(WindowValidateEvent& event)
 {
-    ServiceLocator::instance().GetService<Renderer>()->ValidateWindow();
     m_Window->SetPainted();
     event.SetHandled();
     return true;
@@ -110,7 +107,6 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
     switch (crossplatformKey)
     {
     case Key::D1:
-        ServiceLocator::instance().GetService<Renderer>()->ToggleWireFrame();
         break;
     case Key::D2:
         m_Window->SwitchInteractionMode();
@@ -123,43 +119,6 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
 bool Fleur::Application::OnRenderEvent(AppRenderEvent& event)
 {
     return true;
-    // auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    // auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
-    //// renderer->ShowWireFrame();
-    ////  TODO: As for now we use just one opaque shader, but we must think about different passes
-    ////  using different shaders with blending and probably using pre-passes
-
-    // auto waterCoolerModel = assetsManager->Get<Model>("WaterCooler");
-    // auto waterCoolerModelLocked = waterCoolerModel.lock();
-    // if (waterCoolerModelLocked)
-    //{
-    //     renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, waterCoolerModelLocked.get(),
-    //                         glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 10.f)));
-    // }
-
-    // auto sponzaModel = assetsManager->Get<Model>("Sponza");
-    // auto sponzaModelLocked = sponzaModel.lock();
-    // if (sponzaModelLocked)
-    //{
-    //     glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-    //     glm::mat4 R = glm::mat4(1.f);
-    //     glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-    //     glm::mat4 M = T * R * S;
-
-    //    renderer->DrawModel(Fleur::Graphics::ERenderStage::STATIC_GEOMETRY, sponzaModelLocked.get(), M);
-    //}
-
-    // auto gizmoModel = assetsManager->Get<Model>("gizmo");
-    // if (!gizmoModel.expired())
-    //{
-    //     glm::mat4 gizmoMatrix(1.0f);
-    //     gizmoMatrix[3] = glm::vec4(-0.75f, -0.75f, 0.0f, 1.0f);
-
-    //    renderer->DrawModel(Fleur::Graphics::ERenderStage::GIZMO, gizmoModel.lock().get(), gizmoMatrix);
-    //}
-
-    // UNUSED(event);
-    // return true;
 }
 bool Fleur::Application::OnMouseMoveEvent(MouseMovedEvent& event)
 {
@@ -182,8 +141,6 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
     Tessera::HelloTessera();
 
-    m_GraphicsAPI = settings.Renderer;
-
     Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(/*4096*/ 1024ULL * 1024ULL * 1024ULL * 2ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
@@ -201,18 +158,20 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     assetsManager.value()->LoadImage("Placeholders/wall_placeholder2.png");
 
-    auto renderer = ServiceLocator::instance().Register<Renderer>(m_GraphicsAPI);
+    auto renderer = ServiceLocator::instance().Register<Renderer>();
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
+
+    m_Scene = std::make_unique<Scene>();
+    m_Scene->Init();
 
     auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza2.glb");
 
     assetsManager->get()->LoadCubemapAsync(
         "skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
-        [this](CubemapAsset asset)
+        [](CubemapAsset asset)
         {
-            m_skybox = new Fleur::Graphics::Skybox(asset.handle.id);
-            auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+            auto renderer = ServiceLocator::instance().GetService<Renderer>();
             renderer->SetSkybox(asset.handle.id);
             FL_CORE_INFO("Skybox has uploaded to GPU");
         },
@@ -255,8 +214,6 @@ void Fleur::Application::Run()
 
         float dtTime = m_TimeManager->DeltaTime();
 
-        renderer->Clear();
-
         m_EventQueue->OnUpdate(dtTime);
         // TODO Do we need this lookup here or we need t move it to m_EventQueue->OnUpdate?
         while (!m_EventQueue->Empty())
@@ -267,7 +224,7 @@ void Fleur::Application::Run()
         }
 
         m_Window->OnUpdate(dtTime);
-        Fleur::Graphics::Camera::GetActiveCamera()->OnUpdate(dtTime);
+        m_Scene->OnUpdate(dtTime);
 
         for (auto layer : m_LayerStack)
         {
@@ -275,8 +232,11 @@ void Fleur::Application::Run()
         }
 
         assetsManager->OnUpdate(dtTime);
-        renderer->OnUpdate(dtTime);
-        renderer->Present();
+
+        renderer->BeginFrame(m_Scene->GetCamera());
+        m_Scene->Submit(*renderer);
+        renderer->EndFrame();
+
         m_Window->SetMouseWheelScrollData(0, 0);
         // Fleur::Core::Benchmark::Frame();
     }
@@ -292,7 +252,7 @@ void Fleur::Application::Run()
     assetsManager->OnShutdown();
 
     auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    renderer->OnShutdown();
+    renderer->Shutdown();
 
     auto threadPool = ServiceLocator::instance().GetService<ThreadPool>();
     threadPool->Shutdown();

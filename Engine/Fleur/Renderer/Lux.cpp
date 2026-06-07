@@ -66,7 +66,7 @@ void Renderer::Unregister(AssetID model)
 }
 void Renderer::UploadTextures(Fleur::Graphics::SFLImageViewInfo* info)
 {
-    m_Backend->SubmitImageViews(info);
+    m_Backend->UploadTextures(info);
 }
 void Renderer::RemoveTexture(AssetID texture)
 {

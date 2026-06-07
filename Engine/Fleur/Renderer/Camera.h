@@ -7,8 +7,6 @@ using mat4 = glm::mat4;
 
 namespace Fleur::Graphics
 {
-class Renderer;
-
 class FLEUR_API Camera : IUpdatable
 {
 public:

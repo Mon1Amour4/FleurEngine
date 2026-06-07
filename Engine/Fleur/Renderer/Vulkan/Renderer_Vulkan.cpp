@@ -20,18 +20,9 @@ vk::backend::~backend()
 {
     delete pImpl;
 }
-void vk::backend::AddModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
-                           uint32_t itemsCount)
+void vk::backend::UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
-    pImpl->addModel(vertices, verticesCount, indecies, indexCount, items, itemsCount);
-}
-void vk::backend::Update(Fleur::Graphics::SFLCameraData& cameraData)
-{
-    pImpl->update(cameraData);
-}
-void vk::backend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
-{
-    pImpl->submitImageViews(pInfo);
+    pImpl->uploadTextures(pInfo);
 }
 void vk::backend::CreateSkybox(AssetID id, SFLShaderStages shaderStages)
 {
@@ -605,38 +596,7 @@ void vk::backend::impl::freeVma()
 }
 
 
-void vk::backend::impl::addModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
-                                 uint32_t itemsCount)
-{
-    uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
-    uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
-
-    m_VertexBuffer->UploadDataToBuffer(vertices, verticesCount);
-    m_IndexBuffer->UploadDataToBuffer(indecies, indexCount);
-
-    for (size_t i = 0; i < itemsCount; i++)
-    {
-        auto& item = items[i];
-        if (item.bucket == FL_OPAQUE || item.bucket == FL_MASK)
-        {
-            auto& draw = m_OpaqueDrawList.emplace_back();
-            draw.material.albedo = item.albedoId;
-            draw.indexCount = item.indexCount;
-            draw.indexOffset = globalIndexOffset + item.indexStart;
-            draw.vertexOffset = globalVertexOffset;
-        }
-        else if (item.bucket == FL_BLEND)
-        {
-            auto& draw = m_TransparentDrawList.emplace_back();
-            draw.material.albedo = item.albedoId;
-            draw.indexCount = item.indexCount;
-            draw.indexOffset = globalIndexOffset + item.indexStart;
-            draw.vertexOffset = globalVertexOffset;
-        }
-    }
-}
-
-void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
+void vk::backend::impl::uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     for (size_t i = 0; i < pInfo->count; i++)
     {
@@ -1157,22 +1117,6 @@ void vk::backend::impl::endFrame()
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
     currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
-}
-
-void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
-{
-    if (!beginFrame(cameraData))
-        return;
-
-    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
-    for (const auto& draw : m_OpaqueDrawList)
-    {
-        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
-        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
-    }
-
-    endFrame();
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,

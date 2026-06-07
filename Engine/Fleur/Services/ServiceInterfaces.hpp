@@ -14,7 +14,6 @@ namespace Fleur::Graphics
 {
 class Model;
 class Texture;
-class Renderer;
 }  // namespace Fleur::Graphics
 
 namespace Fleur

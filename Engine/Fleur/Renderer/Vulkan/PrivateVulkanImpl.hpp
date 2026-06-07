@@ -98,7 +98,6 @@ struct backend::impl
     impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~impl();
 
-    void update(Fleur::Graphics::SFLCameraData cameraData);
     bool beginFrame(Fleur::Graphics::SFLCameraData& cameraData);
     void endFrame();
 
@@ -186,10 +185,6 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    std::vector<DrawInfo> m_OpaqueDrawList;
-    std::vector<DrawInfo> m_TransparentDrawList;
-    void addModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items, uint32_t itemsCount);
-
     std::unordered_map<AssetID, std::vector<DrawInfo>> m_RegisteredModels;
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
                        const FLDrawItem* primitives, uint32_t primitiveCount);
@@ -199,7 +194,7 @@ struct backend::impl
     uint32_t currentFrame = 0;
     uint32_t m_ImageIndex = 0;
 
-    void submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
+    void uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);

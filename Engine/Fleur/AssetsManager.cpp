@@ -3,6 +3,7 @@
 #include <chrono>
 
 #include "FleurAllocator.hpp"
+#include "Renderer/Lux.h"
 #include "Renderer/ModelFabric.h"
 
 #if !defined(CGLTF_IMPLEMENTATION)
@@ -67,14 +68,14 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
 
     if (m_ImagesToUpload.ReadyToUpload())
     {
-        auto renderer = ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+        auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
 
         std::lock_guard<std::mutex> lc(m_ImagesToUpload.mx);
 
         Fleur::Graphics::SFLImageViewInfo info{};
         info.pData = m_ImagesToUpload.images.data();
         info.count = m_ImagesToUpload.images.size();
-        renderer->SubmitImageViews(&info);
+        renderer->UploadTextures(&info);
 
         imagesWereUploaded = true;
         m_ImagesToUpload.framesSinceLastUpload = 0;
@@ -132,13 +133,26 @@ void Fleur::AssetsManager::PollMessages()
             case LOADED:
             {
                 Fleur::Graphics::Model* model = (Fleur::Graphics::Model*)message.pResource;
-                auto renderer = Fleur::ServiceLocator::instance().GetService<Fleur::Graphics::Renderer>();
+                auto renderer = Fleur::ServiceLocator::instance().GetService<Lux::Renderer>();
 
-                glm::mat4 T = glm::translate(glm::mat4(1.f), glm::vec3(0.f, 0.f, 100.f));
-                glm::mat4 R = glm::mat4(1.f);
-                glm::mat4 S = glm::scale(glm::mat4(1.f), glm::vec3(0.1f, 0.1f, 0.1f));
-                glm::mat4 M = T * R * S;
-                renderer->DrawModel(Fleur::Graphics::STATIC_GEOMETRY, model, M);
+                std::vector<Fleur::Graphics::FLDrawItem> items;
+                items.reserve(model->GetPrimitiveCount());
+                for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+                {
+                    const auto& mesh = model->GetMeshData() + meshIdx;
+                    for (size_t primIdx = 0; primIdx < mesh->GetPrimitiveCount(); primIdx++)
+                    {
+                        const auto& primitive = mesh->GetPrimitives() + primIdx;
+                        auto& item = items.emplace_back();
+                        item.albedoId = model->GetMaterialsData()[primitive->GetMaterialIdx()].albedo;
+                        item.indexCount = primitive->GetIdxCount();
+                        item.indexStart = primitive->GetIdxStart();
+                        item.vertexStart = primitive->GetVertexStart();
+                        item.bucket = primitive->GetAlphaMode();
+                    }
+                }
+                renderer->Register(message.ID, model->GetVerticesData(), model->GetVertexCount(), model->GetIdxData(), model->GetIdxCount(), items.data(),
+                                   static_cast<uint32_t>(items.size()));
                 m_ModelCache.RemoveFromAsyncOperations(model->GetName());
                 break;
             }

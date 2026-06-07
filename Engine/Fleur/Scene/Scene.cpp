@@ -31,7 +31,7 @@ void Scene::Init()
     m_Instances.push_back(SceneInstance{0, transform});
 }
 
-void Scene::Update(float dtTime)
+void Scene::OnUpdate(float dtTime)
 {
     if (m_Camera)
         m_Camera->OnUpdate(dtTime);

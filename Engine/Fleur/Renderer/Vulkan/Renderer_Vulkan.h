@@ -17,11 +17,7 @@ struct backend : public Fleur::Graphics::IRenderer
     // Vrtual interface
     virtual ~backend() override;
 
-    virtual void AddModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
-                          uint32_t itemsCount) override;
-
-    virtual void Update(SFLCameraData& cameraData) override;
-    virtual void SubmitImageViews(SFLImageViewInfo* pInfo) override;
+    virtual void UploadTextures(SFLImageViewInfo* pInfo) override;
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) override;
     virtual void SetSkybox(AssetID id) override;
