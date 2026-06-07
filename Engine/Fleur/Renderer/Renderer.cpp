@@ -12,9 +12,7 @@ uint32_t Fleur::Graphics::Renderer::MAX_TEXTURES_COUNT = 0;
 Fleur::Graphics::Renderer::Renderer(EGraphicsAPI api)
     : m_ShowWireframe(false)
     , m_Camera(nullptr)
-    , m_CurrentShaderObj(nullptr)
     , m_IsVsync(true)
-    , m_Renderer(api)
     , m_Backend(nullptr)
 {
 }
@@ -104,32 +102,6 @@ void Fleur::Graphics::Renderer::OnInit()
 
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-    Fleur::Graphics::SFLShaderInfo vertexShaderInfo{};
-    auto pVertexShader = assetsManager->Get<Shader>("opaqueVertex").obj;
-    if (pVertexShader)
-    {
-        vertexShaderInfo.shaderCode = pVertexShader->GetShaderCode();
-        vertexShaderInfo.sizeBytes = pVertexShader->GetShaderCodeSizeB();
-    }
-
-    Fleur::Graphics::SFLShaderInfo fragmentShaderInfo{};
-    auto pFragmentShader = assetsManager->Get<Shader>("opaqueFragment").obj;
-    if (pFragmentShader)
-    {
-        fragmentShaderInfo.shaderCode = pFragmentShader->GetShaderCode();
-        fragmentShaderInfo.sizeBytes = pFragmentShader->GetShaderCodeSizeB();
-    }
-
-    Fleur::Graphics::SFLGeometryPass geometryPass{};
-    geometryPass.pVertexShaderInfo = &vertexShaderInfo;
-    geometryPass.pFragmentShaderInfo = &fragmentShaderInfo;
-    geometryPass.vertexInputInfo = EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA;
-    geometryPass.indexInputInfo = EFLIndexInputDescription::INDEX_INPUT_UINT32;
-    geometryPass.inputAssemblyTopology = EFLInputAssemblyTopology::FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST;
-
-    Fleur::Graphics::SFLFrame frame{};
-    frame.pPass = &geometryPass;
-
     auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
     Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
     fallbackView.ID = fallbackAsset.handle.id;
@@ -137,27 +109,16 @@ void Fleur::Graphics::Renderer::OnInit()
     Fleur::SRect framebufferSize = application.GetWindow().GetFramebufferSize();
 
     bool validation = true;
+    m_Backend = new vk::backend(validation, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
 
-    m_Backend = new vk::backend(validation, frame, application.GetWindow().GetNativeHandle(), framebufferSize, fallbackView);
+    m_Backend->CreatePass(EFLPassKind::Opaque,
+                          {GetShaderInfo(assetsManager->Get<Shader>("opaqueVertex").obj), GetShaderInfo(assetsManager->Get<Shader>("opaqueFragment").obj)});
 
+    m_Backend->CreatePass(EFLPassKind::Transparent, {GetShaderInfo(assetsManager->Get<Shader>("transparentVertex").obj),
+                                                     GetShaderInfo(assetsManager->Get<Shader>("transparentFragment").obj)});
 
-    Fleur::Graphics::SFLShaderInfo skyboxVertexShaderInfo{};
-    auto pSkyboxVertexShader = assetsManager->Get<Shader>("skyboxVertex").obj;
-    if (pSkyboxVertexShader)
-    {
-        skyboxVertexShaderInfo.shaderCode = pSkyboxVertexShader->GetShaderCode();
-        skyboxVertexShaderInfo.sizeBytes = pSkyboxVertexShader->GetShaderCodeSizeB();
-    }
-
-    Fleur::Graphics::SFLShaderInfo skyboxFragmentShaderInfo{};
-    auto pSkyboxFragmentShader = assetsManager->Get<Shader>("skyboxFragment").obj;
-    if (pSkyboxFragmentShader)
-    {
-        skyboxFragmentShaderInfo.shaderCode = pSkyboxFragmentShader->GetShaderCode();
-        skyboxFragmentShaderInfo.sizeBytes = pSkyboxFragmentShader->GetShaderCodeSizeB();
-    }
-
-    m_Backend->CreateSkybox(fallbackAsset.handle.id, &skyboxVertexShaderInfo, &skyboxFragmentShaderInfo);
+    m_Backend->CreateSkybox(fallbackAsset.handle.id,
+                            {GetShaderInfo(assetsManager->Get<Shader>("skyboxVertex").obj), GetShaderInfo(assetsManager->Get<Shader>("skyboxFragment").obj)});
 }
 
 void Fleur::Graphics::Renderer::OnShutdown()
@@ -191,44 +152,25 @@ std::shared_ptr<Fleur::Graphics::Texture> Fleur::Graphics::Renderer::GetLoadedTe
 
 void Fleur::Graphics::Renderer::DrawModel(ERenderStage stage, const Model* model, glm::mat4 model_pos)
 {
-    Fleur::Graphics::SFLModelView modelView{};
-    modelView.indecies.pData = model->GetIndicesData();
-    modelView.indecies.count = model->GetIndicesCount();
-    modelView.vertecies.pData = model->GetVerticesData();
-    modelView.vertecies.count = model->GetVertexCount();
+    std::vector<FLDrawItem> items;
+    items.reserve(model->GetPrimitiveCount());
 
-    std::vector<SFLMaterialView> materials;
-    materials.reserve(model->GetMaterialsCount());
-    for (size_t i = 0; i < model->GetMaterialsCount(); i++)
-    {
-        const auto& material = model->GetMaterialsData() + i;
-        materials.emplace_back(material->albedo, material->normal);
-    }
-    Fleur::Graphics::SFLMaterialViewInfo materialViewInfo{};
-    materialViewInfo.pData = materials.data();
-    materialViewInfo.count = materials.size();
-
-    modelView.materials = materialViewInfo;
-
-    std::vector<Fleur::Graphics::SFLMeshView> meshes;
-    meshes.reserve(model->GetMeshCount());
     for (size_t i = 0; i < model->GetMeshCount(); i++)
     {
         const auto& mesh = model->GetMeshData() + i;
-        for (size_t i = 0; i < mesh->GetPrimitivesCount(); i++)
+        for (size_t i = 0; i < mesh->GetPrimitiveCount(); i++)
         {
             const auto& primitive = mesh->GetPrimitives() + i;
 
-            auto& meshView = meshes.emplace_back();
-            meshView.indexCount = primitive->GetIndexCount();
-            meshView.vertexCount = primitive->GetVertexCount();
-            meshView.materialIdx = primitive->GetMaterialIdx();
+            auto& it = items.emplace_back();
+            it.albedoId = model->GetMaterialsData()[primitive->GetMaterialIdx()].albedo;
+            it.indexCount = primitive->GetIdxCount();
+            it.indexStart = primitive->GetIdxStart();
+            it.vertexStart = primitive->GetVertexStart();
+            it.bucket = primitive->GetAlphaMode();
         }
     }
-    modelView.meshes.pData = meshes.data();
-    modelView.meshes.count = meshes.size();
-
-    m_Backend->AddToDrawList(&modelView);
+    m_Backend->AddModel(model->GetVerticesData(), model->GetVertexCount(), model->GetIdxData(), model->GetIdxCount(), items.data(), items.size());
 }
 
 void Fleur::Graphics::Renderer::SetSkybox(AssetID id)
@@ -238,13 +180,10 @@ void Fleur::Graphics::Renderer::SetSkybox(AssetID id)
 
 void Fleur::Graphics::Renderer::Clear()
 {
-    // m_Swapchain->ClearBackbuffer();
-    // m_GizmoFBO->Clear();
 }
 
 void Fleur::Graphics::Renderer::Present()
 {
-    // m_Swapchain->Present();
 }
 
 void Fleur::Graphics::Renderer::ShowWireFrame()
@@ -262,7 +201,6 @@ void Fleur::Graphics::Renderer::ToggleWireFrame()
 
 void Fleur::Graphics::Renderer::ValidateWindow()
 {
-    // m_Swapchain->ValidateWindow();
 }
 
 void Fleur::Graphics::Renderer::SetVSync(bool active)
@@ -281,110 +219,6 @@ void Fleur::Graphics::Renderer::OnUpdate(float dtTime)
     Fleur::Graphics::SFLCameraData cameraData{m_Camera->GetCameraForward(), m_Camera->GetView(), m_Camera->GetProjection()};
 
     m_Backend->Update(cameraData);
-
-    // auto assets = ServiceLocator::instance().GetService<AssetsManager>();
-    // auto renderer = ServiceLocator::instance().GetService<Renderer>();
-    //// ShaderComponentContext ctx{};
-    // Fleur::Graphics::Texture* quadTexture = renderer->CreateGraphicsResource<Texture>("QuadTexture", Color(150, 150, 150, 255), 250, 250).get();
-    // Fleur::Graphics::QuadRenderer quadRenderer = Fleur::Graphics::QuadRenderer(quadTexture);
-    //// Fleur::Graphics::Model* quadModel = Model::QuadModel(Material::CreateMaterial());
-
-    // UNUSED(dtTime);
-    // m_Toolchain->Update();
-    // static bool isSkyboxCreated = false;
-
-    // auto assetsManager = ServiceLocator::instance().GetService<AssetsManager>();
-    // static Fleur::Graphics::CubemapInitData skyboxImages;
-
-    //{
-    //    auto cubemap = assetsManager->Get<CubemapImage>("skybox_cross_layout_cubemap");
-    //    if (!cubemap.expired() && !isSkyboxCreated)
-    //    {
-    //        auto cubemapTexture = m_Device->CreateCubemap(cubemap.lock().get());
-
-
-    //        Fleur::Memory::FleurAllocator<Skybox> alloc;
-    //        m_Skybox.reset(alloc.construct_at(cubemapTexture, std::span{skyboxVertices}));
-    //        m_SkyboxCmd->UpdateBufferSubData<float>(Buffer::EBufferType::Vertex, std::span(m_Skybox->GetData(), m_Skybox->GetVertexCount()));
-    //        isSkyboxCreated = true;
-    //    }
-    //}
-
-    // Skybox pass
-    // SkyboxPass();
-
-    // Main Pass
-    // StaticGeometryPass();
-
-    // gizmo
-    // m_GizmoCmd->PushDebugGroup(0, "[STAGE] -> Gizmo");
-    // m_GizmoCmd->BindRenderTarget(*m_GizmoFBO.get(), EFramebufferRWOperation::WRITE_ONLY);
-    // m_GizmoCmd->BeginRecording();
-
-    // m_GizmoCmd->ShaderObject()->Use();
-
-    // for (const auto& draw_info : m_GizmoModelsVector)
-    //{
-    //     m_GizmoCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
-
-    //    glm::mat4 proj = glm::mat4(1.0f);
-
-    //    glm::mat4 view = glm::mat4(1.f);
-
-    //    glm::mat4 model = glm::scale(glm::translate(glm::mat4(1.f), glm::vec3(-0.9f, -0.9f, 0.1f)), glm::vec3(0.05f, 0.05f, 0.05f));
-
-    //    model = glm::rotate(model, glm::radians(m_Camera->Yaw()), glm::vec3(0.0f, 1.0f, 0.0f));
-    //    model = glm::rotate(model, glm::radians(m_Camera->Pitch()), glm::vec3(1.0f, 0.0f, 0.0f));
-
-    //    m_GizmoCmd->ShaderObject()->Set("projection", proj);
-    //    m_GizmoCmd->ShaderObject()->Set("model", model);
-    //    m_GizmoCmd->ShaderObject()->Set("view", view);
-
-    //    const auto* meshes = draw_info.Model->GetMeshData();
-
-    //    uint32_t indexInnerOffsetBytes = 0;
-    //    for (const auto& mesh : *meshes)
-    //    {
-    //        m_GizmoCmd->PushDebugGroup(0, mesh.GetName().data());
-    //        for (uint32_t i = 0; i < mesh.GetPrimitivesCount(); i++)
-    //        {
-    //            m_GizmoCmd->PushDebugGroup(0, "Primitive");
-    //            auto primitive = mesh.GetPrimitives() + i;
-    //            m_GizmoCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->GetMaterialIdx()));
-    //            m_GizmoCmd->IndexedDraw(primitive->GetIndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
-    //                                    static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
-
-    //            indexInnerOffsetBytes += primitive->GetIndexSize();
-    //            m_GizmoCmd->PopDebugGroup();
-    //        }
-
-    //        m_GizmoCmd->PopDebugGroup();
-    //    }
-    //    m_GizmoCmd->PopDebugGroup();
-    //    m_GizmoCmd->EndRecording();
-    //    m_GizmoCmd->Submit();
-    //}
-    // m_GizmoCmd->PopDebugGroup();
-
-    // m_StaticGeometryCmd->BeginRecording();
-
-    ////
-    // m_CopyFBOCmd->PushDebugGroup(0, "[Copy FBO]");
-    // m_GizmoCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
-
-    // ShaderComponentContext ctx{};
-    // ctx.albedo_text.second = m_GizmoFBO->GetColorAttachment(0);
-
-    // m_CopyFBOCmd->ShaderObject()->Use();
-    // m_CopyFBOCmd->ShaderObject()->BindMaterial(Material::CreateMaterial(ctx));
-
-    // m_CopyFBOCmd->ShaderObject()->Set("projection", glm::mat4(1.0f));
-    // m_CopyFBOCmd->ShaderObject()->Set("model", glm::mat4(1.0f));
-    // m_CopyFBOCmd->ShaderObject()->Set("view", glm::mat4(1.0f));
-
-    // m_CopyFBOCmd->Draw(6);
-
-    // m_CopyFBOCmd->PopDebugGroup();
 }
 
 void Fleur::Graphics::Renderer::OnPostUpdate(float dtTime)
@@ -405,9 +239,6 @@ void Fleur::Graphics::Renderer::SubmitImageViews(Fleur::Graphics::SFLImageViewIn
 
 void Fleur::Graphics::Renderer::UpdateViewport(Fleur::SRect& rect)
 {
-    // m_GizmoFBO->Bind();
-    // uint32_t flags = m_GizmoFBO->Flags();
-    // m_GizmoFBO.reset(m_Device->CreateFramebuffer("gizmo_fbo", width, height, flags).release());
 }
 
 Fleur::Graphics::SVertexData::SVertexData(glm::vec3 pos, glm::vec3 texCoord, glm::vec3 normal)
@@ -417,61 +248,10 @@ Fleur::Graphics::SVertexData::SVertexData(glm::vec3 pos, glm::vec3 texCoord, glm
 {
 }
 
-void Fleur::Graphics::Renderer::SkyboxPass() const
+SFLShaderInfo Fleur::Graphics::Renderer::GetShaderInfo(Fleur::Graphics::Shader* shader)
 {
-    if (!m_Skybox)
-        return;
+    if (!shader)
+        return SFLShaderInfo();
 
-    /* m_SkyboxCmd->PushDebugGroup(0, "[STAGE] -> Skybox stage");
-     m_SkyboxCmd->BeginRecording();
-     m_SkyboxCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
-
-     m_SkyboxCmd->ShaderObject()->Use();
-
-     m_SkyboxCmd->ShaderObject()->Set("view", m_Camera->GetView());
-     m_SkyboxCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
-
-     m_SkyboxCmd->ShaderObject()->BindMaterial(m_Skybox->GetMaterial());
-     m_SkyboxCmd->Draw(m_Skybox->GetVertexCount() / 3);
-
-     m_SkyboxCmd->PopDebugGroup();*/
-}
-
-void Fleur::Graphics::Renderer::StaticGeometryPass() const
-{
-    /*m_StaticGeometryCmd->PushDebugGroup(0, "[STAGE] -> Static geometry stage");
-    m_StaticGeometryCmd->BindRenderTarget(m_Swapchain->GetScreenTexture(), EFramebufferRWOperation::READ_WRITE);
-    m_StaticGeometryCmd->BeginRecording();
-
-    m_StaticGeometryCmd->ShaderObject()->Use();
-
-    for (const auto& draw_info : m_StaticGeometryModelsVector)
-    {
-        m_StaticGeometryCmd->PushDebugGroup(0, draw_info.Model->GetName().data());
-        m_StaticGeometryCmd->ShaderObject()->Set("model", draw_info.ModelMatrix);
-        m_StaticGeometryCmd->ShaderObject()->Set("view", m_Camera->GetView());
-        m_StaticGeometryCmd->ShaderObject()->Set("projection", m_Camera->GetProjection());
-
-        const auto* meshes = draw_info.Model->GetMeshData();
-
-        uint32_t indexInnerOffsetBytes = 0;
-        for (const auto& mesh : *meshes)
-        {
-            for (uint32_t i = 0; i < mesh.GetPrimitivesCount(); i++)
-            {
-                const auto primitive = mesh.GetPrimitives() + i;
-                m_StaticGeometryCmd->PushDebugGroup(0, mesh.GetName().data());
-                m_StaticGeometryCmd->ShaderObject()->BindMaterial(draw_info.Model->GetMaterial(primitive->GetMaterialIdx()));
-                m_StaticGeometryCmd->IndexedDraw(primitive->GetIndexCount(), draw_info.IndexGlobalOffsetBytes + indexInnerOffsetBytes,
-                                                 static_cast<uint32_t>(draw_info.VertexGlobalOffsetBytes / sizeof(VertexData)));
-
-                indexInnerOffsetBytes += primitive->GetIndexSize();
-                m_StaticGeometryCmd->PopDebugGroup();
-            }
-        }
-        m_StaticGeometryCmd->PopDebugGroup();
-        m_StaticGeometryCmd->EndRecording();
-        m_StaticGeometryCmd->Submit();
-    }
-    m_StaticGeometryCmd->PopDebugGroup();*/
+    return {shader->GetShaderCode(), shader->GetShaderCodeSizeB()};
 }

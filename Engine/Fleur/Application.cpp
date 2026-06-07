@@ -180,9 +180,11 @@ Fleur::Window& Fleur::Application::GetWindow()
 
 void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
+    Tessera::HelloTessera();
+
     m_GraphicsAPI = settings.Renderer;
 
-    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(1024ULL * 1024ULL * 1024ULL * 2ULL));
+    Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(/*4096*/ 1024ULL * 1024ULL * 1024ULL * 2ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Fleur::Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
@@ -203,7 +205,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     renderer.value()->Init();
     renderer.value()->SetVSync(settings.Vsync);
 
-    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza.glb");
+    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza2.glb");
 
     assetsManager->get()->LoadCubemapAsync(
         "skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},

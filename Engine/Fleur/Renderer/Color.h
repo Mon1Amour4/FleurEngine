@@ -3,25 +3,71 @@
 namespace Fleur::Graphics
 {
 
+// [0;1] - defalt values are normilized to 1, but for HDR we can have more than 1
+// Little endian
+// [3][2][1][0]
+// [A][B][G][R]
 class Color
 {
 public:
     Color() = default;
-    Color(int r, int g = 0, int b = 0, int a = 0);
-    Color(float r, float g = 0.f, float b = 0.f, float a = 0.f);
     ~Color() = default;
 
-    static uint32_t Channels(const Color& color);
-    uint32_t Data() const
+    Color(float r, float g, float b);
+    Color(float r, float g, float b, float a);
+
+    static uint32_t GetChannels()
     {
-        return static_cast<uint32_t>(m_Data[0]) | (static_cast<uint32_t>(m_Data[1]) << 8) | (static_cast<uint32_t>(m_Data[2]) << 16) |
-               (static_cast<uint32_t>(m_Data[3]) << 24);
+        return 4;
     }
 
-private:
-    std::array<uint8_t, 4> m_Data;
+    uint32_t ToRGBA8() const;
 
-    uint8_t ConvertFloatToByte(float val) const;
+#pragma region Predefined colors
+    static Color Red()
+    {
+        return Color(1.f, 0.f, 0.f, 1.f);
+    }
+    static Color Green()
+    {
+        return Color(0.f, 1.f, 0.f, 1.f);
+    }
+    static Color Blue()
+    {
+        return Color(0.f, 0.f, 1.f, 1.f);
+    }
+    static Color White()
+    {
+        return Color(1.f, 1.f, 1.f, 1.f);
+    }
+    static Color Black()
+    {
+        return Color(0.f, 0.f, 0.f, 1.f);
+    }
+    static Color Yellow()
+    {
+        return Color(1.f, 1.f, 0.f, 1.f);
+    }
+    static Color Cyan()
+    {
+        return Color(0.f, 1.f, 1.f, 1.f);
+    }
+    static Color Magenta()
+    {
+        return Color(1.f, 0.f, 1.f, 1.f);
+    }
+    static Color Transparent()
+    {
+        return Color(0.f, 0.f, 0.f, 0.f);
+    }
+    static Color Gray(float intensity)
+    {
+        return Color(intensity, intensity, intensity, 1.f);
+    }
+#pragma endregion
+
+private:
+    float r{1}, g{1}, b{1}, a{1};
 };
 
 }  // namespace Fleur::Graphics

@@ -95,10 +95,12 @@ namespace vk
 
 struct backend::impl
 {
-    impl(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
+    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~impl();
 
     void update(Fleur::Graphics::SFLCameraData cameraData);
+    bool beginFrame(Fleur::Graphics::SFLCameraData& cameraData);
+    void endFrame();
 
     // Instance
     struct
@@ -128,10 +130,12 @@ struct backend::impl
 
     // ---------- geometryPipeline ----------
 
-    FVkPipeline* m_GeometryPipeline;
-    FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                        Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount);
-
+    FVkPipeline* m_GeometryPipeline{nullptr};
+    FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                        VkSampleCountFlagBits samplesCount);
+    FVkPipeline* m_TransparentPipeline{nullptr};
+    FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                           VkSampleCountFlagBits samplesCount);
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
@@ -168,7 +172,7 @@ struct backend::impl
 
         FVkCommandPool* m_FrameCommandPool;
     };
-    FrameContext* m_FrameContext;
+    FrameContext* m_FrameContext{nullptr};
 
 
     VkMemoryRequirements memRequirements;
@@ -179,13 +183,21 @@ struct backend::impl
     void initializeVma();
     void freeVma();
 
-    FVkBuffer* m_VertexBuffer;
-    FVkBuffer* m_IndexBuffer;
+    FVkBuffer* m_VertexBuffer{nullptr};
+    FVkBuffer* m_IndexBuffer{nullptr};
 
-    std::vector<DrawInfo> m_DrawList;
-    void addToDrawList(Fleur::Graphics::SFLModelView* pModelView);
+    std::vector<DrawInfo> m_OpaqueDrawList;
+    std::vector<DrawInfo> m_TransparentDrawList;
+    void addModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items, uint32_t itemsCount);
+
+    std::unordered_map<AssetID, std::vector<DrawInfo>> m_RegisteredModels;
+    void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
+                       const FLDrawItem* primitives, uint32_t primitiveCount);
+    void unregisterModel(AssetID id);
+    void drawModel(AssetID id, const glm::mat4& transform);
 
     uint32_t currentFrame = 0;
+    uint32_t m_ImageIndex = 0;
 
     void submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
@@ -206,7 +218,7 @@ struct backend::impl
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViewsToUpload;
 
     uint32_t m_FallbackTextureIdx;
-    FVkTexture* m_FallbackCubemapTexture;
+    FVkTexture* m_FallbackCubemapTexture{nullptr};
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
     SFLVertexInput* m_GeometryVertexInput;
@@ -215,21 +227,21 @@ struct backend::impl
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                        uint32_t layerCount);
 
-    FVkTexture* m_DepthRenderTarget;
+    FVkTexture* m_DepthRenderTarget{nullptr};
     void createDepthTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
                             uint32_t mipMapCount);
 
     void startResize();
     void endResize(Fleur::SRect& rect);
 
-    bool m_WindowResizeIsInProgress;
+    bool m_WindowResizeIsInProgress{false};
 
     void BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage);
 
 
     // ---------- static geometry ----------
-    FVkDescriptorSetLayout* m_StaticGeometryTexturesDsl;
-    FVkDescriptorSetLayout* m_StaticGeometryUboDsl;
+    FVkDescriptorSetLayout* m_StaticGeometryTexturesDsl{nullptr};
+    FVkDescriptorSetLayout* m_StaticGeometryUboDsl{nullptr};
     std::vector<VkDescriptorSet> m_StaticGeometryDescriptorSetUbo;
     VkDescriptorSet m_StaticGeometryDescriptorSetTextures;
     VkDescriptorPool m_DescriptorPool;
@@ -244,11 +256,13 @@ struct backend::impl
 
 
     // ---------- skybox ----------
-    FVkSkybox* m_Skybox;
-    void createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo);
+    FVkSkybox* m_Skybox{nullptr};
+    void createSkybox(AssetID id, SFLShaderStages shaderStages);
     void setSkybox(AssetID id);
 
     vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
     std::unordered_map<AssetID, vk::FVkShader> m_ShaderMap;
+
+    void createPass(EFLPassKind kind, SFLShaderStages shaderStages);
 };
 }  // namespace vk

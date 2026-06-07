@@ -26,48 +26,53 @@ public:
             friend class MeshBuilder;
 
         public:
-            Primitive();
+            Primitive() = default;
             ~Primitive() = default;
 
             inline uint32_t GetVertexCount() const
             {
-                return m_PrimitiveVertexCount;
+                return m_VertexCount;
             }
-            inline uint32_t GetIndexCount() const
+            inline uint32_t GetIdxCount() const
             {
-                return m_PrimitiveIndicesCount;
+                return m_IdxCount;
             }
 
             inline uint32_t GetVertexStart() const
             {
-                return m_PrimitiveVertexStart;
+                return m_VertexStart;
             }
             inline uint32_t GetVertexEnd() const
             {
-                return m_PrimitiveVertexEnd;
+                return m_VertexEnd;
             }
 
-            inline uint32_t GetIndexStart() const
+            inline uint32_t GetIdxStart() const
             {
-                return m_PrimitiveIndexStart;
+                return m_IdxStart;
             }
-            inline uint32_t GetIndexEnd() const
+            inline uint32_t GetIdxEnd() const
             {
-                return m_PrimitiveIndexEnd;
-            }
-
-            [[nodiscard]] inline uint32_t GetVertexSize() const
-            {
-                return m_PrimitiveVertexCount * sizeof(float);
-            }
-            [[nodiscard]] inline uint32_t GetIndexSize() const
-            {
-                return m_PrimitiveIndicesCount * sizeof(uint32_t);
+                return m_IdxEnd;
             }
 
-            [[nodiscard]] inline uint32_t GetMaterialIdx() const
+            inline uint32_t GetVertexBufferSizeBytes() const
+            {
+                return m_VertexCount * sizeof(SVertexData);
+            }
+            inline uint32_t GetIdxBufferSizeBytes() const
+            {
+                return m_IdxCount * sizeof(uint32_t);
+            }
+
+            inline uint32_t GetMaterialIdx() const
             {
                 return m_MatIdx;
+            }
+
+            inline FLAlphaMode GetAlphaMode() const
+            {
+                return m_AlphaMode;
             }
 
             enum PrimitiveShape
@@ -78,19 +83,21 @@ public:
             };
 
         private:
-            uint32_t m_MatIdx;
+            uint32_t m_MatIdx{0};
 
-            uint32_t m_PrimitiveVertexStart;
-            uint32_t m_PrimitiveVertexEnd;
+            uint32_t m_VertexStart{0};
+            uint32_t m_VertexEnd{0};
 
-            uint32_t m_PrimitiveIndexStart;
-            uint32_t m_PrimitiveIndexEnd;
+            uint32_t m_IdxStart{0};
+            uint32_t m_IdxEnd{0};
 
-            uint32_t m_PrimitiveVertexCount;
-            uint32_t m_PrimitiveIndicesCount;
+            uint32_t m_VertexCount{0};
+            uint32_t m_IdxCount{0};
+
+            FLAlphaMode m_AlphaMode{FL_OPAQUE};
         };
 
-        Mesh();
+        Mesh() = default;
         ~Mesh() = default;
 
         Mesh(Mesh&& other) noexcept;
@@ -106,7 +113,7 @@ public:
                 return nullptr;
             return &m_Primitives[0];
         }
-        inline uint32_t GetPrimitivesCount() const
+        inline uint32_t GetPrimitiveCount() const
         {
             return static_cast<uint32_t>(m_Primitives.size());
         }
@@ -116,12 +123,12 @@ public:
 
         std::string m_MeshName;
 
-        uint32_t m_MeshVertexStart;
-        uint32_t m_MeshVertexEnd;
-        uint32_t m_MeshIndexStart;
-        uint32_t m_MeshIndexEnd;
-        uint32_t m_MeshVertexCount;
-        uint32_t m_MeshIndicesCount;
+        uint32_t m_MeshVertexStart{0};
+        uint32_t m_MeshVertexEnd{0};
+        uint32_t m_MeshIndexStart{0};
+        uint32_t m_MeshIndexEnd{0};
+        uint32_t m_MeshVertexCount{0};
+        uint32_t m_MeshIndicesCount{0};
     };
 
     Model() = default;
@@ -144,7 +151,7 @@ public:
     {
         return m_ModelVertexCount;
     }
-    inline uint32_t GetIndicesCount() const
+    inline uint32_t GetIdxCount() const
     {
         return m_ModelIndicesCount;
     }
@@ -161,7 +168,7 @@ public:
     {
         return m_Vertices.data();
     }
-    [[nodiscard]] inline const uint32_t* GetIndicesData() const
+    [[nodiscard]] inline const uint32_t* GetIdxData() const
     {
         return m_Indices.data();
     }
@@ -193,10 +200,10 @@ public:
 
 private:
     std::string m_Name;
-    uint32_t m_MeshCount;
-    uint32_t m_PrimitiveCount;
-    uint32_t m_ModelVertexCount;
-    uint32_t m_ModelIndicesCount;
+    uint32_t m_MeshCount{0};
+    uint32_t m_PrimitiveCount{0};
+    uint32_t m_ModelVertexCount{0};
+    uint32_t m_ModelIndicesCount{0};
     std::vector<Fleur::Graphics::SVertexData> m_Vertices;
     std::vector<uint32_t> m_Indices;
     std::vector<Model::Mesh> m_Meshes;
@@ -213,7 +220,7 @@ public:
 
 private:
     std::string_view m_Name;
-    Model* m_Model;
+    Model* m_Model{nullptr};
     Model::Mesh* m_Mesh;
 };
 }  // namespace Fleur::Graphics

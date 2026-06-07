@@ -4,7 +4,12 @@
 
 namespace Fleur::Graphics
 {
-
+enum FLAlphaMode
+{
+    FL_OPAQUE,
+    FL_MASK,
+    FL_BLEND
+};
 enum EGraphicsAPI
 {
     OpenGL = 0,
@@ -34,21 +39,6 @@ struct SFLGeometryUBO
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
-};
-
-struct Viewport
-{
-    uint32_t width = 0.0f;
-    uint32_t height = 0.0f;
-    uint32_t x = 0.0f;
-    uint32_t y = 0.0f;
-};
-
-enum class ETextureUsage
-{
-    ALBEDO = 0,
-    DIFFUSE = 1,
-    SPECULAR = 2
 };
 
 enum ERenderStage : uint8_t

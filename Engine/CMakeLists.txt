@@ -50,6 +50,8 @@ set(ENGINE_HEADERS
     Fleur/AssetTypes.hpp
     Fleur/AssetHandle.h
     Fleur/AssetCache.h
+    # Scene
+    Fleur/Scene/Scene.h
 )
 
 set(ENGINE_SOURCES
@@ -71,6 +73,8 @@ set(ENGINE_SOURCES
     External/stb_image/stb_image.cpp
     # Implementation Files
     Fleur/Console.cpp
+    # Scene
+    Fleur/Scene/Scene.cpp
 )
 
 # === Engine Configuration ===
@@ -109,6 +113,12 @@ set(ENGINE_PUBLIC_INCLUDES
 # === FleurInterface — Shared Configuration ===
 add_library(FleurInterface INTERFACE)
 
+# Tessera is exposed through Application.h, which the lower-level Platform/Renderer
+# libs compile against via FleurInterface — so its include must live here (linking
+# Tessera to FleurEngine alone wouldn't reach them). The link propagates Tessera's
+# PUBLIC include dir to everyone using FleurInterface.
+target_link_libraries(FleurInterface INTERFACE Tessera)
+
 target_include_directories(FleurInterface INTERFACE ${ENGINE_PUBLIC_INCLUDES})
 
 target_precompile_headers(FleurInterface INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/flpch.h)
@@ -138,6 +148,7 @@ target_link_libraries(
   PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib
   PRIVATE Renderer
 )
+# Tessera arrives via FleurInterface (see above).
 # CoreLib already brings MemoryManager transitively (PUBLIC dep).
 
 if(NOT MSVC AND ENGINE_PRIVATE_COMPILE_OPTIONS)

@@ -204,8 +204,8 @@ MM::MemoryManager::MemoryManager(unsigned char* memoryStart, size_t offset, size
     // capacity must exclude that offset — otherwise base + capacity runs
     // pageAllocContentOffsetAligned bytes past the VirtualAlloc end, and the last
     // page handed out lies outside the arena (write -> access violation).
-    pageAlloc = new (m_Head + pageAllocOffset)
-        PageAllocator(memoryStart + pageAllocContentOffsetAligned, m_Capacity - pageAllocContentOffsetAligned, m_PageSize);
+    pageAlloc =
+        new (m_Head + pageAllocOffset) PageAllocator(memoryStart + pageAllocContentOffsetAligned, m_Capacity - pageAllocContentOffsetAligned, m_PageSize);
 
     MM_ASSERT(pageAlloc);
 
@@ -234,7 +234,12 @@ MM::MemoryManager* MM::MemoryManager::ManagerFabric(size_t capacity)
 
     size_t alignedCapacity = capacity / 4096 * 4096;
 
+    MM_ASSERT(alignedCapacity > 0);
+
     void* rawPtr = VirtualAlloc(NULL, alignedCapacity, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+    MM_ASSERT(rawPtr);
+
     if (rawPtr == nullptr)  // OS allocation failed — recoverable, return null to caller
         return nullptr;
 

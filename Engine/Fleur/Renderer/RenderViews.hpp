@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Graphics.hpp"
+
 namespace Fleur::Graphics
 {
 using AssetID = uint32_t;
@@ -19,44 +21,13 @@ struct SFLImageViewInfo
     uint32_t count{};
 };
 
-struct SFLMaterialView
+struct FLDrawItem
 {
-    uint32_t albedoID{};
-    uint32_t normalID{};
-};
-struct SFLMaterialViewInfo
-{
-    SFLMaterialView* pData{};
-    uint32_t count{};
-};
-
-struct SFLMeshView
-{
-    uint64_t indexCount{};
-    uint64_t vertexCount{};
-
-    uint32_t materialIdx;
-};
-struct SFLMeshViewInfo
-{
-    SFLMeshView* pData;
-    uint32_t count;
-};
-
-struct SFLBufferView
-{
-    const void* pData;
-    uint64_t count;
-};
-
-struct SFLModelView
-{
-    SFLBufferView vertecies;
-    SFLBufferView indecies;
-
-    SFLMeshViewInfo meshes;
-
-    SFLMaterialViewInfo materials;
+    uint32_t indexStart;
+    uint32_t indexCount;
+    uint32_t vertexStart;
+    uint32_t albedoId;
+    FLAlphaMode bucket{FL_OPAQUE};
 };
 
 }  // namespace Fleur::Graphics

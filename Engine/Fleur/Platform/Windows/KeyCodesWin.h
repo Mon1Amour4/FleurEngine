@@ -215,7 +215,7 @@ static Fleur::EKeyCode GetKeyCode(int winKey)
     case VK_MENU:
         return KEY(Menu);
     default:
-        FL_CORE_ASSERT(false, "Unknown key code: {}", winKey);
+        // FL_CORE_ASSERT(false, "Unknown key code: {}", winKey);
         return KEY(Unknown);
     }
 #undef KEY

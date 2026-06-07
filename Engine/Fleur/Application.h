@@ -11,6 +11,7 @@
 #include "LayerStack.h"
 #include "Renderer/Graphics.hpp"
 #include "Services/ServiceLocator.h"
+#include "Tessera.h"
 #include "Window.h"
 #include "singleton.hpp"
 

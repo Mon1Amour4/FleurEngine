@@ -10,71 +10,21 @@ namespace Fleur::Graphics
 
 #pragma region Structs&Enums
 
-enum EFLInputAssemblyTopology
+enum class EFLPassKind
 {
-    FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_LIST,
-    FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_STRIP,
-    FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_FAN,
-    FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_MAX_VALUE,
-};
-enum EFLVertexInputDescription
-{
-    VERTEX_INPUT_VERTEX_DATA,
-    VERTEX_INPUT_MAX_VALUE
-};
-enum EFLIndexInputDescription
-{
-    INDEX_INPUT_UINT16,
-    INDEX_INPUT_UINT32,
-    INDEX_INPUT_MAX_VALUE
+    Opaque,
+    Transparent,
 };
 
 struct SFLShaderInfo
 {
-    const char* shaderCode;
-    uint32_t sizeBytes;
-
-    SFLShaderInfo()
-        : shaderCode(nullptr)
-        , sizeBytes(0) {};
+    const char* shaderCode{nullptr};
+    uint32_t sizeBytes{0};
 };
-
-struct SFLGeometryPass
+struct SFLShaderStages
 {
-    SFLShaderInfo* pVertexShaderInfo;
-    SFLShaderInfo* pFragmentShaderInfo;
-    EFLVertexInputDescription vertexInputInfo;
-    EFLIndexInputDescription indexInputInfo;
-    EFLInputAssemblyTopology inputAssemblyTopology;
-
-    SFLGeometryPass()
-        : pVertexShaderInfo(nullptr)
-        , pFragmentShaderInfo(nullptr)
-        , vertexInputInfo(VERTEX_INPUT_MAX_VALUE)
-        , indexInputInfo(INDEX_INPUT_MAX_VALUE)
-        , inputAssemblyTopology(FL_INPUT_ASSEMBLY_TOPOLOGY_TRIANGLE_MAX_VALUE) {};
-};
-
-struct SFLFrame
-{
-    SFLGeometryPass* pPass;
-
-    SFLFrame()
-        : pPass(nullptr) {};
-};
-
-struct SFLDrawUploadInfo
-{
-    const void* pVertex;
-    uint64_t vertexCount;
-    const void* pIndex;
-    uint64_t indexCount;
-
-    SFLDrawUploadInfo()
-        : pVertex(nullptr)
-        , vertexCount(0)
-        , pIndex(nullptr)
-        , indexCount(0) {};
+    SFLShaderInfo vertex;
+    SFLShaderInfo fragment;
 };
 
 #pragma endregion
@@ -83,15 +33,29 @@ struct IRenderer
 {
     virtual ~IRenderer() = default;
 
-    virtual void AddToDrawList(Fleur::Graphics::SFLModelView* pModelView) = 0;
+    virtual void AddModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
+                          uint32_t itemsCount) = 0;
+
     virtual void Update(Fleur::Graphics::SFLCameraData& cameraData) = 0;
     virtual void SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo) = 0;
 
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;
 
-    virtual void CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo) = 0;
+    virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;
+
+    virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
+
+    // --- new frame API (cutover in progress; AddModel/Update retire once Lux + Application switch over) ---
+    virtual void RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
+                               const FLDrawItem* primitives, uint32_t primitiveCount) = 0;
+    virtual void UnregisterModel(AssetID model) = 0;
+    virtual void RemoveTexture(AssetID texture) = 0;
+
+    virtual void BeginFrame(Fleur::Graphics::SFLCameraData& cameraData) = 0;
+    virtual void Draw(AssetID model, const glm::mat4& transform) = 0;
+    virtual void EndFrame() = 0;
 };
 
 }  // namespace Fleur::Graphics

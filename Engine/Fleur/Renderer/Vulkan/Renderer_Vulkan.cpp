@@ -3,6 +3,7 @@
 // I've hidden vulkanBackendImpl declaration into .hpp file
 #if defined(FLEUR_PLATFORM_WIN)
 #define NOMINMAX
+#define NOGDI
 #include <windows.h>
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
@@ -11,18 +12,18 @@
 
 
 // ---------- backend ----------
-vk::backend::backend(bool enableValidation, Fleur::Graphics::SFLFrame& pFrame, void* pNativeHandle, Fleur::SRect& framebufferSize,
-                     Fleur::Graphics::SFLImageView& fallback)
-    : pImpl(new vk::backend::impl(enableValidation, pFrame, pNativeHandle, framebufferSize, fallback))
+vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
+    : pImpl(new vk::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback))
 {
 }
 vk::backend::~backend()
 {
     delete pImpl;
 }
-void vk::backend::AddToDrawList(Fleur::Graphics::SFLModelView* pModelView)
+void vk::backend::AddModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
+                           uint32_t itemsCount)
 {
-    pImpl->addToDrawList(pModelView);
+    pImpl->addModel(vertices, verticesCount, indecies, indexCount, items, itemsCount);
 }
 void vk::backend::Update(Fleur::Graphics::SFLCameraData& cameraData)
 {
@@ -32,9 +33,9 @@ void vk::backend::SubmitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->submitImageViews(pInfo);
 }
-void vk::backend::CreateSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
+void vk::backend::CreateSkybox(AssetID id, SFLShaderStages shaderStages)
 {
-    pImpl->createSkybox(id, pVertexShaderInfo, pFragmentShaderInfo);
+    pImpl->createSkybox(id, shaderStages);
 }
 void vk::backend::SetSkybox(AssetID id)
 {
@@ -49,25 +50,45 @@ void vk::backend::EndResize(Fleur::SRect& rect)
     pImpl->endResize(rect);
 }
 
+void vk::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
+{
+    pImpl->createPass(kind, shaderStages);
+}
+
+void vk::backend::RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
+                                const FLDrawItem* primitives, uint32_t primitiveCount)
+{
+    pImpl->registerModel(model, vertices, vertexCount, indices, indexCount, primitives, primitiveCount);
+}
+void vk::backend::UnregisterModel(AssetID model)
+{
+    pImpl->unregisterModel(model);
+}
+void vk::backend::RemoveTexture(AssetID texture)
+{
+    // TODO: free the bindless texture slot (slot free-list). Stubbed for now.
+}
+void vk::backend::BeginFrame(Fleur::Graphics::SFLCameraData& cameraData)
+{
+    pImpl->beginFrame(cameraData);
+}
+void vk::backend::Draw(AssetID model, const glm::mat4& transform)
+{
+    pImpl->drawModel(model, transform);
+}
+void vk::backend::EndFrame()
+{
+    pImpl->endFrame();
+}
+
 
 // ---------- impl ----------
 // clang-format off
 vk::backend::impl::impl(bool enableValidation, 
-                        Fleur::Graphics::SFLFrame& pFrame, 
                         void* pNativeHandle, Fleur::SRect& framebufferSize,
                         Fleur::Graphics::SFLImageView& fallback)
-    // clang-format on
-    : m_WindowResizeIsInProgress(false)
-    , m_StaticGeometryTexturesDsl(nullptr)
-    , m_StaticGeometryUboDsl(nullptr)
-    , m_FrameContext(nullptr)
-    , m_Skybox(nullptr)
-    , m_FallbackCubemapTexture(nullptr)
-    , m_DepthRenderTarget(nullptr)
+// clang-format on
 {
-    assert(pFrame.pPass->pVertexShaderInfo->shaderCode);
-    assert(pFrame.pPass->pFragmentShaderInfo->shaderCode);
-
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
 #if defined(FLEUR_PLATFORM_WIN)
@@ -142,13 +163,9 @@ vk::backend::impl::impl(bool enableValidation,
     uint32_t vertexInputDescriptorSize = 0;
     uint32_t indexInputDescriptorSize = 0;
 
-    if (pFrame.pPass->vertexInputInfo == Fleur::Graphics::EFLVertexInputDescription::VERTEX_INPUT_VERTEX_DATA)
-        vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
+    vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
 
-    if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT32)
-        indexInputDescriptorSize = sizeof(uint32_t);
-    else if (pFrame.pPass->indexInputInfo == Fleur::Graphics::EFLIndexInputDescription::INDEX_INPUT_UINT16)
-        indexInputDescriptorSize = sizeof(uint16_t);
+    indexInputDescriptorSize = sizeof(uint32_t);
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                          1024u * 1024ul * 512ul, vertexInputDescriptorSize);
@@ -164,9 +181,6 @@ vk::backend::impl::impl(bool enableValidation,
 
     updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(),
                                           m_ImageSampler);
-
-    m_GeometryPipeline = createGeometryPipeline(pFrame.pPass->pVertexShaderInfo, pFrame.pPass->pFragmentShaderInfo, pFrame.pPass->inputAssemblyTopology,
-                                                m_MultisampledRenderTarget->GetSamplesCount());
 
     m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
 
@@ -206,6 +220,7 @@ vk::backend::impl::~impl()
 
     // 4. Pipeline
     delete m_GeometryPipeline;
+    delete m_TransparentPipeline;
 
     // 5. Swapchain & Framebuffers & swapchain image views
 
@@ -422,13 +437,13 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
 }
 
 
-FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo* pVertexInfo, Fleur::Graphics::SFLShaderInfo* pFragmentInfo,
-                                                       Fleur::Graphics::EFLInputAssemblyTopology pInputAssemblyTopology, VkSampleCountFlagBits samplesCount)
+FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                                       VkSampleCountFlagBits samplesCount)
 {
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo->shaderCode,
-                                          .vertexSize = pVertexInfo->sizeBytes,
-                                          .pFragmentData = pFragmentInfo->shaderCode,
-                                          .fragmentSize = pFragmentInfo->sizeBytes};
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
+                                          .vertexSize = pVertexInfo.sizeBytes,
+                                          .pFragmentData = pFragmentInfo.shaderCode,
+                                          .fragmentSize = pFragmentInfo.sizeBytes};
 
 
     auto& opaqueShader = m_ShaderMap.emplace(0, vk::FVkShader()).first->second;
@@ -448,6 +463,12 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
 
     return pipeline;
+}
+
+FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                                          VkSampleCountFlagBits samplesCount)
+{
+    return nullptr;
 }
 
 
@@ -584,33 +605,37 @@ void vk::backend::impl::freeVma()
 }
 
 
-// ---------- add draw ----------
-void vk::backend::impl::addToDrawList(Fleur::Graphics::SFLModelView* pModelView)
+void vk::backend::impl::addModel(const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indecies, uint32_t indexCount, FLDrawItem* items,
+                                 uint32_t itemsCount)
 {
     uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
     uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
 
-    m_IndexBuffer->UploadDataToBuffer(pModelView->indecies.pData, pModelView->indecies.count);
-    m_VertexBuffer->UploadDataToBuffer(pModelView->vertecies.pData, pModelView->vertecies.count);
+    m_VertexBuffer->UploadDataToBuffer(vertices, verticesCount);
+    m_IndexBuffer->UploadDataToBuffer(indecies, indexCount);
 
-    auto material = reinterpret_cast<const Fleur::Graphics::SFLMaterialView*>(pModelView->materials.pData);
-    for (size_t i = 0; i < pModelView->meshes.count; i++)
+    for (size_t i = 0; i < itemsCount; i++)
     {
-        auto& mesh = pModelView->meshes.pData[i];
-
-        auto& draw = m_DrawList.emplace_back();
-
-        draw.indexCount = mesh.indexCount;
-        draw.vertexCount = mesh.vertexCount;
-
-        draw.indexOffset = globalIndexOffset;
-        draw.vertexOffset = globalVertexOffset;
-
-        draw.material.albedo = pModelView->materials.pData[mesh.materialIdx].albedoID;
-
-        globalIndexOffset += draw.indexCount;
+        auto& item = items[i];
+        if (item.bucket == FL_OPAQUE || item.bucket == FL_MASK)
+        {
+            auto& draw = m_OpaqueDrawList.emplace_back();
+            draw.material.albedo = item.albedoId;
+            draw.indexCount = item.indexCount;
+            draw.indexOffset = globalIndexOffset + item.indexStart;
+            draw.vertexOffset = globalVertexOffset;
+        }
+        else if (item.bucket == FL_BLEND)
+        {
+            auto& draw = m_TransparentDrawList.emplace_back();
+            draw.material.albedo = item.albedoId;
+            draw.indexCount = item.indexCount;
+            draw.indexOffset = globalIndexOffset + item.indexStart;
+            draw.vertexOffset = globalVertexOffset;
+        }
     }
 }
+
 void vk::backend::impl::submitImageViews(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     for (size_t i = 0; i < pInfo->count; i++)
@@ -896,21 +921,20 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
     std::cout << "\EndResize\n";
 }
 
-void vk::backend::impl::createSkybox(AssetID id, SFLShaderInfo* pVertexShaderInfo, SFLShaderInfo* pFragmentShaderInfo)
+void vk::backend::impl::createSkybox(AssetID id, SFLShaderStages shaderStages)
 {
-    assert(pVertexShaderInfo && pVertexShaderInfo->shaderCode);
-    assert(pFragmentShaderInfo && pFragmentShaderInfo->shaderCode);
-
     if (m_Skybox)
         return;
 
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexShaderInfo->shaderCode,
-                                          .vertexSize = pVertexShaderInfo->sizeBytes,
-                                          .pFragmentData = pFragmentShaderInfo->shaderCode,
-                                          .fragmentSize = pFragmentShaderInfo->sizeBytes};
+    assert(shaderStages.vertex.shaderCode);
+    assert(shaderStages.fragment.shaderCode);
 
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
+                                          .vertexSize = shaderStages.vertex.sizeBytes,
+                                          .pFragmentData = shaderStages.fragment.shaderCode,
+                                          .fragmentSize = shaderStages.fragment.sizeBytes};
 
-    auto& skyboxShader = m_ShaderMap.emplace(1, vk::FVkShader()).first->second;
+    auto& skyboxShader = m_ShaderMap.emplace(id, vk::FVkShader()).first->second;
     skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     m_Skybox = new FVkSkybox();
@@ -922,9 +946,17 @@ void vk::backend::impl::setSkybox(AssetID id)
     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
 }
 
-vk::FVkShader* vk::backend::impl::AddShader(ShaderCreateInfo& shaderInfo)
+void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
-    return nullptr;
+    if (kind == EFLPassKind::Opaque)
+    {
+        // TODO if pipeline already exists, need to release it
+        m_GeometryPipeline = createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount());
+    }
+    else if (kind == EFLPassKind::Transparent)
+    {
+        m_TransparentPipeline = createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount());
+    }
 }
 
 void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage)
@@ -1001,12 +1033,12 @@ void vk::backend::impl::createStaticGeometryPass()
     createDescriptorSets();
 }
 
-void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
+
+bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
 {
     if (m_WindowResizeIsInProgress)
-    {
-        return;
-    }
+        return false;
+
     if (!m_Swapchain->ReadyToPresent())
     {
         vkDeviceWaitIdle(m_Device->GetLogicalDevice());
@@ -1014,18 +1046,14 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
                               m_DepthRenderTarget->GetImageView());
     }
 
-
     vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
 
-    uint32_t imageIndex;
-    VkResult isSwapchainValid{};
-    isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
-                                             m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &imageIndex);
+    VkResult isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
+                                                      m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &m_ImageIndex);
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
     {
         assert(false);
-        std::cout << "\VK_ERROR_OUT_OF_DATE_KHR\n";
     }
     else if (isSwapchainValid != VK_SUCCESS && isSwapchainValid != VK_SUBOPTIMAL_KHR)
     {
@@ -1036,25 +1064,25 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), cameraData.view, cameraData.proj};
     updateUniformBuffer(currentFrame, &ubo);
 
-    // ---------- issuing commands ----------
     vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[currentFrame].GetCommandPool(), 0);
+
+    if (!m_GeometryPipeline)
+        return false;
 
     auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
     cmd.Begin();
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
     VkRect2D renderArea{
         .offset = {0, 0},
         .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
     };
-    BeginRendering(*m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer(), renderArea, imageIndex);
+    BeginRendering(*cmd.GetCommandBuffer(), renderArea, m_ImageIndex);
 
     if (m_Skybox)
-    {
         m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), cameraData);
-    }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
     if (m_IndexBuffer->StrideBytes() == 4)
@@ -1082,17 +1110,17 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline->GetPipelineLayout(), 0, dst.size(), dst.data(), 0,
                             nullptr);
 
-    for (const auto& draw : m_DrawList)
-    {
-        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
-        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
-    }
+    return true;
+}
+
+void vk::backend::impl::endFrame()
+{
+    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+
     cmd.EndRendering();
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(imageIndex), m_Swapchain->GetImageFormat(),
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     cmd.End();
-
 
     VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
@@ -1103,8 +1131,7 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
     submitInfo.pWaitSemaphores = waitSemaphores;
     submitInfo.pWaitDstStageMask = waitStages;
     submitInfo.commandBufferCount = 1;
-
-    submitInfo.pCommandBuffers = m_FrameContext->m_CommandBuffers[currentFrame].GetCommandBuffer();
+    submitInfo.pCommandBuffers = cmd.GetCommandBuffer();
 
     VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
@@ -1118,17 +1145,75 @@ void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
 
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-
     presentInfo.waitSemaphoreCount = 1;
     presentInfo.pWaitSemaphores = signalSemaphores;
-    presentInfo.pResults = nullptr;  // Optional
+    presentInfo.pResults = nullptr;
 
     VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pImageIndices = &m_ImageIndex;
 
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
     currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
+}
+
+void vk::backend::impl::update(Fleur::Graphics::SFLCameraData cameraData)
+{
+    if (!beginFrame(cameraData))
+        return;
+
+    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    for (const auto& draw : m_OpaqueDrawList)
+    {
+        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
+        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+    }
+
+    endFrame();
+}
+
+void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
+                                      const FLDrawItem* primitives, uint32_t primitiveCount)
+{
+    uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
+    uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
+
+    m_VertexBuffer->UploadDataToBuffer(vertices, verticesCount);
+    m_IndexBuffer->UploadDataToBuffer(indices, indexCount);
+
+    auto& list = m_RegisteredModels[id];
+    for (uint32_t i = 0; i < primitiveCount; i++)
+    {
+        const auto& item = primitives[i];
+        auto& draw = list.emplace_back();
+        draw.material.albedo = item.albedoId;
+        draw.indexCount = item.indexCount;
+        draw.indexOffset = globalIndexOffset + item.indexStart;
+        draw.vertexOffset = globalVertexOffset;
+    }
+}
+
+void vk::backend::impl::unregisterModel(AssetID id)
+{
+    m_RegisteredModels.erase(id);
+    // TODO: reclaim geometry buffer space (bump allocator has no free; needs a sub-allocator).
+}
+
+void vk::backend::impl::drawModel(AssetID id, const glm::mat4& /*transform*/)
+{
+    auto it = m_RegisteredModels.find(id);
+    if (it == m_RegisteredModels.end())
+        return;
+
+    // TODO: per-draw transform via push-constant (needs vertex shader change). Identity for now.
+    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    for (const auto& draw : it->second)
+    {
+        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
+        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+    }
 }

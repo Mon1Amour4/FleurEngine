@@ -5,11 +5,13 @@
 
 namespace Fleur::Graphics
 {
-
 struct Material
 {
     Fleur::AssetID albedo;
     Fleur::AssetID normal;
+    FLAlphaMode mode{FL_OPAQUE};
+    float alphaCutoff{0};
+    float alphaFactor[4]{1.f, 1.f, 1.f, 1.f};
 };
 
 // class TextureBase;

@@ -102,8 +102,9 @@ inline bool bit_scan_reverse64(uint64_t number, uint32_t* idx)
 class BitSet64
 {
 public:
-    BitSet64();
+    BitSet64() = default;
     BitSet64(uint8_t bits);
+    BitSet64(uint8_t bits, uint64_t bitmap);
 
     bool IsBitOccupied(uint8_t idx) const;
 
@@ -188,8 +189,8 @@ public:
     }
 
 private:
-    uint64_t m_Bitmap;
-    uint8_t m_Bits;
+    uint64_t m_Bitmap{0};
+    uint8_t m_Bits{0};
 };
 
 std::ostream& operator<<(std::ostream& os, const BitSet64& obj);

@@ -25,7 +25,6 @@
 #include "Services/ServiceLocator.h"
 
 Fleur::AssetsManager::AssetsManager()
-    : m_ForceAlpha(true)
 {
 }
 Fleur::AssetsManager::~AssetsManager()
@@ -562,9 +561,7 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                 int width = 0;
                 int height = 0;
                 int channels = 0;
-                int desiredChannels = STBI_default;
-                if (m_ForceAlpha)
-                    desiredChannels = STBI_rgb_alpha;
+                int desiredChannels = STBI_rgb_alpha;
 
                 stbi_set_flip_vertically_on_load_thread(static_cast<int>(imageSettings.flip));
                 unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, desiredChannels);
@@ -588,11 +585,11 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
             {
                 uint32_t width = 1;
                 uint32_t height = 1;
-                uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+                uint32_t channels = Fleur::Graphics::Color::GetChannels();
 
                 size_t size = width * height * channels;
 
-                uint32_t colorData = imageSettings.color.Data();
+                uint32_t colorData = imageSettings.color.ToRGBA8();
                 const unsigned char* colorBytes = reinterpret_cast<const unsigned char*>(&colorData);
 
                 Fleur::Memory::FleurAllocator<unsigned char> alloc;
@@ -753,9 +750,7 @@ void Fleur::AssetsManager::LoadImageFromDisk(std::string_view path, ImageAsset* 
     int width = 0;
     int height = 0;
     int channels = 0;
-    int desiredChannels = STBI_default;
-    if (m_ForceAlpha)
-        desiredChannels = STBI_rgb_alpha;
+    int desiredChannels = STBI_rgb_alpha;
 
     stbi_set_flip_vertically_on_load_thread(imageSettings.flip);
     unsigned char* imgData = stbi_load(res.value().c_str(), &width, &height, &channels, desiredChannels);
@@ -777,11 +772,11 @@ void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::Ima
     AssetID imageID = imageAsset->handle.id;
     uint32_t width = 1;
     uint32_t height = 1;
-    uint32_t channels = Fleur::Graphics::Color::Channels(imageSettings.color);
+    uint32_t channels = Fleur::Graphics::Color::GetChannels();
 
     size_t size = width * height * channels;
 
-    uint32_t colorData = imageSettings.color.Data();
+    uint32_t colorData = imageSettings.color.ToRGBA8();
     const unsigned char* colorBytes = reinterpret_cast<const unsigned char*>(&colorData);
 
     Fleur::Memory::FleurAllocator<unsigned char> alloc;
@@ -806,9 +801,7 @@ void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::Im
     int width = 0;
     int height = 0;
     int channels = 0;
-    int desiredChannels = STBI_default;
-    if (m_ForceAlpha)
-        desiredChannels = STBI_rgb_alpha;
+    int desiredChannels = STBI_rgb_alpha;
 
 
     stbi_set_flip_vertically_on_load_thread(static_cast<int>(false));

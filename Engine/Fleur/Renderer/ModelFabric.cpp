@@ -22,8 +22,6 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     int textureIdx = MAXINT;
     for (size_t i = 0; i < info.materials.capacity(); i++)
     {
-        uint32_t solidTextureIdx = 0;
-
         if ((m_Data->materials + i)->has_pbr_metallic_roughness)
         {
             Fleur::Graphics::Material flMaterial{};
@@ -35,58 +33,99 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
             if (baseColorTexture)
                 hasTexture = true;
 
+            // Alpha Mode
+            // - cgltf_alpha_mode_opaque - alpha values (transparency) from textures are ignored
+            // - cgltf_alpha_mode_mask  - it tells your rendering engine to evaluate the material's alpha (transparency) channel against a specific
+            // threshold value, known as alpha_cutoff
+            // - cgltf_alpha_mode_blend - indicates a material should use standard, linear-interpolated alpha blending (transparency).
+            cgltf_alpha_mode alphaMode = currentMaterial->alpha_mode;
+            if (alphaMode == cgltf_alpha_mode_opaque)
+            {
+                flMaterial.mode = FL_OPAQUE;
+            }
+            else if (alphaMode == cgltf_alpha_mode_mask)
+            {
+                flMaterial.mode = FL_MASK;
+                flMaterial.alphaCutoff = currentMaterial->alpha_cutoff;
+            }
+            else if (alphaMode == cgltf_alpha_mode_blend)
+            {
+                flMaterial.mode = FL_BLEND;
+                memcpy((void*)&flMaterial.alphaFactor, (void*)&currentMaterial->pbr_metallic_roughness.base_color_factor, 4 * sizeof(float));
+            }
+
             if (hasTexture)
             {
-                if (baseColorTexture->image->name)
-                    textureName = baseColorTexture->image->name;
-                else if (baseColorTexture->image->buffer_view->name)
-                    textureName = baseColorTexture->image->buffer_view->name;
+                cgltf_image* image = baseColorTexture->image;
 
-                if (!baseColorTexture->image->uri && baseColorTexture->image->buffer_view)
+                // Cache-key name. Null-safe: buffer_view is null for external-file
+                // images, so the old `buffer_view->name` would crash on URI models.
+                if (image->name)
+                    textureName = image->name;
+                else if (image->buffer_view && image->buffer_view->name)
+                    textureName = image->buffer_view->name;
+                else
+                    textureName = const_cast<char*>(image->uri ? image->uri : "embedded_texture");
+
+                if (!image->uri && image->buffer_view)
                 {
-                    // Embeded texture
-                    auto imageBuffer = baseColorTexture->image->buffer_view;
+                    // Embedded in a binary buffer (GLB)
+                    auto imageBuffer = image->buffer_view;
                     unsigned char* imageData = reinterpret_cast<unsigned char*>(imageBuffer->buffer->data) + imageBuffer->offset;
-
                     flMaterial.albedo = assetsManager
                                             ->LoadImage(textureName, {.imageSource = IMAGE_SOURCE_MEMORY,
                                                                       .pMemoryData = imageData,
                                                                       .sizeInMemory = static_cast<uint32_t>(imageBuffer->size)})
                                             .handle.id;
                 }
-                else if (baseColorTexture->image->uri)
+                else if (image->uri && strncmp(image->uri, "data:", 5) == 0)
                 {
-                    // Texture somewhere in folder
-                    flMaterial.albedo = assetsManager->LoadImage(baseColorTexture->image->uri).handle.id;
+                    // Embedded base64 data URI:  data:[mime];base64,<DATA>
+                    const char* comma = strchr(image->uri, ',');
+                    if (comma && comma - image->uri >= 7 && strncmp(comma - 7, ";base64", 7) == 0)
+                    {
+                        const char* base64 = comma + 1;
+                        cgltf_size b64size = strlen(base64);
+                        cgltf_size decodedSize = b64size - b64size / 4;  // 3 bytes / 4 chars
+                        if (b64size >= 2)
+                        {
+                            decodedSize -= (base64[b64size - 2] == '=');
+                            decodedSize -= (base64[b64size - 1] == '=');
+                        }
+
+                        void* decoded = nullptr;
+                        cgltf_options options{};
+                        if (cgltf_load_buffer_base64(&options, decodedSize, base64, &decoded) == cgltf_result_success)
+                        {
+                            flMaterial.albedo = assetsManager
+                                                    ->LoadImage(textureName, {.imageSource = IMAGE_SOURCE_MEMORY,
+                                                                              .pMemoryData = static_cast<unsigned char*>(decoded),
+                                                                              .sizeInMemory = static_cast<uint32_t>(decodedSize)})
+                                                    .handle.id;
+                            free(decoded);  // cgltf allocates via options' allocator (default malloc)
+                        }
+                    }
+                }
+                else if (image->uri)
+                {
+                    // External file, resolved relative to the model's directory
+                    cgltf_decode_uri(image->uri);  // percent-decode (%20 etc.) in place
+                    std::string path = /* m_ModelDir + "/" +*/ image->uri;
+                    flMaterial.albedo = assetsManager->LoadImage(path).handle.id;
                 }
             }
             else
             {
                 cgltf_float* color = currentMaterial->pbr_metallic_roughness.base_color_factor;
-                int channels = 0;
-                for (size_t j = 0; j < 4; j++)
-                {
-                    if (*(color + j) > 0)
-                        ++channels;
-                }
+                Color c(color[0], color[1], color[2], color[3]);
+
                 std::string materialName;
                 if (currentMaterial->name)
                     materialName = currentMaterial->name;
                 else
-                    materialName = std::string(m_Name) + "Solid_texture" + std::to_string(solidTextureIdx);
-                Color c;
-                if (channels == 4)
-                    c = Color(*color, *(color + 1), *(color + 2), *(color + 3));
-                else if (channels == 3)
-                    c = Color(*color, *(color + 1), *(color + 2));
-                else if (channels == 2)
-                    c = Color(*color, *(color + 1));
-                else
-                    c = Color(*color);
+                    materialName = std::string(m_Name) + "Solid_texture" + std::to_string(c.ToRGBA8());
 
                 flMaterial.albedo = assetsManager->LoadImage(materialName, {.imageSource = IMAGE_SOURCE_COLOR, .color = c}).handle.id;
-
-                ++solidTextureIdx;
             }
 
             info.materials.push_back(std::move(flMaterial));
@@ -120,11 +159,12 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
         {
             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
-            Model::Mesh::Primitive& meshPrimitive =
-                modelMesh.m_Primitives.emplace_back(process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx));
+
+            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(
+                process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx, process_alpha_mode(cgltfPrimitive.material->alpha_mode)));
 
             modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
-            modelMesh.m_MeshIndicesCount += meshPrimitive.GetIndexCount();
+            modelMesh.m_MeshIndicesCount += meshPrimitive.GetIdxCount();
         }
         modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
         modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
@@ -138,22 +178,23 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
 
 Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(std::vector<Fleur::Graphics::SVertexData>& vertices,
                                                                                              std::vector<uint32_t>& indices, cgltf_primitive& cgltfPrimitive,
-                                                                                             uint32_t maxIdx)
+                                                                                             uint32_t maxIdx, FLAlphaMode alphaMode)
 {
     Fleur::Graphics::Model::Mesh::Primitive meshPrimitive = Fleur::Graphics::Model::Mesh::Primitive();
     meshPrimitive.m_MatIdx = maxIdx;
-    meshPrimitive.m_PrimitiveIndicesCount = static_cast<uint32_t>(cgltfPrimitive.indices->count);
+    meshPrimitive.m_AlphaMode = alphaMode;
+    meshPrimitive.m_IdxCount = static_cast<uint32_t>(cgltfPrimitive.indices->count);
     FL_CORE_ASSERT(cgltfPrimitive.type == cgltf_primitive_type_triangles, "Mesh is not triangulated");
 
     for (size_t i = 0; i < cgltfPrimitive.attributes_count; i++)
     {
         if (cgltfPrimitive.attributes[i].type == cgltf_attribute_type_position)
         {
-            meshPrimitive.m_PrimitiveVertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
+            meshPrimitive.m_VertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
         }
     }
-    meshPrimitive.m_PrimitiveVertexStart = static_cast<uint32_t>(vertices.size());
-    meshPrimitive.m_PrimitiveIndexStart = static_cast<uint32_t>(indices.size());
+    meshPrimitive.m_VertexStart = static_cast<uint32_t>(vertices.size());
+    meshPrimitive.m_IdxStart = static_cast<uint32_t>(indices.size());
     const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
 
     const uint8_t* indexGlobalBuffer = static_cast<const uint8_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
@@ -224,8 +265,29 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
         map[vi] = newIndex;
         indices.push_back(newIndex);
     }
-    meshPrimitive.m_PrimitiveVertexEnd = static_cast<uint32_t>(vertices.size()) - 1;
-    meshPrimitive.m_PrimitiveIndexEnd = static_cast<uint32_t>(indices.size()) - 1;
+    meshPrimitive.m_VertexEnd = static_cast<uint32_t>(vertices.size()) - 1;
+    meshPrimitive.m_IdxEnd = static_cast<uint32_t>(indices.size()) - 1;
 
     return meshPrimitive;
+}
+
+Fleur::Graphics::FLAlphaMode Fleur::Graphics::CGLTFModelFabric::process_alpha_mode(cgltf_alpha_mode mode)
+{
+    switch (mode)
+    {
+    case cgltf_alpha_mode_opaque:
+        return FL_OPAQUE;
+        break;
+    case cgltf_alpha_mode_mask:
+        return FL_MASK;
+        break;
+    case cgltf_alpha_mode_blend:
+        return FL_BLEND;
+        break;
+    case cgltf_alpha_mode_max_enum:
+        break;
+    default:
+        return FL_OPAQUE;
+        break;
+    }
 }

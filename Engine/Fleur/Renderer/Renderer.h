@@ -117,26 +117,13 @@ private:
     bool m_ShowWireframe;
 
     std::unique_ptr<Device> m_Device;
-    std::unique_ptr<CommandQueue> m_CommandQueue;
-    std::unique_ptr<CommandPool> m_CommandPool;
     std::unique_ptr<Swapchain> m_Swapchain;
     Camera* m_Camera;
     std::unique_ptr<Skybox> m_Skybox;
 
-    std::unique_ptr<CommandBuffer> m_StaticGeometryCmd;
-    std::unique_ptr<CommandBuffer> m_SkyboxCmd;
-    std::unique_ptr<CommandBuffer> m_GizmoCmd;
-    std::unique_ptr<CommandBuffer> m_CopyFBOCmd;
-
-    // TODO: move from here
-    std::unique_ptr<Framebuffer> m_GizmoFBO;
-
-    ShaderObject* m_CurrentShaderObj;
-
     bool m_IsVsync;
 
     tbb::concurrent_unordered_map<std::string, std::shared_ptr<Texture>> m_Textures;
-    EGraphicsAPI m_Renderer;
 
     std::unique_ptr<Fleur::IRendererToolchain> m_Toolchain;
 
@@ -146,24 +133,7 @@ private:
 
     [[nodiscard]] std::shared_ptr<Fleur::Graphics::Texture> Load_Texture(std::shared_ptr<Fleur::Graphics::Image2D> img);
 
-    struct DrawInfo
-    {
-        const Model* Model;
-        glm::mat4 ModelMatrix;
-        size_t IndexGlobalOffsetBytes;
-        size_t VertexGlobalOffsetBytes;
-    };
-
-    std::unordered_map<std::string, DrawInfo> m_StaticGeometryModels;
-    std::unordered_map<std::string, DrawInfo> m_GizmoModels;
-    std::vector<DrawInfo, Fleur::Memory::FleurAllocator<DrawInfo>> m_StaticGeometryModelsVector;
-    std::vector<DrawInfo, Fleur::Memory::FleurAllocator<DrawInfo>> m_GizmoModelsVector;
-
-    // Service
-
-    void SkyboxPass() const;
-    void StaticGeometryPass() const;
-
+    SFLShaderInfo GetShaderInfo(Fleur::Graphics::Shader* shader);
 
 protected:
     void OnInit();

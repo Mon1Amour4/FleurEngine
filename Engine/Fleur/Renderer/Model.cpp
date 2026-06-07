@@ -30,6 +30,8 @@ Fleur::Graphics::Model::Model(Model&& other) noexcept
 {
     other.m_MeshCount = 0;
     other.m_ModelVertexCount = 0;
+    other.m_ModelIndicesCount = 0;
+    other.m_PrimitiveCount = 0;
 }
 
 Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcept
@@ -53,17 +55,6 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
 
 //======================================================================
 // Model::Mesh
-Fleur::Graphics::Model::Mesh::Mesh()
-    : m_Primitives()
-    , m_MeshName()
-    , m_MeshVertexStart(0)
-    , m_MeshVertexEnd(0)
-    , m_MeshIndexStart(0)
-    , m_MeshIndexEnd(0)
-    , m_MeshVertexCount(0)
-    , m_MeshIndicesCount(0)
-{
-}
 
 Fleur::Graphics::Model::Mesh::Mesh(Mesh&& other) noexcept
     : m_Primitives(std::move(other.m_Primitives))
@@ -124,19 +115,6 @@ void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo& info)
 }
 
 //======================================================================
-// Model::Primitive
-Fleur::Graphics::Model::Mesh::Primitive::Primitive()
-    : m_MatIdx(0)
-    , m_PrimitiveIndexEnd(0)
-    , m_PrimitiveIndexStart(0)
-    , m_PrimitiveIndicesCount(0)
-    , m_PrimitiveVertexStart(0)
-    , m_PrimitiveVertexEnd(0)
-    , m_PrimitiveVertexCount(0)
-{
-}
-
-//======================================================================
 // MeshBuilder
 Fleur::Graphics::MeshBuilder::MeshBuilder(std::string_view meshName, Model* model)
     : m_Name(meshName)
@@ -157,21 +135,21 @@ Fleur::Graphics::MeshBuilder& Fleur::Graphics::MeshBuilder::AddPrimitive(Model::
         std::vector<Fleur::Graphics::SVertexData, Fleur::Memory::FleurAllocator<Fleur::Graphics::SVertexData>> vertices{
             {glm::vec3(-0.5f, 0.5f, 0)}, {glm::vec3(-0.5f, -0.5f, 0)}, {glm::vec3(0.5f, 0.5f, 0)}, {glm::vec3(0.5f, -0.5f, 0)}};
 
-        primitive.m_PrimitiveVertexStart = m_Model->m_Vertices.size();
+        primitive.m_VertexStart = m_Model->m_Vertices.size();
         m_Model->m_Vertices.reserve(m_Model->m_Vertices.size() + vertices.size());
         m_Model->m_Vertices.insert(m_Model->m_Vertices.end(), vertices.begin(), vertices.end());
-        primitive.m_PrimitiveVertexCount = vertices.size();
-        primitive.m_PrimitiveVertexEnd = m_Model->m_Vertices.size();
+        primitive.m_VertexCount = vertices.size();
+        primitive.m_VertexEnd = m_Model->m_Vertices.size();
         m_Mesh->m_MeshVertexCount += vertices.size();
         m_Mesh->m_MeshVertexEnd = m_Mesh->m_MeshVertexStart + m_Mesh->m_MeshVertexCount;
 
         std::vector<uint32_t, Fleur::Memory::FleurAllocator<uint32_t>> indices{0, 1, 2, 2, 1, 3, 0, 2, 3};
 
-        primitive.m_PrimitiveIndexStart = m_Model->m_Indices.size();
+        primitive.m_IdxStart = m_Model->m_Indices.size();
         m_Model->m_Indices.reserve(m_Model->m_Indices.size() + indices.size());
         m_Model->m_Indices.insert(m_Model->m_Indices.end(), indices.begin(), indices.end());
-        primitive.m_PrimitiveIndicesCount = indices.size();
-        primitive.m_PrimitiveIndexEnd = m_Model->m_Indices.size();
+        primitive.m_IdxCount = indices.size();
+        primitive.m_IdxEnd = m_Model->m_Indices.size();
         m_Mesh->m_MeshIndicesCount += indices.size();
         m_Mesh->m_MeshIndexEnd = m_Mesh->m_MeshIndexStart + m_Mesh->m_MeshIndicesCount;
 

@@ -20,6 +20,7 @@ set(PROJECT_HEADERS
     # Swapchain.h
     Texture.h
     Renderer.h
+    Lux.h
     Model.h
     Camera.h
     Material.h
@@ -36,6 +37,7 @@ set(PROJECT_HEADERS
 
 set(PROJECT_SOURCES
     Renderer.cpp
+    Lux.cpp
     Model.cpp
     Camera.cpp
     # VertexLayout.cpp

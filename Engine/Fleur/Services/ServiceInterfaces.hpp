@@ -22,9 +22,10 @@ namespace Fleur
 
 struct IUpdatable
 {
-    void OnUpdate(float dtTime);
-    void OnPostUpdate(float dtTime);
-    void OnFixedUpdate();
+    virtual ~IUpdatable() = default;
+    virtual void OnUpdate(float dtTime) {}
+    virtual void OnPostUpdate(float dtTime) {}
+    virtual void OnFixedUpdate() {}
 };
 
 struct IInitializable

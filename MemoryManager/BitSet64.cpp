@@ -21,19 +21,20 @@ std::ostream& Fleur::Core::operator<<(std::ostream& os, const Fleur::Core::BitSe
 }
 
 //======================================================================
-Fleur::Core::BitSet64::BitSet64()
-    : m_Bitmap(0)
-    , m_Bits(0)
-{
-}
+
 Fleur::Core::BitSet64::BitSet64(uint8_t bits)
     : m_Bitmap(0)
     , m_Bits(bits)
 {
     assert(m_Bits <= 64);
     assert(m_Bits > 0);
-
-    m_Bitmap = 0;
+}
+Fleur::Core::BitSet64::BitSet64(uint8_t bits, uint64_t bitmap)
+    : m_Bitmap(bitmap)
+    , m_Bits(bits)
+{
+    assert(m_Bits <= 64);
+    assert(m_Bits > 0);
 }
 
 bool Fleur::Core::BitSet64::IsBitOccupied(uint8_t idx) const
@@ -61,7 +62,7 @@ void Fleur::Core::BitSet64::ToggleBit(uint8_t idx)
 
 bool Fleur::Core::BitSet64::IsFull() const
 {
-    uint64_t mask = ~0ull >> (64 - m_Bits);
+    uint64_t mask = (m_Bits >= 64) ? ~0ull : ((1ull << m_Bits) - 1);
     return m_Bitmap == mask;
 }
 
@@ -84,10 +85,12 @@ bool Fleur::Core::BitSet64::ScanFirstSetForward(uint32_t* val) const
 }
 bool Fleur::Core::BitSet64::ScanFirstFreeForward(uint32_t* val) const
 {
-    if (m_Bits < 32)
-        return bit_scan_forward(static_cast<uint32_t>(~m_Bitmap), val);
+    uint64_t mask = (m_Bits >= 64) ? ~0ull : ((1ull << m_Bits) - 1);
+    uint64_t freeBits = (~m_Bitmap) & mask;
+    if (!freeBits)
+        return false;
 
-    return bit_scan_forward64(~m_Bitmap, val);
+    return bit_scan_forward64(freeBits, val);
 }
 
 uint8_t Fleur::Core::BitSet64::MaskCount() const
