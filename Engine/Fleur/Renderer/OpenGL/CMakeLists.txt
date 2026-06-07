@@ -1,58 +1,39 @@
 # OpenGL Backend
 
+SET(OPENGL_PRIVATE_INCLUDE_DIRS)
+SET(OPENGL_PUBLIC_INCLUDE_DIRS)
+
 SET(PROJECT_HEADERS
+    # IRenderer
     ../IRenderer.hpp
     ../Graphics.hpp
     ../RenderViews.hpp
+    # OpenGL
     Renderer_OpenGL.h
-    # BufferOpenGL.h
-    # CommandBufferOpenGL.h
-    # CommandPoolOpenGl.h
-    # CommandQueueOpenGL.h
-    # DeviceOpenGL.h
-    # FramebufferOpenGL.h
-    # ShaderObjectOpenGL.h
-    # ShaderOpenGL.h
-    # SurfaceOpenGL.h
-    # SwapchainOpenGL.h
-    # TextureOpenGL.h
+    PrivateOpenGLImpl.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
 
 SET(PROJECT_SOURCES
     Renderer_OpenGL.cpp
-    # BufferOpenGL.cpp
-    # CommandBufferOpenGL.cpp
-    # CommandPoolOpenGl.cpp
-    # CommandQueueOpenGL.cpp
-    # DeviceOpenGL.cpp
-    # FramebufferOpenGL.cpp
-    # MaterialOpenGL.cpp
-    # ShaderObjectOpenGL.cpp
-    # ShaderOpenGL.cpp
-    # SurfaceOpenGL.cpp
-    # SwapchainOpenGL.cpp
-    # TextureOpenGL.cpp
 )
 
+LIST(APPEND OPENGL_PRIVATE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../
+                                        ${CMAKE_CURRENT_SOURCE_DIR})
+LIST(APPEND OPENGL_PUBLIC_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm)
 
 # === Create Library ===
 ADD_LIBRARY(OpenGLBackend STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
-TARGET_LINK_LIBRARIES(
-  OpenGLBackend  
-  PRIVATE FleurInterface TBB::tbb CoreLib 
-)
+TARGET_COMPILE_DEFINITIONS(OpenGLBackend PRIVATE $<$<CONFIG:Debug>:FL_CONF_DEBUG>)
+
+# Glad (GL + WGL loader; links opengl32)
+ADD_SUBDIRECTORY(${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glad "${CMAKE_BINARY_DIR}/Glad")
+TARGET_LINK_LIBRARIES(OpenGLBackend PRIVATE Glad)
+
+TARGET_INCLUDE_DIRECTORIES(OpenGLBackend PRIVATE ${OPENGL_PRIVATE_INCLUDE_DIRS})
+TARGET_INCLUDE_DIRECTORIES(OpenGLBackend PUBLIC ${OPENGL_PUBLIC_INCLUDE_DIRS})
 
 # === Target Properties ===
 SET_TARGET_PROPERTIES(OpenGLBackend PROPERTIES FOLDER "Engine/Renderer/Backend")
-
-# === Glad Configuration ===
-SET(GLAD_BUILD_DIR "${CMAKE_BINARY_DIR}/Glad")
-FILE(REAL_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glad" GLAD_SOURCES)
-
-# === Glad Subdirectory ===
-ADD_SUBDIRECTORY("${GLAD_SOURCES}" "${GLAD_BUILD_DIR}")
-
-TARGET_LINK_LIBRARIES(OpenGLBackend PRIVATE Glad)
-
 SET_TARGET_PROPERTIES(Glad PROPERTIES FOLDER "External")
