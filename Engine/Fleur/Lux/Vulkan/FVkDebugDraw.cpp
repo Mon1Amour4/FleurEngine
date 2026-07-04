@@ -115,14 +115,14 @@ void FVkDebugDraw::AddPoint(glm::vec3 p, glm::vec3 color, float size)
 
 void FVkDebugDraw::Record(FVkCommandBuffer& cmd, Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
 {
-    glm::mat4 viewProj = cameraData.proj * cameraData.view;  // proj already Vulkan-flipped in m_CameraData
+    glm::mat4 viewProj = cameraData.proj * cameraData.view;
 
     if (!m_Lines.empty())
     {
         m_LineBuffers[0].MemCopy(m_Lines.data(), m_Lines.size() * sizeof(SDebugVertex));
         cmd.BindPipeline(m_LinePipeline->GetPipeline());
         cmd.BindVertexBuffer(&m_LineBuffers[0].GetBuffer());
-        vkCmdPushConstants(*cmd.GetCommandBuffer(), m_LinePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &viewProj);
+        cmd.PushConstant(m_LinePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, viewProj);
         cmd.Draw(static_cast<uint32_t>(m_Lines.size()), 0);  // LINE_LIST: all lines, one draw
     }
 
@@ -131,7 +131,7 @@ void FVkDebugDraw::Record(FVkCommandBuffer& cmd, Fleur::Graphics::SFLCameraData&
         m_PointBuffers[0].MemCopy(m_Points.data(), m_Points.size() * sizeof(SDebugVertex));
         cmd.BindPipeline(m_PointPipeline->GetPipeline());
         cmd.BindVertexBuffer(&m_PointBuffers[0].GetBuffer());
-        vkCmdPushConstants(*cmd.GetCommandBuffer(), m_PointPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &viewProj);
+        cmd.PushConstant(m_LinePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, viewProj);
         cmd.Draw(static_cast<uint32_t>(m_Points.size()), 0);
     }
 }

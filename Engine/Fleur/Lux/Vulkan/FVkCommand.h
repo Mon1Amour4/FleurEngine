@@ -7,11 +7,25 @@
 
 struct SFLPushConstant
 {
-    float baseColorFactor[4]{1.0f};
-    uint32_t nodeTransformsStartIdx{};
-    uint32_t modelTransformIdx{};
-    uint32_t albedoIdx{};
-    float alphaCutoff{};
+    glm::vec4 baseColorFactor;
+
+    // x = nodeTransformsStartIdx
+    // y = modelTransformIdx
+    // z = materialIndex
+    // w = pointLightCount
+    glm::uvec4 indices;
+
+    // x = alphaCutoff
+    // yzw = unused
+    glm::vec4 materialParams;
+
+    glm::vec4 directionalLightColor;
+
+    // xyz = direction, w = intensity
+    glm::vec4 directionalLightDirectionIntensity;
+
+    // xyz = camera position, w = unused
+    glm::vec4 cameraPos;
 };
 
 class FVkCommandPool

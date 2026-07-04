@@ -109,9 +109,9 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     // 2. Pipeline
 
     vk::GetPipelineInfo pipelineInfo{};
-    pipelineInfo.cullMode = VK_CULL_MODE_FRONT_BIT;
-    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_ALWAYS;
+    pipelineInfo.depthTestEnable = false;
     pipelineInfo.depthWriteEnable = false;
     pipelineInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
     pipelineInfo.samplesCount = m_SampleCount;

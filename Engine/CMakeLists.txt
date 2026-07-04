@@ -75,6 +75,11 @@ set(ENGINE_SOURCES
     Fleur/Console.cpp
     # Scene
     Fleur/Scene/Scene.cpp
+    #Light
+    Fleur/DirectionalLight.h
+    Fleur/DirectionalLight.cpp
+    Fleur/OmniLight.h
+    Fleur/OmniLight.cpp
 )
 
 # === Engine Configuration ===

@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "AssetsManager.h"
 #include "Image2D.h"
+#include "Lux.h"
 #include "Services/ServiceLocator.h"
 #include "Shader.h"
 
@@ -19,6 +20,29 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
     OnShutdown();
+}
+
+void Renderer::SetDirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity)
+{
+    m_Backend->SetDirectionalLight(direction, color.ToVec4(), glm::min(1.0f, intensity));
+}
+
+void Renderer::UpdatePointLight(const Fleur::Graphics::OmniLight* pLight, uint32_t lightCount)
+{
+    if (lightCount == 0)
+        return;
+
+    std::vector<SFLPointLight> lights;
+    lights.reserve(lightCount);
+    for (size_t i = 0; i < lightCount; i++)
+    {
+        auto& light = lights.emplace_back();
+        light.pos = pLight[i].GetPosition();
+        light.radius = pLight[i].GetRadius();
+        light.color = pLight[i].GetColor().ToVec3();
+        light.intensity = pLight[i].GetIntensity();
+    }
+    m_Backend->UpdatePointLight(lights.data(), lightCount);
 }
 
 void Renderer::OnInit()
@@ -147,15 +171,29 @@ void DebugDraw::Point(glm::vec3 p, Color color, float size, bool depthTest)
     m_Backend->DrawPoint(p, color.ToVec3(), size, depthTest);
 }
 
-void DebugDraw::AABB(SAABB aabb, const glm::mat4& transform, Color color, bool depthTest)
+void DebugDraw::DrawAxes()
+{
+    glm::vec3 origin{0, 0, 0};
+    float length{1000};
+
+    const glm::vec3 xAxis(length, 0.0f, 0.0f);
+    const glm::vec3 yAxis(0.0f, length, 0.0f);
+    const glm::vec3 zAxis(0.0f, 0.0f, length);
+
+    Line(origin - xAxis, origin + xAxis, Fleur::Graphics::Color::Red());
+    Line(origin - yAxis, origin + yAxis, Fleur::Graphics::Color::Green());
+    Line(origin - zAxis, origin + zAxis, Fleur::Graphics::Color::Blue());
+}
+
+void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, glm::mat4 transform, Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
 
     // Decompose to 12 edges here (once), forward as lines — backends stay composite-free.
     auto corner = [&](float x, float y, float z) { return glm::vec3(transform * glm::vec4(x, y, z, 1.0f)); };
-    const glm::vec3& mn = aabb.min;
-    const glm::vec3& mx = aabb.max;
+    const glm::vec3& mn = boundingBox.GetMin();
+    const glm::vec3& mx = boundingBox.GetMax();
     glm::vec3 c[8] = {corner(mn.x, mn.y, mn.z), corner(mx.x, mn.y, mn.z), corner(mx.x, mx.y, mn.z), corner(mn.x, mx.y, mn.z),
                       corner(mn.x, mn.y, mx.z), corner(mx.x, mn.y, mx.z), corner(mx.x, mx.y, mx.z), corner(mn.x, mx.y, mx.z)};
 

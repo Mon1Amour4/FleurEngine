@@ -40,6 +40,9 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override;
     virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) override;
 
+    virtual void SetDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity) override;
+    virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
+
 private:
     impl* pImpl;
 };

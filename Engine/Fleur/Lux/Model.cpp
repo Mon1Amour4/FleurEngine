@@ -87,4 +87,6 @@ void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo&& info)
     m_Meshes = std::move(info.meshes);
 
     m_PrimitiveCount = info.primitiveCount;
+
+    m_BoundingBox = info.modelBoundingBox;
 }

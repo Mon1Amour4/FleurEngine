@@ -1,10 +1,12 @@
 #pragma once
 
 #include <glm/glm.hpp>
-
 #include <vector>
 
+#include "AssetHandle.h"
+#include "DirectionalLight.h"
 #include "Lux/Lux.h"  // Lux::Renderer, Lux::CameraView, AssetID
+#include "OmniLight.h"
 
 namespace Fleur::Graphics
 {
@@ -15,7 +17,7 @@ namespace Fleur
 {
 struct SceneInstance
 {
-    Graphics::AssetID model;
+    Fleur::AssetHandle model;
     glm::mat4 transform;
 };
 
@@ -37,6 +39,9 @@ public:
     Lux::CameraView GetCamera() const;
 
 private:
+    Fleur::Graphics::DirectionalLight* m_DirectionalLight{};
+    std::vector<Fleur::Graphics::OmniLight> m_OmniLights;
+
     std::vector<SceneInstance> m_Instances;
     Graphics::Camera* m_Camera{nullptr};
 };

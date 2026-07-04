@@ -57,6 +57,9 @@ struct IRenderer
     // these on the frontend, so backends never duplicate the composite math.
     virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) = 0;
     virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) = 0;
+
+    virtual void SetDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity) = 0;
+    virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };
 
 }  // namespace Fleur::Graphics

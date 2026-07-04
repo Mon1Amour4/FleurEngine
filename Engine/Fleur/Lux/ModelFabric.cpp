@@ -189,20 +189,23 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
                             FLAlphaMode alphaMode = process_alpha_mode(cgltfPrimitive.material->alpha_mode);
 
-                            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(
-                                process_primitive(info.m_Vertices, info.m_Indices, modelMesh.m_AABB, cgltfPrimitive, materialIdx, alphaMode));
+                            Model::Mesh::Primitive& meshPrimitive =
+                                modelMesh.m_Primitives.emplace_back(process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx, alphaMode));
+
+                            BoundingBox primitiveBoundingBox = meshPrimitive.GetBoundingBox();
+                            modelMesh.m_BoundingBox.UpdateBoundingBox(primitiveBoundingBox.GetMin(), primitiveBoundingBox.GetMax());
 
                             modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
                             modelMesh.m_MeshIndicesCount += meshPrimitive.GetIdxCount();
                         }
-                        modelMesh.m_AABB.center.x = (modelMesh.m_AABB.min.x + modelMesh.m_AABB.max.x) * 0.5;
-                        modelMesh.m_AABB.center.y = (modelMesh.m_AABB.min.y + modelMesh.m_AABB.max.y) * 0.5;
-                        modelMesh.m_AABB.center.z = (modelMesh.m_AABB.min.z + modelMesh.m_AABB.max.z) * 0.5;
 
                         modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
                         modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
 
                         info.meshInstance.emplace_back(info.meshes.size() - 1, 0, info.worldTransforms.size() - 1);
+
+                        BoundingBox meshBoundingBox = modelMesh.GetBoundingBox();
+                        info.modelBoundingBox.UpdateBoundingBox(meshBoundingBox.GetMin(), meshBoundingBox.GetMax());
                     }
 
                     info.meshInstance.back().drawCount++;
@@ -215,7 +218,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
 }
 
 Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(OUT std::vector<Fleur::Graphics::SVertexData>& vertices,
-                                                                                             OUT std::vector<uint32_t>& indices, OUT SAABB& aabb,
+                                                                                             OUT std::vector<uint32_t>& indices,
                                                                                              IN cgltf_primitive& cgltfPrimitive, uint32_t maxIdx,
                                                                                              FLAlphaMode alphaMode)
 {
@@ -298,8 +301,7 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             v.Position.y = positions[vi * 3 + 1];
             v.Position.z = positions[vi * 3 + 2];
 
-            aabb.min = glm::min(aabb.min, v.Position);
-            aabb.max = glm::max(aabb.max, v.Position);
+            meshPrimitive.m_BoundingBox.UpdateBoundingBox(v.Position, v.Position);
         }
         if (normals)
         {

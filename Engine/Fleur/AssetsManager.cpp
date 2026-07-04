@@ -168,6 +168,7 @@ void Fleur::AssetsManager::PollMessages()
                         dstPrimitive.indexCount = srcPrimitive.GetIdxCount();
                         dstPrimitive.indexStart = srcPrimitive.GetIdxStart();
                         dstPrimitive.vertexStart = srcPrimitive.GetVertexStart();
+                        dstPrimitive.boundingBoxCenter = srcPrimitive.GetBoundingBox().GetCenter();
                     }
                 }
 

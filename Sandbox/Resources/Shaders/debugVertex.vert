@@ -1,9 +1,12 @@
 #version 450
 
+#define TRANSFORMS_MAX_CUP 1023
+
 layout(push_constant) uniform PushConsts
 {
     mat4 viewProj;
 } pc;
+
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec4 inColor;

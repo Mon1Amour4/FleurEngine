@@ -21,6 +21,7 @@
 #include <limits>
 #include <optional>
 #include <set>
+#include <sstream>
 #include <vector>
 
 #include "FVkBuffer.h"
@@ -92,6 +93,8 @@ struct PrimitiveDrawInfo
 
     SGPUMaterial material;
 
+    glm::vec3 boundingBoxCenter{};
+
     void FromMaterial(const Fleur::Graphics::FLMaterial& mat)
     {
         material.albedo = mat.albedo;
@@ -105,28 +108,172 @@ struct PrimitiveDrawInfo
 
 SFLPushConstant MakePush(const PrimitiveDrawInfo& info)
 {
-    return SFLPushConstant{
-        .baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b, info.material.baseColorFactor.a},
-        .albedoIdx = info.material.albedo,
-        .alphaCutoff = info.material.alphaCutoff};
+    SFLPushConstant pc{};
+    pc.indices.z = info.material.albedo;
+    pc.baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b, info.material.baseColorFactor.a};
+    pc.materialParams.x = info.material.alphaCutoff;
+
+    return pc;
 }
 #pragma endregion
 
 // ---------- static function ----------
+static const char* SeverityToString(VkDebugUtilsMessageSeverityFlagBitsEXT severity)
+{
+    switch (severity)
+    {
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
+        return "VERBOSE";
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
+        return "INFO";
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
+        return "WARNING";
+    case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
+        return "ERROR";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static std::string MessageTypeToString(VkDebugUtilsMessageTypeFlagsEXT type)
+{
+    std::string result;
+
+    if (type & VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT)
+        result += "GENERAL ";
+
+    if (type & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)
+        result += "VALIDATION ";
+
+    if (type & VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT)
+        result += "PERFORMANCE ";
+
+    if (type & VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT)
+        result += "DEVICE_ADDRESS_BINDING ";
+
+    return result.empty() ? "UNKNOWN" : result;
+}
+
+static const char* ObjectTypeToString(VkObjectType type)
+{
+    switch (type)
+    {
+    case VK_OBJECT_TYPE_INSTANCE:
+        return "INSTANCE";
+    case VK_OBJECT_TYPE_PHYSICAL_DEVICE:
+        return "PHYSICAL_DEVICE";
+    case VK_OBJECT_TYPE_DEVICE:
+        return "DEVICE";
+    case VK_OBJECT_TYPE_QUEUE:
+        return "QUEUE";
+    case VK_OBJECT_TYPE_SEMAPHORE:
+        return "SEMAPHORE";
+    case VK_OBJECT_TYPE_COMMAND_BUFFER:
+        return "COMMAND_BUFFER";
+    case VK_OBJECT_TYPE_FENCE:
+        return "FENCE";
+    case VK_OBJECT_TYPE_DEVICE_MEMORY:
+        return "DEVICE_MEMORY";
+    case VK_OBJECT_TYPE_BUFFER:
+        return "BUFFER";
+    case VK_OBJECT_TYPE_IMAGE:
+        return "IMAGE";
+    case VK_OBJECT_TYPE_EVENT:
+        return "EVENT";
+    case VK_OBJECT_TYPE_QUERY_POOL:
+        return "QUERY_POOL";
+    case VK_OBJECT_TYPE_BUFFER_VIEW:
+        return "BUFFER_VIEW";
+    case VK_OBJECT_TYPE_IMAGE_VIEW:
+        return "IMAGE_VIEW";
+    case VK_OBJECT_TYPE_SHADER_MODULE:
+        return "SHADER_MODULE";
+    case VK_OBJECT_TYPE_PIPELINE_CACHE:
+        return "PIPELINE_CACHE";
+    case VK_OBJECT_TYPE_PIPELINE_LAYOUT:
+        return "PIPELINE_LAYOUT";
+    case VK_OBJECT_TYPE_RENDER_PASS:
+        return "RENDER_PASS";
+    case VK_OBJECT_TYPE_PIPELINE:
+        return "PIPELINE";
+    case VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT:
+        return "DESCRIPTOR_SET_LAYOUT";
+    case VK_OBJECT_TYPE_SAMPLER:
+        return "SAMPLER";
+    case VK_OBJECT_TYPE_DESCRIPTOR_POOL:
+        return "DESCRIPTOR_POOL";
+    case VK_OBJECT_TYPE_DESCRIPTOR_SET:
+        return "DESCRIPTOR_SET";
+    case VK_OBJECT_TYPE_FRAMEBUFFER:
+        return "FRAMEBUFFER";
+    case VK_OBJECT_TYPE_COMMAND_POOL:
+        return "COMMAND_POOL";
+    case VK_OBJECT_TYPE_SWAPCHAIN_KHR:
+        return "SWAPCHAIN_KHR";
+    default:
+        return "UNKNOWN";
+    }
+}
 static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
 {
-    if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+    if (messageSeverity < VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT)
+        return VK_FALSE;
+
+    std::ostringstream oss;
+
+    oss << "\n[Vulkan][" << SeverityToString(messageSeverity) << "] "
+        << "[" << MessageTypeToString(messageType) << "]\n";
+
+    if (pCallbackData->pMessageIdName)
+        oss << "MessageIdName: " << pCallbackData->pMessageIdName << "\n";
+
+    oss << "MessageIdNumber: " << pCallbackData->messageIdNumber << "\n";
+
+    if (pCallbackData->pMessage)
+        oss << "Message: " << pCallbackData->pMessage << "\n";
+
+    if (pCallbackData->objectCount > 0)
     {
-        DBG_PRINTM("debug callback: " << pCallbackData->pMessage);
-        for (size_t i = 0; i < pCallbackData->objectCount; i++)
+        oss << "Objects:\n";
+
+        for (uint32_t i = 0; i < pCallbackData->objectCount; ++i)
         {
-            if (!pCallbackData->pObjects[i].pObjectName)
-                break;
-            DBG_PRINT("", "\t [Object] " << pCallbackData->pObjects[i].pObjectName);
+            const auto& object = pCallbackData->pObjects[i];
+
+            oss << "  [" << i << "] "
+                << "type=" << ObjectTypeToString(object.objectType) << ", handle=0x" << std::hex << object.objectHandle << std::dec;
+
+            if (object.pObjectName)
+                oss << ", name=" << object.pObjectName;
+            else
+                oss << ", name=<unnamed>";
+
+            oss << "\n";
         }
-        std::cout << "\n";
     }
+
+    if (pCallbackData->queueLabelCount > 0)
+    {
+        oss << "Queue labels:\n";
+
+        for (uint32_t i = 0; i < pCallbackData->queueLabelCount; ++i)
+        {
+            oss << "  [" << i << "] " << pCallbackData->pQueueLabels[i].pLabelName << "\n";
+        }
+    }
+
+    if (pCallbackData->cmdBufLabelCount > 0)
+    {
+        oss << "Command buffer labels:\n";
+
+        for (uint32_t i = 0; i < pCallbackData->cmdBufLabelCount; ++i)
+        {
+            oss << "  [" << i << "] " << pCallbackData->pCmdBufLabels[i].pLabelName << "\n";
+        }
+    }
+
+    DBG_PRINTM(oss.str());
 
     return VK_FALSE;
 }
@@ -231,6 +378,10 @@ struct backend::impl
     FVkDescriptorSetLayout* m_SSBODescriptorSetLayout{nullptr};
     std::vector<glm::mat4> m_InstanceNodeTransforms;
 
+    FVkBuffer* m_PointLightsBuffer{nullptr};
+    FVkDescriptorSetLayout* m_PointLightsDescriptorSetLayout{nullptr};
+    VkDescriptorSet m_PointLightDescriptorSet;
+
     std::vector<InstancesBatch> m_Batches;
     std::vector<PrimitiveDrawInfo> m_Primitives;
     std::vector<InstanceDrawInfo> m_Instances;
@@ -243,6 +394,8 @@ struct backend::impl
 
         uint32_t modelTransformIdx{};
         uint32_t nodeTransformsStartIdx{};
+
+        glm::vec3 boundingBoxCenter{};
     };
 
     std::vector<FLFrameDrawItem> m_OpaqueDrawItems;
@@ -331,5 +484,18 @@ struct backend::impl
 
     // Debug
     FVkDebugDraw* m_DebugDraw{nullptr};
+
+    // directionIntensity - first 3 are direction and fourth is intensity
+    // intensity [0;1]
+    struct FVkDirectionalLight
+    {
+        glm::vec4 directionIntensity{glm::vec4(1, 0, 0, 1)};
+        glm::vec4 color{glm::vec4(1, 1, 1, 1)};
+    };
+    FVkDirectionalLight m_DirectionalLight;
+    void setDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity);
+
+    std::vector<SFLPointLight> m_PointLights;
+    void updatePointLight(const SFLPointLight* light, uint32_t lightCount);
 };
 }  // namespace vk

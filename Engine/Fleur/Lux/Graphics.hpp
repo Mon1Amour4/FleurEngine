@@ -1,14 +1,43 @@
 #pragma once
 
 #define NODE_TRANSFORMS_MAX_CUP 1023
+#define POINT_LIGHTS_MAX_CUP 32
 
 #include "glm/glm.hpp"
 namespace Fleur::Graphics
 {
 using AssetID = uint32_t;
 
-struct SAABB
+class BoundingBox
 {
+public:
+    BoundingBox() = default;
+    ~BoundingBox() = default;
+
+    void UpdateBoundingBox(glm::vec3 newMin, glm::vec3 newMax)
+    {
+        min = glm::min(min, newMin);
+        max = glm::max(max, newMax);
+
+        center.x = (min.x + max.x) * 0.5;
+        center.y = (min.y + max.y) * 0.5;
+        center.z = (min.z + max.z) * 0.5;
+    }
+
+    inline glm::vec3 GetMin() const
+    {
+        return min;
+    }
+    inline glm::vec3 GetMax() const
+    {
+        return max;
+    }
+    inline glm::vec3 GetCenter() const
+    {
+        return center;
+    }
+
+private:
     glm::vec3 min{std::numeric_limits<float>::infinity()};
     glm::vec3 max{-std::numeric_limits<float>::infinity()};
     glm::vec3 center{0.f};

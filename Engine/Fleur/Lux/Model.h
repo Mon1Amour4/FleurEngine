@@ -80,7 +80,14 @@ public:
                 Trinagle
             };
 
+            inline BoundingBox GetBoundingBox() const
+            {
+                return m_BoundingBox;
+            }
+
         private:
+            BoundingBox m_BoundingBox;
+
             uint32_t m_MatIdx{0};
 
             uint32_t m_VertexStart{0};
@@ -116,13 +123,13 @@ public:
             return static_cast<uint32_t>(m_Primitives.size());
         }
 
-        inline const SAABB GetAABB() const
+        inline const BoundingBox GetBoundingBox() const
         {
-            return m_AABB;
+            return m_BoundingBox;
         }
 
     private:
-        SAABB m_AABB;
+        BoundingBox m_BoundingBox;
 
         std::vector<Primitive> m_Primitives;
 
@@ -208,6 +215,8 @@ public:
         uint32_t modelVertexCount;
         uint32_t modelIndicesCount;
         uint32_t primitiveCount;
+
+        BoundingBox modelBoundingBox;
     };
     void PostCreate(SFLPostCreateInfo&& info);
 
@@ -228,8 +237,13 @@ public:
     {
         return m_MeshInstance.size();
     }
+    inline const BoundingBox GetBoundingBox() const
+    {
+        return m_BoundingBox;
+    }
 
 private:
+    BoundingBox m_BoundingBox;
     std::string m_Name;
     uint32_t m_PrimitiveCount{0};
 

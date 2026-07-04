@@ -26,6 +26,8 @@ struct FLPrimitiveDrawItem
     uint32_t vertexStart;
 
     Fleur::Graphics::FLMaterial material;
+
+    glm::vec3 boundingBoxCenter;
 };
 
 struct FLInstanceItem
@@ -56,6 +58,16 @@ struct SFLModelRegisterInfo
 
     const FLInstanceItem* instances{};
     uint32_t instanceCount{};
+};
+
+// Ligts
+struct SFLPointLight
+{
+    glm::vec3 pos;
+    float radius;
+
+    glm::vec3 color;
+    float intensity;
 };
 
 }  // namespace Fleur::Graphics

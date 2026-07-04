@@ -33,8 +33,11 @@ struct backend : public Fleur::Graphics::IRenderer
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
 
-    void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override {};    // TODO: GlDebugDraw
+    void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override {};  // TODO: GlDebugDraw
     void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) override {};
+
+    virtual void SetDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity) {};  // TODO: DirectionalLight
+    virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override {};  // TODO: PointLight
 
 private:
     impl* pImpl;
