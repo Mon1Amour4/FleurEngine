@@ -6,7 +6,9 @@
 
 struct SFLPushConstant
 {
-    uint32_t albedoIdx;
+    float baseColorFactor[4]{1.0f};
+    uint32_t albedoIdx{0};
+    float alphaCutoff{0};
 };
 
 class FVkCommandPool
@@ -53,8 +55,15 @@ public:
 
     void BindVertexBuffer(VkBuffer* buffer);
     void BindIndexBuffer(VkBuffer* buffer, VkIndexType indextype);
-    void BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet);
-    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant);
+    void BindDescriptorSets(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSets, uint32_t descriptorSetsCount);
+
+    template <typename T>
+    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, T constant)
+    {
+        vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStage, 0, sizeof(T), &constant);
+    }
+
+    void Draw(uint32_t count, uint32_t vertexStart = 0);
     void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
 
     void BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea);

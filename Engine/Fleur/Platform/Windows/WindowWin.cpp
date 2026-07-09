@@ -4,9 +4,9 @@
 #include "KeyCodesWin.h"
 #include "Log.h"
 
-void Fleur::WindowWin::SetTitle(std::string title)
+void Fleur::WindowWin::SetTitle(const char* str)
 {
-    SetWindowText(m_HWND, std::string(m_Props.Title + " " + title).c_str());
+    SetWindowText(m_HWND, str);
 }
 
 Fleur::SRect Fleur::WindowWin::GetFramebufferSize() const

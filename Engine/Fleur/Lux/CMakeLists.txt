@@ -22,7 +22,6 @@ set(PROJECT_HEADERS
     Lux.h
     Model.h
     Camera.h
-    Material.h
     # ShaderObject.h
     # VertexLayout.h
     Graphics.hpp

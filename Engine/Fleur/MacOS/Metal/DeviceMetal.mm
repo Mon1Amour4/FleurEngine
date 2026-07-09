@@ -11,7 +11,7 @@
 #include <QuartzCore/CAMetalLayer.hpp>
 #include <QuartzCore/QuartzCore.hpp>
 
-#include "Material.h"
+#include "Graphics.hpp"
 #include "ShaderObject.h"
 
 namespace Fleur::Renderer

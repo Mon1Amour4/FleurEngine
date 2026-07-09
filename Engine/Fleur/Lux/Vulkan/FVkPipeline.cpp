@@ -19,8 +19,7 @@ FVkPipeline::~FVkPipeline()
 
 void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 {
-    assert(desc.descriptorSetLayouts.size() > 0);
-    assert(desc.cullMode != VK_CULL_MODE_NONE);
+    assert(desc.cullMode != VK_CULL_MODE_FLAG_BITS_MAX_ENUM);
     assert(desc.frontFace != VK_FRONT_FACE_MAX_ENUM);
     assert(desc.shaderStages && desc.shaderStages->size() > 0);
 
@@ -42,7 +41,7 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     inputAssembly.topology = desc.topology;
     inputAssembly.primitiveRestartEnable = VK_FALSE;
 
-    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{1,1}};
+    VkRect2D scissor{.offset = VkOffset2D{0, 0}, .extent = VkExtent2D{1, 1}};
 
     VkPipelineViewportStateCreateInfo viewportState{};
     viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
@@ -73,13 +72,13 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;              // Optional
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;   // Optional
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;  // Optional
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;              // Optional
+    colorBlendAttachment.blendEnable = true;
+    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;            // Optional
+    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;  // Optional
+    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                             // Optional
+    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;                  // Optional
+    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;                 // Optional
+    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;                             // Optional
 
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

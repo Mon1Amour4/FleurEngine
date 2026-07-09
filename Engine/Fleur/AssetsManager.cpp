@@ -144,15 +144,15 @@ void Fleur::AssetsManager::PollMessages()
                     {
                         const auto& primitive = mesh->GetPrimitives() + primIdx;
                         auto& item = items.emplace_back();
-                        item.albedoId = model->GetMaterialsData()[primitive->GetMaterialIdx()].albedo;
+                        item.material = model->GetMaterialsData()[primitive->GetMaterialIdx()];
                         item.indexCount = primitive->GetIdxCount();
                         item.indexStart = primitive->GetIdxStart();
                         item.vertexStart = primitive->GetVertexStart();
-                        item.bucket = primitive->GetAlphaMode();
                     }
                 }
                 renderer->Register(message.ID, model->GetVerticesData(), model->GetVertexCount(), model->GetIdxData(), model->GetIdxCount(), items.data(),
                                    static_cast<uint32_t>(items.size()));
+
                 m_ModelCache.RemoveFromAsyncOperations(model->GetName());
                 break;
             }

@@ -68,7 +68,7 @@ public:
         return m_HasInputFocus;
     }
 
-    virtual void SetTitle(std::string title) override;
+    virtual void SetTitle(const char* str) override;
 
     virtual Fleur::SRect GetFramebufferSize() const override;
 

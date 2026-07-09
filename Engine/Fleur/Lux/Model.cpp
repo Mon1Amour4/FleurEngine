@@ -3,7 +3,6 @@
 #include <span>
 
 #include "FleurAllocator.hpp"
-#include "Material.h"
 #include "Model.h"
 
 //======================================================================
@@ -76,7 +75,7 @@ Fleur::Graphics::Model::Mesh::Mesh(Mesh&& other) noexcept
     m_MeshIndicesCount = 0;
 }
 
-const Fleur::Graphics::Material* Fleur::Graphics::Model::GetMaterial(uint32_t idx) const
+const Fleur::Graphics::FLMaterial* Fleur::Graphics::Model::GetMaterial(uint32_t idx) const
 {
     if (idx >= m_Materials.size())
         return nullptr;
@@ -89,7 +88,7 @@ Fleur::Graphics::MeshBuilder Fleur::Graphics::Model::CreateSubmesh(std::string_v
     return Fleur::Graphics::MeshBuilder(meshName, this);
 }
 
-Fleur::Graphics::Model* Fleur::Graphics::Model::QuadModel(Fleur::Graphics::Material&& material)
+Fleur::Graphics::Model* Fleur::Graphics::Model::QuadModel(Fleur::Graphics::FLMaterial&& material)
 {
     Fleur::Memory::FleurAllocator<Fleur::Graphics::Model> allocator;
     Fleur::Graphics::Model* quadModel = allocator.construct_at("QuadModel");

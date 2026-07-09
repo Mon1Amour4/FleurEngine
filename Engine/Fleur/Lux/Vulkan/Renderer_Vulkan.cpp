@@ -43,6 +43,9 @@ void vk::backend::EndResize(Fleur::SRect& rect)
 
 void vk::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
+    assert(shaderStages.fragment.shaderCode && shaderStages.fragment.sizeBytes > 0);
+    assert(shaderStages.vertex.shaderCode && shaderStages.vertex.sizeBytes > 0);
+
     pImpl->createPass(kind, shaderStages);
 }
 
@@ -70,6 +73,14 @@ void vk::backend::Draw(AssetID model, const glm::mat4& transform)
 void vk::backend::EndFrame()
 {
     pImpl->endFrame();
+}
+void vk::backend::DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest)
+{
+    pImpl->m_DebugDraw->AddLine(a, b, color);
+}
+void vk::backend::DrawPoint(glm::vec3 p, glm::vec3 color, float size, bool depthTest)
+{
+    pImpl->m_DebugDraw->AddPoint(p, color, size);
 }
 
 
@@ -107,20 +118,15 @@ vk::backend::impl::impl(bool enableValidation,
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
 
-    m_GeometryVertexInput = new SFLVertexInput();
-    m_GeometryVertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Position));
-    m_GeometryVertexInput->RegisterAttribute(0, 1, VK_FORMAT_R32G32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, TexCoord));
-    m_GeometryVertexInput->RegisterAttribute(0, 2, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Fleur::Graphics::SVertexData, Normal));
-
     m_MultisampledRenderTarget = new FVkMultisampler();
     m_MultisampledRenderTarget->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT,
                                      m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
-    uint32_t swapChainImageCount = m_Swapchain->GetSwapchainImageCount();
+    m_FramesInFlight = m_Swapchain->GetSwapchainImageCount();
+    m_FramesInFlight = 3;
 
-
-    m_FrameContext = new FrameContext(swapChainImageCount);
-    for (size_t i = 0; i < swapChainImageCount; i++)
+    m_FrameContext = new FrameContext(m_FramesInFlight);
+    for (size_t i = 0; i < m_FramesInFlight; i++)
     {
         m_FrameContext->m_CommandPools[i].Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
                                                m_Device->GetGraphicsQueueFamilyIndex());
@@ -173,7 +179,7 @@ vk::backend::impl::impl(bool enableValidation,
     updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(),
                                           m_ImageSampler);
 
-    m_DescriptorSetImageViewsToUpload.resize(swapChainImageCount);
+    m_DescriptorSetImageViewsToUpload.resize(m_FramesInFlight);
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
@@ -183,6 +189,8 @@ vk::backend::impl::impl(bool enableValidation,
 
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
+
+    m_DebugDraw = new FVkDebugDraw();
 }
 
 vk::backend::impl::~impl()
@@ -190,8 +198,9 @@ vk::backend::impl::~impl()
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
 
     delete m_Skybox;
+    delete m_DebugDraw;
 
-    uint32_t framebuffersCount = m_Swapchain->GetSwapchainImageCount();
+    uint32_t framebuffersCount = m_FramesInFlight;
 
     // 1. Synchronization objects
     for (size_t i = 0; i < framebuffersCount; i++)
@@ -253,10 +262,6 @@ vk::backend::impl::~impl()
 
     // 14. Instance
     vkDestroyInstance(m_VulkanInstance, nullptr);
-
-
-    // 16. Other
-    delete m_GeometryVertexInput;
 }
 
 
@@ -437,7 +442,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
                                           .fragmentSize = pFragmentInfo.sizeBytes};
 
 
-    auto& opaqueShader = m_ShaderMap.emplace(0, vk::FVkShader()).first->second;
+    auto& opaqueShader = m_ShaderMap.emplace("opaque", vk::FVkShader()).first->second;
     opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     vk::GetPipelineInfo pipelineInfo{};
@@ -459,9 +464,31 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
 FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
                                                           VkSampleCountFlagBits samplesCount)
 {
-    return nullptr;
-}
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
+                                          .vertexSize = pVertexInfo.sizeBytes,
+                                          .pFragmentData = pFragmentInfo.shaderCode,
+                                          .fragmentSize = pFragmentInfo.sizeBytes};
 
+
+    auto& opaqueShader = m_ShaderMap.emplace("opaque", vk::FVkShader()).first->second;
+    if (!opaqueShader.isInitialized())
+        opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.depthWriteEnable = false;
+    pipelineInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pipelineInfo.samplesCount = samplesCount;
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
+    pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
+
+    FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
+
+    return pipeline;
+}
 
 VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
 {
@@ -486,14 +513,14 @@ void vk::backend::impl::createDescriptorPool()
     // ---------- descriptor indexing uses, 500k descriptors is min-limit ----------
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_Swapchain->GetSwapchainImageCount());
+    poolSizes[0].descriptorCount = static_cast<uint32_t>(m_FramesInFlight);
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = MAX_TEXTURES;
 
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-                                        .maxSets = m_Swapchain->GetSwapchainImageCount() + 1,
+                                        .maxSets = m_FramesInFlight + 1,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -506,7 +533,7 @@ void vk::backend::impl::createDescriptorPool()
 void vk::backend::impl::createDescriptorSets()
 {
     // ---------- ubo ----------
-    m_StaticGeometryDescriptorSetUbo.resize(m_Swapchain->GetSwapchainImageCount());
+    m_StaticGeometryDescriptorSetUbo.resize(m_FramesInFlight);
     auto uboDsl = m_StaticGeometryUboDsl->GetDescriptorSetLayout();
 
     for (size_t i = 0; i < m_StaticGeometryDescriptorSetUbo.size(); i++)
@@ -570,9 +597,9 @@ void vk::backend::impl::createDescriptorSets()
 
 void vk::backend::impl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
-    pUbo->proj[1][1] *= -1;
+    // proj is already Vulkan-flipped once in m_CameraData (beginFrame) — no per-consumer flip.
     pUbo->model = glm::mat4(1.0f);
-    m_UniformBuffers[currentFrame].MemCopy(pUbo, sizeof(*pUbo));
+    m_UniformBuffers[m_CurrentFrame].MemCopy(pUbo, sizeof(*pUbo));
 }
 
 
@@ -894,7 +921,7 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderStages shaderStages)
                                           .pFragmentData = shaderStages.fragment.shaderCode,
                                           .fragmentSize = shaderStages.fragment.sizeBytes};
 
-    auto& skyboxShader = m_ShaderMap.emplace(id, vk::FVkShader()).first->second;
+    auto& skyboxShader = m_ShaderMap.emplace("skybox", vk::FVkShader()).first->second;
     skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     m_Skybox = new FVkSkybox();
@@ -916,6 +943,24 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
     else if (kind == EFLPassKind::Transparent)
     {
         m_TransparentPipeline = createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount());
+    }
+    else if (kind == EFLPassKind::AABB_DEBUG)
+    {
+        if (!m_DebugDraw->IsInitialized())
+        {
+            vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
+                                                  .vertexSize = shaderStages.vertex.sizeBytes,
+                                                  .pFragmentData = shaderStages.fragment.shaderCode,
+                                                  .fragmentSize = shaderStages.fragment.sizeBytes};
+
+
+            auto& debugShader = m_ShaderMap.emplace("Debug", vk::FVkShader()).first->second;
+            if (!debugShader.isInitialized())
+                debugShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+            m_DebugDraw->Create(m_Device, m_Swapchain, &debugShader, m_MultisampledRenderTarget->GetSamplesCount(),
+                                FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
+        }
     }
 }
 
@@ -983,9 +1028,9 @@ void vk::backend::impl::createStaticGeometryPass()
 
     VkDeviceSize bufferSize = sizeof(Fleur::Graphics::SFLGeometryUBO);
 
-    m_UniformBuffers.resize(m_Swapchain->GetSwapchainImageCount());
+    m_UniformBuffers.resize(m_FramesInFlight);
 
-    for (size_t i = 0; i < m_Swapchain->GetSwapchainImageCount(); i++)
+    for (size_t i = 0; i < m_FramesInFlight; i++)
     {
         m_UniformBuffers[i].Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, bufferSize, bufferSize);
     }
@@ -1006,11 +1051,11 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
                               m_DepthRenderTarget->GetImageView());
     }
 
-    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame], VK_TRUE, UINT64_MAX);
-    vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[currentFrame]);
+    vkWaitForFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
+    vkResetFences(m_Device->GetLogicalDevice(), 1, &m_FrameContext->m_InFlightFences[m_CurrentFrame]);
 
     VkResult isSwapchainValid = vkAcquireNextImageKHR(m_Device->GetLogicalDevice(), m_Swapchain->GetSwapchain(), UINT64_MAX,
-                                                      m_FrameContext->m_ImagesAvailable[currentFrame], VK_NULL_HANDLE, &m_ImageIndex);
+                                                      m_FrameContext->m_ImagesAvailable[m_CurrentFrame], VK_NULL_HANDLE, &m_ImageIndex);
     if (isSwapchainValid == VK_ERROR_OUT_OF_DATE_KHR || isSwapchainValid == VK_SUBOPTIMAL_KHR)
     {
         assert(false);
@@ -1021,15 +1066,18 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
         assert(false);
     }
 
-    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), cameraData.view, cameraData.proj};
-    updateUniformBuffer(currentFrame, &ubo);
+    m_CameraData = cameraData;
+    m_CameraData.proj[1][1] *= -1;  // Vulkan Y-flip — single source for all VK passes (geometry/skybox/debug)
 
-    vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[currentFrame].GetCommandPool(), 0);
+    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), m_CameraData.view, m_CameraData.proj};
+    updateUniformBuffer(m_CurrentFrame, &ubo);
+
+    vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[m_CurrentFrame].GetCommandPool(), 0);
 
     if (!m_GeometryPipeline)
         return false;
 
-    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
     cmd.Begin();
 
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
@@ -1041,14 +1089,9 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     };
     BeginRendering(*cmd.GetCommandBuffer(), renderArea, m_ImageIndex);
 
-    if (m_Skybox)
-        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), cameraData);
-
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-    if (m_IndexBuffer->StrideBytes() == 4)
-        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
-    else if (m_IndexBuffer->StrideBytes() == 2)
-        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT16);
+    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+
 
     cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
 
@@ -1066,23 +1109,44 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     };
     cmd.SetScissors(defaultScissors);
 
-    std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[currentFrame], m_StaticGeometryDescriptorSetTextures};
-    vkCmdBindDescriptorSets(*cmd.GetCommandBuffer(), VK_PIPELINE_BIND_POINT_GRAPHICS, m_GeometryPipeline->GetPipelineLayout(), 0, dst.size(), dst.data(), 0,
-                            nullptr);
+    std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures};
+    cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
 
     return true;
 }
 
 void vk::backend::impl::endFrame()
 {
-    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
+
+    // After opaque (recorded via Draw), before transparent: skybox fills the
+    // background only where no geometry was written.
+    if (m_Skybox)
+        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
+
+    if (m_TransparentDraws.size() > 0)
+    {
+        // Skybox rebound its own vertex buffer above — restore the geometry buffers.
+        cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+        cmd.BindPipeline(m_TransparentPipeline->GetPipeline());
+        for (auto& it : m_TransparentDraws)
+        {
+            SFLPushConstant pushConstant = MakePush(it);
+            cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+            cmd.DrawIndexed(it.indexCount, it.indexOffset, it.vertexOffset);
+        }
+    }
+
+    m_DebugDraw->Record(cmd, m_CameraData, m_CurrentFrame);
+    m_DebugDraw->Clear();
 
     cmd.EndRendering();
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     cmd.End();
 
-    VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[currentFrame]};
+    VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[m_CurrentFrame]};
     VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
@@ -1093,11 +1157,11 @@ void vk::backend::impl::endFrame()
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = cmd.GetCommandBuffer();
 
-    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[currentFrame]};
+    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[m_CurrentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
-    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_FrameContext->m_InFlightFences[currentFrame]) != VK_SUCCESS)
+    if (vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, m_FrameContext->m_InFlightFences[m_CurrentFrame]) != VK_SUCCESS)
     {
         DBG_PRINTM("Failed to submit draw command buffer!")
         assert(false);
@@ -1116,7 +1180,7 @@ void vk::backend::impl::endFrame()
 
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
-    currentFrame = (currentFrame + 1) % m_Swapchain->GetSwapchainImageCount();
+    m_CurrentFrame = (m_CurrentFrame + 1) % m_FramesInFlight;
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
@@ -1133,10 +1197,13 @@ void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, u
     {
         const auto& item = primitives[i];
         auto& draw = list.emplace_back();
-        draw.material.albedo = item.albedoId;
+
+        draw.FromMaterial(item.material);
+
         draw.indexCount = item.indexCount;
         draw.indexOffset = globalIndexOffset + item.indexStart;
         draw.vertexOffset = globalVertexOffset;
+        draw.bucket = item.material.mode;
     }
 }
 
@@ -1152,12 +1219,22 @@ void vk::backend::impl::drawModel(AssetID id, const glm::mat4& /*transform*/)
     if (it == m_RegisteredModels.end())
         return;
 
-    // TODO: per-draw transform via push-constant (needs vertex shader change). Identity for now.
-    auto& cmd = m_FrameContext->m_CommandBuffers[currentFrame];
+    // m_TransparentDraws.clear();
+    //  TODO: per-draw transform via push-constant (needs vertex shader change). Identity for now.
+    auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
     for (const auto& draw : it->second)
     {
-        SFLPushConstant pushConstant{.albedoIdx = draw.material.albedo};
-        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-        cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+        if (draw.bucket == FLAlphaMode::FL_OPAQUE || draw.bucket == FLAlphaMode::FL_MASK)
+        {
+            SFLPushConstant pushConstant = MakePush(draw);
+            cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+            cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
+        }
+        else
+        {
+            m_TransparentDraws.push_back(draw);
+            /*std::sort(m_TransparentDraws.begin(), m_TransparentDraws.end(),
+                      [](const DrawInfo& a, const DrawInfo& b) { return a.material.alphaCutoff < b.material.alphaCutoff; });*/
+        }
     }
 }

@@ -34,6 +34,9 @@ struct backend : public Fleur::Graphics::IRenderer
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
 
+    void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override {};    // TODO: GlDebugDraw
+    void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) override {};
+
 private:
     impl* pImpl;
 };

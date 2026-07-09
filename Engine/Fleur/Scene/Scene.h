@@ -22,8 +22,8 @@ struct SceneInstance
 // Owns the world's instances + the camera. Submits draws to Lux each frame.
 // Hardcoded contents for now (no serialization / ECS yet).
 //
-// Layering: Scene -> Lux (Draw), Scene -> AssetsManager (models). Scene never
-// loads assets and never touches the GPU directly.
+// Layering: Scene -> Lux (Draw), Scene -> AssetsManager (requests model loads).
+// Scene does no file IO of its own and never touches the GPU directly.
 class Scene : public IUpdatable
 {
 public:

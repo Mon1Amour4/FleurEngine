@@ -44,7 +44,6 @@ private:
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
     FVkDescriptorSetLayout* m_DescriptorSetLayout;
-    SFLVertexInput* m_VertexInput;
     FVkPipeline* m_Pipeline;
 
     VkSampler m_Sampler;

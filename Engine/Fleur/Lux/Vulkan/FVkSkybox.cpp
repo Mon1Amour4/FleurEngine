@@ -58,7 +58,6 @@ FVkSkybox::FVkSkybox()
     : m_Device(nullptr)
     , m_PhysicalDevice(nullptr)
     , m_DescriptorSetLayout(nullptr)
-    , m_VertexInput(nullptr)
     , m_Pipeline(nullptr)
     , m_Sampler(nullptr)
     , m_DescriptorPool(nullptr)
@@ -78,7 +77,6 @@ FVkSkybox::FVkSkybox()
 FVkSkybox::~FVkSkybox()
 {
     delete m_Pipeline;
-    delete m_VertexInput;
     delete m_DescriptorSetLayout;
     delete m_VertexBuffer;
     delete m_UniformBuffer;
@@ -108,10 +106,7 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
 
     // 1. Descriptor set layout
     createDescriptorSetLayout();
-    // 2. Vertex Input
-    m_VertexInput = new SFLVertexInput();
-    m_VertexInput->RegisterAttribute(0, 0, VK_FORMAT_R32G32B32_SFLOAT, 0);
-    // 3. Pipeline
+    // 2. Pipeline
 
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.cullMode = VK_CULL_MODE_FRONT_BIT;

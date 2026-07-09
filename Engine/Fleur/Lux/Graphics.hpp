@@ -4,13 +4,33 @@
 
 namespace Fleur::Graphics
 {
-enum FLAlphaMode
+using AssetID = uint32_t;
+
+struct SAABB
+{
+    glm::vec3 min{std::numeric_limits<float>::infinity()};
+    glm::vec3 max{-std::numeric_limits<float>::infinity()};
+    glm::vec3 center{0.f};
+};
+
+enum class FLAlphaMode
 {
     FL_OPAQUE,
     FL_MASK,
     FL_BLEND
 };
-enum EGraphicsAPI
+
+// Engine-side material (source of truth, from glTF). Textures referenced by
+// AssetID; each backend derives its own GPU material (resolved indices) from this.
+struct FLMaterial
+{
+    glm::vec4 baseColorFactor{1.f};
+    AssetID albedo{0};
+    AssetID normal{0};
+    FLAlphaMode mode{FLAlphaMode::FL_OPAQUE};
+    float alphaCutoff{0.f};
+};
+enum class EGraphicsAPI
 {
     OpenGL = 0,
     Vulkan = 1,

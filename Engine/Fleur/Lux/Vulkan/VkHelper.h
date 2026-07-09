@@ -23,23 +23,3 @@ void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, 
 
 uint32_t GetFormatSize(VkFormat format);
 
-class SFLVertexInput
-{
-public:
-    SFLVertexInput()
-        : vertexStride(0) {};
-
-    void RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset);
-
-    const std::vector<VkVertexInputAttributeDescription>& GetVertexDataAttributeDescriptions() const;
-
-    VkVertexInputBindingDescription GetVertexDataBindingDescriptor() const;
-    inline uint32_t GetAttributeCount() const
-    {
-        return attributeDescriptions.size();
-    }
-
-private:
-    uint32_t vertexStride;
-    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
-};

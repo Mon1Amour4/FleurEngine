@@ -67,6 +67,7 @@ set(ENGINE_SOURCES
     Fleur/Services/ServiceLocator.cpp
     # Utilities
     Fleur/ThreadPool.cpp
+    Fleur/FlTime.cpp
     Fleur/AssetsManager.cpp
     # Third Party
     External/stb_image/stb_image.cpp

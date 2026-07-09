@@ -79,6 +79,9 @@ protected:
     virtual ~Application() override;
 
 private:
+    char* m_WindowBarTitleBuffer{nullptr};
+    uint32_t m_WindowBarBufferSize{128};
+
     std::unique_ptr<Scene> m_Scene;
 };
 

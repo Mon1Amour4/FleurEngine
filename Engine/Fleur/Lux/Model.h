@@ -1,12 +1,10 @@
 #pragma once
 
 #include "Graphics.hpp"
-// #include "Material.h"
 
 namespace Fleur::Graphics
 {
 struct SVertexData;
-class Material;
 
 class FLEUR_API Model
 {
@@ -94,7 +92,7 @@ public:
             uint32_t m_VertexCount{0};
             uint32_t m_IdxCount{0};
 
-            FLAlphaMode m_AlphaMode{FL_OPAQUE};
+            FLAlphaMode m_AlphaMode{FLAlphaMode::FL_OPAQUE};
         };
 
         Mesh() = default;
@@ -118,7 +116,14 @@ public:
             return static_cast<uint32_t>(m_Primitives.size());
         }
 
+        inline const SAABB GetAABB() const
+        {
+            return m_AABB;
+        }
+
     private:
+        SAABB m_AABB;
+
         std::vector<Primitive> m_Primitives;
 
         std::string m_MeshName;
@@ -176,20 +181,20 @@ public:
     {
         return m_Meshes.data();
     }
-    [[nodiscard]] inline const Fleur::Graphics::Material* GetMaterialsData() const
+    [[nodiscard]] inline const Fleur::Graphics::FLMaterial* GetMaterialsData() const
     {
         return m_Materials.data();
     }
 
-    const Material* GetMaterial(uint32_t idx) const;
+    const FLMaterial* GetMaterial(uint32_t idx) const;
 
     MeshBuilder CreateSubmesh(std::string_view meshName);
-    static Model* QuadModel(Fleur::Graphics::Material&& material);
+    static Model* QuadModel(Fleur::Graphics::FLMaterial&& material);
 
     struct SFLPostCreateInfo
     {
         std::vector<Fleur::Graphics::Model::Mesh> meshes;
-        std::vector<Fleur::Graphics::Material> materials;
+        std::vector<Fleur::Graphics::FLMaterial> materials;
         std::vector<Fleur::Graphics::SVertexData> m_Vertices;
         std::vector<uint32_t> m_Indices;
         uint32_t modelVertexCount;
@@ -208,7 +213,7 @@ private:
     std::vector<uint32_t> m_Indices;
     std::vector<Model::Mesh> m_Meshes;
 
-    std::vector<Material> m_Materials;
+    std::vector<FLMaterial> m_Materials;
 };
 
 class FLEUR_API MeshBuilder

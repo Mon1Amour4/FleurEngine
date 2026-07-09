@@ -11,7 +11,7 @@ class FLEUR_API Camera : IUpdatable
 {
 public:
     Camera();
-    ~Camera();
+    ~Camera() = default;
 
     FLEUR_NON_COPYABLE_NON_MOVABLE(Camera);
 
@@ -50,22 +50,25 @@ public:
     float NearClip() const;
 
 private:
-    float m_Speed;
+    float m_Speed{50.f};
     void UpdateForward();
     void RotateCamera(float dtTime);
     static Camera* s_ActiveCamera;
-    vec3 m_Position;
+    vec3 m_Position{0.f};
     mat4 m_View;
     mat4 m_Projection;
 
     vec3 m_CameraForward;
     vec3 m_Up;
-    uint16_t m_FOV;
-    float m_NearClip;
-    float m_FarClip;
 
-    float m_Yaw;
-    float m_Pitch;
-    float m_MouseSensitivity;
+    uint16_t m_FOV{60};
+
+    float m_NearClip{0.1f};
+    float m_FarClip{3000.f};
+
+    float m_Yaw{0.f};
+    float m_Pitch{0.f};
+    // float m_MouseSensitivity{10.f};
+    float m_MouseSensitivity{0.2f};
 };
 }  // namespace Fleur::Graphics

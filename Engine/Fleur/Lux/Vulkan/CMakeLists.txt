@@ -23,6 +23,7 @@ SET(PROJECT_HEADERS
     FVkTexture.h
     FVkSwapchain.h
     FVkSkybox.h
+    FVkDebugDraw.h
     VkHelper.h
     FVkShader.h
     ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.h
@@ -40,6 +41,7 @@ SET(PROJECT_SOURCES
     FVkTexture.cpp
     FVkSwapchain.cpp
     FVkSkybox.cpp
+    FVkDebugDraw.cpp
     VkHelper.cpp
     FVkShader.cpp
      ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.c

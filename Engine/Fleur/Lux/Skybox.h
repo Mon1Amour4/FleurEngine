@@ -2,7 +2,6 @@
 
 #include "Graphics.hpp"
 #include "Image2D.h"
-#include "Material.h"
 
 namespace Fleur::Graphics
 {
@@ -23,14 +22,14 @@ public:
         return m_SkyboxVertices.size();
     }
 
-    inline const Fleur::Graphics::Material* GetMaterial() const
+    inline const Fleur::Graphics::FLMaterial* GetMaterial() const
     {
         return &m_Material;
     }
 
 
 private:
-    Fleur::Graphics::Material m_Material;
+    Fleur::Graphics::FLMaterial m_Material;
     static constexpr std::array<glm::vec3, 36> m_SkyboxVertices = {
         // +X
         glm::vec3(1, -1, -1),

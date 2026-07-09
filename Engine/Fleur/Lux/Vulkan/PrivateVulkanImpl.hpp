@@ -25,6 +25,7 @@
 
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
+#include "FVkDebugDraw.h"
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
@@ -55,20 +56,44 @@ constexpr uint32_t MAX_TEXTURES = 4096;
 
 struct SGPUMaterial
 {
-    uint32_t albedo;
-    uint32_t normal;
+    glm::vec4 baseColorFactor{1};
+    uint32_t albedo{0};
+    uint32_t normal{0};
+    float metallic{1};
+    float roughness{1};
+    float alphaCutoff{0};
 };
+
 struct DrawInfo
 {
-    uint64_t indexCount = 0;
-    uint64_t vertexCount = 0;
+    FLAlphaMode bucket{FLAlphaMode::FL_OPAQUE};
 
-    uint64_t indexOffset = 0;
-    uint64_t vertexOffset = 0;
+    uint64_t indexCount{0};
+    uint64_t vertexCount{0};
+
+    uint64_t indexOffset{0};
+    uint64_t vertexOffset{0};
 
     SGPUMaterial material;
+
+    void FromMaterial(const Fleur::Graphics::FLMaterial& mat)
+    {
+        material.albedo = mat.albedo;
+
+        material.alphaCutoff = mat.alphaCutoff;
+        material.baseColorFactor = mat.baseColorFactor;
+
+        material.normal = mat.normal;
+    }
 };
 
+SFLPushConstant MakePush(const DrawInfo& info)
+{
+    return SFLPushConstant{
+        .baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b, info.material.baseColorFactor.a},
+        .albedoIdx = info.material.albedo,
+        .alphaCutoff = info.material.alphaCutoff};
+}
 #pragma endregion
 
 // ---------- static function ----------
@@ -185,14 +210,19 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
+    std::vector<DrawInfo> m_TransparentDraws;
     std::unordered_map<AssetID, std::vector<DrawInfo>> m_RegisteredModels;
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
                        const FLDrawItem* primitives, uint32_t primitiveCount);
     void unregisterModel(AssetID id);
     void drawModel(AssetID id, const glm::mat4& transform);
 
-    uint32_t currentFrame = 0;
+    uint32_t m_CurrentFrame{0};
+    uint32_t m_FramesInFlight{0};
     uint32_t m_ImageIndex = 0;
+
+    // Per-frame camera (set in beginFrame, consumed by skybox/debug in endFrame).
+    Fleur::Graphics::SFLCameraData m_CameraData;
 
     void uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
@@ -216,7 +246,6 @@ struct backend::impl
     FVkTexture* m_FallbackCubemapTexture{nullptr};
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
-    SFLVertexInput* m_GeometryVertexInput;
     FVkMultisampler* m_MultisampledRenderTarget;
 
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
@@ -256,8 +285,12 @@ struct backend::impl
     void setSkybox(AssetID id);
 
     vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
-    std::unordered_map<AssetID, vk::FVkShader> m_ShaderMap;
+    std::unordered_map<std::string, vk::FVkShader> m_ShaderMap;
 
     void createPass(EFLPassKind kind, SFLShaderStages shaderStages);
+
+
+    // Debug
+    FVkDebugDraw* m_DebugDraw{nullptr};
 };
 }  // namespace vk

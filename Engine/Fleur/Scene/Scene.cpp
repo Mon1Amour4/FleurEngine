@@ -2,8 +2,10 @@
 
 #include <glm/gtc/matrix_transform.hpp>
 
+#include "AssetsManager.h"
 #include "FleurAllocator.hpp"
 #include "Lux/Camera.h"
+#include "Services/ServiceLocator.h"
 
 namespace Fleur
 {
@@ -25,10 +27,14 @@ void Scene::Init()
     m_Camera = alloc.construct_at();
     m_Camera->Activate();
 
-    // Hardcoded scene. Model id is a placeholder until AssetsManager wiring
-    // (Scene will request a load and store the returned AssetID here).
+    // Hardcoded scene. Request the model load and store the AssetID the async op
+    // hands back synchronously (the id is assigned at registration, before the
+    // load finishes); the renderer registers geometry under the same id later.
+    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+
     glm::mat4 transform = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 100.0f)), glm::vec3(0.1f));
-    m_Instances.push_back(SceneInstance{0, transform});
+    m_Instances.push_back(SceneInstance{sponza->asset.handle.id, transform});
 }
 
 void Scene::OnUpdate(float dtTime)

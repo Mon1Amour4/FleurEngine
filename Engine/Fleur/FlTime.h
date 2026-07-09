@@ -1,14 +1,27 @@
 #pragma once
 
+#include <chrono>
+#include <cstdint>
+
 namespace Fleur
 {
+// Frame clock. Portable: std::chrono::steady_clock is monotonic and already maps
+// to the platform's best high-resolution source (QueryPerformanceCounter on
+// Windows, clock_gettime(CLOCK_MONOTONIC) on Linux/macOS), so no per-platform
+// implementation is needed.
 class Time
 {
 public:
-    virtual ~Time() = default;
-    static std::unique_ptr<Time> CreateTimeManager(float fixed_time);
+    explicit Time(float fixed_time)
+        : m_FixedTime(fixed_time)
+        , m_Timer(std::chrono::steady_clock::now())
+    {
+    }
 
-    virtual void Tick() = 0;
+    // Advances the clock by one frame. The caller passes whether the window is
+    // active; when inactive, delta time is forced to 0 (sim pauses). Passing it in
+    // keeps Time decoupled from Application/Window.
+    void Tick(bool windowActive);
 
     inline uint64_t Frame() const
     {
@@ -22,7 +35,7 @@ public:
     {
         return m_FixedTime;
     }
-    inline uint16_t FPS() const
+    inline float FPS() const
     {
         return m_FPS;
     }
@@ -31,26 +44,20 @@ public:
         return m_AverageFrametime;
     }
 
-protected:
-    Time(float fixed_time)
-        : m_Frame(0)
-        , m_FixedTime(fixed_time)
-        , m_DeltaTime(0.f)
-        , m_FPS(0)
-        , m_FPSTime(0.f)
-        , m_FPSFrames(0)
-        , m_AverageFrametime(0.f)
-        , m_ApplicationEpoch(0) {};
+private:
+    void CalcDeltaTime(bool windowActive);
 
-    uint64_t m_Frame;
+    std::chrono::steady_clock::time_point m_Timer;
+
+    uint64_t m_Frame{0};
     float m_FixedTime;
-    float m_DeltaTime;
-    uint16_t m_FPS;
-    float m_FPSTime;
-    uint16_t m_FPSFrames;
+    float m_DeltaTime{0};
+    float m_FPS{0};
+    float m_FPSTimer{0};
+    uint16_t m_FPSFrames{0};
 
-    float m_AverageFrametime;
+    float m_AverageFrametime{0};
 
-    uint32_t m_ApplicationEpoch;
+    uint32_t m_ApplicationEpoch{0};
 };
 }  // namespace Fleur

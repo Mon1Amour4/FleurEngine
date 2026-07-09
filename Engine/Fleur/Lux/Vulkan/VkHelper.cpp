@@ -241,23 +241,3 @@ uint32_t GetFormatSize(VkFormat format)
     }
 }
 
-void SFLVertexInput::RegisterAttribute(uint32_t binding, uint32_t location, VkFormat format, uint32_t offset)
-{
-    attributeDescriptions.emplace_back(location, binding, format, offset);
-    vertexStride += GetFormatSize(format);
-}
-
-const std::vector<VkVertexInputAttributeDescription>& SFLVertexInput::GetVertexDataAttributeDescriptions() const
-{
-    return attributeDescriptions;
-}
-
-VkVertexInputBindingDescription SFLVertexInput::GetVertexDataBindingDescriptor() const
-{
-    VkVertexInputBindingDescription bindingDescription{};
-    bindingDescription.binding = 0;
-    bindingDescription.stride = vertexStride;
-    bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-
-    return bindingDescription;
-}

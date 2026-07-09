@@ -132,6 +132,11 @@ public:
         uint32_t sampler2d = 4096;
     };
 
+    bool isInitialized() const
+    {
+        return m_VertexShader.shaderModule && m_FragmentShader.shaderModule;
+    }
+
 private:
     VkDevice m_Device;
 

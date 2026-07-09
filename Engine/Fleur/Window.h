@@ -1,7 +1,7 @@
 #pragma once
 
-#include "WindowPrimitives.hpp"
 #include "EventQueue.h"
+#include "WindowPrimitives.hpp"
 
 namespace Fleur
 {
@@ -73,7 +73,7 @@ public:
     virtual EInteractionMode GetInteractionMode() const = 0;
     virtual void SwitchInteractionMode() = 0;
 
-    virtual void SetTitle(std::string title) = 0;
+    virtual void SetTitle(const char* str) = 0;
 
     static std::unique_ptr<Window> CreateAppWindow(const WindowProps& props, EventQueue& eventQueue);
 

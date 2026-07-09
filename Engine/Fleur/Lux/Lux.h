@@ -23,7 +23,7 @@ struct CameraView
 };
 
 // Frontend renderer service. Owns the graphics backend (IRenderer), drives the frame.
-//   OnInit: create backend + passes + skybox.
+//   SetBackend: (re)creates the backend + passes + skybox (runtime-selected; OnInit is a no-op).
 //   Application: drives the frame loop (BeginFrame/Draw via Scene/EndFrame) + Register/Upload.
 class Renderer : public Fleur::Service<Renderer>
 {

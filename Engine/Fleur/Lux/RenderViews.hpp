@@ -4,8 +4,6 @@
 
 namespace Fleur::Graphics
 {
-using AssetID = uint32_t;
-
 struct SFLImageView
 {
     AssetID ID;
@@ -26,8 +24,7 @@ struct FLDrawItem
     uint32_t indexStart;
     uint32_t indexCount;
     uint32_t vertexStart;
-    uint32_t albedoId;
-    FLAlphaMode bucket{FL_OPAQUE};
+    Fleur::Graphics::FLMaterial material;
 };
 
 }  // namespace Fleur::Graphics

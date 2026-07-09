@@ -126,14 +126,14 @@ void FVkCommandBuffer::BindIndexBuffer(VkBuffer* buffer, VkIndexType indextype)
     vkCmdBindIndexBuffer(m_CommandBuffer, *buffer, 0, indextype);
 }
 
-void FVkCommandBuffer::BindDescriptorSet(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSet)
+void FVkCommandBuffer::BindDescriptorSets(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSets, uint32_t descriptorSetsCount)
 {
-    vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, descriptorSet, 0, nullptr);
+    vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSetsCount, descriptorSets, 0, nullptr);
 }
 
-void FVkCommandBuffer::PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, SFLPushConstant constant)
+void FVkCommandBuffer::Draw(uint32_t count, uint32_t vertexStart)
 {
-    vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStage, 0, sizeof(SFLPushConstant), &constant);
+    vkCmdDraw(m_CommandBuffer, count, 1, vertexStart, 0);
 }
 
 void FVkCommandBuffer::DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset)

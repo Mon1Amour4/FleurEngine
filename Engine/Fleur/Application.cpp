@@ -30,6 +30,7 @@ Fleur::Application::Application()
 
 Fleur::Application::~Application()
 {
+    delete m_WindowBarTitleBuffer;
 }
 
 void Fleur::Application::PushLayer(Layer* layer)
@@ -114,7 +115,8 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
     case Key::D3:
     {
         auto renderer = ServiceLocator::instance().GetService<Renderer>();
-        auto next = (renderer->GetBackendApi() == Fleur::Graphics::Vulkan) ? Fleur::Graphics::OpenGL : Fleur::Graphics::Vulkan;
+        auto next = (renderer->GetBackendApi() == Fleur::Graphics::EGraphicsAPI::Vulkan) ? Fleur::Graphics::EGraphicsAPI::OpenGL
+                                                                                         : Fleur::Graphics::EGraphicsAPI::Vulkan;
         renderer->SetBackend(next);
         break;
     }
@@ -146,13 +148,15 @@ Fleur::Window& Fleur::Application::GetWindow()
 
 void Fleur::Application::Init(ApplicationBootSettings& settings)
 {
+    m_WindowBarTitleBuffer = new char[m_WindowBarBufferSize];
+
     Tessera::HelloTessera();
 
     Fleur::Memory::AllocAdapter::instance().Init(MM::MemoryManager::ManagerFabric(/*4096*/ 1024ULL * 1024ULL * 1024ULL * 2ULL));
 
     m_EventQueue = EventQueue::CreateEventQueue();
     m_Window = Fleur::Window::CreateAppWindow(settings.WindowProperties, *m_EventQueue);
-    m_TimeManager = Time::CreateTimeManager(settings.FixedDt);
+    m_TimeManager = std::make_unique<Time>(settings.FixedDt);
 
     auto fileSystem = ServiceLocator::instance().Register<Fleur::FS::FileSystem>();
     fileSystem.value()->Init();
@@ -171,9 +175,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     renderer.value()->SetVSync(settings.Vsync);
 
     m_Scene = std::make_unique<Scene>();
-    m_Scene->Init();
-
-    auto sponzasset = assetsManager->get()->LoadModelAsync("Sponza/Sponza2.glb");
+    m_Scene->Init();  // requests its own model loads via AssetsManager
 
     assetsManager->get()->LoadCubemapAsync(
         "skybox.jpg", {.sourceLayout = CUBEMAP_SOURCE_LAYOUT_EQUIRECTANGULAR_IMAGE},
@@ -214,11 +216,10 @@ void Fleur::Application::Run()
         auto renderer = ServiceLocator::instance().GetService<Renderer>();
         auto assetsManager = ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
-        m_TimeManager->Tick();
+        m_TimeManager->Tick(m_Window->IsActive());
 
-        char buffer[32];
-        sprintf_s(buffer, "%d", m_TimeManager->FPS());
-        m_Window->SetTitle(buffer);
+        sprintf_s(m_WindowBarTitleBuffer, m_WindowBarBufferSize, "Fleur Engine %.2f %.3f\0", m_TimeManager->FPS(), m_TimeManager->DeltaTime());
+        m_Window->SetTitle(m_WindowBarTitleBuffer);
 
         float dtTime = m_TimeManager->DeltaTime();
 

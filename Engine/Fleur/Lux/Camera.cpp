@@ -8,26 +8,13 @@ static constexpr float MOUSE_EPSILON = 1e-3f;
 Fleur::Graphics::Camera* Fleur::Graphics::Camera::s_ActiveCamera = nullptr;
 
 Fleur::Graphics::Camera::Camera()
-    : m_Speed(50.1)
-    , m_Position(0.0f)
-    , m_Up(glm::vec3(0.0f, 1.0f, 0.0f))
-    , m_Yaw(0.0f)
-    , m_Pitch(0.0f)
-    , m_MouseSensitivity(10.f)
+    : m_Up(glm::vec3(0.0f, 1.0f, 0.0f))
     , m_CameraForward(0.0f, 0.0f, -1.0f)
     , m_View(glm::mat4(1.0f))
     , m_Projection(glm::mat4(1.0f))
-    , m_FOV(60)
-    , m_NearClip(0.1f)
-    , m_FarClip(3000.0f)
-
 {
     m_Projection = glm::perspective(glm::radians((float)m_FOV), 1280.0F / 720.0F, m_NearClip, m_FarClip);
     UpdateForward();
-}
-
-Fleur::Graphics::Camera::~Camera()
-{
 }
 
 void Fleur::Graphics::Camera::Activate()
@@ -117,9 +104,9 @@ void Fleur::Graphics::Camera::RotateCamera(float dtTime)
     glm::vec2 mouseDir = Input::GetMouseDir();
     if (fabs(mouseDir.x) > MOUSE_EPSILON || fabs(mouseDir.y) > MOUSE_EPSILON)
     {
-        m_Yaw += mouseDir.x * m_MouseSensitivity * dtTime;
-        m_Pitch += mouseDir.y * -1.0f * m_MouseSensitivity * dtTime;
-        glm::fclamp(m_Pitch, -89.0f, 89.0f);
+        m_Yaw += mouseDir.x * m_MouseSensitivity;            //* dtTime;
+        m_Pitch += mouseDir.y * -1.0f * m_MouseSensitivity;  //* dtTime;
+        m_Pitch = glm::fclamp(m_Pitch, -89.0f, 89.0f);
 
         UpdateForward();
     }

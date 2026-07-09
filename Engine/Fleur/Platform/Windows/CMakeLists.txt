@@ -5,7 +5,6 @@ set(PROJECT_HEADERS
     EventQueueWin.h
     InputWin.h
     KeyCodesWin.h
-    TimeWin.h
 )
 
 set(PROJECT_SOURCES
@@ -13,7 +12,6 @@ set(PROJECT_SOURCES
     InputWin.cpp
     WindowWin.cpp
     EntryPointWindows.cpp
-    TimeWin.cpp
 )
 
 # === Create Library ===

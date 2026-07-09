@@ -20,16 +20,16 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     info.materials.reserve(m_Data->materials_count);
 
     int textureIdx = MAXINT;
-    for (size_t i = 0; i < info.materials.capacity(); i++)
+    for (size_t i = 0; i < m_Data->materials_count; i++)
     {
         if ((m_Data->materials + i)->has_pbr_metallic_roughness)
         {
-            Fleur::Graphics::Material flMaterial{};
+            Fleur::Graphics::FLMaterial flMaterial{};
 
             auto currentMaterial = m_Data->materials + i;
             bool hasTexture = false;
             cgltf_texture* baseColorTexture = currentMaterial->pbr_metallic_roughness.base_color_texture.texture;
-            char* textureName = nullptr;
+            std::string textureName;
             if (baseColorTexture)
                 hasTexture = true;
 
@@ -41,19 +41,20 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
             cgltf_alpha_mode alphaMode = currentMaterial->alpha_mode;
             if (alphaMode == cgltf_alpha_mode_opaque)
             {
-                flMaterial.mode = FL_OPAQUE;
+                flMaterial.mode = FLAlphaMode::FL_OPAQUE;
             }
             else if (alphaMode == cgltf_alpha_mode_mask)
             {
-                flMaterial.mode = FL_MASK;
+                flMaterial.mode = FLAlphaMode::FL_MASK;
                 flMaterial.alphaCutoff = currentMaterial->alpha_cutoff;
             }
             else if (alphaMode == cgltf_alpha_mode_blend)
             {
-                flMaterial.mode = FL_BLEND;
-                memcpy((void*)&flMaterial.alphaFactor, (void*)&currentMaterial->pbr_metallic_roughness.base_color_factor, 4 * sizeof(float));
+                flMaterial.mode = FLAlphaMode::FL_BLEND;
+                memcpy((void*)&flMaterial.baseColorFactor, (void*)&currentMaterial->pbr_metallic_roughness.base_color_factor, 4 * sizeof(float));
             }
 
+            static uint64_t embededTextureIdx = 0;
             if (hasTexture)
             {
                 cgltf_image* image = baseColorTexture->image;
@@ -61,11 +62,19 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                 // Cache-key name. Null-safe: buffer_view is null for external-file
                 // images, so the old `buffer_view->name` would crash on URI models.
                 if (image->name)
-                    textureName = image->name;
+                    textureName = std::string(image->name);
                 else if (image->buffer_view && image->buffer_view->name)
-                    textureName = image->buffer_view->name;
+                    textureName = std::string(image->buffer_view->name);
                 else
-                    textureName = const_cast<char*>(image->uri ? image->uri : "embedded_texture");
+                {
+                    if (image->uri)
+                        textureName = std::string(image->uri);
+                    else
+                    {
+                        textureName = "unique_embedded_texture_" + std::to_string(embededTextureIdx);
+                        embededTextureIdx++;
+                    }
+                }
 
                 if (!image->uri && image->buffer_view)
                 {
@@ -132,7 +141,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
         }
     }
 
-
+    m_Data->meshes[0].primitives[0];
     for (size_t i = 0; i < info.meshes.capacity(); i++)
     {
         auto cgltfMesh = (m_Data->meshes + i);
@@ -159,13 +168,18 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
         {
             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
+            FLAlphaMode alphaMode = process_alpha_mode(cgltfPrimitive.material->alpha_mode);
 
             Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(
-                process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx, process_alpha_mode(cgltfPrimitive.material->alpha_mode)));
+                process_primitive(info.m_Vertices, info.m_Indices, modelMesh.m_AABB, cgltfPrimitive, materialIdx, alphaMode));
 
             modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
             modelMesh.m_MeshIndicesCount += meshPrimitive.GetIdxCount();
         }
+        modelMesh.m_AABB.center.x = (modelMesh.m_AABB.min.x + modelMesh.m_AABB.max.x) * 0.5;
+        modelMesh.m_AABB.center.y = (modelMesh.m_AABB.min.y + modelMesh.m_AABB.max.y) * 0.5;
+        modelMesh.m_AABB.center.z = (modelMesh.m_AABB.min.z + modelMesh.m_AABB.max.z) * 0.5;
+
         modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
         modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
     }
@@ -176,9 +190,10 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
     return info;
 }
 
-Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(std::vector<Fleur::Graphics::SVertexData>& vertices,
-                                                                                             std::vector<uint32_t>& indices, cgltf_primitive& cgltfPrimitive,
-                                                                                             uint32_t maxIdx, FLAlphaMode alphaMode)
+Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::process_primitive(OUT std::vector<Fleur::Graphics::SVertexData>& vertices,
+                                                                                             OUT std::vector<uint32_t>& indices, OUT SAABB& aabb,
+                                                                                             IN cgltf_primitive& cgltfPrimitive, uint32_t maxIdx,
+                                                                                             FLAlphaMode alphaMode)
 {
     Fleur::Graphics::Model::Mesh::Primitive meshPrimitive = Fleur::Graphics::Model::Mesh::Primitive();
     meshPrimitive.m_MatIdx = maxIdx;
@@ -195,11 +210,31 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
     }
     meshPrimitive.m_VertexStart = static_cast<uint32_t>(vertices.size());
     meshPrimitive.m_IdxStart = static_cast<uint32_t>(indices.size());
-    const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
 
-    const uint8_t* indexGlobalBuffer = static_cast<const uint8_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
-    size_t primitiveIndeciesStartIdx = primitiveIndicesBuffer->buffer_view->offset + primitiveIndicesBuffer->offset;
-    const void* indexData = indexGlobalBuffer + primitiveIndeciesStartIdx;
+    bool isUnpackedIndices = false;
+    const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
+    std::vector<uint32_t> unpackedIndices;
+    if (primitiveIndicesBuffer->component_type != cgltf_component_type_r_32u)
+    {
+        unpackedIndices.resize(primitiveIndicesBuffer->count);
+        isUnpackedIndices = true;
+        uint32_t unpackedCount = primitiveIndicesBuffer->count;
+        cgltf_accessor_unpack_indices(primitiveIndicesBuffer, unpackedIndices.data(), sizeof(uint32_t), unpackedCount);
+    }
+    const uint32_t* indexGlobalBuffer = nullptr;
+    if (isUnpackedIndices)
+        indexGlobalBuffer = unpackedIndices.data();
+    else
+        indexGlobalBuffer = static_cast<const uint32_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
+
+    size_t primitiveIndeciesStartIdx =
+        (primitiveIndicesBuffer->buffer_view->offset + primitiveIndicesBuffer->offset) / cgltf_component_size(primitiveIndicesBuffer->component_type);
+
+    const void* indexData = nullptr;
+    if (!isUnpackedIndices)
+        indexData = indexGlobalBuffer + primitiveIndeciesStartIdx;
+    else
+        indexData = unpackedIndices.data();
 
     const float* positions = nullptr;
     const float* normals = nullptr;
@@ -222,19 +257,10 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             textcoords = ptr;
     }
 
-    auto readIndex = [&](size_t idx) -> uint32_t
-    {
-        if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_16u)
-            return reinterpret_cast<const uint16_t*>(indexData)[idx];
-        else if (primitiveIndicesBuffer->component_type == cgltf_component_type_r_32u)
-            return reinterpret_cast<const uint32_t*>(indexData)[idx];
-        return 0;
-    };
-
     std::unordered_map<uint32_t, uint32_t> map;
     for (size_t j = 0; j < primitiveIndicesBuffer->count; ++j)
     {
-        uint32_t vi = readIndex(j);
+        uint32_t vi = reinterpret_cast<const uint32_t*>(indexData)[j];
         if (map.contains(vi))
         {
             indices.push_back(map[vi]);
@@ -247,6 +273,9 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
             v.Position.x = positions[vi * 3 + 0];
             v.Position.y = positions[vi * 3 + 1];
             v.Position.z = positions[vi * 3 + 2];
+
+            aabb.min = glm::min(aabb.min, v.Position);
+            aabb.max = glm::max(aabb.max, v.Position);
         }
         if (normals)
         {
@@ -276,18 +305,18 @@ Fleur::Graphics::FLAlphaMode Fleur::Graphics::CGLTFModelFabric::process_alpha_mo
     switch (mode)
     {
     case cgltf_alpha_mode_opaque:
-        return FL_OPAQUE;
+        return FLAlphaMode::FL_OPAQUE;
         break;
     case cgltf_alpha_mode_mask:
-        return FL_MASK;
+        return FLAlphaMode::FL_MASK;
         break;
     case cgltf_alpha_mode_blend:
-        return FL_BLEND;
+        return FLAlphaMode::FL_BLEND;
         break;
     case cgltf_alpha_mode_max_enum:
         break;
     default:
-        return FL_OPAQUE;
+        return FLAlphaMode::FL_OPAQUE;
         break;
     }
 }

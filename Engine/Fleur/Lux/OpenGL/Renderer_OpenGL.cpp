@@ -286,7 +286,7 @@ void gl::backend::impl::registerModel(AssetID id, const SVertexData* vertices, u
     {
         const auto& item = primitives[i];
         GlPrimitive prim{};
-        prim.albedo = item.albedoId;
+        prim.albedo = item.material.albedo;
         prim.indexCount = item.indexCount;
         prim.indexOffset = baseIndex + item.indexStart;
         prim.vertexOffset = static_cast<int32_t>(baseVertex);
