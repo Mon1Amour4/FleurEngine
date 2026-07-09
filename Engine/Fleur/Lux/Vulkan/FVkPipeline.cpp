@@ -65,10 +65,10 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = desc.cullMode;
     rasterizer.frontFace = desc.frontFace;
-    rasterizer.depthBiasEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.0f;  // Optional
-    rasterizer.depthBiasClamp = 0.0f;           // Optional
-    rasterizer.depthBiasSlopeFactor = 0.0f;     // Optional
+    rasterizer.depthBiasEnable = desc.depthBiasEnable ? VK_TRUE : VK_FALSE;
+    rasterizer.depthBiasConstantFactor = desc.depthBiasConstantFactor;
+    rasterizer.depthBiasClamp = desc.depthBiasClamp;
+    rasterizer.depthBiasSlopeFactor = desc.depthBiasSlopeFactor;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
     colorBlendAttachment.blendEnable = desc.colorBlendAttachment.blendEnable;
@@ -111,8 +111,8 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
 
     VkPipelineRenderingCreateInfo renderingInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                 .pNext = nullptr,
-                                                .colorAttachmentCount = 1,
-                                                .pColorAttachmentFormats = &desc.colorFormat,
+                                                .colorAttachmentCount = desc.colorAttachmentCount,
+        .pColorAttachmentFormats = renderingInfo.pColorAttachmentFormats = desc.colorAttachmentCount > 0 ? &desc.colorFormat : nullptr,
                                                 .depthAttachmentFormat = desc.depthFormat,
                                                 .stencilAttachmentFormat = VK_FORMAT_UNDEFINED};
 

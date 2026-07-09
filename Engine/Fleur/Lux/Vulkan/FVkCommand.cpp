@@ -131,6 +131,26 @@ void FVkCommandBuffer::BindDescriptorSets(VkPipelineLayout pipelineLayout, VkDes
     vkCmdBindDescriptorSets(m_CommandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, descriptorSetsCount, descriptorSets, 0, nullptr);
 }
 
+void FVkCommandBuffer::CmdBeginDebugLabel(PFN_vkCmdBeginDebugUtilsLabelEXT func, const char* name)
+{
+    if (!func)
+        return;
+
+    VkDebugUtilsLabelEXT label{};
+    label.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    label.pLabelName = name;
+
+    func(m_CommandBuffer, &label);
+}
+
+void FVkCommandBuffer::CmdEndDebugLabel(PFN_vkCmdEndDebugUtilsLabelEXT func)
+{
+    if (!func)
+        return;
+
+    func(m_CommandBuffer);
+}
+
 void FVkCommandBuffer::Draw(uint32_t count, uint32_t vertexStart)
 {
     vkCmdDraw(m_CommandBuffer, count, 1, vertexStart, 0);
@@ -186,6 +206,22 @@ void FVkCommandBuffer::BeginRendering(VkImageView renderTarget, VkImageView dept
 void FVkCommandBuffer::EndRendering()
 {
     vkCmdEndRendering(m_CommandBuffer);
+}
+
+VkResult FVkCommandBuffer::SetObjectName(PFN_vkSetDebugUtilsObjectNameEXT func, VkDevice device, VkObjectType objectType, uint64_t objectHandle,
+                                         const char* name)
+{
+    if (objectHandle == 0 || name == nullptr)
+        return VK_SUCCESS;
+
+    VkDebugUtilsObjectNameInfoEXT nameInfo{};
+    nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+    nameInfo.pNext = nullptr;
+    nameInfo.objectType = objectType;
+    nameInfo.objectHandle = objectHandle;
+    nameInfo.pObjectName = name;
+
+    return func(device, &nameInfo);
 }
 
 

@@ -89,6 +89,9 @@ void Renderer::initBackend()
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::AABB_DEBUG, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugVertex").obj),
                                                                      shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugFragment").obj)});
 
+    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Shadow, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowVertex").obj),
+                                                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowFragment").obj)});
+
     m_Backend->CreateSkybox(fallbackAsset.handle.id, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxVertex").obj),
                                                       shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxFragment").obj)});
 }

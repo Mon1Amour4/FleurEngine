@@ -2,6 +2,9 @@
 
 #include <vulkan/vulkan.h>
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_RADIANS
+
 #include <glm/mat4x4.hpp>
 #include <vector>
 
@@ -74,6 +77,30 @@ public:
     void BindIndexBuffer(VkBuffer* buffer, VkIndexType indextype);
     void BindDescriptorSets(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSets, uint32_t descriptorSetsCount);
 
+    void CmdBeginDebugLabel(PFN_vkCmdBeginDebugUtilsLabelEXT func, const char* name);
+    void CmdEndDebugLabel(PFN_vkCmdEndDebugUtilsLabelEXT func);
+
+    template <typename VulkanHandle>
+    VkResult CmdSetObjectName(PFN_vkSetDebugUtilsObjectNameEXT func, VkDevice device, VkObjectType objectType, VulkanHandle handle, const char* name)
+    {
+        if (func == nullptr || name == nullptr)
+            return VK_SUCCESS;
+
+        uint64_t handleValue = 0;
+
+        if constexpr (std::is_pointer_v<VulkanHandle>)
+        {
+            handleValue = reinterpret_cast<uint64_t>(handle);
+        }
+        else
+        {
+            handleValue = static_cast<uint64_t>(handle);
+        }
+
+        return SetObjectName(func, device, objectType, handleValue, name);
+    }
+
+
     template <typename T>
     void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlags shaderStage, T constant)
     {
@@ -98,6 +125,8 @@ private:
     VkCommandBuffer m_CommandBuffer;
 
     bool m_Valid;
+
+    VkResult SetObjectName(PFN_vkSetDebugUtilsObjectNameEXT func, VkDevice device, VkObjectType objectType, uint64_t objectHandle, const char* name);
 };
 
 class FVkSingleTimeCommandBuffer

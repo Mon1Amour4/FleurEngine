@@ -280,6 +280,9 @@ static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityF
 
 namespace vk
 {
+PFN_vkCmdBeginDebugUtilsLabelEXT myVkCmdBeginDebugUtilsLabelEXT = nullptr;
+PFN_vkCmdEndDebugUtilsLabelEXT myVkCmdEndDebugUtilsLabelEXT = nullptr;
+PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT = nullptr;
 
 struct backend::impl
 {
@@ -323,6 +326,10 @@ struct backend::impl
     FVkPipeline* m_TransparentPipeline{nullptr};
     FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
                                            VkSampleCountFlagBits samplesCount);
+
+    FVkPipeline* m_ShadowPipeline{nullptr};
+    FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                      VkSampleCountFlagBits samplesCount);
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
@@ -376,6 +383,11 @@ struct backend::impl
     FVkBuffer* m_SSBOBuffer{nullptr};
     VkDescriptorSet m_SSBODescriptorSet;
     FVkDescriptorSetLayout* m_SSBODescriptorSetLayout{nullptr};
+
+    VkDescriptorSet m_ShadowMapDescriptorSet;
+    FVkDescriptorSetLayout* m_ShadowMapDescriptorSetLayout{nullptr};
+    void InitShadowMapDescriptorSet();
+
     std::vector<glm::mat4> m_InstanceNodeTransforms;
 
     FVkBuffer* m_PointLightsBuffer{nullptr};
@@ -447,12 +459,55 @@ struct backend::impl
     void createDepthTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
                             uint32_t mipMapCount);
 
+    FVkTexture* m_ShadowMapRenderTarget{nullptr};
+    void createShadowMapTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
+                                uint32_t mipMapCount);
+
     void startResize();
     void endResize(Fleur::SRect& rect);
 
     bool m_WindowResizeIsInProgress{false};
 
-    void BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage);
+    struct FRenderingColorAttachmentDesc
+    {
+        VkImageView imageView = VK_NULL_HANDLE;
+        VkImageLayout imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+        VkClearValue clearValue{.color = {{1.0f, 1.0f, 1.0f, 1.0f}}};
+
+        VkResolveModeFlagBits resolveMode = VK_RESOLVE_MODE_NONE;
+        VkImageView resolveImageView = VK_NULL_HANDLE;
+        VkImageLayout resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    };
+
+    struct FRenderingDepthAttachmentDesc
+    {
+        VkImageView imageView = VK_NULL_HANDLE;
+        VkImageLayout imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        VkAttachmentLoadOp loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        VkAttachmentStoreOp storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+        VkClearValue clearValue{.depthStencil = {.depth = 1.0f, .stencil = 0}};
+    };
+
+    struct FBeginRenderingDesc
+    {
+        VkRect2D renderArea{};
+
+        const FRenderingColorAttachmentDesc* colorAttachment = nullptr;
+        const FRenderingDepthAttachmentDesc* depthAttachment = nullptr;
+
+        uint32_t layerCount = 1;
+        uint32_t viewMask = 0;
+    };
+    void BeginRendering(VkCommandBuffer cmd, const FBeginRenderingDesc& desc);
+    void ExecuteShadowPass();
+
+    void ExecuteMainPass();
 
 
     // ---------- static geometry ----------

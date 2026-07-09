@@ -109,6 +109,10 @@ vk::backend::impl::impl(bool enableValidation,
 #endif
     m_VulkanInstance = createInstance(enableValidation, instanceExtensions, validationLayers);
     setupDebugMessenger();
+    myVkCmdBeginDebugUtilsLabelEXT =
+        reinterpret_cast<PFN_vkCmdBeginDebugUtilsLabelEXT>(vkGetInstanceProcAddr(m_VulkanInstance, "vkCmdBeginDebugUtilsLabelEXT"));
+
+    myVkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetInstanceProcAddr(m_VulkanInstance, "vkCmdEndDebugUtilsLabelEXT"));
 
     m_Swapchain = new FVkSwapchain();
     m_Surface = createSurface(m_VulkanInstance, pNativeHandle);
@@ -121,6 +125,9 @@ vk::backend::impl::impl(bool enableValidation,
 
     m_Device = FVkDevice::CreateSuitableDevice(m_VulkanInstance, deviceInfo);
     m_Device->CreateLogicalDevice(deviceExtensions);
+
+    SetDebugUtilsObjectNameEXT =
+        reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetDeviceProcAddr(m_Device->GetLogicalDevice(), "vkSetDebugUtilsObjectNameEXT"));
 
     initializeVma();
     m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Surface,
@@ -164,10 +171,15 @@ vk::backend::impl::impl(bool enableValidation,
     m_FrameContext->m_FrameCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
 
-    m_DepthRenderTarget = new FVkTexture();
     VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
+
+    m_DepthRenderTarget = new FVkTexture();
     createDepthTexture(*m_DepthRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
                        m_MultisampledRenderTarget->GetSamplesCount(), 1);
+
+    m_ShadowMapRenderTarget = new FVkTexture();
+    createShadowMapTexture(*m_ShadowMapRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
+                           /*m_MultisampledRenderTarget->GetSamplesCount()*/ VK_SAMPLE_COUNT_1_BIT, 1);
 
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -178,6 +190,10 @@ vk::backend::impl::impl(bool enableValidation,
 
     m_SSBODescriptorSetLayout =
         FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build();
+
+    m_ShadowMapDescriptorSetLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                         .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+                                         .build();
 
     m_SSBOBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                        NODE_TRANSFORMS_MAX_CUP * sizeof(glm::mat4) + sizeof(glm::mat4), sizeof(glm::mat4));
@@ -198,6 +214,8 @@ vk::backend::impl::impl(bool enableValidation,
                                           m_ImageSampler);
 
     m_DescriptorSetImageViewsToUpload.resize(m_FramesInFlight);
+
+    InitShadowMapDescriptorSet();
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
@@ -237,10 +255,12 @@ vk::backend::impl::~impl()
     delete m_StaticGeometryUboDsl;
     delete m_SSBODescriptorSetLayout;
     delete m_PointLightsDescriptorSetLayout;
+    delete m_ShadowMapDescriptorSetLayout;
 
     // 4. Pipeline
     delete m_GeometryPipeline;
     delete m_TransparentPipeline;
+    delete m_ShadowPipeline;
 
     // 5. Swapchain & Framebuffers & swapchain image views
 
@@ -248,6 +268,7 @@ vk::backend::impl::~impl()
     delete m_MultisampledRenderTarget;
     delete m_FallbackCubemapTexture;
     delete m_DepthRenderTarget;
+    delete m_ShadowMapRenderTarget;
 
     m_TextureMap.clear();
     m_Swapchain->ReleaseSwapchainImageViews();
@@ -514,6 +535,50 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
     return pipeline;
 }
 
+FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                                     VkSampleCountFlagBits samplesCount)
+{
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
+                                          .vertexSize = pVertexInfo.sizeBytes,
+                                          .pFragmentData = pFragmentInfo.shaderCode,
+                                          .fragmentSize = pFragmentInfo.sizeBytes};
+
+
+    auto& shadowShader = m_ShaderMap.emplace("shadow", vk::FVkShader()).first->second;
+    if (!shadowShader.isInitialized())
+        shadowShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.blendEnable = false;
+
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
+    pipelineInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.depthWriteEnable = true;
+
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+    // Shadow map usually should not use swapchain/MSAA sample count.
+    pipelineInfo.samplesCount = VK_SAMPLE_COUNT_1_BIT;
+
+    // Depth-only dynamic rendering.
+    pipelineInfo.colorAttachmentCount = 0;
+    pipelineInfo.colorFormat = VK_FORMAT_UNDEFINED;
+    pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
+
+    // Shadow bias. Values are starting points, tune later.
+    pipelineInfo.depthBiasEnable = true;
+    pipelineInfo.depthBiasConstantFactor = 1.25f;
+    pipelineInfo.depthBiasClamp = 0.0f;
+    pipelineInfo.depthBiasSlopeFactor = 1.75f;
+
+    FVkPipeline* pipeline = shadowShader.GetPipeline(pipelineInfo);
+
+    return pipeline;
+}
+
 VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
 {
     VkShaderModuleCreateInfo createInfo{};
@@ -535,7 +600,7 @@ VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderI
 void vk::backend::impl::createDescriptorPool()
 {
     // ---------- descriptor indexing uses, 500k descriptors is min-limit ----------
-    std::array<VkDescriptorPoolSize, 4> poolSizes{};
+    std::array<VkDescriptorPoolSize, 5> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(m_FramesInFlight);
 
@@ -548,9 +613,12 @@ void vk::backend::impl::createDescriptorPool()
     poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[3].descriptorCount = 1;
 
+    poolSizes[4].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    poolSizes[4].descriptorCount = 1;
+
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-                                        .maxSets = m_FramesInFlight + 3,
+                                        .maxSets = m_FramesInFlight + 4,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -706,6 +774,37 @@ void vk::backend::impl::initializeVma()
 void vk::backend::impl::freeVma()
 {
     vmaDestroyAllocator(m_Allocator);
+}
+
+void vk::backend::impl::InitShadowMapDescriptorSet()
+{
+    auto shadowMapDsl = m_ShadowMapDescriptorSetLayout->GetDescriptorSetLayout();
+
+    VkDescriptorSetAllocateInfo texturesDescriptorSetAllocInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &shadowMapDsl};
+
+    if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &texturesDescriptorSetAllocInfo, &m_ShadowMapDescriptorSet) != VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to allocate descriptor sets!")
+        assert(false);
+    }
+
+    VkImageView shadowMapImageView = m_ShadowMapRenderTarget->GetImageView();
+    VkDescriptorImageInfo imageSamplerInfo{};
+    imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    imageSamplerInfo.imageView = shadowMapImageView;
+    imageSamplerInfo.sampler = m_ImageSampler;
+
+    VkWriteDescriptorSet descriptorImageWrites{};
+    descriptorImageWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    descriptorImageWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    descriptorImageWrites.dstSet = m_ShadowMapDescriptorSet;
+    descriptorImageWrites.dstBinding = 0;
+    descriptorImageWrites.dstArrayElement = 0;
+    descriptorImageWrites.descriptorCount = 1;
+    descriptorImageWrites.pImageInfo = &imageSamplerInfo;
+
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorImageWrites, 0, nullptr);
 }
 
 
@@ -982,6 +1081,38 @@ void vk::backend::impl::createDepthTexture(FVkTexture& texture, uint32_t width, 
     }
 }
 
+void vk::backend::impl::createShadowMapTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format,
+                                               VkSampleCountFlagBits sampleCount, uint32_t mipMapCount)
+{
+    uint32_t layerCount = 1;
+
+    VkImageCreateInfo imageInfo{};
+    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+    imageInfo.imageType = VK_IMAGE_TYPE_2D;
+    imageInfo.extent.width = width;
+    imageInfo.extent.height = height;
+    imageInfo.extent.depth = 1;
+    imageInfo.mipLevels = mipMapCount;
+    imageInfo.arrayLayers = layerCount;
+    imageInfo.format = format;
+    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+    imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+    imageInfo.samples = sampleCount;
+    imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+    VkImage vkImage = depthRenderTarget.CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                                    GetDepthAspect(format));
+    depthRenderTarget.CreateImaveView();
+
+    {
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_FrameContext->m_FrameCommandPool->GetCommandPool());
+        frameCmd.TransitionImageLayout(vkImage, format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(format),
+                                       mipMapCount, layerCount);
+        frameCmd.Submit(m_Device->GetGraphicsQueue());
+    }
+}
+
 void vk::backend::impl::startResize()
 {
     m_WindowResizeIsInProgress = true;
@@ -1048,6 +1179,10 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
                                 FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
         }
     }
+    else if (kind == EFLPassKind::Shadow)
+    {
+        m_ShadowPipeline = createShadowPipeline(shaderStages.vertex, shaderStages.fragment, VK_SAMPLE_COUNT_1_BIT);
+    }
 }
 
 void vk::backend::impl::setDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity)
@@ -1067,55 +1202,187 @@ void vk::backend::impl::updatePointLight(const SFLPointLight* light, uint32_t li
     m_PointLightsBuffer->UploadDataToBuffer(light, lightCount);
 }
 
-void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, VkRect2D renderarea, uint32_t currentImage)
+void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, const FBeginRenderingDesc& desc)
 {
-    VkClearValue clearColor{
-        .color = {1.0f, 1.0f, 1.0f, 1.0f},
-    };
-    VkClearValue clearDepth{
-        .depthStencil = {.depth = 1.0f, .stencil = 0},
-    };
+    VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
+    VkRenderingAttachmentInfoKHR depthAttachmentInfo{};
 
-    VkRenderingAttachmentInfoKHR colorAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-                                                 .pNext = nullptr,
-                                                 .imageView = m_Swapchain->GetSwapchainImageView(currentImage),
-                                                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
-                                                 .resolveImageView = nullptr,
-                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                                                 .clearValue = clearColor};
-    VkSampleCountFlagBits sampleCount = m_MultisampledRenderTarget->GetSamplesCount();
-    if (sampleCount > VK_SAMPLE_COUNT_1_BIT)
+    uint32_t colorAttachmentCount = 0;
+    const VkRenderingAttachmentInfoKHR* pColorAttachments = nullptr;
+    const VkRenderingAttachmentInfoKHR* pDepthAttachment = nullptr;
+
+    if (desc.colorAttachment)
     {
-        colorAttachment.imageView = m_MultisampledRenderTarget->GetTexture()->GetImageView();
-        colorAttachment.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
-        colorAttachment.resolveImageView = m_Swapchain->GetSwapchainImageView(currentImage);
-        colorAttachment.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-        colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        colorAttachmentInfo.pNext = nullptr;
+        colorAttachmentInfo.imageView = desc.colorAttachment->imageView;
+        colorAttachmentInfo.imageLayout = desc.colorAttachment->imageLayout;
+        colorAttachmentInfo.resolveMode = desc.colorAttachment->resolveMode;
+        colorAttachmentInfo.resolveImageView = desc.colorAttachment->resolveImageView;
+        colorAttachmentInfo.resolveImageLayout = desc.colorAttachment->resolveImageLayout;
+        colorAttachmentInfo.loadOp = desc.colorAttachment->loadOp;
+        colorAttachmentInfo.storeOp = desc.colorAttachment->storeOp;
+        colorAttachmentInfo.clearValue = desc.colorAttachment->clearValue;
+
+        colorAttachmentCount = 1;
+        pColorAttachments = &colorAttachmentInfo;
     }
 
-    VkRenderingAttachmentInfoKHR depthAttachment{.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR,
-                                                 .pNext = nullptr,
-                                                 .imageView = m_DepthRenderTarget->GetImageView(),
-                                                 .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                                 .resolveMode = VK_RESOLVE_MODE_NONE,
-                                                 .resolveImageView = nullptr,
-                                                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                                                 .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-                                                 .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-                                                 .clearValue = clearDepth};
+    if (desc.depthAttachment)
+    {
+        depthAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        depthAttachmentInfo.pNext = nullptr;
+        depthAttachmentInfo.imageView = desc.depthAttachment->imageView;
+        depthAttachmentInfo.imageLayout = desc.depthAttachment->imageLayout;
+        depthAttachmentInfo.resolveMode = VK_RESOLVE_MODE_NONE;
+        depthAttachmentInfo.resolveImageView = VK_NULL_HANDLE;
+        depthAttachmentInfo.resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+        depthAttachmentInfo.loadOp = desc.depthAttachment->loadOp;
+        depthAttachmentInfo.storeOp = desc.depthAttachment->storeOp;
+        depthAttachmentInfo.clearValue = desc.depthAttachment->clearValue;
 
-    VkRenderingInfoKHR renderingInfo{.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR,
-                                     .renderArea = renderarea,
-                                     .layerCount = 1,
-                                     .viewMask = 0,
-                                     .colorAttachmentCount = 1,
-                                     .pColorAttachments = &colorAttachment,
-                                     .pDepthAttachment = &depthAttachment};
+        pDepthAttachment = &depthAttachmentInfo;
+    }
+
+    VkRenderingInfoKHR renderingInfo{};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
+    renderingInfo.pNext = nullptr;
+    renderingInfo.flags = 0;
+    renderingInfo.renderArea = desc.renderArea;
+    renderingInfo.layerCount = desc.layerCount;
+    renderingInfo.viewMask = desc.viewMask;
+    renderingInfo.colorAttachmentCount = colorAttachmentCount;
+    renderingInfo.pColorAttachments = pColorAttachments;
+    renderingInfo.pDepthAttachment = pDepthAttachment;
+    renderingInfo.pStencilAttachment = nullptr;
 
     vkCmdBeginRendering(cmd, &renderingInfo);
+}
+
+void vk::backend::impl::ExecuteShadowPass()
+{
+    auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_ShadowMapRenderTarget->GetImage(), FindDepthFormat(m_Device->GetPhysicalDevice()),
+                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+
+    VkRect2D renderArea{
+        .offset = {0, 0},
+        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    };
+
+    FRenderingDepthAttachmentDesc depthDesc{};
+    depthDesc.imageView = m_ShadowMapRenderTarget->GetImageView();
+    depthDesc.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthDesc.clearValue.depthStencil = {.depth = 1.0f, .stencil = 0};
+
+    FBeginRenderingDesc renderingDesc{};
+    renderingDesc.renderArea = renderArea;
+
+    // No color attachment for shadow map.
+    renderingDesc.colorAttachment = nullptr;
+    renderingDesc.depthAttachment = &depthDesc;
+
+    renderingDesc.layerCount = 1;
+    renderingDesc.viewMask = 0;
+
+    BeginRendering(*cmd.GetCommandBuffer(), renderingDesc);
+
+    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+
+    // We need to bind shadow pass pipeline
+    cmd.BindPipeline(m_ShadowPipeline->GetPipeline());
+
+    VkViewport defaultViewport{.x = 0,
+                               .y = 0,
+                               .width = (float)m_Swapchain->GetSwapchainExtent().width,
+                               .height = (float)m_Swapchain->GetSwapchainExtent().height,
+                               .minDepth = 0,
+                               .maxDepth = 1.0f};
+    cmd.SetViewport(defaultViewport);
+
+    VkRect2D defaultScissors{
+        .offset = VkOffset2D{.x = 0, .y = 0},
+        .extent = m_Swapchain->GetSwapchainExtent(),
+    };
+    cmd.SetScissors(defaultScissors);
+}
+
+
+void vk::backend::impl::ExecuteMainPass()
+{
+    auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+    VkRect2D renderArea{
+        .offset = {0, 0},
+        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    };
+
+
+    FRenderingColorAttachmentDesc colorDesc{};
+    colorDesc.imageView = m_Swapchain->GetSwapchainImageView(m_ImageIndex);
+    colorDesc.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorDesc.clearValue.color = {{1.0f, 1.0f, 1.0f, 1.0f}};
+
+    VkSampleCountFlagBits sampleCount = m_MultisampledRenderTarget->GetSamplesCount();
+
+    if (sampleCount > VK_SAMPLE_COUNT_1_BIT)
+    {
+        colorDesc.imageView = m_MultisampledRenderTarget->GetTexture()->GetImageView();
+        colorDesc.resolveMode = VK_RESOLVE_MODE_AVERAGE_BIT;
+        colorDesc.resolveImageView = m_Swapchain->GetSwapchainImageView(m_ImageIndex);
+        colorDesc.resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    }
+
+    FRenderingDepthAttachmentDesc depthDesc{};
+    depthDesc.imageView = m_DepthRenderTarget->GetImageView();
+    depthDesc.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthDesc.clearValue.depthStencil = {.depth = 1.0f, .stencil = 0};
+
+    FBeginRenderingDesc renderingDesc{};
+    renderingDesc.renderArea = renderArea;
+    renderingDesc.colorAttachment = &colorDesc;
+    renderingDesc.depthAttachment = &depthDesc;
+    renderingDesc.layerCount = 1;
+    renderingDesc.viewMask = 0;
+
+    BeginRendering(*cmd.GetCommandBuffer(), renderingDesc);
+
+    if (m_Skybox)
+    {
+        // m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
+    }
+
+    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+
+
+    cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+
+    VkViewport defaultViewport{.x = 0,
+                               .y = 0,
+                               .width = (float)m_Swapchain->GetSwapchainExtent().width,
+                               .height = (float)m_Swapchain->GetSwapchainExtent().height,
+                               .minDepth = 0,
+                               .maxDepth = 1.0f};
+    cmd.SetViewport(defaultViewport);
+
+    VkRect2D defaultScissors{
+        .offset = VkOffset2D{.x = 0, .y = 0},
+        .extent = m_Swapchain->GetSwapchainExtent(),
+    };
+    cmd.SetScissors(defaultScissors);
 }
 
 void vk::backend::impl::createStaticGeometryPass()
@@ -1206,37 +1473,42 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
     cmd.Begin();
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    // transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+    //                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
 
-    VkRect2D renderArea{
-        .offset = {0, 0},
-        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
-    };
-    BeginRendering(*cmd.GetCommandBuffer(), renderArea, m_ImageIndex);
-
-    if (m_Skybox)
-        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
-
-    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+    // VkRect2D renderArea{
+    //     .offset = {0, 0},
+    //     .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+    // };
 
 
-    cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+    //// Main Pass
+    // BeginRendering(*cmd.GetCommandBuffer(), renderArea, m_ImageIndex);
 
-    VkViewport defaultViewport{.x = 0,
-                               .y = 0,
-                               .width = (float)m_Swapchain->GetSwapchainExtent().width,
-                               .height = (float)m_Swapchain->GetSwapchainExtent().height,
-                               .minDepth = 0,
-                               .maxDepth = 1.0f};
-    cmd.SetViewport(defaultViewport);
+    // if (m_Skybox)
+    //{
+    //     // m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
+    // }
 
-    VkRect2D defaultScissors{
-        .offset = VkOffset2D{.x = 0, .y = 0},
-        .extent = m_Swapchain->GetSwapchainExtent(),
-    };
-    cmd.SetScissors(defaultScissors);
+    // cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    // cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+
+
+    // cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+
+    // VkViewport defaultViewport{.x = 0,
+    //                            .y = 0,
+    //                            .width = (float)m_Swapchain->GetSwapchainExtent().width,
+    //                            .height = (float)m_Swapchain->GetSwapchainExtent().height,
+    //                            .minDepth = 0,
+    //                            .maxDepth = 1.0f};
+    // cmd.SetViewport(defaultViewport);
+
+    // VkRect2D defaultScissors{
+    //     .offset = VkOffset2D{.x = 0, .y = 0},
+    //     .extent = m_Swapchain->GetSwapchainExtent(),
+    // };
+    // cmd.SetScissors(defaultScissors);
 
     return true;
 }
@@ -1245,8 +1517,82 @@ void vk::backend::impl::endFrame()
 {
     auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
 
-    std::array<VkDescriptorSet, 4> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures, m_SSBODescriptorSet,
-                                       m_PointLightDescriptorSet};
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
+    ExecuteShadowPass();
+    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &m_SSBODescriptorSet, 1);
+    // cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], 1);
+
+    glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
+
+    glm::vec3 lightDir = glm::vec3(m_DirectionalLight.directionIntensity.x, m_DirectionalLight.directionIntensity.y, m_DirectionalLight.directionIntensity.z);
+
+    // Directional light has no real position.
+    // This is only a virtual camera position for shadow rendering.
+    float halfSize = 5.0f;
+    float shadowNear = 0.1f;
+    float shadowFar = 30.0f;
+    float distance = 10.f;
+
+    glm::vec3 lightPos = shadowCenter - lightDir * distance;
+    glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    // glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    lightProjection[1][1] *= -1;
+
+    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+    for (const auto& drawItem : m_OpaqueDrawItems)
+    {
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        struct ShadowPuchConstant
+        {
+            glm::mat4 lightSpaceMatrix;
+            uint32_t modelIdx;
+            uint32_t nodeIdx;
+        } pc;
+        pc.lightSpaceMatrix = lightSpaceMatrix;
+        pc.modelIdx = drawItem.modelTransformIdx;
+        pc.nodeIdx = drawItem.nodeTransformsStartIdx;
+        /* SFLPushConstant pushConstant = MakePush(primitive);
+         pushConstant.directionalLightColor = m_DirectionalLight.color;
+         pushConstant.directionalLightDirectionIntensity = m_DirectionalLight.directionIntensity;
+         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
+         pushConstant.indices.y = drawItem.modelTransformIdx;
+         pushConstant.indices.w = m_PointLights.size();
+         pushConstant.cameraPos = glm::inverse(m_CameraData.view)[3];
+         cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);*/
+        cmd.PushConstant(m_ShadowPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+    cmd.EndRendering();
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    std::array<VkDescriptorSet, 5> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures, m_SSBODescriptorSet,
+                                       m_PointLightDescriptorSet, m_ShadowMapDescriptorSet};
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_ShadowMapRenderTarget->GetImage(), FindDepthFormat(m_Device->GetPhysicalDevice()),
+                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
+    ExecuteMainPass();
+
+    VkDescriptorImageInfo shadowMapInfo{};
+    shadowMapInfo.imageView = m_ShadowMapRenderTarget->GetImageView();
+    shadowMapInfo.sampler = m_ImageSampler;
+    shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
+
+    VkWriteDescriptorSet write{};
+    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write.dstSet = m_ShadowMapDescriptorSet;
+    write.dstBinding = 0;
+    write.dstArrayElement = 0;
+    write.descriptorCount = 1;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.pImageInfo = &shadowMapInfo;
+
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &write, 0, nullptr);
+
     cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
 
     for (const auto& drawItem : m_OpaqueDrawItems)
@@ -1287,6 +1633,7 @@ void vk::backend::impl::endFrame()
     cmd.EndRendering();
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
     cmd.End();
 
     VkSemaphore waitSemaphores[] = {m_FrameContext->m_ImagesAvailable[m_CurrentFrame]};

@@ -27,6 +27,10 @@ public:
     {
         return m_Intensity;
     }
+    inline glm::vec3 GetVirtualPosition() const
+    {
+        return -m_Direction * s_PosScale;
+    }
 
     void SetDirection(glm::vec3);
 
@@ -34,9 +38,13 @@ public:
     void DebugDrawToTarget(Lux::Renderer* renderer, const glm::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color);
 
 private:
-    glm::vec3 m_Direction;
-    Fleur::Graphics::Color m_Color;
+    static float s_PosScale;
+
     float m_Intensity;
+    // Normalized
+    glm::vec3 m_Direction;
+
+    Fleur::Graphics::Color m_Color;
 
     struct DirectionalLightDebugBasis
     {

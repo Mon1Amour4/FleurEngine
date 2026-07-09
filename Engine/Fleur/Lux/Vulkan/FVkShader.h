@@ -23,16 +23,27 @@ struct ShaderCreateInfo
 
 struct GetPipelineInfo
 {
-    VkPrimitiveTopology topology;
-    VkCompareOp depthCompareOp;
-    VkSampleCountFlagBits samplesCount;
-    VkCullModeFlags cullMode;
-    VkFrontFace frontFace;
-    bool depthTestEnable;
-    bool depthWriteEnable;
+    VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 
-    VkFormat colorFormat;
-    VkFormat depthFormat;
+    VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
+    VkSampleCountFlagBits samplesCount = VK_SAMPLE_COUNT_1_BIT;
+
+    VkCullModeFlags cullMode = VK_CULL_MODE_NONE;
+    VkFrontFace frontFace = VK_FRONT_FACE_MAX_ENUM;
+
+    bool depthTestEnable = false;
+    bool depthWriteEnable = true;
+
+    // Depth bias
+    bool depthBiasEnable = false;
+    float depthBiasConstantFactor = 0.0f;
+    float depthBiasClamp = 0.0f;
+    float depthBiasSlopeFactor = 0.0f;
+
+    // Dynamic rendering formats
+    uint32_t colorAttachmentCount = 1;
+    VkFormat colorFormat = VK_FORMAT_UNDEFINED;
+    VkFormat depthFormat = VK_FORMAT_UNDEFINED;
 
     bool blendEnable = false;
 
@@ -40,7 +51,13 @@ struct GetPipelineInfo
     {
         return topology == rhs.topology && depthCompareOp == rhs.depthCompareOp && samplesCount == rhs.samplesCount && cullMode == rhs.cullMode &&
                frontFace == rhs.frontFace && depthTestEnable == rhs.depthTestEnable && depthWriteEnable == rhs.depthWriteEnable &&
-               colorFormat == rhs.colorFormat && depthFormat == rhs.depthFormat && blendEnable == rhs.blendEnable;
+
+               depthBiasEnable == rhs.depthBiasEnable && depthBiasConstantFactor == rhs.depthBiasConstantFactor && depthBiasClamp == rhs.depthBiasClamp &&
+               depthBiasSlopeFactor == rhs.depthBiasSlopeFactor &&
+
+               colorAttachmentCount == rhs.colorAttachmentCount && colorFormat == rhs.colorFormat && depthFormat == rhs.depthFormat &&
+
+               blendEnable == rhs.blendEnable;
     }
 };
 }  // namespace vk

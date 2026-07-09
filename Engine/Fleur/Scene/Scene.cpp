@@ -32,22 +32,25 @@ void Scene::Init()
     // Hardcoded scene. Request the model load and store the AssetID the async op
     // hands back synchronously (the id is assigned at registration, before the
     // load finishes); the renderer registers geometry under the same id later.
-    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
-    // auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
-    auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
-    // auto box = assets->LoadModelAsync("Box.glb");
-    //  auto free_stone_sphere = assets->LoadModelAsync("free_stone_sphere.glb");
-    //  auto AlphaBlendModeTest = assets->LoadModelAsync("Sponza/AlphaBlendModeTest.glb");
-
     glm::mat4 transform = glm::identity<glm::mat4>();
-    // m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
-    m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
 
+    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+
+    // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
+    // m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+
+    // auto box = assets->LoadModelAsync("Box.glb");
     // m_Instances.push_back(SceneInstance{box->asset.handle, transform});
-    //  m_Instances.push_back(SceneInstance{free_stone_sphere->asset.handle, transform});
-    //  m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
 
-    m_DirectionalLight = new Fleur::Graphics::DirectionalLight(glm::vec3(-20, 0, 0), Fleur::Graphics::Color::Red(), 1);
+    //  auto free_stone_sphere = assets->LoadModelAsync("free_stone_sphere.glb");
+    //   m_Instances.push_back(SceneInstance{free_stone_sphere->asset.handle, transform});
+
+    //  auto AlphaBlendModeTest = assets->LoadModelAsync("Sponza/AlphaBlendModeTest.glb");
+    //   m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
+
+    m_DirectionalLight = new Fleur::Graphics::DirectionalLight(glm::vec3(-1, 0, 0), Fleur::Graphics::Color::Red(), 1);
     // m_OmniLights.emplace_back(glm::vec3(1, 3, 0), 4, Fleur::Graphics::Color::Green(), 0.5);
 }
 
@@ -147,6 +150,63 @@ void Scene::OnUpdate(float dtTime)
         renderer->SetDirectionalLight(m_DirectionalLight->GetDirection(), m_DirectionalLight->GetColor(), m_DirectionalLight->GetIntensity());
     }
     renderer->UpdatePointLight(m_OmniLights.data(), m_OmniLights.size());
+
+    // Directional Light Orthographic frustum
+    glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
+    float halfSize = 5.0f;
+    float shadowNear = 0.1f;
+    float shadowFar = 30.0f;
+
+    // glm::vec3 lightPos = m_DirectionalLight->GetVirtualPosition();
+    glm::vec3 lightPos = -m_DirectionalLight->GetDirection() * 10.f;
+
+    glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+
+    glm::mat4 lightProjection = glm::ortho(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+
+    // inverse view gives camera axes in world space
+    glm::mat4 invLightView = glm::inverse(lightView);
+
+    glm::vec3 right = glm::normalize(glm::vec3(invLightView[0]));
+    glm::vec3 up = glm::normalize(glm::vec3(invLightView[1]));
+
+    // GLM/lookAt camera looks along local -Z
+    glm::vec3 forward = -glm::normalize(glm::vec3(invLightView[2]));
+
+    // Plane centers
+    glm::vec3 nearCenter = lightPos + forward * shadowNear;
+    glm::vec3 farCenter = lightPos + forward * shadowFar;
+
+    // Near plane corners
+    glm::vec3 LNB = nearCenter - right * halfSize - up * halfSize;  // Left Near Bottom
+    glm::vec3 RNB = nearCenter + right * halfSize - up * halfSize;  // Right Near Bottom
+    glm::vec3 LNT = nearCenter - right * halfSize + up * halfSize;  // Left Near Top
+    glm::vec3 RNT = nearCenter + right * halfSize + up * halfSize;  // Right Near Top
+
+    // Far plane corners
+    glm::vec3 LFB = farCenter - right * halfSize - up * halfSize;  // Left Far Bottom
+    glm::vec3 RFB = farCenter + right * halfSize - up * halfSize;  // Right Far Bottom
+    glm::vec3 LFT = farCenter - right * halfSize + up * halfSize;  // Left Far Top
+    glm::vec3 RFT = farCenter + right * halfSize + up * halfSize;  // Right Far Top
+
+    // Near plane
+    Fleur::Graphics::Color color = Fleur::Graphics::Color::Cyan();
+    renderer->Debug().Line(LNB, RNB, color);
+    renderer->Debug().Line(RNB, RNT, color);
+    renderer->Debug().Line(RNT, LNT, color);
+    renderer->Debug().Line(LNT, LNB, color);
+
+    // Far plane
+    renderer->Debug().Line(LFB, RFB, color);
+    renderer->Debug().Line(RFB, RFT, color);
+    renderer->Debug().Line(RFT, LFT, color);
+    renderer->Debug().Line(LFT, LFB, color);
+
+    // Side edges
+    renderer->Debug().Line(LNB, LFB, color);
+    renderer->Debug().Line(RNB, RFB, color);
+    renderer->Debug().Line(LNT, LFT, color);
+    renderer->Debug().Line(RNT, RFT, color);
 }
 
 void Scene::Submit(Lux::Renderer& renderer)

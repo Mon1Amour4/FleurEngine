@@ -3,7 +3,11 @@
 #define NODE_TRANSFORMS_MAX_CUP 1023
 #define POINT_LIGHTS_MAX_CUP 32
 
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_RADIANS
+
 #include "glm/glm.hpp"
+
 namespace Fleur::Graphics
 {
 using AssetID = uint32_t;

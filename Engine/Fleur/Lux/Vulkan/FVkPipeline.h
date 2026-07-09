@@ -33,23 +33,27 @@ struct FGraphicsPipelineDesc
     bool depthWriteEnable = true;
     VkCompareOp depthCompareOp = VK_COMPARE_OP_LESS;
 
+    VkCullModeFlags cullMode = VK_CULL_MODE_NONE;
+    VkFrontFace frontFace = VK_FRONT_FACE_MAX_ENUM;
+
+    // Depth bias
+    bool depthBiasEnable = false;
+    float depthBiasConstantFactor = 0.0f;
+    float depthBiasClamp = 0.0f;
+    float depthBiasSlopeFactor = 0.0f;
+
     // Formats (dynamic rendering)
+    uint32_t colorAttachmentCount = 1;
     VkFormat colorFormat = VK_FORMAT_UNDEFINED;
     VkFormat depthFormat = VK_FORMAT_UNDEFINED;
 
     // MSAA
     VkSampleCountFlagBits samplesCount = VK_SAMPLE_COUNT_1_BIT;
 
-    VkCullModeFlags cullMode{VK_CULL_MODE_NONE};
-    VkFrontFace frontFace{VK_FRONT_FACE_MAX_ENUM};
+    const char* vertexEntryPointName = nullptr;
+    const char* fragmentEntryPointName = nullptr;
 
-    // Optional
-    // VkExtent2D extent{};
-
-    const char* vertexEntryPointName;
-    const char* fragmentEntryPointName;
-
-    std::vector<VkPipelineShaderStageCreateInfo>* shaderStages;
+    std::vector<VkPipelineShaderStageCreateInfo>* shaderStages = nullptr;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{
         .blendEnable = false,

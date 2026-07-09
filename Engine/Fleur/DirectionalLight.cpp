@@ -1,7 +1,9 @@
 #include "DirectionalLight.h"
 
+float Fleur::Graphics::DirectionalLight::s_PosScale = 1000;
+
 Fleur::Graphics::DirectionalLight::DirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity)
-    : m_Direction(direction)
+    : m_Direction(glm::normalize(direction))
     , m_Color(color)
     , m_Intensity(intensity)
 {

@@ -15,6 +15,7 @@ enum class EFLPassKind
     Opaque,
     Transparent,
     AABB_DEBUG,
+    Shadow
 };
 
 struct SFLShaderInfo

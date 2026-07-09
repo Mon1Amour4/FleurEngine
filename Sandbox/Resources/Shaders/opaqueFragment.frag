@@ -27,6 +27,8 @@ layout(std430, set = 3, binding = 0) readonly buffer PointLightBuff
     PointLight lights[POINT_LIGHTS_MAX_CUP];
 } pointLights;
 
+layout(set = 4, binding = 0) uniform sampler2D shadowMapSampler;
+
 layout(push_constant) uniform PushConsts
 {
     vec4 baseColorFactor;
@@ -53,6 +55,7 @@ layout(push_constant) uniform PushConsts
 
 void main() 
 {
+    float shadowDepth = texture(shadowMapSampler, fragTexCoord).r;
     vec3 V = normalize(cameraForward);
     vec3 L = normalize(-pc.directionalLightDirectionIntensity.xyz);
     float I = pc.directionalLightDirectionIntensity.w;
