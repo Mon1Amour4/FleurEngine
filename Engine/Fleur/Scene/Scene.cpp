@@ -32,25 +32,67 @@ void Scene::Init()
     // load finishes); the renderer registers geometry under the same id later.
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
     auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    auto AlphaBlendModeTest = assets->LoadModelAsync("Sponza/AlphaBlendModeTest.glb");
 
-    glm::mat4 transform = glm::scale(glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, 0.0f, 100.0f)), glm::vec3(0.1f));
-    m_Instances.push_back(SceneInstance{sponza->asset.handle.id, transform});
+    glm::mat4 transform = glm::identity<glm::mat4>();
+    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+    m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
 }
 
 void Scene::OnUpdate(float dtTime)
 {
     if (m_Camera)
         m_Camera->OnUpdate(dtTime);
+
+    // Debug
+    auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+
+    for (auto& ins : m_Instances)
+    {
+        auto* model = assets->Get<Fleur::Graphics::Model>(ins.model).obj;
+        if (model)
+        {
+            auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
+            uint32_t meshCount = model->GetMeshCount();
+            const auto& meshes = model->GetMeshData();
+            for (int i = 0; i < meshCount; ++i)
+            {
+                const auto& mesh = meshes[i];
+                for (size_t j = 0; j < mesh.GetPrimitiveCount(); j++)
+                {
+                    if (mesh.GetPrimitives()[j].GetAlphaMode() == Fleur::Graphics::FLAlphaMode::FL_BLEND)
+                    {
+                        Fleur::Graphics::SAABB aabb = mesh.GetAABB();
+                        renderer->Debug().AABB(aabb, glm::mat4(1.f), Fleur::Graphics::Color::Magenta());
+                        renderer->Debug().Point(aabb.center, Fleur::Graphics::Color::Green());
+                    }
+                }
+            }
+        }
+    }
 }
 
 void Scene::Submit(Lux::Renderer& renderer)
 {
-    for (const auto& instance : m_Instances)
-        renderer.Draw(instance.model, instance.transform);
+    int counter = 0;
+    for (auto& instance : m_Instances)
+    {
+        if (counter % 2 == 0)
+        {
+            // instance.transform = glm::rotate<float>(instance.transform, glm::radians(0.5f), glm::vec3(0, 1, 0));
+        }
+        else
+        {
+            // instance.transform = glm::rotate<float>(instance.transform, glm::radians(-0.5f), glm::vec3(0, 1, 0));
+        }
+        renderer.Draw(instance.model.id, instance.transform);
+        counter++;
+    }
 }
 
 Lux::CameraView Scene::GetCamera() const
 {
     return Lux::CameraView{m_Camera->GetView(), m_Camera->GetProjection(), m_Camera->GetCameraForward()};
 }
+
 }  // namespace Fleur

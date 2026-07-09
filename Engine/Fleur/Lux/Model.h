@@ -136,6 +136,13 @@ public:
         uint32_t m_MeshIndicesCount{0};
     };
 
+    struct FLMeshInstance
+    {
+        uint32_t meshIdx{0};
+        uint32_t drawCount{0};
+        uint32_t transformStartIdx{0};
+    };
+
     Model() = default;
     Model(std::string_view modelName);
 
@@ -150,15 +157,15 @@ public:
     }
     inline uint32_t GetMeshCount() const
     {
-        return m_MeshCount;
+        return m_Meshes.size();
     }
     inline uint32_t GetVertexCount() const
     {
-        return m_ModelVertexCount;
+        return m_Vertices.size();
     }
     inline uint32_t GetIdxCount() const
     {
-        return m_ModelIndicesCount;
+        return m_Indices.size();
     }
     inline uint32_t GetMaterialsCount() const
     {
@@ -188,44 +195,51 @@ public:
 
     const FLMaterial* GetMaterial(uint32_t idx) const;
 
-    MeshBuilder CreateSubmesh(std::string_view meshName);
-    static Model* QuadModel(Fleur::Graphics::FLMaterial&& material);
-
     struct SFLPostCreateInfo
     {
         std::vector<Fleur::Graphics::Model::Mesh> meshes;
         std::vector<Fleur::Graphics::FLMaterial> materials;
+
+        std::vector<FLMeshInstance> meshInstance;
+        std::vector<glm::mat4> worldTransforms;
+
         std::vector<Fleur::Graphics::SVertexData> m_Vertices;
         std::vector<uint32_t> m_Indices;
         uint32_t modelVertexCount;
         uint32_t modelIndicesCount;
         uint32_t primitiveCount;
     };
-    void PostCreate(SFLPostCreateInfo& info);
+    void PostCreate(SFLPostCreateInfo&& info);
+
+    const glm::mat4* GetNodeTransforms() const
+    {
+        return m_WorldTransforms.data();
+    }
+    const uint32_t GetNodeTransformsCount() const
+    {
+        return m_WorldTransforms.size();
+    }
+
+    const Model::FLMeshInstance* GetMeshInstanceData() const
+    {
+        return m_MeshInstance.data();
+    }
+    const uint32_t GetMeshInstanceCount() const
+    {
+        return m_MeshInstance.size();
+    }
 
 private:
     std::string m_Name;
-    uint32_t m_MeshCount{0};
     uint32_t m_PrimitiveCount{0};
-    uint32_t m_ModelVertexCount{0};
-    uint32_t m_ModelIndicesCount{0};
+
+    std::vector<Model::Mesh> m_Meshes;
     std::vector<Fleur::Graphics::SVertexData> m_Vertices;
     std::vector<uint32_t> m_Indices;
-    std::vector<Model::Mesh> m_Meshes;
 
     std::vector<FLMaterial> m_Materials;
-};
 
-class FLEUR_API MeshBuilder
-{
-public:
-    MeshBuilder(std::string_view meshName, Model* model);
-    MeshBuilder& AddPrimitive(Model::Mesh::Primitive::PrimitiveShape shape);
-    void Commit();
-
-private:
-    std::string_view m_Name;
-    Model* m_Model{nullptr};
-    Model::Mesh* m_Mesh;
+    std::vector<FLMeshInstance> m_MeshInstance;
+    std::vector<glm::mat4> m_WorldTransforms;
 };
 }  // namespace Fleur::Graphics

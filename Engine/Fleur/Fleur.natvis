@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fleur engine debugger visualizers (MSVC / VS / VS Code cppvsdbg).
+  Wired into the Sandbox PDB via Sandbox/CMakeLists.txt (target_sources).
+  Plain `enum class` types are intentionally absent — the debugger already
+  renders their enumerator names. Only types whose raw view is unreadable
+  (opaque handles, custom smart pointers, atomics, packed asset refs) live here.
+-->
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <!-- ===== Asset identity / handles ===== -->
+
+  <Type Name="Fleur::AssetHandle">
+    <DisplayString Condition="id == 0">invalid</DisplayString>
+    <DisplayString>asset #{id} (gen {generation})</DisplayString>
+    <Expand>
+      <Item Name="id">id</Item>
+      <Item Name="generation">generation</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Fleur::Asset&lt;*&gt;">
+    <DisplayString Condition="obj == 0">{handle} (not loaded)</DisplayString>
+    <DisplayString>{handle} -&gt; {*obj}</DisplayString>
+    <Expand>
+      <Item Name="handle">handle</Item>
+      <Item Name="obj">obj</Item>
+    </Expand>
+  </Type>
+
+  <!-- atomic enum: status lives inside std::atomic::_Storage on MSVC STL.
+       If a future STL bump breaks this, change to currentStatus._Storage._Value. -->
+  <Type Name="Fleur::FLAsyncLoadStatus">
+    <DisplayString>{currentStatus._Storage}</DisplayString>
+    <Expand>
+      <Item Name="status">currentStatus._Storage</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="Fleur::AsyncOperation&lt;*&gt;">
+    <DisplayString>{status} {asset}</DisplayString>
+    <Expand>
+      <Item Name="status">status</Item>
+      <Item Name="asset">asset</Item>
+      <Item Name="isGpuUploaded">isGpuUploaded</Item>
+    </Expand>
+  </Type>
+
+  <!-- ===== Custom smart pointers (CoreLib) ===== -->
+
+  <Type Name="Fleur::Sptr&lt;*,*&gt;">
+    <DisplayString Condition="m_Cb == 0">empty</DisplayString>
+    <DisplayString Condition="m_Cb->_ptr == 0">empty [strong={m_Cb->_strong} weak={m_Cb->_weak}]</DisplayString>
+    <DisplayString>{*m_Cb->_ptr} [strong={m_Cb->_strong} weak={m_Cb->_weak}]</DisplayString>
+    <Expand>
+      <Item Name="[ptr]" Condition="m_Cb != 0">m_Cb->_ptr</Item>
+      <Item Name="[strong]" Condition="m_Cb != 0">m_Cb->_strong</Item>
+      <Item Name="[weak]" Condition="m_Cb != 0">m_Cb->_weak</Item>
+      <ExpandedItem Condition="m_Cb != 0 &amp;&amp; m_Cb->_ptr != 0">m_Cb->_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="Fleur::Uptr&lt;*,*&gt;">
+    <DisplayString Condition="_ptr == 0">empty</DisplayString>
+    <DisplayString>{*_ptr}</DisplayString>
+    <Expand>
+      <Item Name="[ptr]">_ptr</Item>
+      <ExpandedItem Condition="_ptr != 0">_ptr</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <!-- ===== Graphics ===== -->
+
+  <Type Name="Fleur::Graphics::FLMaterial">
+    <DisplayString>{mode} albedo=#{albedo} normal=#{normal}</DisplayString>
+    <Expand>
+      <Item Name="mode">mode</Item>
+      <Item Name="baseColorFactor">baseColorFactor</Item>
+      <Item Name="albedo (AssetID)">albedo</Item>
+      <Item Name="normal (AssetID)">normal</Item>
+      <Item Name="alphaCutoff">alphaCutoff</Item>
+    </Expand>
+  </Type>
+
+  <!-- Color in three views. 0-255 and 0-1 are pure natvis (exact, no func-eval).
+       Hex packs to 0xRRGGBBAA via func-eval (Sandbox/DebugVisualizers.cpp) so it
+       prints padded; if func-eval is off only the [hex] row shows an error. -->
+  <Type Name="Fleur::Graphics::Color">
+    <DisplayString>[{(int)(r*255.0f+0.5f)} {(int)(g*255.0f+0.5f)} {(int)(b*255.0f+0.5f)} {(int)(a*255.0f+0.5f)}]  ({r,g} {g,g} {b,g} {a,g})</DisplayString>
+    <Expand>
+      <Synthetic Name="[0-255]">
+        <DisplayString>[{(int)(r*255.0f+0.5f)} {(int)(g*255.0f+0.5f)} {(int)(b*255.0f+0.5f)} {(int)(a*255.0f+0.5f)}]</DisplayString>
+      </Synthetic>
+      <Synthetic Name="[0-1]">
+        <DisplayString>[{r,g} {g,g} {b,g} {a,g}]</DisplayString>
+      </Synthetic>
+      <Item Name="[hex RRGGBBAA]">Fleur::Debug::FLColorHexRGBA(*this),x</Item>
+      <Item Name="r">r</Item>
+      <Item Name="g">g</Item>
+      <Item Name="b">b</Item>
+      <Item Name="a">a</Item>
+    </Expand>
+  </Type>
+
+  <!-- ===== mat4 TRS breakdown =====
+       Overrides glm's mat4 view (Priority High beats glm.natvis' default).
+       Keeps glm's row/column display, surfaces translation + basis axes on top.
+       LIMITS: scale magnitude (needs sqrt) and euler angles (needs atan2) CANNOT
+       be computed - natvis can't call functions. Only translation and the raw
+       basis axes are exact. Meaningful for AFFINE TRS only - garbage for a
+       projection matrix (col3 is not translation there). -->
+  <Type Name="glm::mat&lt;4,4,*,*&gt;" Priority="High">
+    <!-- Headline = full transform on one line: translation + the 3 basis columns. -->
+    <DisplayString>T[{value[3].x,g} {value[3].y,g} {value[3].z,g}]  X{value[0]} Y{value[1]} Z{value[2]}</DisplayString>
+    <Expand HideRawView="1">
+      <!-- Matrix first, shown directly (row-major; last column = translation).
+           natvis can't pad numbers so columns won't align - each row is a bracketed vector. -->
+      <Synthetic Name="row 0"><DisplayString>[{value[0].x,g} {value[1].x,g} {value[2].x,g} {value[3].x,g}]</DisplayString></Synthetic>
+      <Synthetic Name="row 1"><DisplayString>[{value[0].y,g} {value[1].y,g} {value[2].y,g} {value[3].y,g}]</DisplayString></Synthetic>
+      <Synthetic Name="row 2"><DisplayString>[{value[0].z,g} {value[1].z,g} {value[2].z,g} {value[3].z,g}]</DisplayString></Synthetic>
+      <Synthetic Name="row 3"><DisplayString>[{value[0].w,g} {value[1].w,g} {value[2].w,g} {value[3].w,g}]</DisplayString></Synthetic>
+
+      <!-- Decomposition (affine TRS only; meaningless for a projection matrix).
+           scale + euler call into Sandbox.exe (DebugVisualizers.cpp). If they show
+           "...has side effects and will not be evaluated": enable Tools > Options >
+           Debugging > General > "Enable property evaluation and other implicit function
+           calls", or click the refresh icon on the row. -->
+      <Synthetic Name="translation"><DisplayString>[{value[3].x,g} {value[3].y,g} {value[3].z,g}]</DisplayString></Synthetic>
+      <Item Name="scale">Fleur::Debug::FLScaleOf(*this)</Item>
+      <Item Name="euler deg">Fleur::Debug::FLEulerOf(*this)</Item>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>

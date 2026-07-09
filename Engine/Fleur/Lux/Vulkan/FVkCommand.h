@@ -2,13 +2,16 @@
 
 #include <vulkan/vulkan.h>
 
+#include <glm/mat4x4.hpp>
 #include <vector>
 
 struct SFLPushConstant
 {
     float baseColorFactor[4]{1.0f};
-    uint32_t albedoIdx{0};
-    float alphaCutoff{0};
+    uint32_t nodeTransformsStartIdx{};
+    uint32_t modelTransformIdx{};
+    uint32_t albedoIdx{};
+    float alphaCutoff{};
 };
 
 class FVkCommandPool
@@ -58,13 +61,13 @@ public:
     void BindDescriptorSets(VkPipelineLayout pipelineLayout, VkDescriptorSet* descriptorSets, uint32_t descriptorSetsCount);
 
     template <typename T>
-    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlagBits shaderStage, T constant)
+    void PushConstant(VkPipelineLayout pipelineLayout, VkShaderStageFlags shaderStage, T constant)
     {
         vkCmdPushConstants(m_CommandBuffer, pipelineLayout, shaderStage, 0, sizeof(T), &constant);
     }
 
     void Draw(uint32_t count, uint32_t vertexStart = 0);
-    void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset);
+    void DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset, uint32_t instanceCout, uint32_t instanceStartIdx);
 
     void BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea);
     void EndRendering();

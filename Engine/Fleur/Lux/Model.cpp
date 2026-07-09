@@ -3,33 +3,25 @@
 #include <span>
 
 #include "FleurAllocator.hpp"
-#include "Model.h"
 
 //======================================================================
 // Model
 Fleur::Graphics::Model::Model(std::string_view modelName)
     : m_Name(modelName)
-    , m_MeshCount(0)
-    , m_ModelVertexCount(0)
-    , m_ModelIndicesCount(0)
     , m_PrimitiveCount(0)
 {
 }
 
 Fleur::Graphics::Model::Model(Model&& other) noexcept
     : m_Name(std::move(other.m_Name))
-    , m_MeshCount(other.m_MeshCount)
-    , m_ModelVertexCount(other.m_ModelVertexCount)
+    , m_PrimitiveCount(other.m_PrimitiveCount)
     , m_Meshes(std::move(other.m_Meshes))
-    , m_ModelIndicesCount(other.m_ModelIndicesCount)
     , m_Vertices(std::move(other.m_Vertices))
     , m_Indices(std::move(other.m_Indices))
     , m_Materials(std::move(other.m_Materials))
-    , m_PrimitiveCount(other.m_PrimitiveCount)
+    , m_MeshInstance(std::move(other.m_MeshInstance))
+    , m_WorldTransforms(std::move(other.m_WorldTransforms))
 {
-    other.m_MeshCount = 0;
-    other.m_ModelVertexCount = 0;
-    other.m_ModelIndicesCount = 0;
     other.m_PrimitiveCount = 0;
 }
 
@@ -38,15 +30,16 @@ Fleur::Graphics::Model& Fleur::Graphics::Model::operator=(Model&& other) noexcep
     if (this != &other)
     {
         m_Name = std::move(other.m_Name);
-        m_MeshCount = other.m_MeshCount;
-        m_ModelVertexCount = other.m_ModelVertexCount;
-        m_Meshes = std::move(other.m_Meshes);
-        m_ModelIndicesCount = other.m_ModelIndicesCount;
+
         m_PrimitiveCount = other.m_PrimitiveCount;
 
-        other.m_MeshCount = 0;
-        other.m_ModelVertexCount = 0;
-        other.m_ModelIndicesCount = 0;
+        m_Meshes = std::move(other.m_Meshes);
+        m_Vertices = std::move(other.m_Vertices);
+        m_Indices = std::move(other.m_Indices);
+        m_Materials = std::move(other.m_Materials);
+        m_MeshInstance = std::move(other.m_MeshInstance);
+        m_WorldTransforms = std::move(other.m_WorldTransforms);
+
         other.m_PrimitiveCount = 0;
     }
     return *this;
@@ -83,82 +76,15 @@ const Fleur::Graphics::FLMaterial* Fleur::Graphics::Model::GetMaterial(uint32_t 
     return &m_Materials[idx];
 }
 
-Fleur::Graphics::MeshBuilder Fleur::Graphics::Model::CreateSubmesh(std::string_view meshName)
-{
-    return Fleur::Graphics::MeshBuilder(meshName, this);
-}
-
-Fleur::Graphics::Model* Fleur::Graphics::Model::QuadModel(Fleur::Graphics::FLMaterial&& material)
-{
-    Fleur::Memory::FleurAllocator<Fleur::Graphics::Model> allocator;
-    Fleur::Graphics::Model* quadModel = allocator.construct_at("QuadModel");
-    quadModel->m_Materials.emplace_back(std::move(material));
-    Fleur::Graphics::MeshBuilder builder = quadModel->CreateSubmesh("QuadMesh");
-    builder.AddPrimitive(Model::Mesh::Primitive::PrimitiveShape::Quad).Commit();
-    return quadModel;
-}
-
-void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo& info)
+void Fleur::Graphics::Model::PostCreate(SFLPostCreateInfo&& info)
 {
     m_Vertices = std::move(info.m_Vertices);
     m_Indices = std::move(info.m_Indices);
     m_Materials = std::move(info.materials);
+    m_WorldTransforms = std::move(info.worldTransforms);
+    m_MeshInstance = std::move(info.meshInstance);
 
     m_Meshes = std::move(info.meshes);
-    m_MeshCount = m_Meshes.size();
-
-    m_ModelVertexCount = info.modelVertexCount;
-    m_ModelIndicesCount = info.modelIndicesCount;
 
     m_PrimitiveCount = info.primitiveCount;
-}
-
-//======================================================================
-// MeshBuilder
-Fleur::Graphics::MeshBuilder::MeshBuilder(std::string_view meshName, Model* model)
-    : m_Name(meshName)
-    , m_Model(model)
-    , m_Mesh(&m_Model->m_Meshes.emplace_back())
-{
-    m_Mesh->m_MeshIndexStart = m_Model->m_Indices.size();
-    m_Mesh->m_MeshVertexStart = m_Model->m_Vertices.size();
-    m_Model->m_MeshCount += 1;
-}
-
-Fleur::Graphics::MeshBuilder& Fleur::Graphics::MeshBuilder::AddPrimitive(Model::Mesh::Primitive::PrimitiveShape shape)
-{
-    if (shape == Model::Mesh::Primitive::PrimitiveShape::Quad)
-    {
-        Model::Mesh::Primitive& primitive = m_Mesh->m_Primitives.emplace_back();
-
-        std::vector<Fleur::Graphics::SVertexData, Fleur::Memory::FleurAllocator<Fleur::Graphics::SVertexData>> vertices{
-            {glm::vec3(-0.5f, 0.5f, 0)}, {glm::vec3(-0.5f, -0.5f, 0)}, {glm::vec3(0.5f, 0.5f, 0)}, {glm::vec3(0.5f, -0.5f, 0)}};
-
-        primitive.m_VertexStart = m_Model->m_Vertices.size();
-        m_Model->m_Vertices.reserve(m_Model->m_Vertices.size() + vertices.size());
-        m_Model->m_Vertices.insert(m_Model->m_Vertices.end(), vertices.begin(), vertices.end());
-        primitive.m_VertexCount = vertices.size();
-        primitive.m_VertexEnd = m_Model->m_Vertices.size();
-        m_Mesh->m_MeshVertexCount += vertices.size();
-        m_Mesh->m_MeshVertexEnd = m_Mesh->m_MeshVertexStart + m_Mesh->m_MeshVertexCount;
-
-        std::vector<uint32_t, Fleur::Memory::FleurAllocator<uint32_t>> indices{0, 1, 2, 2, 1, 3, 0, 2, 3};
-
-        primitive.m_IdxStart = m_Model->m_Indices.size();
-        m_Model->m_Indices.reserve(m_Model->m_Indices.size() + indices.size());
-        m_Model->m_Indices.insert(m_Model->m_Indices.end(), indices.begin(), indices.end());
-        primitive.m_IdxCount = indices.size();
-        primitive.m_IdxEnd = m_Model->m_Indices.size();
-        m_Mesh->m_MeshIndicesCount += indices.size();
-        m_Mesh->m_MeshIndexEnd = m_Mesh->m_MeshIndexStart + m_Mesh->m_MeshIndicesCount;
-
-        primitive.m_MatIdx = 0;
-    }
-    return *this;
-}
-
-void Fleur::Graphics::MeshBuilder::Commit()
-{
-    Fleur::Memory::FleurAllocator<Fleur::Graphics::MeshBuilder> allocator;
-    allocator.deallocate(this, 1);
 }

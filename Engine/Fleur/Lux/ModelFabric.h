@@ -33,6 +33,8 @@ private:
     Model::Mesh::Primitive process_primitive(std::vector<Fleur::Graphics::SVertexData>& vertices, std::vector<uint32_t>& indices, SAABB& aabb,
                                              cgltf_primitive& cgltfPrimitive, uint32_t maxIdx, FLAlphaMode alphaMode);
     FLAlphaMode process_alpha_mode(cgltf_alpha_mode mode);
+
+    void PrintNodeMeshes(const cgltf_data* data);
 };
 
 }  // namespace Fleur::Graphics

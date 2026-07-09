@@ -49,10 +49,10 @@ void vk::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
     pImpl->createPass(kind, shaderStages);
 }
 
-void vk::backend::RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                                const FLDrawItem* primitives, uint32_t primitiveCount)
+void vk::backend::RegisterModel(const SFLModelRegisterInfo& info)
 {
-    pImpl->registerModel(model, vertices, vertexCount, indices, indexCount, primitives, primitiveCount);
+    pImpl->registerModel(info.model, info.vertices, info.vertexCount, info.indices, info.indexCount, info.nodeTransforms, info.nodeTransformCount,
+                         info.primitives, info.primitiveCount, info.instances, info.instanceCount);
 }
 void vk::backend::UnregisterModel(AssetID model)
 {
@@ -117,6 +117,7 @@ vk::backend::impl::impl(bool enableValidation,
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
+    m_SSBOBuffer = new FVkBuffer();
 
     m_MultisampledRenderTarget = new FVkMultisampler();
     m_MultisampledRenderTarget->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT,
@@ -157,18 +158,16 @@ vk::backend::impl::impl(bool enableValidation,
                        m_MultisampledRenderTarget->GetSamplesCount(), 1);
 
 
-    uint32_t vertexInputDescriptorSize = 0;
-    uint32_t indexInputDescriptorSize = 0;
-
-    vertexInputDescriptorSize = sizeof(Fleur::Graphics::SVertexData);
-
-    indexInputDescriptorSize = sizeof(uint32_t);
-
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                         1024u * 1024ul * 512ul, vertexInputDescriptorSize);
+                         1024u * 1024ul * 512ul, sizeof(Fleur::Graphics::SVertexData));
 
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                        1024u * 1024ul * 256ul, indexInputDescriptorSize);
+                        1024u * 1024ul * 256ul, sizeof(uint32_t));
+
+    m_SSBODescriptorSetLayout =
+        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build();
+    m_SSBOBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                       NODE_TRANSFORMS_MAX_CUP * sizeof(glm::mat4) + sizeof(glm::mat4), sizeof(glm::mat4));
 
 
     m_ImageSampler = createTextureSampler();
@@ -217,6 +216,7 @@ vk::backend::impl::~impl()
     vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), m_DescriptorPool, nullptr);
     delete m_StaticGeometryTexturesDsl;
     delete m_StaticGeometryUboDsl;
+    delete m_SSBODescriptorSetLayout;
 
     // 4. Pipeline
     delete m_GeometryPipeline;
@@ -235,6 +235,7 @@ vk::backend::impl::~impl()
     // 8. Buffers
     delete m_VertexBuffer;
     delete m_IndexBuffer;
+    delete m_SSBOBuffer;
     for (size_t i = 0; i < m_UniformBuffers.size(); i++)
     {
         m_UniformBuffers[i].Unmap();
@@ -260,7 +261,7 @@ vk::backend::impl::~impl()
     if (m_ValidationsEnabled)
         destroyDebugUtilsMessenger_EXT(m_VulkanInstance, debugMessenger, nullptr);
 
-    // 14. Instance
+    // 14. MeshInstance
     vkDestroyInstance(m_VulkanInstance, nullptr);
 }
 
@@ -446,7 +447,8 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     vk::GetPipelineInfo pipelineInfo{};
-    pipelineInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineInfo.blendEnable = false;
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
     pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
     pipelineInfo.depthTestEnable = true;
     pipelineInfo.depthWriteEnable = true;
@@ -475,7 +477,8 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
         opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     vk::GetPipelineInfo pipelineInfo{};
-    pipelineInfo.cullMode = VK_CULL_MODE_BACK_BIT;
+    pipelineInfo.blendEnable = true;
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
     pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
     pipelineInfo.depthTestEnable = true;
     pipelineInfo.depthWriteEnable = false;
@@ -511,16 +514,19 @@ VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderI
 void vk::backend::impl::createDescriptorPool()
 {
     // ---------- descriptor indexing uses, 500k descriptors is min-limit ----------
-    std::array<VkDescriptorPoolSize, 2> poolSizes{};
+    std::array<VkDescriptorPoolSize, 3> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(m_FramesInFlight);
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[1].descriptorCount = MAX_TEXTURES;
 
+    poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    poolSizes[2].descriptorCount = 1;
+
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-                                        .maxSets = m_FramesInFlight + 1,
+                                        .maxSets = m_FramesInFlight + 2,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -544,7 +550,7 @@ void vk::backend::impl::createDescriptorSets()
         if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &uniformBufferAllocInfo, &m_StaticGeometryDescriptorSetUbo[i]) != VK_SUCCESS)
         {
             DBG_PRINTM("failed to allocate descriptor sets!")
-            assert(true);
+            assert(false);
         }
 
         VkDescriptorBufferInfo bufferInfo{};
@@ -574,7 +580,7 @@ void vk::backend::impl::createDescriptorSets()
     if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &texturesDescriptorSetAllocInfo, &m_StaticGeometryDescriptorSetTextures) != VK_SUCCESS)
     {
         DBG_PRINTM("failed to allocate descriptor sets!")
-        assert(true);
+        assert(false);
     }
 
     VkImageView placeholderImageView = m_TextureMap[m_FallbackTextureIdx].GetImageView();
@@ -593,12 +599,40 @@ void vk::backend::impl::createDescriptorSets()
     descriptorImageWrites.pImageInfo = &imageSamplerInfo;
 
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorImageWrites, 0, nullptr);
+
+
+    // ---------- SSBO ----------
+    auto ssboDsl = m_SSBODescriptorSetLayout->GetDescriptorSetLayout();
+
+    VkDescriptorSetAllocateInfo ssboDescriptorSetAllocInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &ssboDsl};
+
+    VkResult res = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &ssboDescriptorSetAllocInfo, &m_SSBODescriptorSet);
+    if (res != VK_SUCCESS)
+    {
+        DBG_PRINTM("failed to allocate descriptor sets!")
+        assert(false);
+    }
+    VkDescriptorBufferInfo ssbobufferInfo{};
+    ssbobufferInfo.buffer = m_SSBOBuffer->GetBuffer();
+    ssbobufferInfo.offset = 0;
+    ssbobufferInfo.range = sizeof(Fleur::Graphics::SFLSSBODescriptorBuffer);
+
+    VkWriteDescriptorSet ssboDescriptorWrites{};
+    ssboDescriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    ssboDescriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    ssboDescriptorWrites.dstSet = m_SSBODescriptorSet;
+    ssboDescriptorWrites.dstBinding = 0;
+    ssboDescriptorWrites.dstArrayElement = 0;
+    ssboDescriptorWrites.descriptorCount = 1;
+    ssboDescriptorWrites.pBufferInfo = &ssbobufferInfo;
+
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &ssboDescriptorWrites, 0, nullptr);
 }
 
 void vk::backend::impl::updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo)
 {
     // proj is already Vulkan-flipped once in m_CameraData (beginFrame) — no per-consumer flip.
-    pUbo->model = glm::mat4(1.0f);
     m_UniformBuffers[m_CurrentFrame].MemCopy(pUbo, sizeof(*pUbo));
 }
 
@@ -1069,7 +1103,9 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     m_CameraData = cameraData;
     m_CameraData.proj[1][1] *= -1;  // Vulkan Y-flip — single source for all VK passes (geometry/skybox/debug)
 
-    Fleur::Graphics::SFLGeometryUBO ubo{glm::mat4(1.0f), m_CameraData.view, m_CameraData.proj};
+    m_SSBOBuffer->Reset();
+
+    Fleur::Graphics::SFLGeometryUBO ubo{m_CameraData.view, m_CameraData.proj};
     updateUniformBuffer(m_CurrentFrame, &ubo);
 
     vkResetCommandPool(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[m_CurrentFrame].GetCommandPool(), 0);
@@ -1109,7 +1145,7 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     };
     cmd.SetScissors(defaultScissors);
 
-    std::array<VkDescriptorSet, 2> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures};
+    std::array<VkDescriptorSet, 3> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures, m_SSBODescriptorSet};
     cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
 
     return true;
@@ -1119,24 +1155,41 @@ void vk::backend::impl::endFrame()
 {
     auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
 
+    for (const auto& drawItem : m_OpaqueDrawItems)
+    {
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        SFLPushConstant pushConstant = MakePush(primitive);
+        pushConstant.modelTransformIdx = drawItem.modelTransformIdx;
+        pushConstant.nodeTransformsStartIdx = drawItem.nodeTransformsStartIdx;
+        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+
     // After opaque (recorded via Draw), before transparent: skybox fills the
     // background only where no geometry was written.
     if (m_Skybox)
         m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
 
-    if (m_TransparentDraws.size() > 0)
+    // Skybox rebound its own vertex buffer above — restore the geometry buffers.
+    std::array<VkDescriptorSet, 3> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures, m_SSBODescriptorSet};
+    cmd.BindDescriptorSets(m_TransparentPipeline->GetPipelineLayout(), dst.data(), dst.size());
+
+    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+    cmd.BindPipeline(m_TransparentPipeline->GetPipeline());
+
+    for (const auto& drawItem : m_TransparentDrawItems)
     {
-        // Skybox rebound its own vertex buffer above — restore the geometry buffers.
-        cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
-        cmd.BindPipeline(m_TransparentPipeline->GetPipeline());
-        for (auto& it : m_TransparentDraws)
-        {
-            SFLPushConstant pushConstant = MakePush(it);
-            cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-            cmd.DrawIndexed(it.indexCount, it.indexOffset, it.vertexOffset);
-        }
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        SFLPushConstant pushConstant = MakePush(primitive);
+        pushConstant.modelTransformIdx = drawItem.modelTransformIdx;
+        pushConstant.nodeTransformsStartIdx = drawItem.nodeTransformsStartIdx;
+        cmd.PushConstant(m_TransparentPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
+
+
+    m_TransparentDrawItems.clear();
 
     m_DebugDraw->Record(cmd, m_CameraData, m_CurrentFrame);
     m_DebugDraw->Clear();
@@ -1157,7 +1210,7 @@ void vk::backend::impl::endFrame()
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = cmd.GetCommandBuffer();
 
-    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[m_CurrentFrame]};
+    VkSemaphore signalSemaphores[] = {m_FrameContext->m_RenderFinished[m_ImageIndex]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1184,26 +1237,57 @@ void vk::backend::impl::endFrame()
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                                      const FLDrawItem* primitives, uint32_t primitiveCount)
+                                      const glm::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives,
+                                      uint32_t primitiveCount, const FLInstanceItem* srcInstances, uint32_t instanceCount)
 {
+    if (m_RegisteredModels.contains(id))
+        return;
+
+    uint32_t batchIdx = m_Batches.size();
+    uint32_t instanceStartIdx = m_Instances.size();
+
+    m_RegisteredModels[id] = batchIdx;
+    auto& registeredBatch = m_Batches.emplace_back();
+    registeredBatch.instancesCount = instanceCount;
+    registeredBatch.instanceStartIdx = instanceStartIdx;
+    registeredBatch.globalNodeStartIdx = m_InstanceNodeTransforms.size();
+    registeredBatch.nodeTransformCount = transformNodesCount;
+
     uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
     uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
+
+
+    uint64_t primitiveStartIdx = m_Primitives.size();
 
     m_VertexBuffer->UploadDataToBuffer(vertices, verticesCount);
     m_IndexBuffer->UploadDataToBuffer(indices, indexCount);
 
-    auto& list = m_RegisteredModels[id];
+    m_InstanceNodeTransforms.reserve(m_InstanceNodeTransforms.size() + transformNodesCount);
+    m_InstanceNodeTransforms.insert(m_InstanceNodeTransforms.end(), transformNodes, transformNodes + transformNodesCount);
+
+    for (size_t i = 0; i < instanceCount; i++)
+    {
+        const auto& srcInstance = srcInstances[i];
+        auto& registeredInstance = m_Instances.emplace_back();
+
+        registeredInstance.drawCount = srcInstance.drawCount;
+        registeredInstance.globalPrimitiveStartIdx = primitiveStartIdx + i;
+        registeredInstance.primitiveCount = srcInstance.primitiveCount;
+        registeredInstance.globalNodeTransformStartIdx = registeredBatch.globalNodeStartIdx + srcInstance.nodeTransformStartIdx;
+    }
+
+    m_Primitives.reserve(m_Primitives.size() + primitiveCount);
     for (uint32_t i = 0; i < primitiveCount; i++)
     {
         const auto& item = primitives[i];
-        auto& draw = list.emplace_back();
+        auto& primitive = m_Primitives.emplace_back();
 
-        draw.FromMaterial(item.material);
+        primitive.FromMaterial(item.material);
 
-        draw.indexCount = item.indexCount;
-        draw.indexOffset = globalIndexOffset + item.indexStart;
-        draw.vertexOffset = globalVertexOffset;
-        draw.bucket = item.material.mode;
+        primitive.indexCount = item.indexCount;
+        primitive.indexOffset = globalIndexOffset + item.indexStart;
+        primitive.vertexOffset = globalVertexOffset;
+        primitive.bucket = item.material.mode;
     }
 }
 
@@ -1213,28 +1297,56 @@ void vk::backend::impl::unregisterModel(AssetID id)
     // TODO: reclaim geometry buffer space (bump allocator has no free; needs a sub-allocator).
 }
 
-void vk::backend::impl::drawModel(AssetID id, const glm::mat4& /*transform*/)
+void vk::backend::impl::drawModel(AssetID id, const glm::mat4& modelTransform)
 {
     auto it = m_RegisteredModels.find(id);
     if (it == m_RegisteredModels.end())
         return;
 
-    // m_TransparentDraws.clear();
-    //  TODO: per-draw transform via push-constant (needs vertex shader change). Identity for now.
+    //  TODO: per-draw nodeTransform via push-constant (needs vertex shader change). Identity for now.
     auto& cmd = m_FrameContext->m_CommandBuffers[m_CurrentFrame];
-    for (const auto& draw : it->second)
+
+    const auto& batch = m_Batches[it->second];
+    const auto& srcInstance = &m_Instances[batch.instanceStartIdx];
+
+    uint32_t matricesCount = batch.nodeTransformCount + 1;
+    glm::mat4* matrices = new glm::mat4[matricesCount];
+    matrices[0] = modelTransform;
+
+    memcpy(&matrices[1], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(glm::mat4) * batch.nodeTransformCount);
+
+    uint32_t ssboCurrentIdx = m_SSBOBuffer->CurrentSize() / m_SSBOBuffer->StrideBytes();
+    m_SSBOBuffer->UploadDataToBuffer(matrices, matricesCount);
+    delete[] matrices;
+
+    for (size_t i = 0; i < batch.instancesCount; i++)
     {
-        if (draw.bucket == FLAlphaMode::FL_OPAQUE || draw.bucket == FLAlphaMode::FL_MASK)
+        const auto& instance = srcInstance[i];
+        uint32_t localNodeOffset = instance.globalNodeTransformStartIdx - batch.globalNodeStartIdx;
+        uint32_t ssboNodeOffset = ssboCurrentIdx + localNodeOffset + 1;
+
+        for (size_t j = 0; j < instance.primitiveCount; j++)
         {
-            SFLPushConstant pushConstant = MakePush(draw);
-            cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-            cmd.DrawIndexed(draw.indexCount, draw.indexOffset, draw.vertexOffset);
-        }
-        else
-        {
-            m_TransparentDraws.push_back(draw);
-            /*std::sort(m_TransparentDraws.begin(), m_TransparentDraws.end(),
-                      [](const DrawInfo& a, const DrawInfo& b) { return a.material.alphaCutoff < b.material.alphaCutoff; });*/
+            const auto& primitive = m_Primitives[instance.globalPrimitiveStartIdx + j];
+            const uint32_t globalPrimitiveIdx = instance.globalPrimitiveStartIdx + j;
+
+            std::vector<FLFrameDrawItem>* dstVector{nullptr};
+            if (primitive.bucket == FLAlphaMode::FL_OPAQUE || primitive.bucket == FLAlphaMode::FL_MASK)
+            {
+                dstVector = &m_OpaqueDrawItems;
+            }
+            else
+            {
+                dstVector = &m_TransparentDrawItems;
+                /* std::sort(m_TransparentDraws.begin(), m_TransparentDraws.end(),
+                           [](const PrimitiveDrawInfo& a, const PrimitiveDrawInfo& b) { return a.material.alphaCutoff < b.material.alphaCutoff; });*/
+            }
+
+            auto& drawItem = dstVector->emplace_back();
+            drawItem.instanceCount = instance.drawCount;
+            drawItem.modelTransformIdx = ssboCurrentIdx;
+            drawItem.nodeTransformsStartIdx = ssboNodeOffset;
+            drawItem.primitiveIdx = instance.globalPrimitiveStartIdx + j;
         }
     }
 }

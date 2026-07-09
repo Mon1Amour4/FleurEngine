@@ -63,8 +63,24 @@ struct SGPUMaterial
     float roughness{1};
     float alphaCutoff{0};
 };
+struct InstancesBatch
+{
+    uint32_t instancesCount{};
+    uint32_t instanceStartIdx{};
 
-struct DrawInfo
+    uint32_t globalNodeStartIdx{};
+    uint32_t nodeTransformCount{};
+};
+struct InstanceDrawInfo
+{
+    uint32_t drawCount;
+    uint32_t globalNodeTransformStartIdx;
+
+    uint32_t primitiveCount;
+    uint32_t globalPrimitiveStartIdx;
+};
+
+struct PrimitiveDrawInfo
 {
     FLAlphaMode bucket{FLAlphaMode::FL_OPAQUE};
 
@@ -87,7 +103,7 @@ struct DrawInfo
     }
 };
 
-SFLPushConstant MakePush(const DrawInfo& info)
+SFLPushConstant MakePush(const PrimitiveDrawInfo& info)
 {
     return SFLPushConstant{
         .baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b, info.material.baseColorFactor.a},
@@ -126,7 +142,7 @@ struct backend::impl
     bool beginFrame(Fleur::Graphics::SFLCameraData& cameraData);
     void endFrame();
 
-    // Instance
+    // MeshInstance
     struct
     {
         int Major;
@@ -210,10 +226,33 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    std::vector<DrawInfo> m_TransparentDraws;
-    std::unordered_map<AssetID, std::vector<DrawInfo>> m_RegisteredModels;
+    FVkBuffer* m_SSBOBuffer{nullptr};
+    VkDescriptorSet m_SSBODescriptorSet;
+    FVkDescriptorSetLayout* m_SSBODescriptorSetLayout{nullptr};
+    std::vector<glm::mat4> m_InstanceNodeTransforms;
+
+    std::vector<InstancesBatch> m_Batches;
+    std::vector<PrimitiveDrawInfo> m_Primitives;
+    std::vector<InstanceDrawInfo> m_Instances;
+
+    struct FLFrameDrawItem
+    {
+        uint32_t primitiveIdx{};
+
+        uint32_t instanceCount{};
+
+        uint32_t modelTransformIdx{};
+        uint32_t nodeTransformsStartIdx{};
+    };
+
+    std::vector<FLFrameDrawItem> m_OpaqueDrawItems;
+    std::vector<FLFrameDrawItem> m_TransparentDrawItems;
+
+    std::unordered_map<AssetID, uint32_t> m_RegisteredModels;
+
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                       const FLDrawItem* primitives, uint32_t primitiveCount);
+                       const glm::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount,
+                       const FLInstanceItem* srcInstances, uint32_t instanceCount);
     void unregisterModel(AssetID id);
     void drawModel(AssetID id, const glm::mat4& transform);
 

@@ -29,8 +29,7 @@ struct backend : public Fleur::Graphics::IRenderer
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
 
-    virtual void RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                               const FLDrawItem* primitives, uint32_t primitiveCount) override;
+    virtual void RegisterModel(const SFLModelRegisterInfo& info) override;
     virtual void UnregisterModel(AssetID model) override;
     virtual void RemoveTexture(AssetID texture) override;
 

@@ -12,14 +12,15 @@ Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const
 
 Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::ProcessData(bool async)
 {
-    Fleur::Graphics::Model::SFLPostCreateInfo info{};
+    UNUSED(async);
 
+    Fleur::Graphics::Model::SFLPostCreateInfo info{};
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
 
     info.meshes.reserve(m_Data->meshes_count);
     info.materials.reserve(m_Data->materials_count);
+    info.worldTransforms.reserve(m_Data->nodes_count);
 
-    int textureIdx = MAXINT;
     for (size_t i = 0; i < m_Data->materials_count; i++)
     {
         if ((m_Data->materials + i)->has_pbr_metallic_roughness)
@@ -141,51 +142,74 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
         }
     }
 
-    m_Data->meshes[0].primitives[0];
-    for (size_t i = 0; i < info.meshes.capacity(); i++)
+    PrintNodeMeshes(m_Data);
+
+    uint32_t meshesCount = m_Data->meshes_count;
+    uint32_t nodesCount = m_Data->nodes_count;
+    std::unordered_map<std::uintptr_t, uint32_t> uploadedMeshes;
+    for (size_t i = 0; i < meshesCount; i++)
     {
-        auto cgltfMesh = (m_Data->meshes + i);
-        for (size_t j = 0; j < cgltfMesh->primitives_count; j++)
+        const auto cgltfMesh = &m_Data->meshes[i];
+        for (size_t j = 0; j < nodesCount; j++)
         {
-            auto primitive = cgltfMesh->primitives[j];
-            for (size_t k = 0; k < primitive.attributes_count; k++)
+            auto& node = m_Data->nodes[j];
+            if (node.mesh)
             {
-                auto attrib = primitive.attributes[k];
-                if (attrib.type == cgltf_attribute_type_position)
-                    info.modelVertexCount += static_cast<uint32_t>(attrib.data->count);
+                if (node.mesh == cgltfMesh)
+                {
+                    cgltf_float matrix[16];
+                    cgltf_node_transform_world(&node, matrix);
+                    info.worldTransforms.emplace_back(glm::make_mat4(matrix));
+
+                    if (!uploadedMeshes.contains(reinterpret_cast<std::uintptr_t>(node.mesh)))
+                    {
+                        for (size_t j = 0; j < cgltfMesh->primitives_count; j++)
+                        {
+                            auto primitive = cgltfMesh->primitives[j];
+                            for (size_t k = 0; k < primitive.attributes_count; k++)
+                            {
+                                auto attrib = primitive.attributes[k];
+                                if (attrib.type == cgltf_attribute_type_position)
+                                    info.modelVertexCount += static_cast<uint32_t>(attrib.data->count);
+                            }
+                            info.modelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
+                        }
+
+                        Model::Mesh& modelMesh = info.meshes.emplace_back();
+                        uploadedMeshes.emplace(reinterpret_cast<std::uintptr_t>(node.mesh), info.meshes.size() - 1);
+                        modelMesh.m_Primitives.reserve(cgltfMesh->primitives_count);
+                        modelMesh.m_MeshName = cgltfMesh->name;
+                        modelMesh.m_MeshVertexStart = info.m_Vertices.size();
+                        modelMesh.m_MeshIndexStart = info.m_Indices.size();
+
+                        info.primitiveCount += cgltfMesh->primitives_count;
+                        for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
+                        {
+                            cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
+                            uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
+                            FLAlphaMode alphaMode = process_alpha_mode(cgltfPrimitive.material->alpha_mode);
+
+                            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(
+                                process_primitive(info.m_Vertices, info.m_Indices, modelMesh.m_AABB, cgltfPrimitive, materialIdx, alphaMode));
+
+                            modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
+                            modelMesh.m_MeshIndicesCount += meshPrimitive.GetIdxCount();
+                        }
+                        modelMesh.m_AABB.center.x = (modelMesh.m_AABB.min.x + modelMesh.m_AABB.max.x) * 0.5;
+                        modelMesh.m_AABB.center.y = (modelMesh.m_AABB.min.y + modelMesh.m_AABB.max.y) * 0.5;
+                        modelMesh.m_AABB.center.z = (modelMesh.m_AABB.min.z + modelMesh.m_AABB.max.z) * 0.5;
+
+                        modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
+                        modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
+
+                        info.meshInstance.emplace_back(info.meshes.size() - 1, 0, info.worldTransforms.size() - 1);
+                    }
+
+                    info.meshInstance.back().drawCount++;
+                }
             }
-            info.modelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
         }
-        // Model::Mesh& modelMesh = model->m_Meshes.emplace_back();
-        Model::Mesh& modelMesh = info.meshes.emplace_back();
-        modelMesh.m_Primitives.reserve(cgltfMesh->primitives_count);
-        modelMesh.m_MeshName = cgltfMesh->name;
-        modelMesh.m_MeshVertexStart = info.m_Vertices.size();
-        modelMesh.m_MeshIndexStart = info.m_Indices.size();
-
-        info.primitiveCount += cgltfMesh->primitives_count;
-        for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
-        {
-            cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
-            uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
-            FLAlphaMode alphaMode = process_alpha_mode(cgltfPrimitive.material->alpha_mode);
-
-            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(
-                process_primitive(info.m_Vertices, info.m_Indices, modelMesh.m_AABB, cgltfPrimitive, materialIdx, alphaMode));
-
-            modelMesh.m_MeshVertexCount += meshPrimitive.GetVertexCount();
-            modelMesh.m_MeshIndicesCount += meshPrimitive.GetIdxCount();
-        }
-        modelMesh.m_AABB.center.x = (modelMesh.m_AABB.min.x + modelMesh.m_AABB.max.x) * 0.5;
-        modelMesh.m_AABB.center.y = (modelMesh.m_AABB.min.y + modelMesh.m_AABB.max.y) * 0.5;
-        modelMesh.m_AABB.center.z = (modelMesh.m_AABB.min.z + modelMesh.m_AABB.max.z) * 0.5;
-
-        modelMesh.m_MeshVertexEnd = static_cast<uint32_t>(info.m_Vertices.size());
-        modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
     }
-
-    info.m_Vertices.reserve(info.modelVertexCount);
-    info.m_Indices.reserve(info.modelIndicesCount);
 
     return info;
 }
@@ -318,5 +342,29 @@ Fleur::Graphics::FLAlphaMode Fleur::Graphics::CGLTFModelFabric::process_alpha_mo
     default:
         return FLAlphaMode::FL_OPAQUE;
         break;
+    }
+}
+
+void Fleur::Graphics::CGLTFModelFabric::PrintNodeMeshes(const cgltf_data* data)
+{
+    if (!data)
+        return;
+
+    for (cgltf_size i = 0; i < data->nodes_count; ++i)
+    {
+        const cgltf_node& node = data->nodes[i];
+
+        std::cout << "node[" << i << "] ";
+
+        if (!node.mesh)
+        {
+            std::cout << "mesh: nullptr\n";
+            continue;
+        }
+
+        auto meshIndex = node.mesh - data->meshes;
+
+        std::cout << "node_addr: " << &node << " mesh_addr: " << node.mesh << " mesh_index: " << meshIndex << " node_name: " << (node.name ? node.name : "null")
+                  << " mesh_name: " << (node.mesh->name ? node.mesh->name : "null") << "\n";
     }
 }

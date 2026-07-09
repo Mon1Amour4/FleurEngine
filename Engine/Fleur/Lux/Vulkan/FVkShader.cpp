@@ -38,6 +38,7 @@ void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
 
     getReflection(m_VertexShader, info.pVertexData, info.vertexSize);
     getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize);
+    mergePushConstants();
     createDescriptorSetLayouts();
 }
 
@@ -72,8 +73,11 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
         uint32_t inputOffset = 0;
         for (size_t i = 0; i < module.entry_points->input_variable_count; i++)
         {
-            SpvReflectInterfaceVariable* inputVariable = *(module.entry_points->input_variables + i);
+            SpvReflectInterfaceVariable* inputVariable = module.entry_points->input_variables[i];
             uint32_t location = inputVariable->location;
+            if (location == std::numeric_limits<uint32_t>::max())
+                continue;
+
             VkFormat format = convertReflectionFormat(inputVariable->format);
             uint32_t offset = inputOffset;
             m_VertexInput.m_VertexInputAttributes.emplace_back(location, m_VertexInput.bindingDescription.binding, format, offset);
@@ -103,7 +107,7 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
                 auto& vec = m_GlobalDescriptorSetLayoutBindingsMap[currentDescriptorSet->set];
                 auto& emplacedBinding = vec.emplace_back();
 
-                SpvReflectDescriptorBinding* reflectBinding = *currentDescriptorSet->bindings + j;
+                SpvReflectDescriptorBinding* reflectBinding = currentDescriptorSet->bindings[j];
                 emplacedBinding.binding = reflectBinding->binding;
                 emplacedBinding.descriptorType = convertReflectionDescriptorType(reflectBinding->descriptor_type);
                 emplacedBinding.descriptorCount = reflectBinding->count;
@@ -127,7 +131,6 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
         pushConstant.offset = currentReflectionPushConstant->offset;
         pushConstant.size = currentReflectionPushConstant->size;
     }
-
     // Output variables, descriptor bindings, descriptor sets, and push constants
     // can be enumerated and extracted using a similar mechanism.
 
@@ -142,7 +145,7 @@ void vk::FVkShader::createDescriptorSetLayouts()
     for (const auto& it : m_GlobalDescriptorSetLayoutBindingsMap)
     {
         uint32_t bindingCount = it.second.size();
-        std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(flags, bindingCount);
+        std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(bindingCount, flags);
 
         VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
         binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
@@ -159,6 +162,29 @@ void vk::FVkShader::createDescriptorSetLayouts()
         if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &descriptorSetLayout) != VK_SUCCESS)
             assert(false);
     }
+}
+
+void vk::FVkShader::mergePushConstants()
+{
+    std::vector<VkPushConstantRange> merged;
+    merged.reserve(m_PushConstants.size());
+
+    for (const VkPushConstantRange& range : m_PushConstants)
+    {
+        auto it = std::find_if(merged.begin(), merged.end(),
+                               [&](const VkPushConstantRange& existing) { return existing.offset == range.offset && existing.size == range.size; });
+
+        if (it != merged.end())
+        {
+            it->stageFlags |= range.stageFlags;
+        }
+        else
+        {
+            merged.push_back(range);
+        }
+    }
+
+    m_PushConstants = std::move(merged);
 }
 
 // ---------- reflection to vk ----------
@@ -364,6 +390,7 @@ FVkPipeline* vk::FVkShader::GetPipeline(GetPipelineInfo& info)
         desc.shaderStages = &m_ShaderStages;
         desc.colorFormat = info.colorFormat;
         desc.depthFormat = info.depthFormat;
+        desc.colorBlendAttachment.blendEnable = info.blendEnable;
 
 
         pipeline->Init(m_Device, desc);

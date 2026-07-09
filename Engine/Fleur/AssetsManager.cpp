@@ -135,23 +135,58 @@ void Fleur::AssetsManager::PollMessages()
                 Fleur::Graphics::Model* model = (Fleur::Graphics::Model*)message.pResource;
                 auto renderer = Fleur::ServiceLocator::instance().GetService<Lux::Renderer>();
 
-                std::vector<Fleur::Graphics::FLDrawItem> items;
-                items.reserve(model->GetPrimitiveCount());
-                for (size_t meshIdx = 0; meshIdx < model->GetMeshCount(); meshIdx++)
+                uint32_t instanceCount = model->GetMeshInstanceCount();
+                uint32_t modelPrimitiveCount = model->GetPrimitiveCount();
+
+                std::vector<Fleur::Graphics::FLPrimitiveDrawItem> dstPrimitives;
+                std::vector<Fleur::Graphics::FLInstanceItem> instanceItems;
+
+                dstPrimitives.reserve(modelPrimitiveCount);
+                instanceItems.reserve(instanceCount);
+
+                const auto* meshes = model->GetMeshData();
+                const auto* srcInstances = model->GetMeshInstanceData();
+                for (size_t i = 0; i < instanceCount; i++)
                 {
-                    const auto& mesh = model->GetMeshData() + meshIdx;
-                    for (size_t primIdx = 0; primIdx < mesh->GetPrimitiveCount(); primIdx++)
+                    const auto& srcInstance = srcInstances[i];
+                    const auto& mesh = meshes[srcInstance.meshIdx];
+
+                    auto& dstInstance = instanceItems.emplace_back();
+
+                    dstInstance.drawCount = srcInstance.drawCount;
+                    dstInstance.nodeTransformStartIdx = srcInstance.transformStartIdx;
+
+                    const auto& srcPrimitives = mesh.GetPrimitives();
+                    dstInstance.primitiveCount = mesh.GetPrimitiveCount();
+
+                    for (size_t j = 0; j < mesh.GetPrimitiveCount(); j++)
                     {
-                        const auto& primitive = mesh->GetPrimitives() + primIdx;
-                        auto& item = items.emplace_back();
-                        item.material = model->GetMaterialsData()[primitive->GetMaterialIdx()];
-                        item.indexCount = primitive->GetIdxCount();
-                        item.indexStart = primitive->GetIdxStart();
-                        item.vertexStart = primitive->GetVertexStart();
+                        const auto& srcPrimitive = srcPrimitives[j];
+
+                        auto& dstPrimitive = dstPrimitives.emplace_back();
+                        dstPrimitive.material = model->GetMaterialsData()[srcPrimitive.GetMaterialIdx()];
+                        dstPrimitive.indexCount = srcPrimitive.GetIdxCount();
+                        dstPrimitive.indexStart = srcPrimitive.GetIdxStart();
+                        dstPrimitive.vertexStart = srcPrimitive.GetVertexStart();
                     }
                 }
-                renderer->Register(message.ID, model->GetVerticesData(), model->GetVertexCount(), model->GetIdxData(), model->GetIdxCount(), items.data(),
-                                   static_cast<uint32_t>(items.size()));
+
+                Fleur::Graphics::SFLModelRegisterInfo regInfo{};
+                regInfo.model = message.ID;
+                regInfo.vertices = model->GetVerticesData();
+                regInfo.vertexCount = model->GetVertexCount();
+                regInfo.indices = model->GetIdxData();
+                regInfo.indexCount = model->GetIdxCount();
+                regInfo.nodeTransforms = model->GetNodeTransforms();
+                regInfo.nodeTransformCount = model->GetNodeTransformsCount();
+                regInfo.primitives = dstPrimitives.data();
+                regInfo.primitiveCount = static_cast<uint32_t>(dstPrimitives.size());
+                regInfo.instances = instanceItems.data();
+                regInfo.instanceCount = instanceCount;
+
+                // Register() must copy all pointed data synchronously.
+                // items/instanceItems are local temporaries.
+                renderer->Register(regInfo);
 
                 m_ModelCache.RemoveFromAsyncOperations(model->GetName());
                 break;
@@ -375,10 +410,9 @@ void Fleur::AssetsManager::LoadModelInternal(std::string_view path, ModelAsset* 
 
     Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(res->c_str(), data);
     // fabric.load
-    Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
     // create images -> add to upload
     // fabric.release
-    modelPtr->PostCreate(createInfo);
+    modelPtr->PostCreate(fabric.ProcessData());
 
     cgltf_free(data);
 
@@ -484,8 +518,7 @@ void Fleur::AssetsManager::LoadModelAsyncInternal(std::string_view path, ModelAs
 
             Fleur::Graphics::CGLTFModelFabric fabric = Fleur::Graphics::CGLTFModelFabric(modelPtr->GetName(), data);
             // fabric.load
-            Fleur::Graphics::Model::SFLPostCreateInfo createInfo = fabric.ProcessData();
-            modelPtr->PostCreate(createInfo);
+            modelPtr->PostCreate(fabric.ProcessData());
             // load async images
             // fabric.release
 

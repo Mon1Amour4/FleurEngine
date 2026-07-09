@@ -31,13 +31,25 @@ IF(FLEUR_PLATFORM STREQUAL "macos")
 
 ELSEIF(FLEUR_PLATFORM STREQUAL "x64")
   # Windows Sources
-  LIST(APPEND SANDBOX_SOURCES Windows/main.cpp)
+  # DebugVisualizers.cpp: func-eval targets for natvis (mat4 scale/euler, color hex). MSVC-only.
+  LIST(APPEND SANDBOX_SOURCES Windows/main.cpp DebugVisualizers.cpp)
 
   # Create Windows Executable
   ADD_EXECUTABLE(Sandbox WIN32 ${SANDBOX_SOURCES} ${SANDBOX_HEADERS})
 
   # Windows-specific properties
   SET_TARGET_PROPERTIES(Sandbox PROPERTIES WIN32_EXECUTABLE TRUE)
+ENDIF()
+
+# === Debugger Visualizers (MSVC / VS natvis) ===
+# Embed natvis into the Sandbox PDB so the Visual Studio / VS Code (cppvsdbg)
+# debugger renders glm types (vec, mat4, quat) readably instead of raw arrays.
+# PDB-embedded -> no per-machine Visualizers-folder setup, survives clean checkout.
+IF(MSVC)
+  TARGET_SOURCES(Sandbox PRIVATE
+    ${CMAKE_SOURCE_DIR}/Engine/External/glm/util/glm.natvis
+    ${CMAKE_SOURCE_DIR}/Engine/Fleur/Fleur.natvis
+  )
 ENDIF()
 
 # === Dependencies ===

@@ -71,14 +71,14 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     rasterizer.depthBiasSlopeFactor = 0.0f;     // Optional
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-    colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-    colorBlendAttachment.blendEnable = true;
-    colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;            // Optional
-    colorBlendAttachment.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;  // Optional
-    colorBlendAttachment.colorBlendOp = VK_BLEND_OP_ADD;                             // Optional
-    colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;                  // Optional
-    colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;                 // Optional
-    colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;                             // Optional
+    colorBlendAttachment.blendEnable = desc.colorBlendAttachment.blendEnable;
+    colorBlendAttachment.colorWriteMask = desc.colorBlendAttachment.colorWriteMask;
+    colorBlendAttachment.srcColorBlendFactor = desc.colorBlendAttachment.srcColorBlendFactor;
+    colorBlendAttachment.dstColorBlendFactor = desc.colorBlendAttachment.dstColorBlendFactor;
+    colorBlendAttachment.colorBlendOp = desc.colorBlendAttachment.colorBlendOp;
+    colorBlendAttachment.srcAlphaBlendFactor = desc.colorBlendAttachment.srcAlphaBlendFactor;
+    colorBlendAttachment.dstAlphaBlendFactor = desc.colorBlendAttachment.dstAlphaBlendFactor;
+    colorBlendAttachment.alphaBlendOp = desc.colorBlendAttachment.alphaBlendOp;
 
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;

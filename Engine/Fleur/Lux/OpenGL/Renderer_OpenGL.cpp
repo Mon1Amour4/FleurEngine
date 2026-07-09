@@ -1,7 +1,7 @@
-#include "PrivateOpenGLImpl.hpp"
-
 #include <cstddef>
 #include <iostream>
+
+#include "PrivateOpenGLImpl.hpp"
 
 namespace
 {
@@ -58,11 +58,11 @@ void main()
 )";
 
 // Unit cube, 36 verts (matches the Vulkan skybox).
-const float kSkyboxVerts[] = {-1, 1,  -1, -1, -1, -1, 1,  -1, -1, 1,  -1, -1, 1,  1,  -1, -1, 1,  -1,   //
-                              -1, -1, 1,  -1, -1, -1, -1, 1,  -1, -1, 1,  -1, -1, 1,  1,  -1, -1, 1,    //
-                              1,  -1, -1, 1,  -1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1,    //
-                              -1, -1, 1,  -1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1, 1,     //
-                              -1, 1,  -1, 1,  1,  -1, 1,  1,  1,  1,  1,  1,  -1, 1,  1,  -1, 1,  -1,    //
+const float kSkyboxVerts[] = {-1, 1,  -1, -1, -1, -1, 1,  -1, -1, 1,  -1, -1, 1,  1,  -1, -1, 1,  -1,  //
+                              -1, -1, 1,  -1, -1, -1, -1, 1,  -1, -1, 1,  -1, -1, 1,  1,  -1, -1, 1,   //
+                              1,  -1, -1, 1,  -1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1,  //
+                              -1, -1, 1,  -1, 1,  1,  1,  1,  1,  1,  1,  1,  1,  -1, 1,  -1, -1, 1,   //
+                              -1, 1,  -1, 1,  1,  -1, 1,  1,  1,  1,  1,  1,  -1, 1,  1,  -1, 1,  -1,  //
                               -1, -1, -1, -1, -1, 1,  1,  -1, -1, 1,  -1, -1, -1, -1, 1,  1,  -1, 1};
 
 GLuint compileShader(GLenum type, const char* src)
@@ -127,10 +127,9 @@ void gl::backend::SetSkybox(AssetID id)
 {
     pImpl->setSkybox(id);
 }
-void gl::backend::RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                                const FLDrawItem* primitives, uint32_t primitiveCount)
+void gl::backend::RegisterModel(const SFLModelRegisterInfo& info)
 {
-    pImpl->registerModel(model, vertices, vertexCount, indices, indexCount, primitives, primitiveCount);
+    pImpl->registerModel(info.model, info.vertices, info.vertexCount, info.indices, info.indexCount, info.primitives, info.primitiveCount);
 }
 void gl::backend::UnregisterModel(AssetID model)
 {
@@ -156,7 +155,9 @@ void gl::backend::EndFrame()
 {
     pImpl->endFrame();
 }
-void gl::backend::StartResize() {}
+void gl::backend::StartResize()
+{
+}
 void gl::backend::EndResize(Fleur::SRect& rect)
 {
     (void)rect;  // TODO: glViewport to new size (next stage)
@@ -217,8 +218,8 @@ void gl::backend::impl::createContext(void* pNativeHandle)
         assert(false);
     }
 
-    const int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB, 4, WGL_CONTEXT_MINOR_VERSION_ARB,        6,
-                           WGL_CONTEXT_PROFILE_MASK_ARB,  WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0};
+    const int attribs[] = {WGL_CONTEXT_MAJOR_VERSION_ARB,    4, WGL_CONTEXT_MINOR_VERSION_ARB, 6, WGL_CONTEXT_PROFILE_MASK_ARB,
+                           WGL_CONTEXT_CORE_PROFILE_BIT_ARB, 0};
     m_Ctx = wglCreateContextAttribsARB(m_Hdc, nullptr, attribs);
 
     wglMakeCurrent(m_Hdc, m_Ctx);
@@ -267,7 +268,7 @@ void gl::backend::impl::createPass(EFLPassKind kind, SFLShaderStages /*shaderSta
 }
 
 void gl::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                                      const FLDrawItem* primitives, uint32_t primitiveCount)
+                                      const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount)
 {
     const uint32_t baseVertex = m_VertexCursor;
     const uint32_t baseIndex = m_IndexCursor;

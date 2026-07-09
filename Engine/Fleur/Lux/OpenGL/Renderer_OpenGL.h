@@ -21,8 +21,7 @@ struct backend : public Fleur::Graphics::IRenderer
     void CreateSkybox(AssetID id, SFLShaderStages shaderStages) override;
     void SetSkybox(AssetID id) override;
 
-    void RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                       const FLDrawItem* primitives, uint32_t primitiveCount) override;
+    void RegisterModel(const SFLModelRegisterInfo& info) override;
     void UnregisterModel(AssetID model) override;
     void UploadTextures(SFLImageViewInfo* pInfo) override;
     void RemoveTexture(AssetID texture) override;

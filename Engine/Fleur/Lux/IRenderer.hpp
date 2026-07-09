@@ -45,8 +45,7 @@ struct IRenderer
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
 
     // --- frame API (immediate, per-AssetID) ---
-    virtual void RegisterModel(AssetID model, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                               const FLDrawItem* primitives, uint32_t primitiveCount) = 0;
+    virtual void RegisterModel(const SFLModelRegisterInfo& info) = 0;
     virtual void UnregisterModel(AssetID model) = 0;
     virtual void RemoveTexture(AssetID texture) = 0;
 

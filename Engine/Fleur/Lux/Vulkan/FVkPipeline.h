@@ -50,6 +50,17 @@ struct FGraphicsPipelineDesc
     const char* fragmentEntryPointName;
 
     std::vector<VkPipelineShaderStageCreateInfo>* shaderStages;
+
+    VkPipelineColorBlendAttachmentState colorBlendAttachment{
+        .blendEnable = false,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+        .colorBlendOp = VK_BLEND_OP_ADD,
+        .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
+        .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .alphaBlendOp = VK_BLEND_OP_ADD,
+        .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+    };
 };
 
 class FVkDescriptorSetLayout
@@ -63,10 +74,10 @@ public:
         {
         }
 
-        Builder& add(uint32_t idx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count)
+        Builder& add(uint32_t bindingIdx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count)
         {
             VkDescriptorSetLayoutBinding binding{};
-            binding.binding = idx;
+            binding.binding = bindingIdx;
             binding.descriptorType = type;
             binding.descriptorCount = count;
             binding.stageFlags = stageFlags;
@@ -86,7 +97,7 @@ public:
                                                                 VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/
                 ;
 
-            std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(flags, m_Bindings.size());
+            std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(m_Bindings.size(), flags);
             VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
             binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
             binding_flags.bindingCount = m_Bindings.size();

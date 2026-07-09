@@ -12,10 +12,6 @@
 
 namespace Lux
 {
-using AssetID = Fleur::Graphics::AssetID;
-using Color = Fleur::Graphics::Color;
-using IRenderer = Fleur::Graphics::IRenderer;
-using SAABB = Fleur::Graphics::SAABB;
 
 Renderer::Renderer()
 {
@@ -90,10 +86,9 @@ Fleur::Graphics::SFLShaderInfo Renderer::shaderInfo(Fleur::Graphics::Shader* sha
     return {shader->GetShaderCode(), shader->GetShaderCodeSizeB()};
 }
 
-void Renderer::Register(AssetID model, const Fleur::Graphics::SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                        const Fleur::Graphics::FLDrawItem* primitives, uint32_t primitiveCount)
+void Renderer::Register(const Fleur::Graphics::SFLModelRegisterInfo& info)
 {
-    m_Backend->RegisterModel(model, vertices, vertexCount, indices, indexCount, primitives, primitiveCount);
+    m_Backend->RegisterModel(info);
 }
 void Renderer::Unregister(AssetID model)
 {

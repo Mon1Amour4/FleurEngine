@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 
 #include <functional>
+#include <map>
 #include <unordered_map>
 
 #include "FVkPipeline.h"
@@ -33,11 +34,13 @@ struct GetPipelineInfo
     VkFormat colorFormat;
     VkFormat depthFormat;
 
+    bool blendEnable = false;
+
     inline bool operator==(const GetPipelineInfo& rhs) const noexcept
     {
         return topology == rhs.topology && depthCompareOp == rhs.depthCompareOp && samplesCount == rhs.samplesCount && cullMode == rhs.cullMode &&
                frontFace == rhs.frontFace && depthTestEnable == rhs.depthTestEnable && depthWriteEnable == rhs.depthWriteEnable &&
-               colorFormat == rhs.colorFormat && depthFormat == rhs.depthFormat;
+               colorFormat == rhs.colorFormat && depthFormat == rhs.depthFormat && blendEnable == rhs.blendEnable;
     }
 };
 }  // namespace vk
@@ -63,6 +66,7 @@ struct hash<vk::GetPipelineInfo>
         hashCombine(std::hash<bool>{}(info.depthWriteEnable));
         hashCombine(std::hash<uint32_t>{}(info.colorFormat));
         hashCombine(std::hash<uint32_t>{}(info.depthFormat));
+        hashCombine(std::hash<bool>{}(info.blendEnable));
 
         return h;
     }
@@ -152,12 +156,12 @@ private:
 
 
     std::vector<VkPushConstantRange> m_PushConstants;
-    std::unordered_map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> m_GlobalDescriptorSetLayoutBindingsMap;
+    std::map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> m_GlobalDescriptorSetLayoutBindingsMap;
     std::vector<VkDescriptorSetLayout> m_GlobalDescriptorSetLayouts;
 
     void getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize);
     void createDescriptorSetLayouts();
-
+    void mergePushConstants();
     VkShaderStageFlagBits convertReflectionShaderStage(SpvReflectShaderStageFlagBits stage);
     VkDescriptorType convertReflectionDescriptorType(SpvReflectDescriptorType type);
     VkFormat convertReflectionFormat(SpvReflectFormat format);

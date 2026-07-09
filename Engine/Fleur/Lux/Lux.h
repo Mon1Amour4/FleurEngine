@@ -34,9 +34,9 @@ public:
     ~Renderer();
 
     // Resource lifetime (retained). Forward on asset load, inverse on evict.
-    void Register(AssetID model, const Fleur::Graphics::SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                  const Fleur::Graphics::FLDrawItem* primitives, uint32_t primitiveCount);
-    void Unregister(AssetID model);
+    void Register(const Fleur::Graphics::SFLModelRegisterInfo& info);
+
+    void Unregister(Fleur::Graphics::AssetID model);
     void UploadTextures(Fleur::Graphics::SFLImageViewInfo* info);
     void RemoveTexture(AssetID texture);
 

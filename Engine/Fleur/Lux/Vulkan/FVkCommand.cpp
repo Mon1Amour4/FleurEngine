@@ -136,9 +136,9 @@ void FVkCommandBuffer::Draw(uint32_t count, uint32_t vertexStart)
     vkCmdDraw(m_CommandBuffer, count, 1, vertexStart, 0);
 }
 
-void FVkCommandBuffer::DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset)
+void FVkCommandBuffer::DrawIndexed(uint32_t indexCount, size_t indexOffset, size_t vertexOffset, uint32_t instanceCout, uint32_t instanceStartIdx)
 {
-    vkCmdDrawIndexed(m_CommandBuffer, indexCount, 1, indexOffset, vertexOffset, 0);
+    vkCmdDrawIndexed(m_CommandBuffer, indexCount, instanceCout, indexOffset, vertexOffset, instanceStartIdx);
 }
 
 void FVkCommandBuffer::BeginRendering(VkImageView renderTarget, VkImageView depthRenderTarget, VkRect2D renderarea)

@@ -1,7 +1,8 @@
 #pragma once
 
-#include "glm/glm.hpp"
+#define NODE_TRANSFORMS_MAX_CUP 1023
 
+#include "glm/glm.hpp"
 namespace Fleur::Graphics
 {
 using AssetID = uint32_t;
@@ -59,9 +60,14 @@ struct SFLCameraData
     glm::mat4 proj;
 };
 
+struct SFLSSBODescriptorBuffer
+{
+    glm::mat4 modelTransform;
+    glm::mat4 nodeTransforms[NODE_TRANSFORMS_MAX_CUP];
+};
+
 struct SFLGeometryUBO
 {
-    glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
 };

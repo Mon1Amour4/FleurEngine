@@ -4,8 +4,8 @@
 
 #include <array>
 #include <cassert>
-#include <set>
 #include <iostream>
+#include <set>
 
 FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, FleurQueueFamilies graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
@@ -37,20 +37,20 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
         // PresentQueue
         VkDeviceQueueCreateInfo presentFamilyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                                                              .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_PresentFamily.m_Idx,
-                                                              .queueCount = 1,
-                                                              .pQueuePriorities = queuePriority.data()};
+                                                             .queueCount = 1,
+                                                             .pQueuePriorities = queuePriority.data()};
 
         deviceQueueCreateInfo.push_back(presentFamilyQueueCreateInfo);
     }
     else
     {  // GraphicsQueue &&  // PresentQueue
         VkDeviceQueueCreateInfo familyQueueCreateInfo{.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                                                              .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_GraphicsFamily.m_Idx,
-                                                              .queueCount = 2,
-                                                              .pQueuePriorities = queuePriority.data()};
+                                                      .queueFamilyIndex = (uint32_t)m_QueueFamilies.m_GraphicsFamily.m_Idx,
+                                                      .queueCount = 2,
+                                                      .pQueuePriorities = queuePriority.data()};
         deviceQueueCreateInfo.push_back(familyQueueCreateInfo);
     }
-    
+
 
     VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
 
@@ -58,6 +58,7 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
                                                         .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
                                                         .descriptorBindingUniformBufferUpdateAfterBind = VK_TRUE,
                                                         .descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
+                                                        .descriptorBindingStorageBufferUpdateAfterBind = VK_TRUE,
                                                         .descriptorBindingUpdateUnusedWhilePending = VK_TRUE,
                                                         .descriptorBindingPartiallyBound = VK_TRUE,
                                                         .descriptorBindingVariableDescriptorCount = VK_TRUE,
@@ -217,41 +218,41 @@ FleurQueueFamilies FVkDevice::FindGraphicsQueueFamily(VkPhysicalDevice physicalD
 std::string FVkDevice::QueueFlagsToString(VkQueueFlags flags)
 {
     std::string result;
-    
+
     auto append = [&](const char* name)
     {
         if (!result.empty())
             result += " | ";
         result += name;
     };
-    
+
     if (flags & VK_QUEUE_GRAPHICS_BIT)
         append("GRAPHICS");
-    
+
     if (flags & VK_QUEUE_COMPUTE_BIT)
         append("COMPUTE");
-    
+
     if (flags & VK_QUEUE_TRANSFER_BIT)
         append("TRANSFER");
-    
+
     if (flags & VK_QUEUE_SPARSE_BINDING_BIT)
         append("SPARSE_BINDING");
-    
+
     if (flags & VK_QUEUE_PROTECTED_BIT)
         append("PROTECTED");
-    
+
     if (flags & VK_QUEUE_VIDEO_DECODE_BIT_KHR)
         append("VIDEO_DECODE");
-    
+
     if (flags & VK_QUEUE_VIDEO_ENCODE_BIT_KHR)
         append("VIDEO_ENCODE");
-    
+
     if (flags & VK_QUEUE_OPTICAL_FLOW_BIT_NV)
         append("OPTICAL_FLOW");
-    
+
     if (result.empty())
         return "NONE";
-    
+
     return result;
 }
 

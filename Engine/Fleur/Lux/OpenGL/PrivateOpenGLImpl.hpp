@@ -21,8 +21,8 @@ struct GlPrimitive
 {
     uint32_t albedo;
     uint32_t indexCount;
-    uint32_t indexOffset;   // in indices
-    int32_t vertexOffset;   // in vertices (baseVertex)
+    uint32_t indexOffset;  // in indices
+    int32_t vertexOffset;  // in vertices (baseVertex)
 };
 
 struct backend::impl
@@ -50,7 +50,7 @@ struct backend::impl
     // ---------- resources ----------
     std::unordered_map<AssetID, std::vector<GlPrimitive>> m_RegisteredModels;
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,
-                       const FLDrawItem* primitives, uint32_t primitiveCount);
+                       const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount);
     void unregisterModel(AssetID id);
 
     std::unordered_map<AssetID, GLuint> m_TextureMap;

@@ -16,6 +16,11 @@ public:
     void MemCopy(const void* src, size_t size);
     void UploadDataToBuffer(const void* pData, uint64_t count);
 
+    inline void Reset()
+    {
+        m_CurrentSizeBytes = 0;
+    }
+
     inline uint64_t Size() const
     {
         return m_SizeBytes;
