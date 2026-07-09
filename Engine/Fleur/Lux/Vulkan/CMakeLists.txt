@@ -26,6 +26,7 @@ SET(PROJECT_HEADERS
     FVkDebugDraw.h
     VkHelper.h
     FVkShader.h
+    DescriptorPoolAllocator.h
     ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
 )
@@ -44,6 +45,7 @@ SET(PROJECT_SOURCES
     FVkDebugDraw.cpp
     VkHelper.cpp
     FVkShader.cpp
+    DescriptorPoolAllocator.cpp
      ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.c
 )
 
