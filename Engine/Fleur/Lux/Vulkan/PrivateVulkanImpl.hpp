@@ -349,31 +349,40 @@ struct backend::impl
 
     FVkCommandBuffer m_SkyboxCmd;
 
-    struct FrameContext
+    struct FrameSceneResources
     {
-        FrameContext(uint32_t framesInFlight)
-            : m_FramesInFlight(framesInFlight)
-            , m_CommandPools(m_FramesInFlight)
-            , m_CommandBuffers(m_FramesInFlight)
-            , m_InFlightFences(m_FramesInFlight)
-            , m_ImagesAvailable(m_FramesInFlight)
-            , m_RenderFinished(m_FramesInFlight)
-            , frameDescriptors(3)
-            , m_FrameCommandPool(nullptr) {};
+        FVkBuffer m_CameraBuffer;
+        VkDescriptorSet m_CameraDescriptor{VK_NULL_HANDLE};
 
-        uint32_t m_FramesInFlight;
-        std::vector<FVkCommandPool> m_CommandPools;
-        std::vector<FVkCommandBuffer> m_CommandBuffers;
-        std::vector<VkFence> m_InFlightFences;
-        std::vector<VkSemaphore> m_ImagesAvailable;
-        std::vector<VkSemaphore> m_RenderFinished;
-
-        FVkCommandPool* m_FrameCommandPool;
-
-        std::vector<vk::abstraction::DescriptorAllocator> frameDescriptors;
+        FVkBuffer m_SceneNodeTransformsStorageBuffer;
+        VkDescriptorSet m_SceneNodeTransformsDescriptor{VK_NULL_HANDLE};
     };
-    FrameContext* m_FrameContext{nullptr};
 
+    FVkDescriptorSetLayout* m_CameraUboLayout{nullptr};
+    FVkDescriptorSetLayout* m_SceneNodeTransformsLayout{nullptr};
+    FVkDescriptorSetLayout* m_ShadowMapLayout{nullptr};
+    FVkDescriptorSetLayout* m_PointLightsLayout{nullptr};
+    FVkDescriptorSetLayout* m_StaticGeometryTexturesLayout{nullptr};
+    struct Frame
+    {
+        FVkCommandPool m_CommandPools;
+        FVkCommandBuffer m_CommandBuffers;
+        VkFence m_InFlightFences{VK_NULL_HANDLE};
+        VkSemaphore m_ImagesAvailable{VK_NULL_HANDLE};
+        VkSemaphore m_RenderFinished{VK_NULL_HANDLE};
+
+        vk::abstraction::DescriptorAllocator frameDescriptors;
+        FrameSceneResources scene;
+    };
+
+    Frame& GetCurrentFrame()
+    {
+        return m_Frames[m_CurrentFrame];
+    }
+    std::vector<Frame> m_Frames;
+    FVkCommandPool* m_ImmediateCommandPool{nullptr};
+
+    const uint32_t K_NODE_TRANSFORMS_CUP = 1023;
 
     VkMemoryRequirements memRequirements;
 
@@ -386,24 +395,12 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    const uint32_t K_NODE_TRANSFORMS_CUP = 1023;
-    FVkDescriptorSetLayout* m_SceneNodeTransformsDescriptorLayout{nullptr};
-    struct SceneNodeTransforms
-    {
-        FVkBuffer m_SceneNodeTransformsStorageBuffer;
-        VkDescriptorSet m_SceneNodeTransformsDescriptor;
-    };
-
-    std::vector<SceneNodeTransforms> m_SceneNodeTransforms;
-
     VkDescriptorSet m_ShadowMapDescriptorSet;
-    FVkDescriptorSetLayout* m_ShadowMapDescriptorSetLayout{nullptr};
     void InitShadowMapDescriptorSet();
 
     std::vector<glm::mat4> m_InstanceNodeTransforms;
 
     FVkBuffer* m_PointLightsBuffer{nullptr};
-    FVkDescriptorSetLayout* m_PointLightsDescriptorSetLayout{nullptr};
     VkDescriptorSet m_PointLightDescriptorSet;
 
     std::vector<InstancesBatch> m_Batches;
@@ -523,15 +520,10 @@ struct backend::impl
 
 
     // ---------- static geometry ----------
-    FVkDescriptorSetLayout* m_StaticGeometryTexturesDsl{nullptr};
-    FVkDescriptorSetLayout* m_StaticGeometryUboDsl{nullptr};
-    std::vector<VkDescriptorSet> m_StaticGeometryDescriptorSetUbo;
     VkDescriptorSet m_StaticGeometryDescriptorSetTextures;
     VkDescriptorPool m_DescriptorPool;
-    std::vector<FVkBuffer> m_UniformBuffers;
 
     void createStaticGeometryPass();
-    void updateUniformBuffer(uint32_t currentImage, Fleur::Graphics::SFLGeometryUBO* pUbo);
 
     void createDescriptorPool();
 
