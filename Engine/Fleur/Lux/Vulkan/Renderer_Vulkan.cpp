@@ -135,7 +135,6 @@ vk::backend::impl::impl(bool enableValidation,
 
     m_VertexBuffer = new FVkBuffer();
     m_IndexBuffer = new FVkBuffer();
-    m_SSBOBuffer = new FVkBuffer();
     m_PointLightsBuffer = new FVkBuffer();
 
     m_MultisampledRenderTarget = new FVkMultisampler();
@@ -145,9 +144,31 @@ vk::backend::impl::impl(bool enableValidation,
     m_FramesInFlight = m_Swapchain->GetSwapchainImageCount();
     m_FramesInFlight = 3;
 
+    m_SceneNodeTransformsDescriptorLayout =
+        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build(0);
+
     m_FrameContext = new FrameContext(m_FramesInFlight);
+    m_SceneNodeTransforms.resize(m_FramesInFlight);
     for (size_t i = 0; i < m_FramesInFlight; i++)
     {
+        m_SceneNodeTransforms[i].m_SceneNodeTransformsStorageBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
+                                                                         VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                                         NODE_TRANSFORMS_MAX_CUP * sizeof(glm::mat4) + sizeof(glm::mat4), sizeof(glm::mat4));
+
+        std::vector<vk::abstraction::DescriptorAllocator::PoolSizeRatio> frame_sizes = {
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_FramesInFlight},          // ssbo
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_FramesInFlight},          // camera data
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_FramesInFlight},  // shadowMap
+        };
+        m_FrameContext->frameDescriptors[i].init(m_Device->GetLogicalDevice(), 1000, frame_sizes);
+        m_SceneNodeTransforms[i].m_SceneNodeTransformsDescriptor =
+            m_FrameContext->frameDescriptors[i].allocate(m_Device->GetLogicalDevice(), m_SceneNodeTransformsDescriptorLayout->GetDescriptorSetLayout(), 1);
+
+        vk::abstraction::DescriptorWriter ssboWriter{};
+        ssboWriter.write_buffer(0, m_SceneNodeTransforms[i].m_SceneNodeTransformsStorageBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLSSBODescriptorBuffer), 0,
+                                VK_DESCRIPTOR_TYPE_STORAGE_BUFFER);
+        ssboWriter.update_set(m_Device->GetLogicalDevice(), m_SceneNodeTransforms[i].m_SceneNodeTransformsDescriptor);
+
         m_FrameContext->m_CommandPools[i].Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
                                                m_Device->GetGraphicsQueueFamilyIndex());
         m_FrameContext->m_CommandBuffers[i].Init(m_Device->GetLogicalDevice(), m_FrameContext->m_CommandPools[i].GetCommandPool(),
@@ -188,18 +209,13 @@ vk::backend::impl::impl(bool enableValidation,
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         1024u * 1024ul * 256ul, sizeof(uint32_t));
 
-    m_SSBODescriptorSetLayout =
-        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build();
-
     m_ShadowMapDescriptorSetLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
                                          .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-                                         .build();
+                                         .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
 
-    m_SSBOBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                       NODE_TRANSFORMS_MAX_CUP * sizeof(glm::mat4) + sizeof(glm::mat4), sizeof(glm::mat4));
-
-    m_PointLightsDescriptorSetLayout =
-        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1).build();
+    m_PointLightsDescriptorSetLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                           .add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+                                           .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
     m_PointLightsBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, POINT_LIGHTS_MAX_CUP * sizeof(SFLPointLight),
                               sizeof(SFLPointLight));
@@ -253,7 +269,7 @@ vk::backend::impl::~impl()
     vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), m_DescriptorPool, nullptr);
     delete m_StaticGeometryTexturesDsl;
     delete m_StaticGeometryUboDsl;
-    delete m_SSBODescriptorSetLayout;
+    delete m_SceneNodeTransformsDescriptorLayout;
     delete m_PointLightsDescriptorSetLayout;
     delete m_ShadowMapDescriptorSetLayout;
 
@@ -276,7 +292,6 @@ vk::backend::impl::~impl()
     // 8. Buffers
     delete m_VertexBuffer;
     delete m_IndexBuffer;
-    delete m_SSBOBuffer;
     delete m_PointLightsBuffer;
     for (size_t i = 0; i < m_UniformBuffers.size(); i++)
     {
@@ -476,18 +491,25 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
 }
 
 
-FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                                       VkSampleCountFlagBits samplesCount)
+FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderInfo pVertexInfo,
+                                                       Fleur::Graphics::SFLShaderInfo pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
+                                                       const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
                                           .vertexSize = pVertexInfo.sizeBytes,
                                           .pFragmentData = pFragmentInfo.shaderCode,
                                           .fragmentSize = pFragmentInfo.sizeBytes};
 
+    auto& shader = m_ShaderMap.emplace(shaderKey, vk::FVkShader()).first->second;
+    if (!shader.isInitialized())
+        shader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
-    auto& opaqueShader = m_ShaderMap.emplace("opaque", vk::FVkShader()).first->second;
-    opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+    return shader.GetPipeline(pipelineInfo, descriptorSetLayouts);
+}
 
+FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                                       VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+{
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = false;
     pipelineInfo.cullMode = VK_CULL_MODE_NONE;
@@ -500,24 +522,12 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
     pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
 
-    FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
-
-    return pipeline;
+    return createGraphicsPipeline("opaque", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
 FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                                          VkSampleCountFlagBits samplesCount)
+                                                          VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
-                                          .vertexSize = pVertexInfo.sizeBytes,
-                                          .pFragmentData = pFragmentInfo.shaderCode,
-                                          .fragmentSize = pFragmentInfo.sizeBytes};
-
-
-    auto& opaqueShader = m_ShaderMap.emplace("opaque", vk::FVkShader()).first->second;
-    if (!opaqueShader.isInitialized())
-        opaqueShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
-
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = true;
     pipelineInfo.cullMode = VK_CULL_MODE_NONE;
@@ -530,24 +540,12 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
     pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
     pipelineInfo.depthFormat = FindDepthFormat(m_Device->GetPhysicalDevice());
 
-    FVkPipeline* pipeline = opaqueShader.GetPipeline(pipelineInfo);
-
-    return pipeline;
+    return createGraphicsPipeline("opaque", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
 FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                                     VkSampleCountFlagBits samplesCount)
+                                                     VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
-                                          .vertexSize = pVertexInfo.sizeBytes,
-                                          .pFragmentData = pFragmentInfo.shaderCode,
-                                          .fragmentSize = pFragmentInfo.sizeBytes};
-
-
-    auto& shadowShader = m_ShaderMap.emplace("shadow", vk::FVkShader()).first->second;
-    if (!shadowShader.isInitialized())
-        shadowShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
-
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = false;
 
@@ -574,9 +572,7 @@ FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderI
     pipelineInfo.depthBiasClamp = 0.0f;
     pipelineInfo.depthBiasSlopeFactor = 1.75f;
 
-    FVkPipeline* pipeline = shadowShader.GetPipeline(pipelineInfo);
-
-    return pipeline;
+    return createGraphicsPipeline("shadow", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
 VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
@@ -692,47 +688,14 @@ void vk::backend::impl::createDescriptorSets()
 
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorImageWrites, 0, nullptr);
 
-
-    // ---------- SSBO ----------
-    auto ssboDsl = m_SSBODescriptorSetLayout->GetDescriptorSetLayout();
-
-    VkDescriptorSetAllocateInfo ssboDescriptorSetAllocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &ssboDsl};
-
-    VkResult res = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &ssboDescriptorSetAllocInfo, &m_SSBODescriptorSet);
-    if (res != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to allocate descriptor sets!")
-        assert(false);
-    }
-    VkDescriptorBufferInfo ssbobufferInfo{};
-    ssbobufferInfo.buffer = m_SSBOBuffer->GetBuffer();
-    ssbobufferInfo.offset = 0;
-    ssbobufferInfo.range = sizeof(Fleur::Graphics::SFLSSBODescriptorBuffer);
-
-    VkWriteDescriptorSet ssboDescriptorWrites{};
-    ssboDescriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    ssboDescriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ssboDescriptorWrites.dstSet = m_SSBODescriptorSet;
-    ssboDescriptorWrites.dstBinding = 0;
-    ssboDescriptorWrites.dstArrayElement = 0;
-    ssboDescriptorWrites.descriptorCount = 1;
-    ssboDescriptorWrites.pBufferInfo = &ssbobufferInfo;
-
-    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &ssboDescriptorWrites, 0, nullptr);
-
     // ---------- PointLights ----------
     auto pointLightsDsl = m_PointLightsDescriptorSetLayout->GetDescriptorSetLayout();
 
     VkDescriptorSetAllocateInfo pointLightsDescriptorSetAllocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &pointLightsDsl};
 
-    res = vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &pointLightsDescriptorSetAllocInfo, &m_PointLightDescriptorSet);
-    if (res != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to allocate descriptor sets!")
-        assert(false);
-    }
+    VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &pointLightsDescriptorSetAllocInfo, &m_PointLightDescriptorSet));
+
     VkDescriptorBufferInfo pointLightBufferInfo{};
     pointLightBufferInfo.buffer = m_PointLightsBuffer->GetBuffer();
     pointLightBufferInfo.offset = 0;
@@ -1155,11 +1118,27 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
     if (kind == EFLPassKind::Opaque)
     {
         // TODO if pipeline already exists, need to release it
-        m_GeometryPipeline = createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount());
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
+            m_StaticGeometryUboDsl->GetDescriptorSetLayout(),
+            m_StaticGeometryTexturesDsl->GetDescriptorSetLayout(),
+            m_SceneNodeTransformsDescriptorLayout->GetDescriptorSetLayout(),
+            m_PointLightsDescriptorSetLayout->GetDescriptorSetLayout(),
+            m_ShadowMapDescriptorSetLayout->GetDescriptorSetLayout(),
+        };
+        m_GeometryPipeline = createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(),
+                                                   descriptorSetLayouts);
     }
     else if (kind == EFLPassKind::Transparent)
     {
-        m_TransparentPipeline = createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount());
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
+            m_StaticGeometryUboDsl->GetDescriptorSetLayout(),
+            m_StaticGeometryTexturesDsl->GetDescriptorSetLayout(),
+            m_SceneNodeTransformsDescriptorLayout->GetDescriptorSetLayout(),
+            m_PointLightsDescriptorSetLayout->GetDescriptorSetLayout(),
+            m_ShadowMapDescriptorSetLayout->GetDescriptorSetLayout(),
+        };
+        m_TransparentPipeline = createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(),
+                                                         descriptorSetLayouts);
     }
     else if (kind == EFLPassKind::AABB_DEBUG)
     {
@@ -1181,7 +1160,10 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
     }
     else if (kind == EFLPassKind::Shadow)
     {
-        m_ShadowPipeline = createShadowPipeline(shaderStages.vertex, shaderStages.fragment, VK_SAMPLE_COUNT_1_BIT);
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
+            m_SceneNodeTransformsDescriptorLayout->GetDescriptorSetLayout(),
+        };
+        m_ShadowPipeline = createShadowPipeline(shaderStages.vertex, shaderStages.fragment, VK_SAMPLE_COUNT_1_BIT, descriptorSetLayouts);
     }
 }
 
@@ -1387,12 +1369,13 @@ void vk::backend::impl::ExecuteMainPass()
 
 void vk::backend::impl::createStaticGeometryPass()
 {
-    m_StaticGeometryUboDsl =
-        FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build();
+    m_StaticGeometryUboDsl = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                 .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
+                                 .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
 
     m_StaticGeometryTexturesDsl = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
                                       .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
-                                      .build();
+                                      .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
 
     createDescriptorPool();
 
@@ -1457,7 +1440,8 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
     m_CameraData = cameraData;
     m_CameraData.proj[1][1] *= -1;  // Vulkan Y-flip — single source for all VK passes (geometry/skybox/debug)
 
-    m_SSBOBuffer->Reset();
+    m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsStorageBuffer.Reset();
+
     m_PointLightsBuffer->Reset();
 
     Fleur::Graphics::SFLGeometryUBO ubo{m_CameraData.view, m_CameraData.proj};
@@ -1519,7 +1503,7 @@ void vk::backend::impl::endFrame()
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
     ExecuteShadowPass();
-    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &m_SSBODescriptorSet, 1);
+    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsDescriptor, 1);
     // cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], 1);
 
     glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
@@ -1568,8 +1552,9 @@ void vk::backend::impl::endFrame()
     cmd.EndRendering();
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
-    std::array<VkDescriptorSet, 5> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures, m_SSBODescriptorSet,
-                                       m_PointLightDescriptorSet, m_ShadowMapDescriptorSet};
+    std::array<VkDescriptorSet, 5> dst{m_StaticGeometryDescriptorSetUbo[m_CurrentFrame], m_StaticGeometryDescriptorSetTextures,
+                                       m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsDescriptor, m_PointLightDescriptorSet,
+                                       m_ShadowMapDescriptorSet};
 
     transitionImageLayout(*cmd.GetCommandBuffer(), m_ShadowMapRenderTarget->GetImage(), FindDepthFormat(m_Device->GetPhysicalDevice()),
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
@@ -1755,8 +1740,9 @@ void vk::backend::impl::drawModel(AssetID id, const glm::mat4& modelTransform)
 
     memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(glm::mat4) * batch.nodeTransformCount);
 
-    uint32_t ssboCurrentIdx = m_SSBOBuffer->CurrentSize() / m_SSBOBuffer->StrideBytes();
-    m_SSBOBuffer->UploadDataToBuffer(matrices, matricesCount);
+    uint32_t ssboCurrentIdx = m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsStorageBuffer.CurrentSize() /
+                              m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsStorageBuffer.StrideBytes();
+    m_SceneNodeTransforms[m_CurrentFrame].m_SceneNodeTransformsStorageBuffer.UploadDataToBuffer(matrices, matricesCount);
     delete[] matrices;
 
     for (size_t i = 0; i < batch.instancesCount; i++)

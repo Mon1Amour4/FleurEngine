@@ -93,7 +93,7 @@ void vk::abstraction::DescriptorAllocator::destroy_pools(VkDevice device)
     m_FullPulls.clear();
 }
 
-VkDescriptorSet vk::abstraction::DescriptorAllocator::allocate(VkDevice device, VkDescriptorSetLayout layout, void* pNext)
+VkDescriptorSet vk::abstraction::DescriptorAllocator::allocate(VkDevice device, VkDescriptorSetLayout layout, uint32_t setsCount, void* pNext)
 {
     // get or create a pool to allocate from
     VkDescriptorPool poolToUse = get_pool(device);
@@ -102,7 +102,7 @@ VkDescriptorSet vk::abstraction::DescriptorAllocator::allocate(VkDevice device, 
     allocInfo.pNext = pNext;
     allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     allocInfo.descriptorPool = poolToUse;
-    allocInfo.descriptorSetCount = 1;
+    allocInfo.descriptorSetCount = setsCount;
     allocInfo.pSetLayouts = &layout;
 
     VkDescriptorSet ds;

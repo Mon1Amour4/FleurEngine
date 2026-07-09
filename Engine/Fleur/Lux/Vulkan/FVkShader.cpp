@@ -39,7 +39,6 @@ void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
     getReflection(m_VertexShader, info.pVertexData, info.vertexSize);
     getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize);
     mergePushConstants();
-    createDescriptorSetLayouts();
 }
 
 
@@ -136,74 +135,6 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
 
     // Destroy the reflection data when no longer required.
     spvReflectDestroyShaderModule(&module);
-}
-
-void vk::FVkShader::createDescriptorSetLayouts()
-{
-    const VkDescriptorBindingFlagsEXT descriptorBindingFlags = VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT;
-
-    // Find the highest set index used by the shader.
-    uint32_t maxSetIndex = 0;
-
-    for (const auto& [setIndex, bindings] : m_GlobalDescriptorSetLayoutBindingsMap)
-    {
-        maxSetIndex = std::max(maxSetIndex, setIndex);
-    }
-
-    // Vulkan pipeline layout uses array index as set number:
-    // pSetLayouts[0] -> set = 0
-    // pSetLayouts[1] -> set = 1
-    // pSetLayouts[2] -> set = 2
-    // etc.
-    m_GlobalDescriptorSetLayouts.clear();
-    m_GlobalDescriptorSetLayouts.resize(maxSetIndex + 1, VK_NULL_HANDLE);
-
-    for (const auto& [setIndex, bindings] : m_GlobalDescriptorSetLayoutBindingsMap)
-    {
-        const uint32_t bindingCount = static_cast<uint32_t>(bindings.size());
-
-        std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(bindingCount, descriptorBindingFlags);
-
-        VkDescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlagsInfo{};
-        bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-        bindingFlagsInfo.bindingCount = bindingCount;
-        bindingFlagsInfo.pBindingFlags = bindingFlags.data();
-
-        VkDescriptorSetLayoutCreateInfo layoutInfo{};
-        layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        layoutInfo.pNext = &bindingFlagsInfo;
-        layoutInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
-        layoutInfo.bindingCount = bindingCount;
-        layoutInfo.pBindings = bindings.data();
-
-        VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-
-        VkResult result = vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &descriptorSetLayout);
-
-        assert(result == VK_SUCCESS);
-
-        // Important: store by real set index, not by push_back order.
-        m_GlobalDescriptorSetLayouts[setIndex] = descriptorSetLayout;
-    }
-
-    // Fill missing sets with empty descriptor set layouts.
-    // Example:
-    // shader uses set 0, set 2, set 4
-    // pipeline layout still needs pSetLayouts[1] and pSetLayouts[3].
-    for (VkDescriptorSetLayout& descriptorSetLayout : m_GlobalDescriptorSetLayouts)
-    {
-        if (descriptorSetLayout != VK_NULL_HANDLE)
-            continue;
-
-        VkDescriptorSetLayoutCreateInfo emptyLayoutInfo{};
-        emptyLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-        emptyLayoutInfo.bindingCount = 0;
-        emptyLayoutInfo.pBindings = nullptr;
-
-        VkResult result = vkCreateDescriptorSetLayout(m_Device, &emptyLayoutInfo, nullptr, &descriptorSetLayout);
-
-        assert(result == VK_SUCCESS);
-    }
 }
 
 void vk::FVkShader::mergePushConstants()
@@ -410,12 +341,12 @@ VkFormat vk::FVkShader::convertReflectionFormat(SpvReflectFormat format)
 
 
 // ---------- pipeline ----------
-FVkPipeline* vk::FVkShader::GetPipeline(GetPipelineInfo& info)
+FVkPipeline* vk::FVkShader::GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     FVkPipeline* pipeline = &m_PipelineCache[info];
     if (!pipeline->GetPipelineLayout())
     {
-        FGraphicsPipelineDesc desc{.descriptorSetLayouts = m_GlobalDescriptorSetLayouts};
+        FGraphicsPipelineDesc desc{.descriptorSetLayouts = descriptorSetLayouts};
 
         desc.pushConstants = &m_PushConstants;
         desc.pVertexInputState = &m_VertexInput.createInfo;
@@ -450,6 +381,10 @@ FVkPipeline* vk::FVkShader::GetPipeline(GetPipelineInfo& info)
         desc.colorBlendAttachment.blendEnable = info.blendEnable;
 
         pipeline->Init(m_Device, desc);
+    }
+    else
+    {
+        assert(pipeline->GetDescriptorSetLayouts() == descriptorSetLayouts);
     }
     return pipeline;
 }

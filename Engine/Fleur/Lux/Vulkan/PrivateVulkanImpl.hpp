@@ -24,6 +24,7 @@
 #include <sstream>
 #include <vector>
 
+#include "DescriptorPoolAllocator.h"
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
 #include "FVkDebugDraw.h"
@@ -322,14 +323,16 @@ struct backend::impl
 
     FVkPipeline* m_GeometryPipeline{nullptr};
     FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                        VkSampleCountFlagBits samplesCount);
+                                        VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
     FVkPipeline* m_TransparentPipeline{nullptr};
     FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                           VkSampleCountFlagBits samplesCount);
+                                           VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
 
     FVkPipeline* m_ShadowPipeline{nullptr};
     FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
-                                      VkSampleCountFlagBits samplesCount);
+                                      VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+                                        const vk::GetPipelineInfo& pipelineInfo, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
@@ -355,6 +358,7 @@ struct backend::impl
             , m_InFlightFences(m_FramesInFlight)
             , m_ImagesAvailable(m_FramesInFlight)
             , m_RenderFinished(m_FramesInFlight)
+            , frameDescriptors(3)
             , m_FrameCommandPool(nullptr) {};
 
         uint32_t m_FramesInFlight;
@@ -365,6 +369,8 @@ struct backend::impl
         std::vector<VkSemaphore> m_RenderFinished;
 
         FVkCommandPool* m_FrameCommandPool;
+
+        std::vector<vk::abstraction::DescriptorAllocator> frameDescriptors;
     };
     FrameContext* m_FrameContext{nullptr};
 
@@ -380,9 +386,15 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    FVkBuffer* m_SSBOBuffer{nullptr};
-    VkDescriptorSet m_SSBODescriptorSet;
-    FVkDescriptorSetLayout* m_SSBODescriptorSetLayout{nullptr};
+    const uint32_t K_NODE_TRANSFORMS_CUP = 1023;
+    FVkDescriptorSetLayout* m_SceneNodeTransformsDescriptorLayout{nullptr};
+    struct SceneNodeTransforms
+    {
+        FVkBuffer m_SceneNodeTransformsStorageBuffer;
+        VkDescriptorSet m_SceneNodeTransformsDescriptor;
+    };
+
+    std::vector<SceneNodeTransforms> m_SceneNodeTransforms;
 
     VkDescriptorSet m_ShadowMapDescriptorSet;
     FVkDescriptorSetLayout* m_ShadowMapDescriptorSetLayout{nullptr};
@@ -552,5 +564,8 @@ struct backend::impl
 
     std::vector<SFLPointLight> m_PointLights;
     void updatePointLight(const SFLPointLight* light, uint32_t lightCount);
+
+    // Descriptors
+    vk::abstraction::DescriptorAllocator m_DescriptorAlloc;
 };
 }  // namespace vk

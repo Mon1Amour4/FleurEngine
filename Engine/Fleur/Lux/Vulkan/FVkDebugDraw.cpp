@@ -63,7 +63,8 @@ void FVkDebugDraw::createPipelines()
         linePipelineInfo.colorFormat = m_ColorFormat;
         linePipelineInfo.depthFormat = m_DepthFormat;
 
-        m_LinePipeline = m_DebugShader->GetPipeline(linePipelineInfo);
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
+        m_LinePipeline = m_DebugShader->GetPipeline(linePipelineInfo, descriptorSetLayouts);
         assert(m_LinePipeline);
 
         vk::GetPipelineInfo pointPipelineInfo{};
@@ -77,7 +78,7 @@ void FVkDebugDraw::createPipelines()
         pointPipelineInfo.colorFormat = m_ColorFormat;
         pointPipelineInfo.depthFormat = m_DepthFormat;
 
-        m_PointPipeline = m_DebugShader->GetPipeline(pointPipelineInfo);
+        m_PointPipeline = m_DebugShader->GetPipeline(pointPipelineInfo, descriptorSetLayouts);
         assert(m_PointPipeline);
     }
 

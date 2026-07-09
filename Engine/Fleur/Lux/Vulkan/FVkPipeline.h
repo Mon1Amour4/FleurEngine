@@ -91,31 +91,31 @@ public:
             return *this;
         }
 
-        FVkDescriptorSetLayout* build()
+        FVkDescriptorSetLayout* build(VkDescriptorBindingFlagsEXT bindingFlags)
         {
-            // ---------- using descriptor indexing ----------
-            // ---------- https://docs.vulkan.org/samples/latest/samples/extensions/descriptor_indexing/README.html ----------
+            // One flag set per binding.
+            std::vector<VkDescriptorBindingFlagsEXT> perBindingFlags(m_Bindings.size(), bindingFlags);
 
-            const VkDescriptorBindingFlagsEXT flags =
-                VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT /*|
-                                                                VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT*/
-                ;
+            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlagsInfo{};
+            bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
+            bindingFlagsInfo.bindingCount = static_cast<uint32_t>(perBindingFlags.size());
+            bindingFlagsInfo.pBindingFlags = perBindingFlags.data();
 
-            std::vector<VkDescriptorBindingFlagsEXT> bindingFlags(m_Bindings.size(), flags);
-            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT binding_flags{};
-            binding_flags.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-            binding_flags.bindingCount = m_Bindings.size();
-            binding_flags.pBindingFlags = bindingFlags.data();
+            VkDescriptorSetLayoutCreateFlags layoutFlags = 0;
+            if (bindingFlags & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT)
+            {
+                layoutFlags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
+            }
 
-            VkDescriptorSetLayoutCreateInfo info{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                                                 .pNext = &binding_flags,
-                                                 .flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT,
-                                                 .bindingCount = (uint32_t)m_Bindings.size(),
-                                                 .pBindings = m_Bindings.data()};
+            VkDescriptorSetLayoutCreateInfo info{};
+            info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            info.pNext = perBindingFlags.empty() ? nullptr : &bindingFlagsInfo;
+            info.flags = layoutFlags;
+            info.bindingCount = static_cast<uint32_t>(m_Bindings.size());
+            info.pBindings = m_Bindings.data();
 
-            VkDescriptorSetLayout layout;
-            if (vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout) != VK_SUCCESS)
-                assert(false);
+            VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+            VK_CHECK(vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout));
 
             return new FVkDescriptorSetLayout(m_Device, layout, m_Bindings.size());
         }
@@ -169,6 +169,10 @@ public:
     VkPipelineLayout GetPipelineLayout()
     {
         return m_PipelineLayout;
+    }
+    const std::vector<VkDescriptorSetLayout>& GetDescriptorSetLayouts() const
+    {
+        return m_DescriptorSetLayouts;
     }
 
 private:

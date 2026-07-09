@@ -15,14 +15,14 @@ public:
     struct PoolSizeRatio
     {
         VkDescriptorType type;
-        float ratio;
+        uint32_t ratio;
     };
 
     void init(VkDevice device, uint32_t initialSets, std::span<PoolSizeRatio> poolRatios);
     void clear_pools(VkDevice device);
     void destroy_pools(VkDevice device);
 
-    VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout, void* pNext = nullptr);
+    VkDescriptorSet allocate(VkDevice device, VkDescriptorSetLayout layout, uint32_t setsCount, void* pNext = nullptr);
 
 private:
     VkDescriptorPool get_pool(VkDevice device);

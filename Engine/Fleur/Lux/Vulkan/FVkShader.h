@@ -133,10 +133,6 @@ public:
     {
         return m_PushConstants;
     }
-    inline const std::vector<VkDescriptorSetLayout>& GetDescriptorSetLayouts() const
-    {
-        return m_GlobalDescriptorSetLayouts;
-    }
 
     inline const FVkShader::ShaderData& GetVertexShaderData() const
     {
@@ -147,7 +143,7 @@ public:
         return m_FragmentShader;
     }
 
-    FVkPipeline* GetPipeline(GetPipelineInfo& info);
+    FVkPipeline* GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
     struct DescriptorSetDefaultValues
     {
         uint32_t sampler2d = 4096;
@@ -174,10 +170,8 @@ private:
 
     std::vector<VkPushConstantRange> m_PushConstants;
     std::map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> m_GlobalDescriptorSetLayoutBindingsMap;
-    std::vector<VkDescriptorSetLayout> m_GlobalDescriptorSetLayouts;
 
     void getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize);
-    void createDescriptorSetLayouts();
     void mergePushConstants();
     VkShaderStageFlagBits convertReflectionShaderStage(SpvReflectShaderStageFlagBits stage);
     VkDescriptorType convertReflectionDescriptorType(SpvReflectDescriptorType type);

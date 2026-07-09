@@ -119,7 +119,8 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     pipelineInfo.colorFormat = m_ColorFormat;
     pipelineInfo.depthFormat = m_DepthFormat;
 
-    m_Pipeline = m_SkyboxShader->GetPipeline(pipelineInfo);
+    std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {m_DescriptorSetLayout->GetDescriptorSetLayout()};
+    m_Pipeline = m_SkyboxShader->GetPipeline(pipelineInfo, descriptorSetLayouts);
     // 4. Descriptor pool
     createDescriptorPool();
     // 5. Sampler
@@ -144,7 +145,7 @@ void FVkSkybox::createDescriptorSetLayout()
     m_DescriptorSetLayout = (FVkDescriptorSetLayout::Builder(m_Device)
                                  .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
                                  .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-                                 .build());
+                                 .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT));
 }
 
 void FVkSkybox::createDescriptorPool()
