@@ -1,7 +1,5 @@
 #include "FVkDebugDraw.h"
 
-FVkDebugDraw::FVkDebugDraw() = default;
-
 FVkDebugDraw::~FVkDebugDraw()
 {
     delete m_LinePipeline;
@@ -114,7 +112,7 @@ void FVkDebugDraw::AddPoint(glm::vec3 p, glm::vec3 color, float size)
     m_Points.push_back({p, glm::vec4(color, 1.f)});
 }
 
-void FVkDebugDraw::Record(FVkCommandBuffer& cmd, Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
+void FVkDebugDraw::Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
 {
     glm::mat4 viewProj = cameraData.proj * cameraData.view;
 

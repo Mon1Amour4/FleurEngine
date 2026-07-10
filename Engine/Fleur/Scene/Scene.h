@@ -5,7 +5,7 @@
 
 #include "AssetHandle.h"
 #include "DirectionalLight.h"
-#include "Lux/Lux.h"  // Lux::Renderer, Lux::CameraView, AssetID
+#include "Lux/Lux.h"  // Lux::Renderer, AssetID
 #include "OmniLight.h"
 
 namespace Fleur::Graphics
@@ -36,10 +36,11 @@ public:
     void OnUpdate(float dtTime) override;
 
     void Submit(Lux::Renderer& renderer);  // per-frame draw submission
-    Lux::CameraView GetCamera() const;
+
+    [[nodiscard]] Fleur::Graphics::RenderFrameData GetFrameData() const;
 
 private:
-    Fleur::Graphics::DirectionalLight* m_DirectionalLight{};
+    Fleur::Graphics::DirectionalLight m_DirectionalLight;
     std::vector<Fleur::Graphics::OmniLight> m_OmniLights;
 
     std::vector<SceneInstance> m_Instances;

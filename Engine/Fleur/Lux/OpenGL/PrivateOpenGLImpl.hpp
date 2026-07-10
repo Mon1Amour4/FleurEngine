@@ -43,7 +43,7 @@ struct backend::impl
     glm::mat4 m_View{1.0f};
     glm::mat4 m_Proj{1.0f};
     glm::vec3 m_CameraDir{0.0f};
-    void beginFrame(SFLCameraData& cameraData);
+    void beginFrame(const RenderFrameData& frameData);
     void draw(AssetID model, const glm::mat4& transform);
     void endFrame();
 

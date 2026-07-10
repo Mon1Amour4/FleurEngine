@@ -9,8 +9,10 @@
 
 namespace Fleur
 {
-Scene::Scene() = default;
-
+Scene::Scene()
+    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(glm::vec3(-1, 0, 0), Fleur::Graphics::Color::Red(), 1))
+{
+}
 Scene::~Scene()
 {
     if (m_Camera)
@@ -19,8 +21,6 @@ Scene::~Scene()
         alloc.deallocate(m_Camera, 1);
         m_Camera = nullptr;
     }
-    delete m_DirectionalLight;
-    m_DirectionalLight = nullptr;
 }
 
 void Scene::Init()
@@ -29,11 +29,14 @@ void Scene::Init()
     m_Camera = alloc.construct_at();
     m_Camera->Activate();
 
+
     // Hardcoded scene. Request the model load and store the AssetID the async op
     // hands back synchronously (the id is assigned at registration, before the
     // load finishes); the renderer registers geometry under the same id later.
     glm::mat4 transform = glm::identity<glm::mat4>();
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
+
+    assets->LoadImage("DirectionalLightDebug.png").handle.id;
 
     auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
     m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
@@ -50,7 +53,7 @@ void Scene::Init()
     //  auto AlphaBlendModeTest = assets->LoadModelAsync("Sponza/AlphaBlendModeTest.glb");
     //   m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
 
-    m_DirectionalLight = new Fleur::Graphics::DirectionalLight(glm::vec3(-1, 0, 0), Fleur::Graphics::Color::Red(), 1);
+
     // m_OmniLights.emplace_back(glm::vec3(1, 3, 0), 4, Fleur::Graphics::Color::Green(), 0.5);
 }
 
@@ -76,7 +79,8 @@ void Scene::OnUpdate(float dtTime)
     pos.y = center.y;
     pos.z = center.z + sin(angle) * radius;
 
-    // m_DirectionalLight->SetDirection(pos);
+    m_DirectionalLight.SetDirection(pos);
+    renderer->Debug().Quad(glm::vec3(-1, -1, 0), glm::vec3(1, -1, 0), glm::vec3(1, 1, 0), glm::vec3(-1, 1, 0), Fleur::Graphics::Color::Red());
 
     for (auto& instance : m_Instances)
     {
@@ -97,7 +101,7 @@ void Scene::OnUpdate(float dtTime)
             pointLight.DebugDrawToTarget(renderer.get(), targetCenter, targetRadius, Fleur::Graphics::Color::Magenta());
         }
 
-        m_DirectionalLight->DebugDrawToTarget(renderer.get(), instance.transform[3], 10, Fleur::Graphics::Color::Black());
+        m_DirectionalLight.DebugDrawToTarget(renderer.get(), instance.transform[3], 10, Fleur::Graphics::Color::Black());
 
 
         const auto* transforms = model->GetNodeTransforms();
@@ -145,10 +149,6 @@ void Scene::OnUpdate(float dtTime)
     }
 
     // Lights
-    if (m_DirectionalLight)
-    {
-        renderer->SetDirectionalLight(m_DirectionalLight->GetDirection(), m_DirectionalLight->GetColor(), m_DirectionalLight->GetIntensity());
-    }
     renderer->UpdatePointLight(m_OmniLights.data(), m_OmniLights.size());
 
     // Directional Light Orthographic frustum
@@ -158,7 +158,7 @@ void Scene::OnUpdate(float dtTime)
     float shadowFar = 30.0f;
 
     // glm::vec3 lightPos = m_DirectionalLight->GetVirtualPosition();
-    glm::vec3 lightPos = -m_DirectionalLight->GetDirection() * 10.f;
+    glm::vec3 lightPos = -m_DirectionalLight.GetDirection() * 10.f;
 
     glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
@@ -227,9 +227,12 @@ void Scene::Submit(Lux::Renderer& renderer)
     }
 }
 
-Lux::CameraView Scene::GetCamera() const
+Fleur::Graphics::RenderFrameData Scene::GetFrameData() const
 {
-    return Lux::CameraView{m_Camera->GetView(), m_Camera->GetProjection(), m_Camera->GetCameraForward()};
+    return Fleur::Graphics::RenderFrameData{{m_Camera->GetCameraForward(), m_Camera->GetView(), m_Camera->GetProjection()},
+                                            {.dirIntens{glm::vec4(m_DirectionalLight.GetDirection(), m_DirectionalLight.GetIntensity())},
+                                             .color = m_DirectionalLight.GetColor().ToVec4(),
+                                             .pos = glm::vec4(m_DirectionalLight.GetVirtualPosition(), 1)}};
 }
 
 }  // namespace Fleur

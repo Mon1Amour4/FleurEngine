@@ -50,7 +50,7 @@ struct IRenderer
     virtual void UnregisterModel(AssetID model) = 0;
     virtual void RemoveTexture(AssetID texture) = 0;
 
-    virtual void BeginFrame(Fleur::Graphics::SFLCameraData& cameraData) = 0;
+    virtual void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData) = 0;
     virtual void Draw(AssetID model, const glm::mat4& transform) = 0;
     virtual void EndFrame() = 0;
 
@@ -59,7 +59,6 @@ struct IRenderer
     virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) = 0;
     virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) = 0;
 
-    virtual void SetDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity) = 0;
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };
 

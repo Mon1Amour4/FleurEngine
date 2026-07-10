@@ -242,7 +242,8 @@ void Fleur::Application::Run()
 
         assetsManager->OnUpdate(dtTime);
 
-        renderer->BeginFrame(m_Scene->GetCamera());
+        Fleur::Graphics::RenderFrameData sceneFrameData = m_Scene->GetFrameData();
+        renderer->BeginFrame(sceneFrameData);
         m_Scene->Submit(*renderer);
         renderer->EndFrame();
 

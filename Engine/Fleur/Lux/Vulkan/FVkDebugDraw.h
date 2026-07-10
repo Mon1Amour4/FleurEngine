@@ -30,7 +30,7 @@ struct SDebugVertex
 class FVkDebugDraw
 {
 public:
-    FVkDebugDraw();
+    FVkDebugDraw() = default;
     ~FVkDebugDraw();
 
     // clang-format off
@@ -49,7 +49,7 @@ public:
 
     // Per-frame: upload to the frame's buffer + record the debug pass (call inside
     // the active dynamic-rendering pass, after geometry/skybox).
-    void Record(FVkCommandBuffer& cmd, Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
+    void Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
 
     void Clear();
 

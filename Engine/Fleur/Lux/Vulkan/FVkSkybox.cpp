@@ -261,7 +261,7 @@ void FVkSkybox::SetSkybox(VkImageView imageView)
     updateDescriptorSet(imageView);
 }
 
-void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, Fleur::Graphics::SFLCameraData& cameraData)
+void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const Fleur::Graphics::SFLCameraData& cameraData)
 {
     VkDeviceSize offsets{0};
     vkCmdBindVertexBuffers(cmd, 0, 1, &m_VertexBuffer->GetBuffer(), &offsets);

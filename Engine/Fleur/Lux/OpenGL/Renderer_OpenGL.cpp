@@ -143,9 +143,9 @@ void gl::backend::RemoveTexture(AssetID texture)
 {
     pImpl->removeTexture(texture);
 }
-void gl::backend::BeginFrame(SFLCameraData& cameraData)
+void gl::backend::BeginFrame(const RenderFrameData& frameData)
 {
-    pImpl->beginFrame(cameraData);
+    pImpl->beginFrame(frameData);
 }
 void gl::backend::Draw(AssetID model, const glm::mat4& transform)
 {
@@ -296,8 +296,9 @@ void gl::backend::impl::registerModel(AssetID id, const SVertexData* vertices, u
 }
 
 // ---------- frame ----------
-void gl::backend::impl::beginFrame(SFLCameraData& cameraData)
+void gl::backend::impl::beginFrame(const RenderFrameData& frameData)
 {
+    const auto& cameraData = frameData.camera;
     m_View = cameraData.view;
     m_Proj = cameraData.proj;
     m_CameraDir = cameraData.cameraDir;

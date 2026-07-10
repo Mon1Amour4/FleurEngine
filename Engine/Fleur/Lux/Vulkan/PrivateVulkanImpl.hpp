@@ -290,7 +290,7 @@ struct backend::impl
     impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
     ~impl();
 
-    bool beginFrame(Fleur::Graphics::SFLCameraData& cameraData);
+    bool beginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void endFrame();
 
     // MeshInstance
@@ -433,9 +433,6 @@ struct backend::impl
     uint32_t m_FramesInFlight{0};
     uint32_t m_ImageIndex = 0;
 
-    // Per-frame camera (set in beginFrame, consumed by skybox/debug in endFrame).
-    Fleur::Graphics::SFLCameraData m_CameraData;
-
     void uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
@@ -543,20 +540,12 @@ struct backend::impl
     // Debug
     FVkDebugDraw* m_DebugDraw{nullptr};
 
-    // directionIntensity - first 3 are direction and fourth is intensity
-    // intensity [0;1]
-    struct FVkDirectionalLight
-    {
-        glm::vec4 directionIntensity{glm::vec4(1, 0, 0, 1)};
-        glm::vec4 color{glm::vec4(1, 1, 1, 1)};
-    };
-    FVkDirectionalLight m_DirectionalLight;
-    void setDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity);
-
     std::vector<SFLPointLight> m_PointLights;
     void updatePointLight(const SFLPointLight* light, uint32_t lightCount);
 
     // Descriptors
     vk::abstraction::DescriptorAllocator m_DescriptorAlloc;
+
+    Fleur::Graphics::RenderFrameData m_FrameData;
 };
 }  // namespace vk

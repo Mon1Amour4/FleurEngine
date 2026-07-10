@@ -31,7 +31,7 @@ public:
 
     void SetSkybox(VkImageView imageView);
 
-    void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, Fleur::Graphics::SFLCameraData& cameraData);
+    void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const Fleur::Graphics::SFLCameraData& cameraData);
 
 private:
     void createDescriptorSetLayout();

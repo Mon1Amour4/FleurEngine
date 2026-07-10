@@ -63,9 +63,9 @@ void vk::backend::RemoveTexture(AssetID texture)
 {
     // TODO: free the bindless texture slot (slot free-list). Stubbed for now.
 }
-void vk::backend::BeginFrame(Fleur::Graphics::SFLCameraData& cameraData)
+void vk::backend::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
-    pImpl->beginFrame(cameraData);
+    pImpl->beginFrame(frameData);
 }
 void vk::backend::Draw(AssetID model, const glm::mat4& transform)
 {
@@ -82,11 +82,6 @@ void vk::backend::DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depth
 void vk::backend::DrawPoint(glm::vec3 p, glm::vec3 color, float size, bool depthTest)
 {
     pImpl->m_DebugDraw->AddPoint(p, color, size);
-}
-
-void vk::backend::SetDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity)
-{
-    pImpl->setDirectionalLight(direction, color, intensity);
 }
 
 void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCount)
@@ -636,6 +631,8 @@ void vk::backend::impl::createDescriptorSets()
         assert(false);
     }
 
+    // TODO: keep a dedicated fallback sampled image per descriptor class (color/depth/shadow)
+    // instead of reusing a single placeholder texture everywhere.
     VkImageView placeholderImageView = m_TextureMap[m_FallbackTextureIdx].GetImageView();
     VkDescriptorImageInfo imageSamplerInfo{};
     imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
@@ -1089,12 +1086,6 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
     }
 }
 
-void vk::backend::impl::setDirectionalLight(glm::vec3 direction, glm::vec4 color, float intensity)
-{
-    m_DirectionalLight.directionIntensity = glm::vec4(direction, intensity);
-    m_DirectionalLight.color = color;
-}
-
 void vk::backend::impl::updatePointLight(const SFLPointLight* light, uint32_t lightCount)
 {
     m_PointLights.clear();
@@ -1265,7 +1256,7 @@ void vk::backend::impl::ExecuteMainPass()
 
     if (m_Skybox)
     {
-        // m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_CameraData);
+        // m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
     }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
@@ -1300,7 +1291,7 @@ void vk::backend::impl::createStaticGeometryPass()
 }
 
 
-bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
+bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
     if (m_WindowResizeIsInProgress)
         return false;
@@ -1311,6 +1302,7 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
         m_Swapchain->Recreate(m_Surface, m_Device->GetPresentQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
                               m_DepthRenderTarget->GetImageView());
     }
+    m_FrameData = frameData;
 
     Frame& frame = GetCurrentFrame();
 
@@ -1347,14 +1339,14 @@ bool vk::backend::impl::beginFrame(Fleur::Graphics::SFLCameraData& cameraData)
         assert(false);
     }
 
-    m_CameraData = cameraData;
-    m_CameraData.proj[1][1] *= -1;  // Vulkan Y-flip — single source for all VK passes (geometry/skybox/debug)
+    m_FrameData = frameData;
+    m_FrameData.camera.proj[1][1] *= -1;  // Vulkan Y-flip for all VK passes.
 
     frame.scene.m_SceneNodeTransformsStorageBuffer.Reset();
 
     m_PointLightsBuffer->Reset();
 
-    Fleur::Graphics::SFLGeometryUBO ubo{m_CameraData.view, m_CameraData.proj};
+    Fleur::Graphics::SFLGeometryUBO ubo{m_FrameData.camera.view, m_FrameData.camera.proj};
     GetCurrentFrame().scene.m_CameraBuffer.MemCopy(&ubo, sizeof(ubo));
 
     VkResult resetCmd = vkResetCommandPool(m_Device->GetLogicalDevice(), frame.m_CommandPools.GetCommandPool(), 0);
@@ -1381,16 +1373,16 @@ void vk::backend::impl::endFrame()
 
     glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
 
-    glm::vec3 lightDir = glm::vec3(m_DirectionalLight.directionIntensity.x, m_DirectionalLight.directionIntensity.y, m_DirectionalLight.directionIntensity.z);
+    glm::vec3 lightDir =
+        glm::vec3(m_FrameData.directionalLight.dirIntens.x, m_FrameData.directionalLight.dirIntens.y, m_FrameData.directionalLight.dirIntens.z);
 
     // Directional light has no real position.
     // This is only a virtual camera position for shadow rendering.
     float halfSize = 5.0f;
     float shadowNear = 0.1f;
     float shadowFar = 30.0f;
-    float distance = 10.f;
 
-    glm::vec3 lightPos = shadowCenter - lightDir * distance;
+    glm::vec3 lightPos = shadowCenter - glm::vec3(m_FrameData.directionalLight.pos);
     glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
     // glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
@@ -1438,12 +1430,12 @@ void vk::backend::impl::endFrame()
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         SFLPushConstant pushConstant = MakePush(primitive);
         pushConstant.lightSpaceMatrix = lightView;
-        pushConstant.directionalLightColor = m_DirectionalLight.color;
-        pushConstant.directionalLightDirectionIntensity = m_DirectionalLight.directionIntensity;
+        pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
+        pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
         pushConstant.indices.y = drawItem.modelTransformIdx;
         pushConstant.indices.w = m_PointLights.size();
-        pushConstant.cameraPos = glm::inverse(m_CameraData.view)[3];
+        pushConstant.cameraPos = glm::inverse(m_FrameData.camera.view)[3];
         cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
@@ -1466,7 +1458,7 @@ void vk::backend::impl::endFrame()
     m_OpaqueDrawItems.clear();
     m_TransparentDrawItems.clear();
 
-    m_DebugDraw->Record(cmd, m_CameraData, m_CurrentFrame);
+    m_DebugDraw->Record(cmd, m_FrameData.camera, m_CurrentFrame);
     m_DebugDraw->Clear();
 
     cmd.EndRendering();

@@ -26,7 +26,7 @@ struct backend : public Fleur::Graphics::IRenderer
     void UploadTextures(SFLImageViewInfo* pInfo) override;
     void RemoveTexture(AssetID texture) override;
 
-    void BeginFrame(SFLCameraData& cameraData) override;
+    void BeginFrame(const RenderFrameData& frameData) override;
     void Draw(AssetID model, const glm::mat4& transform) override;
     void EndFrame() override;
 

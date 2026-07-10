@@ -18,14 +18,6 @@ using AssetID = Fleur::Graphics::AssetID;
 using Color = Fleur::Graphics::Color;
 using IRenderer = Fleur::Graphics::IRenderer;
 
-// What the scene hands the renderer for a frame's view.
-struct CameraView
-{
-    glm::mat4 view{1.0f};
-    glm::mat4 proj{1.0f};
-    glm::vec3 dir{0.0f};  // camera forward
-};
-
 class DebugDraw
 {
 public:
@@ -35,6 +27,8 @@ public:
     // --- Primitives ---
     void Line(glm::vec3 a, glm::vec3 b, Fleur::Graphics::Color color, bool depthTest = true);
     void Point(glm::vec3 p, Fleur::Graphics::Color color, float size = 4.0f, bool depthTest = true);
+    void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::Graphics::Color color, bool depthTest = true);
+    void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest = true);
 
     void DrawAxes();
 
@@ -67,7 +61,7 @@ public:
     void RemoveTexture(Fleur::Graphics::AssetID texture);
 
     // Frame (immediate-mode).
-    void BeginFrame(const CameraView& camera);
+    void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void Draw(Fleur::Graphics::AssetID model, const glm::mat4& transform);
     void EndFrame();
 
@@ -97,8 +91,6 @@ public:
         return *m_Debug;
     }
 
-    // intensity[0;1]
-    void SetDirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity);
     void UpdatePointLight(const Fleur::Graphics::OmniLight* pLight, uint32_t lightCount);
 
 protected:

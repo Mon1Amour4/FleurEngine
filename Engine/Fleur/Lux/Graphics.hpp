@@ -93,6 +93,19 @@ struct SFLCameraData
     glm::mat4 proj;
 };
 
+struct DirectionalLightRenderData
+{
+    glm::vec4 dirIntens{glm::vec4(1, 0, 0, 1)};
+    glm::vec4 color{glm::vec4(1, 1, 1, 1)};
+    glm::vec4 pos{glm::vec4(0, 0, 0, 0)};
+};
+
+struct RenderFrameData
+{
+    SFLCameraData camera;
+    DirectionalLightRenderData directionalLight;
+};
+
 struct SFLSSBODescriptorBuffer
 {
     glm::mat4 modelTransform;

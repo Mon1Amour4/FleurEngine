@@ -22,11 +22,6 @@ Renderer::~Renderer()
     OnShutdown();
 }
 
-void Renderer::SetDirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity)
-{
-    m_Backend->SetDirectionalLight(direction, color.ToVec4(), glm::min(1.0f, intensity));
-}
-
 void Renderer::UpdatePointLight(const Fleur::Graphics::OmniLight* pLight, uint32_t lightCount)
 {
     if (lightCount == 0)
@@ -130,10 +125,9 @@ void Renderer::RemoveTexture(AssetID texture)
     m_Backend->RemoveTexture(texture);
 }
 
-void Renderer::BeginFrame(const CameraView& camera)
+void Renderer::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
-    Fleur::Graphics::SFLCameraData data{camera.dir, camera.view, camera.proj};
-    m_Backend->BeginFrame(data);
+    m_Backend->BeginFrame(frameData);
 }
 void Renderer::Draw(AssetID model, const glm::mat4& transform)
 {
@@ -172,6 +166,28 @@ void DebugDraw::Point(glm::vec3 p, Color color, float size, bool depthTest)
         return;
 
     m_Backend->DrawPoint(p, color.ToVec3(), size, depthTest);
+}
+
+void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::Graphics::Color color, bool depthTest)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
+    m_Backend->DrawLine(b, c, color.ToVec3(), depthTest);
+    m_Backend->DrawLine(c, d, color.ToVec3(), depthTest);
+    m_Backend->DrawLine(d, a, color.ToVec3(), depthTest);
+}
+
+void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest)
+{
+    if (!m_Backend)
+        return;
+
+    /*   m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
+       m_Backend->DrawLine(b, c, color.ToVec3(), depthTest);
+       m_Backend->DrawLine(c, d, color.ToVec3(), depthTest);
+       m_Backend->DrawLine(d, a, color.ToVec3(), depthTest);*/
 }
 
 void DebugDraw::DrawAxes()
