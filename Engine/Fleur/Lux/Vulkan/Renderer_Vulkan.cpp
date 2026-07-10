@@ -149,8 +149,14 @@ vk::backend::impl::impl(bool enableValidation,
     m_CameraUboLayout =
         FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build(0);
 
-    m_Frames.resize(m_FramesInFlight);
+    VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
 
+    m_ImmediateCommandPool = new FVkCommandPool();
+    m_ImmediateCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
+
+    createFallbackTexture(fallback);
+
+    m_Frames.resize(m_FramesInFlight);
     for (size_t i = 0; i < m_FramesInFlight; i++)
     {
         Frame& frame = m_Frames[i];
@@ -169,9 +175,14 @@ vk::backend::impl::impl(bool enableValidation,
         };
         frame.frameDescriptors.init(m_Device->GetLogicalDevice(), 1000, frame_sizes);
 
+        m_ShadowMapLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+                                .build(0);
+
         frame.scene.m_SceneNodeTransformsDescriptor =
             frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_SceneNodeTransformsLayout->GetDescriptorSetLayout(), 1);
         frame.scene.m_CameraDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_CameraUboLayout->GetDescriptorSetLayout(), 1);
+        frame.scene.m_ShadowMapDescriptorSet = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_ShadowMapLayout->GetDescriptorSetLayout(), 1);
 
         vk::abstraction::DescriptorWriter ssboWriter{};
         ssboWriter.write_buffer(0, frame.scene.m_SceneNodeTransformsStorageBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLSSBODescriptorBuffer), 0,
@@ -181,6 +192,16 @@ vk::backend::impl::impl(bool enableValidation,
         vk::abstraction::DescriptorWriter cameraUboWriter{};
         cameraUboWriter.write_buffer(0, frame.scene.m_CameraBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLGeometryUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         cameraUboWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_CameraDescriptor);
+
+        m_ImageSampler = createTextureSampler();
+        m_ShadowMapRenderTarget = new FVkTexture();
+        createShadowMapTexture(*m_ShadowMapRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
+                               /*m_MultisampledRenderTarget->GetSamplesCount()*/ VK_SAMPLE_COUNT_1_BIT, 1);
+
+        vk::abstraction::DescriptorWriter shadowMapWriter{};
+        shadowMapWriter.write_image(0, m_ShadowMapRenderTarget->GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        shadowMapWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_ShadowMapDescriptorSet);
 
         frame.m_CommandPools.Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
         frame.m_CommandBuffers.Init(m_Device->GetLogicalDevice(), frame.m_CommandPools.GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
@@ -199,30 +220,17 @@ vk::backend::impl::impl(bool enableValidation,
             assert(false);
         }
     }
-    m_ImmediateCommandPool = new FVkCommandPool();
-    m_ImmediateCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
-
-    VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
 
     m_DepthRenderTarget = new FVkTexture();
     createDepthTexture(*m_DepthRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
                        m_MultisampledRenderTarget->GetSamplesCount(), 1);
-
-    m_ShadowMapRenderTarget = new FVkTexture();
-    createShadowMapTexture(*m_ShadowMapRenderTarget, swapchainExtent.width, swapchainExtent.height, FindDepthFormat(m_Device->GetPhysicalDevice()),
-                           /*m_MultisampledRenderTarget->GetSamplesCount()*/ VK_SAMPLE_COUNT_1_BIT, 1);
-
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                          1024u * 1024ul * 512ul, sizeof(Fleur::Graphics::SVertexData));
 
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                         1024u * 1024ul * 256ul, sizeof(uint32_t));
-
-    m_ShadowMapLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
-                            .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-                            .build(0);
 
     m_PointLightsLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
                               .add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
@@ -231,18 +239,12 @@ vk::backend::impl::impl(bool enableValidation,
                               VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, POINT_LIGHTS_MAX_CUP * sizeof(SFLPointLight),
                               sizeof(SFLPointLight));
 
-
-    m_ImageSampler = createTextureSampler();
-    createFallbackTexture(fallback);
-
     createStaticGeometryPass();
 
     updateStaticGeometryUboDescriptorSets(m_StaticGeometryDescriptorSetTextures, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(),
                                           m_ImageSampler);
 
     m_DescriptorSetImageViewsToUpload.resize(m_FramesInFlight);
-
-    InitShadowMapDescriptorSet();
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_ImmediateCommandPool->GetCommandPool());
@@ -694,38 +696,6 @@ void vk::backend::impl::freeVma()
 {
     vmaDestroyAllocator(m_Allocator);
 }
-
-void vk::backend::impl::InitShadowMapDescriptorSet()
-{
-    auto shadowMapDsl = m_ShadowMapLayout->GetDescriptorSetLayout();
-
-    VkDescriptorSetAllocateInfo texturesDescriptorSetAllocInfo{
-        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &shadowMapDsl};
-
-    if (vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &texturesDescriptorSetAllocInfo, &m_ShadowMapDescriptorSet) != VK_SUCCESS)
-    {
-        DBG_PRINTM("failed to allocate descriptor sets!")
-        assert(false);
-    }
-
-    VkImageView shadowMapImageView = m_ShadowMapRenderTarget->GetImageView();
-    VkDescriptorImageInfo imageSamplerInfo{};
-    imageSamplerInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageSamplerInfo.imageView = shadowMapImageView;
-    imageSamplerInfo.sampler = m_ImageSampler;
-
-    VkWriteDescriptorSet descriptorImageWrites{};
-    descriptorImageWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorImageWrites.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorImageWrites.dstSet = m_ShadowMapDescriptorSet;
-    descriptorImageWrites.dstBinding = 0;
-    descriptorImageWrites.dstArrayElement = 0;
-    descriptorImageWrites.descriptorCount = 1;
-    descriptorImageWrites.pImageInfo = &imageSamplerInfo;
-
-    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &descriptorImageWrites, 0, nullptr);
-}
-
 
 void vk::backend::impl::uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
@@ -1441,14 +1411,6 @@ void vk::backend::impl::endFrame()
         pc.lightSpaceMatrix = lightSpaceMatrix;
         pc.modelIdx = drawItem.modelTransformIdx;
         pc.nodeIdx = drawItem.nodeTransformsStartIdx;
-        /* SFLPushConstant pushConstant = MakePush(primitive);
-         pushConstant.directionalLightColor = m_DirectionalLight.color;
-         pushConstant.directionalLightDirectionIntensity = m_DirectionalLight.directionIntensity;
-         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
-         pushConstant.indices.y = drawItem.modelTransformIdx;
-         pushConstant.indices.w = m_PointLights.size();
-         pushConstant.cameraPos = glm::inverse(m_CameraData.view)[3];
-         cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);*/
         cmd.PushConstant(m_ShadowPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
@@ -1456,7 +1418,7 @@ void vk::backend::impl::endFrame()
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
     std::array<VkDescriptorSet, 5> dst{frame.scene.m_CameraDescriptor, m_StaticGeometryDescriptorSetTextures, frame.scene.m_SceneNodeTransformsDescriptor,
-                                       m_PointLightDescriptorSet, m_ShadowMapDescriptorSet};
+                                       m_PointLightDescriptorSet, frame.scene.m_ShadowMapDescriptorSet};
 
     transitionImageLayout(*cmd.GetCommandBuffer(), m_ShadowMapRenderTarget->GetImage(), FindDepthFormat(m_Device->GetPhysicalDevice()),
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
@@ -1464,21 +1426,10 @@ void vk::backend::impl::endFrame()
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
     ExecuteMainPass();
 
-    VkDescriptorImageInfo shadowMapInfo{};
-    shadowMapInfo.imageView = m_ShadowMapRenderTarget->GetImageView();
-    shadowMapInfo.sampler = m_ImageSampler;
-    shadowMapInfo.imageLayout = VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL;
-
-    VkWriteDescriptorSet write{};
-    write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = m_ShadowMapDescriptorSet;
-    write.dstBinding = 0;
-    write.dstArrayElement = 0;
-    write.descriptorCount = 1;
-    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    write.pImageInfo = &shadowMapInfo;
-
-    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &write, 0, nullptr);
+    vk::abstraction::DescriptorWriter shadowwMapWriter{};
+    shadowwMapWriter.write_image(0, m_ShadowMapRenderTarget->GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+                                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    shadowwMapWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_ShadowMapDescriptorSet);
 
     cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
 
@@ -1486,6 +1437,7 @@ void vk::backend::impl::endFrame()
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         SFLPushConstant pushConstant = MakePush(primitive);
+        pushConstant.lightSpaceMatrix = lightView;
         pushConstant.directionalLightColor = m_DirectionalLight.color;
         pushConstant.directionalLightDirectionIntensity = m_DirectionalLight.directionIntensity;
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;

@@ -351,6 +351,8 @@ struct backend::impl
 
     struct FrameSceneResources
     {
+        VkDescriptorSet m_ShadowMapDescriptorSet{VK_NULL_HANDLE};
+
         FVkBuffer m_CameraBuffer;
         VkDescriptorSet m_CameraDescriptor{VK_NULL_HANDLE};
 
@@ -394,9 +396,6 @@ struct backend::impl
 
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
-
-    VkDescriptorSet m_ShadowMapDescriptorSet;
-    void InitShadowMapDescriptorSet();
 
     std::vector<glm::mat4> m_InstanceNodeTransforms;
 

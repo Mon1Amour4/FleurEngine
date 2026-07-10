@@ -16,6 +16,7 @@ layout(std430, set = 2, binding = 0) readonly buffer SsboBuf
 
 layout(push_constant) uniform PushConsts
 {
+    mat4 lightSpaceMatrix;
     vec4 baseColorFactor;
 
     // x = nodeTransformsStartIdx
@@ -45,6 +46,7 @@ layout(location = 0) out vec2 fragTexCoord;
 layout(location = 1) out vec3 outWorldSpaceNormal;
 layout(location = 2) out vec3 outWorldSpaceVertex;
 layout(location = 3) out vec3 outCameraForward;
+layout(location = 4) out vec4 outFragPosLightSpace;
 
 void main() 
 {    
@@ -59,6 +61,7 @@ void main()
     fragTexCoord = inTexCoord;
     outWorldSpaceVertex = worldPos.xyz;
     outCameraForward = pc.cameraPos.xyz - worldPos.xyz;
+    outFragPosLightSpace = pc.lightSpaceMatrix * vec4(model * vec4(inPosition, 1.0));
 
     mat4 NormalMatrix = ssbo.transforms[pc.indices.y + 1];
 

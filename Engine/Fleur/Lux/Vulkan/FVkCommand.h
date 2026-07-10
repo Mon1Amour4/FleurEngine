@@ -10,6 +10,7 @@
 
 struct SFLPushConstant
 {
+    glm::mat4 lightSpaceMatrix;
     glm::vec4 baseColorFactor;
 
     // x = nodeTransformsStartIdx
