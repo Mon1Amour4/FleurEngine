@@ -34,7 +34,7 @@ public:
 
     void SetDirection(glm::vec3);
 
-    void DebugDraw(Lux::Renderer* renderer, Fleur::Graphics::Color color);
+    void DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx);
     void DebugDrawToTarget(Lux::Renderer* renderer, const glm::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color);
 
 private:

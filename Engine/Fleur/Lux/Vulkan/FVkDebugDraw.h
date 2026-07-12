@@ -14,10 +14,19 @@
 #include "FVkSwapchain.h"
 #include "Graphics.hpp"
 
-// GPU debug vertex. Color is packed RGBA8 (Color -> u32 conversion happens on the
-// frontend, so this type never depends on the engine Color).
-// NOTE: the frontend accumulator needs the same layout — once wired, move this to
-// a shared header (RenderViews.hpp) instead of duplicating it.
+struct GeometryVertex
+{
+    glm::vec3 pos;
+    glm::vec2 uv;
+};
+
+struct DebugGeometryPushConstant
+{
+    glm::mat4 viewProj{1.f};
+    int32_t textureIdx{-1};
+    glm::vec4 color{1.f};
+};
+
 struct SDebugVertex
 {
     glm::vec3 pos;
@@ -36,7 +45,10 @@ public:
     // clang-format off
     void Create(const FVkDevice* device,
                 const FVkSwapchain* swapchain,
-                vk::FVkShader* debugShader,
+                vk::FVkShader* primitivesShader,
+                vk::FVkShader* geometryShader,
+                VkDescriptorSetLayout geometryTexturesLayout,
+                VkDescriptorSet geometryTexturesDescriptorSet,
                 VkSampleCountFlagBits sampleCount,
                 VkFormat depthFormat,
                 uint32_t framesInFlight);
@@ -46,6 +58,9 @@ public:
     // Accumulate primitives — the frontend forwards each DrawLine/DrawPoint here.
     void AddLine(glm::vec3 a, glm::vec3 b, glm::vec3 color);
     void AddPoint(glm::vec3 p, glm::vec3 color, float size);
+    void AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color);
+    void AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t textureIdx);
+    void AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textureIdx);
 
     // Per-frame: upload to the frame's buffer + record the debug pass (call inside
     // the active dynamic-rendering pass, after geometry/skybox).
@@ -60,24 +75,52 @@ public:
 
 private:
     bool m_Initialized{false};
-    // Builds the line (LINE_LIST) + point (POINT_LIST) pipelines from m_DebugShader.
+    // Builds the line/point pipelines from m_PrimitivesShader and the triangle pipeline
+    // from m_GeometryShader.
     void createPipelines();
 
     VkDevice m_Device{nullptr};
     VkPhysicalDevice m_PhysicalDevice{nullptr};
 
-    vk::FVkShader* m_DebugShader{nullptr};  // shared pos + color
+    vk::FVkShader* m_PrimitivesShader{nullptr};
+    vk::FVkShader* m_GeometryShader{nullptr};
     FVkPipeline* m_LinePipeline{nullptr};   // VK_PRIMITIVE_TOPOLOGY_LINE_LIST
     FVkPipeline* m_PointPipeline{nullptr};  // VK_PRIMITIVE_TOPOLOGY_POINT_LIST
+    FVkPipeline* m_QuadPipeline{nullptr};   // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    VkDescriptorSetLayout m_GeometryTexturesLayout{VK_NULL_HANDLE};
+    VkDescriptorSet m_GeometryTexturesDescriptorSet{VK_NULL_HANDLE};
 
     // Per-frame GPU buffers (x framesInFlight) so we never stomp data the GPU is
-    // still reading from a prior frame.
     std::vector<FVkBuffer> m_LineBuffers;
     std::vector<FVkBuffer> m_PointBuffers;
+
+    struct PrimitiveMaterial
+    {
+        int32_t textureIdx{-1};
+        glm::vec4 color{glm::vec4(-1, -1, -1, -1)};
+    };
+    struct PrimitiveGeometryDrawInfo
+    {
+        uint32_t vertexCount;
+        uint32_t vertexOffset;
+        uint32_t materialIdx;
+    };
+    std::vector<PrimitiveMaterial> m_GeometryMaterials;
+    std::vector<PrimitiveGeometryDrawInfo> m_GeometryDrawInfos;
+    std::vector<FVkBuffer> m_GeometryBuffers;
+
+    struct BillboardDrawInfo
+    {
+        glm::vec3 center{};
+        glm::vec2 size{};
+        uint32_t textureIdx{};
+    };
+    std::vector<BillboardDrawInfo> m_Billboards;
 
     // CPU accumulation for the current frame (filled by Submit, cleared by Clear).
     std::vector<SDebugVertex> m_Lines;
     std::vector<SDebugVertex> m_Points;
+    std::vector<GeometryVertex> m_Quads;
 
     VkFormat m_ColorFormat{VK_FORMAT_UNDEFINED};
     VkFormat m_DepthFormat{VK_FORMAT_UNDEFINED};

@@ -75,14 +75,13 @@ void Renderer::initBackend()
 
     m_Debug = new DebugDraw(m_Backend);
 
-    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Opaque, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueVertex").obj),
-                                                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueFragment").obj)});
+    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Geometry, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueVertex").obj),
+                                                                   shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueFragment").obj)});
 
-    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Transparent, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueVertex").obj),
-                                                                      shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueFragment").obj)});
-
-    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::AABB_DEBUG, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugVertex").obj),
-                                                                     shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugFragment").obj)});
+    m_Backend->ConfigureDebugDraw({.primitives = {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugVertex").obj),
+                                                  shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugFragment").obj)},
+                                   .geometry = {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryVertex").obj),
+                                                shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryFragment").obj)}});
 
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Shadow, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowVertex").obj),
                                                                  shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowFragment").obj)});
@@ -173,10 +172,7 @@ void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::
     if (!m_Backend)
         return;
 
-    m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
-    m_Backend->DrawLine(b, c, color.ToVec3(), depthTest);
-    m_Backend->DrawLine(c, d, color.ToVec3(), depthTest);
-    m_Backend->DrawLine(d, a, color.ToVec3(), depthTest);
+    m_Backend->DrawQuad(a, b, c, d, color.ToVec4(), depthTest);
 }
 
 void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest)
@@ -184,10 +180,15 @@ void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID
     if (!m_Backend)
         return;
 
-    /*   m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
-       m_Backend->DrawLine(b, c, color.ToVec3(), depthTest);
-       m_Backend->DrawLine(c, d, color.ToVec3(), depthTest);
-       m_Backend->DrawLine(d, a, color.ToVec3(), depthTest);*/
+    m_Backend->DrawQuad(a, b, c, d, texture, depthTest);
+}
+
+void DebugDraw::Billboard(glm::vec3 center, glm::vec2 size, AssetID texture, bool depthTest)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawBillboard(center, size, texture, depthTest);
 }
 
 void DebugDraw::DrawAxes()

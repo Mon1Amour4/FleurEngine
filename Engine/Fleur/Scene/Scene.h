@@ -45,5 +45,7 @@ private:
 
     std::vector<SceneInstance> m_Instances;
     Graphics::Camera* m_Camera{nullptr};
+
+    uint32_t sunTextureIdx;
 };
 }  // namespace Fleur

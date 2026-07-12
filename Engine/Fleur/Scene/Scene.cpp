@@ -36,13 +36,13 @@ void Scene::Init()
     glm::mat4 transform = glm::identity<glm::mat4>();
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
 
-    assets->LoadImage("DirectionalLightDebug.png").handle.id;
+    sunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
 
-    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
-    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+    // auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    // m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
 
-    // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
-    // m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+    auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
+    m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
 
     // auto box = assets->LoadModelAsync("Box.glb");
     // m_Instances.push_back(SceneInstance{box->asset.handle, transform});
@@ -80,7 +80,8 @@ void Scene::OnUpdate(float dtTime)
     pos.z = center.z + sin(angle) * radius;
 
     m_DirectionalLight.SetDirection(pos);
-    renderer->Debug().Quad(glm::vec3(-1, -1, 0), glm::vec3(1, -1, 0), glm::vec3(1, 1, 0), glm::vec3(-1, 1, 0), Fleur::Graphics::Color::Red());
+    m_DirectionalLight.DebugDraw(renderer.get(), sunTextureIdx);
+
 
     for (auto& instance : m_Instances)
     {
@@ -101,7 +102,7 @@ void Scene::OnUpdate(float dtTime)
             pointLight.DebugDrawToTarget(renderer.get(), targetCenter, targetRadius, Fleur::Graphics::Color::Magenta());
         }
 
-        m_DirectionalLight.DebugDrawToTarget(renderer.get(), instance.transform[3], 10, Fleur::Graphics::Color::Black());
+        // m_DirectionalLight.DebugDrawToTarget(renderer.get(), instance.transform[3], 10, Fleur::Graphics::Color::Black());
 
 
         const auto* transforms = model->GetNodeTransforms();

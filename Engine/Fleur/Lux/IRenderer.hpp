@@ -12,9 +12,7 @@ namespace Fleur::Graphics
 
 enum class EFLPassKind
 {
-    Opaque,
-    Transparent,
-    AABB_DEBUG,
+    Geometry,
     Shadow
 };
 
@@ -27,6 +25,12 @@ struct SFLShaderStages
 {
     SFLShaderInfo vertex;
     SFLShaderInfo fragment;
+};
+
+struct SFLDebugDrawShaders
+{
+    SFLShaderStages primitives;
+    SFLShaderStages geometry;
 };
 
 #pragma endregion
@@ -44,6 +48,7 @@ struct IRenderer
     virtual void SetSkybox(AssetID id) = 0;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
+    virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) = 0;
 
     // --- frame API (immediate, per-AssetID) ---
     virtual void RegisterModel(const SFLModelRegisterInfo& info) = 0;
@@ -58,6 +63,9 @@ struct IRenderer
     // these on the frontend, so backends never duplicate the composite math.
     virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) = 0;
     virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) = 0;
+    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest = true) = 0;
+    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest = true) = 0;
+    virtual void DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest = true) = 0;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };

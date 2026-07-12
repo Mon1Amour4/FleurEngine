@@ -119,6 +119,10 @@ void gl::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
     pImpl->createPass(kind, shaderStages);
 }
+void gl::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
+{
+    (void)shaders;  // TODO: GlDebugDraw
+}
 void gl::backend::CreateSkybox(AssetID id, SFLShaderStages shaderStages)
 {
     pImpl->createSkybox(id, shaderStages);
@@ -263,7 +267,7 @@ void gl::backend::impl::createGeometry()
 
 void gl::backend::impl::createPass(EFLPassKind kind, SFLShaderStages /*shaderStages*/)
 {
-    if (kind == EFLPassKind::Opaque)
+    if (kind == EFLPassKind::Geometry)
         m_GeometryProgram = compileProgram(kGeometryVS, kGeometryFS);
 }
 

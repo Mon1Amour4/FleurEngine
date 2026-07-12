@@ -75,6 +75,33 @@ void vk::backend::EndFrame()
 {
     pImpl->endFrame();
 }
+void vk::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
+{
+    if (!pImpl->m_DebugDraw->IsInitialized())
+    {
+        vk::ShaderCreateInfo primitivesShaderCreateInfo{.pVertexData = shaders.primitives.vertex.shaderCode,
+                                                        .vertexSize = shaders.primitives.vertex.sizeBytes,
+                                                        .pFragmentData = shaders.primitives.fragment.shaderCode,
+                                                        .fragmentSize = shaders.primitives.fragment.sizeBytes};
+        vk::ShaderCreateInfo geometryShaderCreateInfo{.pVertexData = shaders.geometry.vertex.shaderCode,
+                                                      .vertexSize = shaders.geometry.vertex.sizeBytes,
+                                                      .pFragmentData = shaders.geometry.fragment.shaderCode,
+                                                      .fragmentSize = shaders.geometry.fragment.sizeBytes};
+
+        auto& primitivesShader = pImpl->m_ShaderMap.emplace("DebugPrimitives", vk::FVkShader()).first->second;
+        if (!primitivesShader.isInitialized())
+            primitivesShader.Init(pImpl->m_Device->GetLogicalDevice(), primitivesShaderCreateInfo);
+
+        auto& geometryShader = pImpl->m_ShaderMap.emplace("DebugGeometry", vk::FVkShader()).first->second;
+        if (!geometryShader.isInitialized())
+            geometryShader.Init(pImpl->m_Device->GetLogicalDevice(), geometryShaderCreateInfo);
+
+        pImpl->m_DebugDraw->Create(pImpl->m_Device, pImpl->m_Swapchain, &primitivesShader, &geometryShader,
+                                   pImpl->m_StaticGeometryTexturesLayout->GetDescriptorSetLayout(), pImpl->m_StaticGeometryDescriptorSetTextures,
+                                   pImpl->m_MultisampledRenderTarget->GetSamplesCount(), FindDepthFormat(pImpl->m_Device->GetPhysicalDevice()),
+                                   pImpl->m_FramesInFlight);
+    }
+}
 void vk::backend::DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest)
 {
     pImpl->m_DebugDraw->AddLine(a, b, color);
@@ -82,6 +109,21 @@ void vk::backend::DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depth
 void vk::backend::DrawPoint(glm::vec3 p, glm::vec3 color, float size, bool depthTest)
 {
     pImpl->m_DebugDraw->AddPoint(p, color, size);
+}
+
+void vk::backend::DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest)
+{
+    pImpl->m_DebugDraw->AddQuad(a, b, c, d, color);
+}
+
+void vk::backend::DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest)
+{
+    pImpl->m_DebugDraw->AddQuad(a, b, c, d, texture);
+}
+
+void vk::backend::DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest)
+{
+    pImpl->m_DebugDraw->AddBillboard(center, size, texture);
 }
 
 void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCount)
@@ -1038,7 +1080,7 @@ void vk::backend::impl::setSkybox(AssetID id)
 
 void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
-    if (kind == EFLPassKind::Opaque)
+    if (kind == EFLPassKind::Geometry)
     {
         // TODO if pipeline already exists, need to release it
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
@@ -1048,34 +1090,8 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
         };
         m_GeometryPipeline =
             createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
-    }
-    else if (kind == EFLPassKind::Transparent)
-    {
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
-            m_CameraUboLayout->GetDescriptorSetLayout(),           m_StaticGeometryTexturesLayout->GetDescriptorSetLayout(),
-            m_SceneNodeTransformsLayout->GetDescriptorSetLayout(), m_PointLightsLayout->GetDescriptorSetLayout(),
-            m_ShadowMapLayout->GetDescriptorSetLayout(),
-        };
         m_TransparentPipeline =
             createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
-    }
-    else if (kind == EFLPassKind::AABB_DEBUG)
-    {
-        if (!m_DebugDraw->IsInitialized())
-        {
-            vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
-                                                  .vertexSize = shaderStages.vertex.sizeBytes,
-                                                  .pFragmentData = shaderStages.fragment.shaderCode,
-                                                  .fragmentSize = shaderStages.fragment.sizeBytes};
-
-
-            auto& debugShader = m_ShaderMap.emplace("Debug", vk::FVkShader()).first->second;
-            if (!debugShader.isInitialized())
-                debugShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
-
-            m_DebugDraw->Create(m_Device, m_Swapchain, &debugShader, m_MultisampledRenderTarget->GetSamplesCount(),
-                                FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
-        }
     }
     else if (kind == EFLPassKind::Shadow)
     {

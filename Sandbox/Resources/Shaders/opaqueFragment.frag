@@ -115,7 +115,10 @@ void main()
         }
     }
     float shadow = ShadowCalculation(FragPosLightSpace);  
+    // TODO: split lighting terms explicitly. Right now only the directional diffuse/specular
+    // term is shadowed; decide whether point lights should stay unshadowed or get their own shadows.
     outColor = ambient + pointLightColor + ((diffuse + specular) * I) * (1.0 - shadow);
+    outColor.a = albedo.a;
     //outColor = ambient + pointLightColor + ((diffuse + specular) * I);
     //outColor = ambient + pointLightColor + (diffuse) * I;
 }

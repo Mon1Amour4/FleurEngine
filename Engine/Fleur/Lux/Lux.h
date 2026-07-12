@@ -29,6 +29,7 @@ public:
     void Point(glm::vec3 p, Fleur::Graphics::Color color, float size = 4.0f, bool depthTest = true);
     void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::Graphics::Color color, bool depthTest = true);
     void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest = true);
+    void Billboard(glm::vec3 center, glm::vec2 size, AssetID texture, bool depthTest = true);
 
     void DrawAxes();
 

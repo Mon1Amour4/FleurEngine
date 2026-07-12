@@ -1,6 +1,9 @@
 #include "DirectionalLight.h"
 
-float Fleur::Graphics::DirectionalLight::s_PosScale = 1000;
+#include <cstdlib>
+
+
+float Fleur::Graphics::DirectionalLight::s_PosScale = 100;
 
 Fleur::Graphics::DirectionalLight::DirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity)
     : m_Direction(glm::normalize(direction))
@@ -14,43 +17,69 @@ void Fleur::Graphics::DirectionalLight::SetDirection(glm::vec3 dir)
     if (dir == glm::vec3(0, 0, 0))
         return;
 
-    m_Direction = dir;
+    m_Direction = glm::normalize(dir);
 }
 
-void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, Fleur::Graphics::Color color)
+void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx)
 {
     if (!renderer)
         return;
 
-    const DirectionalLightDebugBasis basis = MakeDirectionalLightBasis(m_Direction);
-    if (!basis.valid)
-        return;
+    float radius = 10.0f;
+    glm::vec3 pos = GetVirtualPosition();
+    glm::vec3 forward = glm::normalize(m_Direction);
 
-    const glm::vec3 center = glm::vec3(0.0f);
+    glm::vec3 upHint(0, 1, 0);
+    if (std::abs(glm::dot(forward, upHint)) > 0.99f)
+        upHint = glm::vec3(1, 0, 0);
 
-    const float sourceDistance = 10.0f;
-    const float rayLength = 20.0f;
-    const float spacing = 1.5f;
-    const float arrowSize = 0.4f;
+    glm::vec3 right = glm::normalize(glm::cross(upHint, forward));
+    glm::vec3 up = glm::normalize(glm::cross(forward, right));
 
-    const int gridHalfSize = 2;
+    glm::mat3 basis(right, up, forward);
 
-    const glm::vec3 sourceCenter = center - basis.dir * sourceDistance;
+    glm::vec3 localA(-radius, radius, 0.0f);
+    glm::vec3 localB(radius, radius, 0.0f);
+    glm::vec3 localC(radius, -radius, 0.0f);
+    glm::vec3 localD(-radius, -radius, 0.0f);
 
-    for (int x = -gridHalfSize; x <= gridHalfSize; ++x)
-    {
-        for (int y = -gridHalfSize; y <= gridHalfSize; ++y)
-        {
-            const glm::vec3 offset = GetGridOffset(basis, x, y, spacing);
+    glm::vec3 A = pos + basis * localA;
+    glm::vec3 B = pos + basis * localB;
+    glm::vec3 C = pos + basis * localC;
+    glm::vec3 D = pos + basis * localD;
 
-            const glm::vec3 start = sourceCenter + offset;
-            const glm::vec3 end = start + basis.dir * rayLength;
+    renderer->Debug().Quad(A, B, C, D, textureIdx);
+    renderer->Debug().Line(pos, glm::vec3(0, 0, 0), Fleur::Graphics::Color::Red());
 
-            const bool isCenterRay = x == 0 && y == 0;
+    // const DirectionalLightDebugBasis basis = MakeDirectionalLightBasis(m_Direction);
+    // if (!basis.valid)
+    //     return;
 
-            DrawDirectionalRay(renderer, start, end, basis, arrowSize, isCenterRay, color);
-        }
-    }
+    /* const glm::vec3 center = glm::vec3(0.0f);
+
+     const float sourceDistance = 10.0f;
+     const float rayLength = 20.0f;
+     const float spacing = 1.5f;
+     const float arrowSize = 0.4f;
+
+     const int gridHalfSize = 2;
+
+     const glm::vec3 sourceCenter = center - basis.dir * sourceDistance;
+
+     for (int x = -gridHalfSize; x <= gridHalfSize; ++x)
+     {
+         for (int y = -gridHalfSize; y <= gridHalfSize; ++y)
+         {
+             const glm::vec3 offset = GetGridOffset(basis, x, y, spacing);
+
+             const glm::vec3 start = sourceCenter + offset;
+             const glm::vec3 end = start + basis.dir * rayLength;
+
+             const bool isCenterRay = x == 0 && y == 0;
+
+             DrawDirectionalRay(renderer, start, end, basis, arrowSize, isCenterRay, color);
+         }
+     }*/
 }
 
 void Fleur::Graphics::DirectionalLight::DebugDrawToTarget(Lux::Renderer* renderer, const glm::vec3& targetCenter, float targetRadius,

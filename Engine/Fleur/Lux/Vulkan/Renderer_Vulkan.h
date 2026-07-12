@@ -28,6 +28,7 @@ struct backend : public Fleur::Graphics::IRenderer
     void EndResize(Fleur::SRect& rect) override;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
+    virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) override;
 
     virtual void RegisterModel(const SFLModelRegisterInfo& info) override;
     virtual void UnregisterModel(AssetID model) override;
@@ -39,6 +40,9 @@ struct backend : public Fleur::Graphics::IRenderer
 
     virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override;
     virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) override;
+    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest = true) override;
+    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest = true) override;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
 
