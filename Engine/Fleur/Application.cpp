@@ -112,6 +112,9 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
     case Key::D2:
         m_Window->SwitchInteractionMode();
         break;
+    case Key::F2:
+        ServiceLocator::instance().GetService<Renderer>()->ToggleShadowMapPreview();
+        break;
     case Key::D3:
     {
         auto renderer = ServiceLocator::instance().GetService<Renderer>();
