@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <glm/ext/matrix_float4x4.hpp>
+#include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
 #include <vector>
 
@@ -23,7 +24,7 @@ struct GeometryVertex
 struct DebugGeometryPushConstant
 {
     glm::mat4 viewProj{1.f};
-    int32_t textureIdx{-1};
+    glm::ivec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
     glm::vec4 color{1.f};
 };
 
@@ -62,9 +63,7 @@ public:
     void AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t textureIdx);
     void AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textureIdx);
 
-    // Per-frame: upload to the frame's buffer + record the debug pass (call inside
-    // the active dynamic-rendering pass, after geometry/skybox).
-    void Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
+    void RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
 
     void Clear();
 
@@ -97,6 +96,7 @@ private:
     struct PrimitiveMaterial
     {
         int32_t textureIdx{-1};
+        int32_t textureSource{0};  // 0 = color, 1 = texture rgba, 2 = texture depth
         glm::vec4 color{glm::vec4(-1, -1, -1, -1)};
     };
     struct PrimitiveGeometryDrawInfo

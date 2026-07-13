@@ -13,4 +13,7 @@ C:/VulkanSDK/1.4.335.0/Bin/glslc.exe shadowFragment.frag -o shadowFragment.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugGeometryVertex.vert -o debugGeometryVertex.spv
 C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugGeometryFragment.frag -o debugGeometryFragment.spv
 
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe overlayVertex.vert -o overlayVertex.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslc.exe overlayFragment.frag -o overlayFragment.spv
+
 pause

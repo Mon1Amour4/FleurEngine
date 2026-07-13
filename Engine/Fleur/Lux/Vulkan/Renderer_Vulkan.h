@@ -29,6 +29,7 @@ struct backend : public Fleur::Graphics::IRenderer
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
     virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) override;
+    virtual void ConfigureOverlay(SFLShaderStages shaderStages) override;
 
     virtual void RegisterModel(const SFLModelRegisterInfo& info) override;
     virtual void UnregisterModel(AssetID model) override;
@@ -43,6 +44,11 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest = true) override;
     virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest = true) override;
     virtual void DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color) override;
+    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t texture) override;
+    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color) override;
+    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t texture) override;
+    virtual void DrawShadowMapOverlay(glm::vec2 min, glm::vec2 max) override;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
 

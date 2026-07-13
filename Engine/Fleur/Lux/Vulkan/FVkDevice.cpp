@@ -6,6 +6,9 @@
 #include <cassert>
 #include <iostream>
 #include <set>
+#include <stdexcept>
+
+#include "VkHelper.h"
 
 FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, FleurQueueFamilies graphicsQueueFamily)
     : m_PhysicalDevice(physicalDevice)
@@ -75,10 +78,7 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
                                         .ppEnabledExtensionNames = deivceExtensions.data(),
                                         .pEnabledFeatures = &deviceFeatures};
 
-    if (vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device) != VK_SUCCESS)
-    {
-        assert(true);
-    }
+    VK_CHECK(vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device));
     vkGetDeviceQueue(m_Device, m_QueueFamilies.m_GraphicsFamily.m_Idx, 0, &m_GraphicsQueue);
     vkGetDeviceQueue(m_Device, m_QueueFamilies.m_PresentFamily.m_Idx, 1, &m_PresentQueue);
 
@@ -122,7 +122,7 @@ FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& dev
         }
     }
 
-    assert(false);
+    throw std::runtime_error("No suitable Vulkan device found");
 }
 
 bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo)

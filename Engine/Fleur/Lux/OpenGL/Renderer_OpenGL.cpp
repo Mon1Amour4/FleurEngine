@@ -123,6 +123,10 @@ void gl::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
 {
     (void)shaders;  // TODO: GlDebugDraw
 }
+void gl::backend::ConfigureOverlay(SFLShaderStages shaderStages)
+{
+    (void)shaderStages;  // TODO: GlOverlay
+}
 void gl::backend::CreateSkybox(AssetID id, SFLShaderStages shaderStages)
 {
     pImpl->createSkybox(id, shaderStages);

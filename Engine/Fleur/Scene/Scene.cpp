@@ -156,10 +156,9 @@ void Scene::OnUpdate(float dtTime)
     glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
     float halfSize = 5.0f;
     float shadowNear = 0.1f;
-    float shadowFar = 30.0f;
+    float shadowFar = 1000.0f;
 
-    // glm::vec3 lightPos = m_DirectionalLight->GetVirtualPosition();
-    glm::vec3 lightPos = -m_DirectionalLight.GetDirection() * 10.f;
+    glm::vec3 lightPos = m_DirectionalLight.GetVirtualPosition();
 
     glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 

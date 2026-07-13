@@ -26,8 +26,10 @@
 
 #include "DescriptorPoolAllocator.h"
 #include "FVkBuffer.h"
+#include "FVkDepthTarget.h"
 #include "FVkCommand.h"
 #include "FVkDebugDraw.h"
+#include "FVkOverlayPass.h"
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
 #include "FVkPipeline.h"
@@ -364,7 +366,7 @@ struct backend::impl
     FVkDescriptorSetLayout* m_SceneNodeTransformsLayout{nullptr};
     FVkDescriptorSetLayout* m_ShadowMapLayout{nullptr};
     FVkDescriptorSetLayout* m_PointLightsLayout{nullptr};
-    FVkDescriptorSetLayout* m_StaticGeometryTexturesLayout{nullptr};
+    FVkDescriptorSetLayout* m_TextureDescriptorSetLayout{nullptr};
     struct Frame
     {
         FVkCommandPool m_CommandPools;
@@ -442,7 +444,7 @@ struct backend::impl
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
 
-    void updateStaticGeometryUboDescriptorSets(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
+    void updateTextureDescriptorSet(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler);
 
     struct SFLDescriptorSetImage
     {
@@ -460,13 +462,9 @@ struct backend::impl
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                        uint32_t layerCount);
 
-    FVkTexture* m_DepthRenderTarget{nullptr};
-    void createDepthTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
-                            uint32_t mipMapCount);
-
-    FVkTexture* m_ShadowMapRenderTarget{nullptr};
-    void createShadowMapTexture(FVkTexture& depthRenderTarget, uint32_t width, uint32_t height, VkFormat format, VkSampleCountFlagBits sampleCount,
-                                uint32_t mipMapCount);
+    FVkDepthTarget m_DepthRenderTarget;
+    FVkDepthTarget m_ShadowMapRenderTarget;
+    void updateShadowMapDescriptorSets();
 
     void startResize();
     void endResize(Fleur::SRect& rect);
@@ -515,15 +513,15 @@ struct backend::impl
     void ExecuteMainPass();
 
 
-    // ---------- static geometry ----------
-    VkDescriptorSet m_StaticGeometryDescriptorSetTextures;
+    // ---------- textures ----------
+    VkDescriptorSet m_TextureDescriptorSet;
     VkDescriptorPool m_DescriptorPool;
 
-    void createStaticGeometryPass();
+    void createTextureDescriptorSetPass();
 
-    void createDescriptorPool();
+    void createTextureDescriptorPool();
 
-    void createDescriptorSets();
+    void createTextureDescriptorSets();
 
 
     // ---------- skybox ----------
@@ -539,6 +537,7 @@ struct backend::impl
 
     // Debug
     FVkDebugDraw* m_DebugDraw{nullptr};
+    FVkOverlayPass* m_OverlayPass{nullptr};
 
     std::vector<SFLPointLight> m_PointLights;
     void updatePointLight(const SFLPointLight* light, uint32_t lightCount);

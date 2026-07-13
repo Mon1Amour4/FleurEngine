@@ -33,8 +33,7 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
                                                   .pPushConstantRanges = desc.pushConstants ? desc.pushConstants->data() : nullptr};
 
 
-    if (vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout) != VK_SUCCESS)
-        assert(false);
+    VK_CHECK(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -136,10 +135,7 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
     pipelineInfo.basePipelineIndex = -1;               // Optional
 
-    if (vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    VK_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline));
 }
 
 uint32_t FVkPipeline::GetBindingIdx()

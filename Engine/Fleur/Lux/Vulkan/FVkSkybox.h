@@ -34,21 +34,21 @@ public:
     void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const Fleur::Graphics::SFLCameraData& cameraData);
 
 private:
-    void createDescriptorSetLayout();
-    void createDescriptorPool();
-    void createSampler();
-    void createDescriptorSet(VkImageView imageView);
+    void createSkyboxDescriptorSetLayout();
+    void createSkyboxDescriptorPool();
+    void createSkyboxSampler();
+    void createSkyboxDescriptorSet(VkImageView imageView);
 
-    void updateDescriptorSet(VkImageView imageView);
+    void updateSkyboxDescriptorSet(VkImageView imageView);
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
-    FVkDescriptorSetLayout* m_DescriptorSetLayout;
+    FVkDescriptorSetLayout* m_SkyboxDescriptorSetLayout;
     FVkPipeline* m_Pipeline;
 
     VkSampler m_Sampler;
-    VkDescriptorPool m_DescriptorPool;
-    VkDescriptorSet m_DescriptorSet;
+    VkDescriptorPool m_SkyboxDescriptorPool;
+    VkDescriptorSet m_SkyboxDescriptorSet;
 
     VkSampleCountFlagBits m_SampleCount;
 

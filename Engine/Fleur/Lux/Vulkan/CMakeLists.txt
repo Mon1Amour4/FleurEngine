@@ -24,6 +24,8 @@ SET(PROJECT_HEADERS
     FVkSwapchain.h
     FVkSkybox.h
     FVkDebugDraw.h
+    FVkDepthTarget.h
+    FVkOverlayPass.h
     VkHelper.h
     FVkShader.h
     DescriptorPoolAllocator.h
@@ -43,6 +45,8 @@ SET(PROJECT_SOURCES
     FVkSwapchain.cpp
     FVkSkybox.cpp
     FVkDebugDraw.cpp
+    FVkDepthTarget.cpp
+    FVkOverlayPass.cpp
     VkHelper.cpp
     FVkShader.cpp
     DescriptorPoolAllocator.cpp

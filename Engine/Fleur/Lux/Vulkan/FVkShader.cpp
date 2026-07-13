@@ -27,14 +27,12 @@ void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
     VkShaderModuleCreateInfo vertexcreateInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = info.vertexSize, .pCode = reinterpret_cast<const uint32_t*>(info.pVertexData)};
 
-    if (vkCreateShaderModule(m_Device, &vertexcreateInfo, nullptr, &m_VertexShader.shaderModule) != VK_SUCCESS)
-        assert(false);
+    VK_CHECK(vkCreateShaderModule(m_Device, &vertexcreateInfo, nullptr, &m_VertexShader.shaderModule));
 
     VkShaderModuleCreateInfo fragmentcreateInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = info.fragmentSize, .pCode = reinterpret_cast<const uint32_t*>(info.pFragmentData)};
 
-    if (vkCreateShaderModule(m_Device, &fragmentcreateInfo, nullptr, &m_FragmentShader.shaderModule) != VK_SUCCESS)
-        assert(false);
+    VK_CHECK(vkCreateShaderModule(m_Device, &fragmentcreateInfo, nullptr, &m_FragmentShader.shaderModule));
 
     getReflection(m_VertexShader, info.pVertexData, info.vertexSize);
     getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize);

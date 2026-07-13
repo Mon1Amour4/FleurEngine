@@ -31,10 +31,7 @@ void FVkCommandPool::Init(VkDevice device, VkCommandPoolCreateFlagBits usage, ui
     poolInfo.flags = m_Usage;
     poolInfo.queueFamilyIndex = m_QueueFamilyIndex;
 
-    if (vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    VK_CHECK(vkCreateCommandPool(m_Device, &poolInfo, nullptr, &m_CommandPool));
 }
 
 
@@ -65,10 +62,7 @@ void FVkCommandBuffer::Init(VkDevice device, VkCommandPool pool, VkCommandBuffer
     allocInfo.level = level;
     allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    VK_CHECK(vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer));
 }
 
 void FVkCommandBuffer::Reset()
@@ -81,17 +75,11 @@ void FVkCommandBuffer::Begin()
 {
     VkCommandBufferBeginInfo beginInfo = {.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO, .pNext = NULL, .flags = 0, .pInheritanceInfo = NULL};
 
-    if (vkBeginCommandBuffer(m_CommandBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &beginInfo));
 }
 void FVkCommandBuffer::End()
 {
-    if (vkEndCommandBuffer(m_CommandBuffer) != VK_SUCCESS)
-    {
-        assert(false);
-    }
+    VK_CHECK(vkEndCommandBuffer(m_CommandBuffer));
     m_Valid = true;
 }
 
@@ -234,8 +222,7 @@ FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkComman
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    if (vkCreateFence(m_Device, &fenceInfo, nullptr, &m_Fence) != VK_SUCCESS)
-        assert(false);
+    VK_CHECK(vkCreateFence(m_Device, &fenceInfo, nullptr, &m_Fence));
     vkResetFences(m_Device, 1, &m_Fence);
 
     VkCommandBufferAllocateInfo allocInfo{};

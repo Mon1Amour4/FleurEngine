@@ -4,6 +4,8 @@
 #include <array>
 #include <cassert>
 
+#include "VkHelper.h"
+
 FVkSwapchain::FVkSwapchain()
     : m_Device(nullptr)
     , m_PhysicalDevice(nullptr)
@@ -73,8 +75,7 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
     createInfo.clipped = VK_TRUE;
     createInfo.oldSwapchain = VK_NULL_HANDLE;
 
-    if (vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_Swapchain) != VK_SUCCESS)
-        assert(false);
+    VK_CHECK(vkCreateSwapchainKHR(m_Device, &createInfo, nullptr, &m_Swapchain));
 
     uint32_t realSwapchainImagesCount = 0;
     vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &realSwapchainImagesCount, nullptr);
@@ -195,8 +196,7 @@ VkImageView FVkSwapchain::CreateSwapchainImageView(VkImage image, VkFormat forma
     viewInfo.subresourceRange.layerCount = 1;
 
     VkImageView imageView;
-    if (vkCreateImageView(m_Device, &viewInfo, nullptr, &imageView) != VK_SUCCESS)
-        assert(true);
+    VK_CHECK(vkCreateImageView(m_Device, &viewInfo, nullptr, &imageView));
 
     return imageView;
 }

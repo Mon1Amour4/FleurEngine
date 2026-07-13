@@ -82,6 +82,8 @@ void Renderer::initBackend()
                                                   shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugFragment").obj)},
                                    .geometry = {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryVertex").obj),
                                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryFragment").obj)}});
+    m_Backend->ConfigureOverlay({shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("overlayVertex").obj),
+                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("overlayFragment").obj)});
 
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Shadow, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowVertex").obj),
                                                                  shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowFragment").obj)});
@@ -134,7 +136,55 @@ void Renderer::Draw(AssetID model, const glm::mat4& transform)
 }
 void Renderer::EndFrame()
 {
+    if (m_ShowShadowMapPreview)
+        ShadowMapPreview(glm::vec2(0.62f, 0.62f), glm::vec2(0.96f, 0.96f));
+
     m_Backend->EndFrame();
+}
+
+void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::Color color)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawOverlayQuad(a, b, c, d, color.ToVec4());
+}
+
+void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::AssetID texture)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawOverlayQuad(a, b, c, d, texture);
+}
+
+void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::Color color)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawOverlayTriangle(a, b, c, color.ToVec4());
+}
+
+void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::AssetID texture)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawOverlayTriangle(a, b, c, texture);
+}
+
+void Renderer::ShadowMapPreview(glm::vec2 min, glm::vec2 max)
+{
+    if (!m_Backend)
+        return;
+
+    m_Backend->DrawShadowMapOverlay(min, max);
+}
+
+void Renderer::ToggleShadowMapPreview()
+{
+    m_ShowShadowMapPreview = !m_ShowShadowMapPreview;
 }
 
 void Renderer::StartResize()

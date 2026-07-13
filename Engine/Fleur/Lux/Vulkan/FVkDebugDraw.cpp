@@ -51,7 +51,7 @@ void FVkDebugDraw::Create(const FVkDevice* device, const FVkSwapchain* swapchain
 
         FVkBuffer& geometryBuffer = m_GeometryBuffers.emplace_back();
         geometryBuffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            sizeof(SDebugVertex) * kMaxVertsPerFrame, sizeof(SDebugVertex));
+                            sizeof(GeometryVertex) * kMaxVertsPerFrame, sizeof(GeometryVertex));
     }
 
     createPipelines();
@@ -121,6 +121,7 @@ void FVkDebugDraw::createPipelines()
         m_QuadPipeline = m_GeometryShader->GetPipeline(quadPipelineInfo, descriptorSetLayouts);
         assert(m_QuadPipeline);
     }
+
 }
 
 static uint32_t to8(float v)
@@ -153,7 +154,7 @@ void FVkDebugDraw::AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, g
     m_Quads.push_back({c, glm::vec2(1, 1)});
     m_Quads.push_back({d, glm::vec2(0, 1)});
     m_Quads.push_back({a, glm::vec2(0, 0)});
-    m_GeometryMaterials.push_back({-1, color});
+    m_GeometryMaterials.push_back({-1, 0, color});
     m_GeometryDrawInfos.push_back({6, static_cast<uint32_t>(m_Quads.size() - 6), static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});
 }
 
@@ -165,7 +166,7 @@ void FVkDebugDraw::AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, u
     m_Quads.push_back({c, glm::vec2(1, 1)});
     m_Quads.push_back({d, glm::vec2(0, 1)});
     m_Quads.push_back({a, glm::vec2(0, 0)});
-    m_GeometryMaterials.push_back({static_cast<int32_t>(textureIdx)});
+    m_GeometryMaterials.push_back({static_cast<int32_t>(textureIdx), 1});
     m_GeometryDrawInfos.push_back({6, static_cast<uint32_t>(m_Quads.size() - 6), static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});
 }
 
@@ -174,7 +175,7 @@ void FVkDebugDraw::AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textu
     m_Billboards.push_back({center, size, textureIdx});
 }
 
-void FVkDebugDraw::Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
+void FVkDebugDraw::RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
 {
     glm::mat4 viewProj = cameraData.proj * cameraData.view;
 
@@ -224,7 +225,7 @@ void FVkDebugDraw::Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCamer
                 geometry.push_back({d, glm::vec2(0, 1)});
                 geometry.push_back({a, glm::vec2(0, 0)});
 
-                m_GeometryMaterials.push_back({static_cast<int32_t>(billboard.textureIdx)});
+                m_GeometryMaterials.push_back({static_cast<int32_t>(billboard.textureIdx), 1});
                 drawInfos.push_back({6, vertexOffset, static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});
             }
         }
@@ -238,14 +239,15 @@ void FVkDebugDraw::Record(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCamer
             const auto& material = m_GeometryMaterials[drawInfo.materialIdx];
             DebugGeometryPushConstant pushConstant{};
             pushConstant.viewProj = viewProj;
-            pushConstant.textureIdx = material.textureIdx;
+            pushConstant.params.x = material.textureIdx;
+            pushConstant.params.y = material.textureSource;
             pushConstant.color = material.color;
             cmd.PushConstant(m_QuadPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
             cmd.Draw(drawInfo.vertexCount, drawInfo.vertexOffset);
         }
     }
-}
 
+}
 void FVkDebugDraw::Clear()
 {
     m_Lines.clear();

@@ -13,7 +13,8 @@ namespace Fleur::Graphics
 enum class EFLPassKind
 {
     Geometry,
-    Shadow
+    Shadow,
+    Overlay
 };
 
 struct SFLShaderInfo
@@ -49,6 +50,7 @@ struct IRenderer
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
     virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) = 0;
+    virtual void ConfigureOverlay(SFLShaderStages shaderStages) = 0;
 
     // --- frame API (immediate, per-AssetID) ---
     virtual void RegisterModel(const SFLModelRegisterInfo& info) = 0;
@@ -66,6 +68,11 @@ struct IRenderer
     virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest = true) = 0;
     virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest = true) = 0;
     virtual void DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest = true) = 0;
+    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color) = 0;
+    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t texture) = 0;
+    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color) = 0;
+    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t texture) = 0;
+    virtual void DrawShadowMapOverlay(glm::vec2 min, glm::vec2 max) = 0;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };

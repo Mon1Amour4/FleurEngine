@@ -65,6 +65,16 @@ public:
     void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void Draw(Fleur::Graphics::AssetID model, const glm::mat4& transform);
     void EndFrame();
+    void OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::Color color);
+    void OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::AssetID texture);
+    void OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::Color color);
+    void OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::AssetID texture);
+    void ShadowMapPreview(glm::vec2 min, glm::vec2 max);
+    void ToggleShadowMapPreview();
+    bool IsShadowMapPreviewEnabled() const
+    {
+        return m_ShowShadowMapPreview;
+    }
 
     // Window / engine.
     void StartResize();
@@ -107,5 +117,6 @@ private:
     Fleur::Graphics::IRenderer* m_Backend{nullptr};
     Fleur::Graphics::EGraphicsAPI m_Api{Fleur::Graphics::EGraphicsAPI::Vulkan};
     bool m_Vsync{true};
+    bool m_ShowShadowMapPreview{false};
 };
 }  // namespace Lux
