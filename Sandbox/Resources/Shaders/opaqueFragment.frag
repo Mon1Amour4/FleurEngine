@@ -54,28 +54,41 @@ layout(push_constant) uniform PushConsts
     vec4 cameraPos;
 } pc;
 
-float ShadowCalculation(vec4 fragPosLightSpace)
+float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
 {
     // perform perspective divide
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-    // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
+
+    // glm::orthoRH_ZO already produces Vulkan depth in [0, 1].
+    // Only x/y are in the conventional [-1, 1] NDC range and need remapping.
+    // Without this guard, UVs wrap on the shared sampler and can zero out
+    // the directional term across the whole scene.
+    if (projCoords.z < 0.0 || projCoords.z > 1.0)
+        return 0.0;
+
+    projCoords.xy = projCoords.xy * 0.5 + 0.5;
+
+    if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+        return 0.0;
+
     // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
     float closestDepth = texture(shadowMapSampler, projCoords.xy).r; 
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
+
+    float bias = max(0.0005, 0.005 * (1.0 - NdotL));
     // check whether current frag pos is in shadow
     // 1 - in shadow
     // 0 - isn't in sahdow 
-    float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
+    float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
 
     return shadow;
 }
 
 void main() 
 {
-    float shadowDepth = texture(shadowMapSampler, fragTexCoord).r;
     vec3 V = normalize(cameraForward);
+    // Directional light is stored as the ray direction, so shading needs the opposite vector.
     vec3 L = normalize(-pc.directionalLightDirectionIntensity.xyz);
     float I = pc.directionalLightDirectionIntensity.w;
     float shininess = 200;
@@ -114,7 +127,7 @@ void main()
             pointLightColor = pointLightColor +  vec4(pointLights.lights[i].color,1) * pointLights.lights[i].intensity * lightDotN;
         }
     }
-    float shadow = ShadowCalculation(FragPosLightSpace);  
+    float shadow = ShadowCalculation(FragPosLightSpace, NdotL);  
     // TODO: split lighting terms explicitly. Right now only the directional diffuse/specular
     // term is shadowed; decide whether point lights should stay unshadowed or get their own shadows.
     outColor = ambient + pointLightColor + ((diffuse + specular) * I) * (1.0 - shadow);

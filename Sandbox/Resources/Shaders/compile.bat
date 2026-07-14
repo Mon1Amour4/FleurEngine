@@ -1,19 +1,19 @@
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe opaqueVertex.vert -o opaqueVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe opaqueFragment.frag -o opaqueFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o opaqueVertex.spv opaqueVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o opaqueFragment.spv opaqueFragment.frag
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe skyboxVertex.vert -o skyboxVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe skyboxFragment.frag -o skyboxFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o skyboxVertex.spv skyboxVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o skyboxFragment.spv skyboxFragment.frag
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugVertex.vert -o debugVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugFragment.frag -o debugFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o debugVertex.spv debugVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o debugFragment.spv debugFragment.frag
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe shadowVertex.vert -o shadowVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe shadowFragment.frag -o shadowFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o shadowVertex.spv shadowVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o shadowFragment.spv shadowFragment.frag
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugGeometryVertex.vert -o debugGeometryVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe debugGeometryFragment.frag -o debugGeometryFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o debugGeometryVertex.spv debugGeometryVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o debugGeometryFragment.spv debugGeometryFragment.frag
 
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe overlayVertex.vert -o overlayVertex.spv
-C:/VulkanSDK/1.4.335.0/Bin/glslc.exe overlayFragment.frag -o overlayFragment.spv
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S vert -o overlayVertex.spv overlayVertex.vert
+C:/VulkanSDK/1.4.335.0/Bin/glslangValidator.exe -V -gVS -Od -S frag -o overlayFragment.spv overlayFragment.frag
 
 pause
