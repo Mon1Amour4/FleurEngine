@@ -4,9 +4,7 @@
 
 #include <cstdint>
 #include <functional>
-#include <glm/ext.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/type_ptr.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <iostream>
 #include <memory>
 #include <ostream>

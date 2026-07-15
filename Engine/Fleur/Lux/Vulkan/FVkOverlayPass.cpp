@@ -56,51 +56,51 @@ void FVkOverlayPass::SetShader(vk::FVkShader* overlayShader)
     assert(m_Pipeline);
 }
 
-void FVkOverlayPass::AddQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color)
+void FVkOverlayPass::AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color)
 {
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
-    m_Geometry.push_back({glm::vec3(b, 0.0f), glm::vec2(1, 0)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(1, 1)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(1, 1)});
-    m_Geometry.push_back({glm::vec3(d, 0.0f), glm::vec2(0, 1)});
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(b, 0.0f), Fleur::Math::vec2(1, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(1, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(1, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(d, 0.0f), Fleur::Math::vec2(0, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
     m_Materials.push_back({-1, 0, color});
     m_DrawInfos.push_back({6, static_cast<uint32_t>(m_Geometry.size() - 6), static_cast<uint32_t>(m_Materials.size() - 1)});
 }
 
-void FVkOverlayPass::AddQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t textureIdx)
+void FVkOverlayPass::AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t textureIdx)
 {
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
-    m_Geometry.push_back({glm::vec3(b, 0.0f), glm::vec2(1, 0)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(1, 1)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(1, 1)});
-    m_Geometry.push_back({glm::vec3(d, 0.0f), glm::vec2(0, 1)});
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(b, 0.0f), Fleur::Math::vec2(1, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(1, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(1, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(d, 0.0f), Fleur::Math::vec2(0, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
     m_Materials.push_back({static_cast<int32_t>(textureIdx), 1});
     m_DrawInfos.push_back({6, static_cast<uint32_t>(m_Geometry.size() - 6), static_cast<uint32_t>(m_Materials.size() - 1)});
 }
 
-void FVkOverlayPass::AddTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color)
+void FVkOverlayPass::AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color)
 {
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
-    m_Geometry.push_back({glm::vec3(b, 0.0f), glm::vec2(1, 0)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(0.5f, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(b, 0.0f), Fleur::Math::vec2(1, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(0.5f, 1)});
     m_Materials.push_back({-1, 0, color});
     m_DrawInfos.push_back({3, static_cast<uint32_t>(m_Geometry.size() - 3), static_cast<uint32_t>(m_Materials.size() - 1)});
 }
 
-void FVkOverlayPass::AddTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t textureIdx)
+void FVkOverlayPass::AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t textureIdx)
 {
-    m_Geometry.push_back({glm::vec3(a, 0.0f), glm::vec2(0, 0)});
-    m_Geometry.push_back({glm::vec3(b, 0.0f), glm::vec2(1, 0)});
-    m_Geometry.push_back({glm::vec3(c, 0.0f), glm::vec2(0.5f, 1)});
+    m_Geometry.push_back({Fleur::Math::vec3(a, 0.0f), Fleur::Math::vec2(0, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(b, 0.0f), Fleur::Math::vec2(1, 0)});
+    m_Geometry.push_back({Fleur::Math::vec3(c, 0.0f), Fleur::Math::vec2(0.5f, 1)});
     m_Materials.push_back({static_cast<int32_t>(textureIdx), 1});
     m_DrawInfos.push_back({3, static_cast<uint32_t>(m_Geometry.size() - 3), static_cast<uint32_t>(m_Materials.size() - 1)});
 }
 
-void FVkOverlayPass::AddShadowMapQuad(glm::vec2 min, glm::vec2 max)
+void FVkOverlayPass::AddShadowMapQuad(Fleur::Math::vec2 min, Fleur::Math::vec2 max)
 {
-    AddQuad(glm::vec2(min.x, min.y), glm::vec2(max.x, min.y), glm::vec2(max.x, max.y), glm::vec2(min.x, max.y), m_ShadowMapTextureSlot);
+    AddQuad(Fleur::Math::vec2(min.x, min.y), Fleur::Math::vec2(max.x, min.y), Fleur::Math::vec2(max.x, max.y), Fleur::Math::vec2(min.x, max.y), m_ShadowMapTextureSlot);
     m_Materials.back().textureSource = 2;
 }
 

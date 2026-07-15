@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/vec3.hpp>
+#include <Fleur/Math/Math.hpp>
 
 namespace Fleur::Graphics
 {
@@ -25,13 +25,13 @@ public:
 
     uint32_t ToRGBA8() const;
 
-    glm::vec3 ToVec3() const
+    Fleur::Math::vec3 ToVec3() const
     {
-        return glm::vec3(r, g, b);
+        return Fleur::Math::vec3(r, g, b);
     }
-    glm::vec4 ToVec4() const
+    Fleur::Math::vec4 ToVec4() const
     {
-        return glm::vec4(r, g, b, a);
+        return Fleur::Math::vec4(r, g, b, a);
     }
 
 #pragma region Predefined colors

@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <vector>
 
 #include "AssetHandle.h"
@@ -18,7 +18,7 @@ namespace Fleur
 struct SceneInstance
 {
     Fleur::AssetHandle model;
-    glm::mat4 transform;
+    Fleur::Math::mat4 transform;
 };
 
 // Owns the world's instances + the camera. Submits draws to Lux each frame.

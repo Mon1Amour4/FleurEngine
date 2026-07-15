@@ -8,7 +8,7 @@
 #include <glad/gl.h>
 #include <glad/wgl.h>
 
-#include <glm/glm.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -40,11 +40,11 @@ struct backend::impl
     int m_Height{0};
 
     // ---------- frame ----------
-    glm::mat4 m_View{1.0f};
-    glm::mat4 m_Proj{1.0f};
-    glm::vec3 m_CameraDir{0.0f};
+    Fleur::Math::mat4 m_View{1.0f};
+    Fleur::Math::mat4 m_Proj{1.0f};
+    Fleur::Math::vec3 m_CameraDir{0.0f};
     void beginFrame(const RenderFrameData& frameData);
-    void draw(AssetID model, const glm::mat4& transform);
+    void draw(AssetID model, const Fleur::Math::mat4& transform);
     void endFrame();
 
     // ---------- resources ----------

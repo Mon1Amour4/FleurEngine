@@ -32,7 +32,7 @@ float InputMacOS::GetMouseYImpl() const
     return 0.0f;
 }
 
-glm::vec2 InputMacOS::GetMouseDirImpl() const
+Fleur::Math::vec2 InputMacOS::GetMouseDirImpl() const
 {
     return {0.0f, 0.0f};
 }

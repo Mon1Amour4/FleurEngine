@@ -4,7 +4,7 @@
 #include <array>
 
 
-const glm::vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
+const Fleur::Math::vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
     // back
     {-1.f, 1.f, -1.f},
     {-1.f, -1.f, -1.f},
@@ -70,7 +70,7 @@ FVkSkybox::FVkSkybox()
     , m_DefaultViewport(0, 0)
     , m_DefaultRect({0, 0}, {0, 0})
     , m_UniformBuffer(nullptr)
-    , m_SizeOfUniformBuffer(sizeof(glm::mat4) * 2)
+    , m_SizeOfUniformBuffer(sizeof(Fleur::Math::mat4) * 2)
 {
 }
 
@@ -128,14 +128,14 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     // 6. Uniform Buffer
     m_UniformBuffer = new FVkBuffer();
     m_UniformBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_SizeOfUniformBuffer, m_SizeOfUniformBuffer);
-    std::array<glm::mat4, 2> initialMatrices = {glm::mat4(1.0f), glm::mat4(1.0f)};
+    std::array<Fleur::Math::mat4, 2> initialMatrices = {Fleur::Math::mat4(1.0f), Fleur::Math::mat4(1.0f)};
     m_UniformBuffer->MemCopy(initialMatrices.data(), m_SizeOfUniformBuffer);
     // 7. Descriptor Set
     createSkyboxDescriptorSet(imageView);
     // 8. VertexBuffer
     m_VertexBuffer = new FVkBuffer();
     m_VertexBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VertexBufferSize,
-                         sizeof(glm::vec3));
+                         sizeof(Fleur::Math::vec3));
     // 9. Copy vertices to vertex buffer
     m_VertexBuffer->MemCopy(m_Vertices, m_VertexBufferSize);
 }
@@ -268,7 +268,7 @@ void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const F
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &m_SkyboxDescriptorSet, 0, nullptr);
 
-    m_UniformBuffer->MemCopy(&cameraData.view, sizeof(glm::mat4) * 2);
+    m_UniformBuffer->MemCopy(&cameraData.view, sizeof(Fleur::Math::mat4) * 2);
 
     vkCmdDraw(cmd, m_VertexCount, 1, 0, 0);
 }

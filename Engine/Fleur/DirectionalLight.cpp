@@ -5,19 +5,19 @@
 
 float Fleur::Graphics::DirectionalLight::s_PosScale = 100;
 
-Fleur::Graphics::DirectionalLight::DirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity)
-    : m_Direction(glm::normalize(direction))
+Fleur::Graphics::DirectionalLight::DirectionalLight(Fleur::Math::vec3 direction, Fleur::Graphics::Color color, float intensity)
+    : m_Direction(Fleur::Math::normalize(direction))
     , m_Color(color)
     , m_Intensity(intensity)
 {
 }
 
-void Fleur::Graphics::DirectionalLight::SetDirection(glm::vec3 dir)
+void Fleur::Graphics::DirectionalLight::SetDirection(Fleur::Math::vec3 dir)
 {
-    if (dir == glm::vec3(0, 0, 0))
+    if (dir == Fleur::Math::vec3(0, 0, 0))
         return;
 
-    m_Direction = glm::normalize(dir);
+    m_Direction = Fleur::Math::normalize(dir);
 }
 
 void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx)
@@ -26,33 +26,33 @@ void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, uint3
         return;
 
     float radius = 10.0f;
-    glm::vec3 pos = GetVirtualPosition();
-    glm::vec3 forward = glm::normalize(m_Direction);
+    Fleur::Math::vec3 pos = GetVirtualPosition();
+    Fleur::Math::vec3 forward = Fleur::Math::normalize(m_Direction);
 
-    glm::vec3 upHint(0, 1, 0);
-    if (std::abs(glm::dot(forward, upHint)) > 0.99f)
-        upHint = glm::vec3(1, 0, 0);
+    Fleur::Math::vec3 upHint(0, 1, 0);
+    if (std::abs(Fleur::Math::dot(forward, upHint)) > 0.99f)
+        upHint = Fleur::Math::vec3(1, 0, 0);
 
-    glm::vec3 right = glm::normalize(glm::cross(upHint, forward));
-    glm::vec3 up = glm::normalize(glm::cross(forward, right));
+    Fleur::Math::vec3 right = Fleur::Math::normalize(Fleur::Math::cross(upHint, forward));
+    Fleur::Math::vec3 up = Fleur::Math::normalize(Fleur::Math::cross(forward, right));
 
-    glm::mat3 basis(right, up, forward);
+    Fleur::Math::mat3 basis(right, up, forward);
 
-    glm::vec3 localA(-radius, radius, 0.0f);
-    glm::vec3 localB(radius, radius, 0.0f);
-    glm::vec3 localC(radius, -radius, 0.0f);
-    glm::vec3 localD(-radius, -radius, 0.0f);
+    Fleur::Math::vec3 localA(-radius, radius, 0.0f);
+    Fleur::Math::vec3 localB(radius, radius, 0.0f);
+    Fleur::Math::vec3 localC(radius, -radius, 0.0f);
+    Fleur::Math::vec3 localD(-radius, -radius, 0.0f);
 
-    glm::vec3 A = pos + basis * localA;
-    glm::vec3 B = pos + basis * localB;
-    glm::vec3 C = pos + basis * localC;
-    glm::vec3 D = pos + basis * localD;
+    Fleur::Math::vec3 A = pos + basis * localA;
+    Fleur::Math::vec3 B = pos + basis * localB;
+    Fleur::Math::vec3 C = pos + basis * localC;
+    Fleur::Math::vec3 D = pos + basis * localD;
 
     // renderer->Debug().Quad(A, B, C, D, textureIdx);
-    renderer->Debug().Line(pos, glm::vec3(0, 0, 0), Fleur::Graphics::Color::Red());
+    renderer->Debug().Line(pos, Fleur::Math::vec3(0, 0, 0), Fleur::Graphics::Color::Red());
 }
 
-void Fleur::Graphics::DirectionalLight::DebugDrawToTarget(Lux::Renderer* renderer, const glm::vec3& targetCenter, float targetRadius,
+void Fleur::Graphics::DirectionalLight::DebugDrawToTarget(Lux::Renderer* renderer, const Fleur::Math::vec3& targetCenter, float targetRadius,
                                                           Fleur::Graphics::Color color)
 {
     if (!renderer)
@@ -77,16 +77,16 @@ void Fleur::Graphics::DirectionalLight::DebugDrawToTarget(Lux::Renderer* rendere
     {
         for (int y = -gridHalfSize; y <= gridHalfSize; ++y)
         {
-            const glm::vec3 offset = GetGridOffset(basis, x, y, spacing);
+            const Fleur::Math::vec3 offset = GetGridOffset(basis, x, y, spacing);
 
-            const float offsetSq = glm::dot(offset, offset);
+            const float offsetSq = Fleur::Math::dot(offset, offset);
             if (offsetSq > radiusSq)
                 continue;
 
             const float capDepth = std::sqrt(std::max(0.0f, radiusSq - offsetSq));
 
-            const glm::vec3 end = targetCenter - basis.dir * capDepth + offset;
-            const glm::vec3 start = end - basis.dir * rayLength;
+            const Fleur::Math::vec3 end = targetCenter - basis.dir * capDepth + offset;
+            const Fleur::Math::vec3 start = end - basis.dir * rayLength;
 
             const bool isCenterRay = x == 0 && y == 0;
 
@@ -95,31 +95,31 @@ void Fleur::Graphics::DirectionalLight::DebugDrawToTarget(Lux::Renderer* rendere
     }
 }
 
-Fleur::Graphics::DirectionalLight::DirectionalLightDebugBasis Fleur::Graphics::DirectionalLight::MakeDirectionalLightBasis(const glm::vec3& direction)
+Fleur::Graphics::DirectionalLight::DirectionalLightDebugBasis Fleur::Graphics::DirectionalLight::MakeDirectionalLightBasis(const Fleur::Math::vec3& direction)
 {
-    const float lenSq = glm::dot(direction, direction);
+    const float lenSq = Fleur::Math::dot(direction, direction);
     if (lenSq <= 0.000001f)
         return {};
 
     DirectionalLightDebugBasis basis{};
-    basis.dir = glm::normalize(direction);
+    basis.dir = Fleur::Math::normalize(direction);
 
-    const glm::vec3 helper = std::abs(basis.dir.y) < 0.99f ? glm::vec3(0.0f, 1.0f, 0.0f) : glm::vec3(1.0f, 0.0f, 0.0f);
+    const Fleur::Math::vec3 helper = std::abs(basis.dir.y) < 0.99f ? Fleur::Math::vec3(0.0f, 1.0f, 0.0f) : Fleur::Math::vec3(1.0f, 0.0f, 0.0f);
 
-    basis.right = glm::normalize(glm::cross(helper, basis.dir));
-    basis.up = glm::normalize(glm::cross(basis.dir, basis.right));
+    basis.right = Fleur::Math::normalize(Fleur::Math::cross(helper, basis.dir));
+    basis.up = Fleur::Math::normalize(Fleur::Math::cross(basis.dir, basis.right));
     basis.valid = true;
 
     return basis;
 }
 
-void Fleur::Graphics::DirectionalLight::DrawArrowHead(Lux::Renderer* renderer, const glm::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize,
+void Fleur::Graphics::DirectionalLight::DrawArrowHead(Lux::Renderer* renderer, const Fleur::Math::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize,
                                                       Fleur::Graphics::Color color)
 {
-    const glm::vec3 arrowA = end - basis.dir * arrowSize + basis.right * arrowSize * 0.5f;
-    const glm::vec3 arrowB = end - basis.dir * arrowSize - basis.right * arrowSize * 0.5f;
-    const glm::vec3 arrowC = end - basis.dir * arrowSize + basis.up * arrowSize * 0.5f;
-    const glm::vec3 arrowD = end - basis.dir * arrowSize - basis.up * arrowSize * 0.5f;
+    const Fleur::Math::vec3 arrowA = end - basis.dir * arrowSize + basis.right * arrowSize * 0.5f;
+    const Fleur::Math::vec3 arrowB = end - basis.dir * arrowSize - basis.right * arrowSize * 0.5f;
+    const Fleur::Math::vec3 arrowC = end - basis.dir * arrowSize + basis.up * arrowSize * 0.5f;
+    const Fleur::Math::vec3 arrowD = end - basis.dir * arrowSize - basis.up * arrowSize * 0.5f;
 
     renderer->Debug().Line(end, arrowA, color);
     renderer->Debug().Line(end, arrowB, color);
@@ -127,7 +127,7 @@ void Fleur::Graphics::DirectionalLight::DrawArrowHead(Lux::Renderer* renderer, c
     renderer->Debug().Line(end, arrowD, color);
 }
 
-void Fleur::Graphics::DirectionalLight::DrawDirectionalRay(Lux::Renderer* renderer, const glm::vec3& start, const glm::vec3& end,
+void Fleur::Graphics::DirectionalLight::DrawDirectionalRay(Lux::Renderer* renderer, const Fleur::Math::vec3& start, const Fleur::Math::vec3& end,
                                                            const DirectionalLightDebugBasis& basis, float arrowSize, bool drawArrow,
                                                            Fleur::Graphics::Color color)
 {
@@ -137,7 +137,7 @@ void Fleur::Graphics::DirectionalLight::DrawDirectionalRay(Lux::Renderer* render
         DrawArrowHead(renderer, end, basis, arrowSize, color);
 }
 
-glm::vec3 Fleur::Graphics::DirectionalLight::GetGridOffset(const DirectionalLightDebugBasis& basis, int x, int y, float spacing)
+Fleur::Math::vec3 Fleur::Graphics::DirectionalLight::GetGridOffset(const DirectionalLightDebugBasis& basis, int x, int y, float spacing)
 {
     return basis.right * static_cast<float>(x) * spacing + basis.up * static_cast<float>(y) * spacing;
 }

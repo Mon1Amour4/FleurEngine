@@ -2,8 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include <glm/vec2.hpp>
-#include <glm/vec3.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <vector>
 
 #include "FVkBuffer.h"
@@ -15,14 +14,14 @@
 
 struct OverlayVertex
 {
-    glm::vec3 pos;
-    glm::vec2 uv;
+    Fleur::Math::vec3 pos;
+    Fleur::Math::vec2 uv;
 };
 
 struct OverlayPushConstant
 {
-    glm::ivec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
-    glm::vec4 color{1.f};
+    Fleur::Math::ivec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
+    Fleur::Math::vec4 color{1.f};
 };
 
 class FVkOverlayPass
@@ -35,11 +34,11 @@ public:
                 uint32_t shadowMapTextureSlot, VkSampleCountFlagBits sampleCount, VkFormat depthFormat, uint32_t framesInFlight);
     void SetShader(vk::FVkShader* overlayShader);
 
-    void AddQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color);
-    void AddQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t textureIdx);
-    void AddTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color);
-    void AddTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t textureIdx);
-    void AddShadowMapQuad(glm::vec2 min, glm::vec2 max);
+    void AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color);
+    void AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t textureIdx);
+    void AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color);
+    void AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t textureIdx);
+    void AddShadowMapQuad(Fleur::Math::vec2 min, Fleur::Math::vec2 max);
 
     void Record(FVkCommandBuffer& cmd, uint32_t frameIndex);
     void Clear();
@@ -54,7 +53,7 @@ private:
     {
         int32_t textureIdx{-1};
         int32_t textureSource{0};  // 0 = color, 1 = texture rgba, 2 = texture depth
-        glm::vec4 color{glm::vec4(-1, -1, -1, -1)};
+        Fleur::Math::vec4 color{Fleur::Math::vec4(-1, -1, -1, -1)};
     };
 
     struct DrawInfo

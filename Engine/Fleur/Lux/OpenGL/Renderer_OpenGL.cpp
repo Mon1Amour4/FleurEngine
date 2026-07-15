@@ -155,7 +155,7 @@ void gl::backend::BeginFrame(const RenderFrameData& frameData)
 {
     pImpl->beginFrame(frameData);
 }
-void gl::backend::Draw(AssetID model, const glm::mat4& transform)
+void gl::backend::Draw(AssetID model, const Fleur::Math::mat4& transform)
 {
     pImpl->draw(model, transform);
 }
@@ -327,7 +327,7 @@ void gl::backend::impl::beginFrame(const RenderFrameData& frameData)
     glBindVertexArray(m_Vao);
 }
 
-void gl::backend::impl::draw(AssetID model, const glm::mat4& transform)
+void gl::backend::impl::draw(AssetID model, const Fleur::Math::mat4& transform)
 {
     if (!m_GeometryProgram)
         return;
@@ -447,7 +447,7 @@ void gl::backend::impl::renderSkybox()
     glDepthFunc(GL_LEQUAL);
     glUseProgram(m_SkyboxProgram);
 
-    glm::mat4 viewNoTranslation = glm::mat4(glm::mat3(m_View));  // strip camera translation
+    Fleur::Math::mat4 viewNoTranslation = Fleur::Math::mat4(Fleur::Math::mat3(m_View));  // strip camera translation
     glUniformMatrix4fv(glGetUniformLocation(m_SkyboxProgram, "uView"), 1, GL_FALSE, &viewNoTranslation[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(m_SkyboxProgram, "uProj"), 1, GL_FALSE, &m_Proj[0][0]);
     glUniform1i(glGetUniformLocation(m_SkyboxProgram, "uSkybox"), 0);

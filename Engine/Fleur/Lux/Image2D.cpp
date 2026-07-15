@@ -205,7 +205,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromEquirectangular
 {
     // 1. Stage one: From Equirectangular to cross:
     uint32_t faceSize = src.GetWidth() / 4;
-    constexpr float pi = glm::pi<float>();
+    constexpr float pi = Fleur::Math::pi<float>();
     const Fleur::Bitmap<BitmapFormat_UnsignedByte>* sourceBitmap = src.GetBitmap();
     Bitmap<BitmapFormat_UnsignedByte> outBitmap(faceSize * 4, faceSize * 3, src.GetChannelsCount());
 
@@ -299,7 +299,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromEquirectangular
                 float sy = dx;
                 float sz = dy;
 
-                float radius = glm::sqrt(sx * sx + sy * sy + sz * sz);
+                float radius = Fleur::Math::sqrt(sx * sx + sy * sy + sz * sz);
                 float invRadius = 1.0f / radius;
 
                 float phi = atan2(sy, sx);           // [-pi, +pi]
@@ -333,12 +333,12 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromEquirectangular
                 float w10 = (1.f - shiftX) * shiftY;
                 float w11 = shiftX * shiftY;
 
-                glm::vec4 c00 = sourceBitmap->GetPixel(leftX, topY);
-                glm::vec4 c01 = sourceBitmap->GetPixel(rightX, topY);
-                glm::vec4 c10 = sourceBitmap->GetPixel(leftX, bottomY);
-                glm::vec4 c11 = sourceBitmap->GetPixel(rightX, bottomY);
+                Fleur::Math::vec4 c00 = sourceBitmap->GetPixel(leftX, topY);
+                Fleur::Math::vec4 c01 = sourceBitmap->GetPixel(rightX, topY);
+                Fleur::Math::vec4 c10 = sourceBitmap->GetPixel(leftX, bottomY);
+                Fleur::Math::vec4 c11 = sourceBitmap->GetPixel(rightX, bottomY);
 
-                glm::vec4 color = glm::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
+                Fleur::Math::vec4 color = Fleur::Math::vec4((c00 * w00 + c01 * w01 + c10 * w10 + c11 * w11));
 
                 uint32_t outX = fp.x * faceSize + coord_u;
                 uint32_t outY = fp.y * faceSize + coord_v;
@@ -356,7 +356,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromEquirectangular
         {
             for (uint32_t x = 0; x < faceSize; ++x)
             {
-                glm::vec4 color = outBitmap.GetPixel(startX + x, startY + y);
+                Fleur::Math::vec4 color = outBitmap.GetPixel(startX + x, startY + y);
                 tmp.SetPixel(x, y, color);
             }
         }
@@ -396,7 +396,7 @@ Fleur::Graphics::CubemapImage Fleur::Graphics::CubemapImage::FromCross(const Ima
         {
             for (uint32_t x = 0; x < faceSize; ++x)
             {
-                glm::vec4 color = sourceBitmap->GetPixel(startX + x, startY + y);
+                Fleur::Math::vec4 color = sourceBitmap->GetPixel(startX + x, startY + y);
                 tmp.SetPixel(x, y, color);
             }
         }

@@ -59,7 +59,7 @@ public:
         return platform_instance().GetMousePositionImpl();
     }
 
-    static inline glm::ivec2 GetMouseDir()
+    static inline Fleur::Math::ivec2 GetMouseDir()
     {
         return platform_instance().GetMouseDirImpl();
     }
@@ -78,7 +78,7 @@ protected:
     [[nodiscard]] virtual std::pair<int, int> GetMousePositionImpl() const = 0;
     [[nodiscard]] virtual int GetMouseXImpl() const = 0;
     [[nodiscard]] virtual int GetMouseYImpl() const = 0;
-    [[nodiscard]] virtual glm::ivec2 GetMouseDirImpl() const = 0;
+    [[nodiscard]] virtual Fleur::Math::ivec2 GetMouseDirImpl() const = 0;
 
 private:
     static Input& platform_instance();

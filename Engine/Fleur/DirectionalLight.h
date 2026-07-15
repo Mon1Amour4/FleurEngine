@@ -13,9 +13,9 @@ namespace Fleur::Graphics
 class DirectionalLight
 {
 public:
-    DirectionalLight(glm::vec3 direction, Fleur::Graphics::Color color, float intensity);
+    DirectionalLight(Fleur::Math::vec3 direction, Fleur::Graphics::Color color, float intensity);
 
-    inline glm::vec3 GetDirection() const
+    inline Fleur::Math::vec3 GetDirection() const
     {
         return m_Direction;
     }
@@ -27,38 +27,38 @@ public:
     {
         return m_Intensity;
     }
-    inline glm::vec3 GetVirtualPosition() const
+    inline Fleur::Math::vec3 GetVirtualPosition() const
     {
         return -m_Direction * s_PosScale;
     }
 
-    void SetDirection(glm::vec3);
+    void SetDirection(Fleur::Math::vec3);
 
     void DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx);
-    void DebugDrawToTarget(Lux::Renderer* renderer, const glm::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color);
+    void DebugDrawToTarget(Lux::Renderer* renderer, const Fleur::Math::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color);
 
 private:
     static float s_PosScale;
 
     float m_Intensity;
     // Normalized
-    glm::vec3 m_Direction;
+    Fleur::Math::vec3 m_Direction;
 
     Fleur::Graphics::Color m_Color;
 
     struct DirectionalLightDebugBasis
     {
-        glm::vec3 dir{};
-        glm::vec3 right{};
-        glm::vec3 up{};
+        Fleur::Math::vec3 dir{};
+        Fleur::Math::vec3 right{};
+        Fleur::Math::vec3 up{};
         bool valid{false};
     };
 
-    DirectionalLightDebugBasis MakeDirectionalLightBasis(const glm::vec3& direction);
-    void DrawArrowHead(Lux::Renderer* renderer, const glm::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize, Fleur::Graphics::Color color);
-    void DrawDirectionalRay(Lux::Renderer* renderer, const glm::vec3& start, const glm::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize,
+    DirectionalLightDebugBasis MakeDirectionalLightBasis(const Fleur::Math::vec3& direction);
+    void DrawArrowHead(Lux::Renderer* renderer, const Fleur::Math::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize, Fleur::Graphics::Color color);
+    void DrawDirectionalRay(Lux::Renderer* renderer, const Fleur::Math::vec3& start, const Fleur::Math::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize,
                             bool drawArrow, Fleur::Graphics::Color color);
-    glm::vec3 GetGridOffset(const DirectionalLightDebugBasis& basis, int x, int y, float spacing);
+    Fleur::Math::vec3 GetGridOffset(const DirectionalLightDebugBasis& basis, int x, int y, float spacing);
 };
 
 }  // namespace Fleur::Graphics

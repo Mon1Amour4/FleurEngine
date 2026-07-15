@@ -3,7 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <RenderViews.hpp>
-#include <glm/ext/matrix_float4x4.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <vector>
 
 #include "FVkCommand.h"
@@ -67,7 +67,7 @@ private:
     FVkBuffer* m_UniformBuffer;
 
     static const uint32_t m_VertexCount = 36;
-    static const uint32_t m_VertexBufferSize = m_VertexCount * sizeof(glm::vec3);
+    static const uint32_t m_VertexBufferSize = m_VertexCount * sizeof(Fleur::Math::vec3);
 
-    static const glm::vec3 m_Vertices[m_VertexCount];
+    static const Fleur::Math::vec3 m_Vertices[m_VertexCount];
 };

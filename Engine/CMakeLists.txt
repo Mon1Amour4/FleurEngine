@@ -147,7 +147,7 @@ add_library(FleurEngine ${FLEUR_LIB_TYPE} ${ENGINE_SOURCES} ${ENGINE_HEADERS})
 
 target_link_libraries(
   FleurEngine
-  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib
+  PUBLIC FleurInterface ${ENGINE_DEPENDENCIES} CoreLib FleurMath
   PRIVATE Lux
 )
 # Tessera arrives via FleurInterface (see above).

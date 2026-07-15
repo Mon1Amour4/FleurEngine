@@ -16,6 +16,7 @@ set(TESTS_HEADERS
 set(TESTS_SOURCES
     ${SRC_FOLDER}/Tests.cpp
     ${SRC_FOLDER}/CoreLibTests.cpp
+    ${SRC_FOLDER}/MathTests.cpp
     ${SRC_FOLDER}/CoreLibEdgeTests.cpp
     ${SRC_FOLDER}/ConceptTests.cpp
     ${SRC_FOLDER}/AssetCacheTests.cpp

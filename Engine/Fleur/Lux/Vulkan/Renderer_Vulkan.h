@@ -36,19 +36,19 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void RemoveTexture(AssetID texture) override;
 
     virtual void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData) override;
-    virtual void Draw(AssetID model, const glm::mat4& transform) override;
+    virtual void Draw(AssetID model, const Fleur::Math::mat4& transform) override;
     virtual void EndFrame() override;
 
-    virtual void DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest = true) override;
-    virtual void DrawPoint(glm::vec3 p, glm::vec3 color, float size = 4.0f, bool depthTest = true) override;
-    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest = true) override;
-    virtual void DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest = true) override;
-    virtual void DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest = true) override;
-    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color) override;
-    virtual void DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t texture) override;
-    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color) override;
-    virtual void DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t texture) override;
-    virtual void DrawShadowMapOverlay(glm::vec2 min, glm::vec2 max) override;
+    virtual void DrawLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color, bool depthTest = true) override;
+    virtual void DrawPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size = 4.0f, bool depthTest = true) override;
+    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color, bool depthTest = true) override;
+    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color) override;
+    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t texture) override;
+    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color) override;
+    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t texture) override;
+    virtual void DrawShadowMapOverlay(Fleur::Math::vec2 min, Fleur::Math::vec2 max) override;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
 

@@ -15,8 +15,7 @@
 
 #include <algorithm>
 #include <array>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -60,7 +59,7 @@ constexpr uint32_t MAX_TEXTURES = 4096;
 
 struct SGPUMaterial
 {
-    glm::vec4 baseColorFactor{1};
+    Fleur::Math::vec4 baseColorFactor{1};
     uint32_t albedo{0};
     uint32_t normal{0};
     float metallic{1};
@@ -96,7 +95,7 @@ struct PrimitiveDrawInfo
 
     SGPUMaterial material;
 
-    glm::vec3 boundingBoxCenter{};
+    Fleur::Math::vec3 boundingBoxCenter{};
 
     void FromMaterial(const Fleur::Graphics::FLMaterial& mat)
     {
@@ -399,7 +398,7 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    std::vector<glm::mat4> m_InstanceNodeTransforms;
+    std::vector<Fleur::Math::mat4> m_InstanceNodeTransforms;
 
     FVkBuffer* m_PointLightsBuffer{nullptr};
     VkDescriptorSet m_PointLightDescriptorSet;
@@ -417,7 +416,7 @@ struct backend::impl
         uint32_t modelTransformIdx{};
         uint32_t nodeTransformsStartIdx{};
 
-        glm::vec3 boundingBoxCenter{};
+        Fleur::Math::vec3 boundingBoxCenter{};
     };
 
     std::vector<FLFrameDrawItem> m_OpaqueDrawItems;
@@ -426,10 +425,10 @@ struct backend::impl
     std::unordered_map<AssetID, uint32_t> m_RegisteredModels;
 
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                       const glm::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount,
+                       const Fleur::Math::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount,
                        const FLInstanceItem* srcInstances, uint32_t instanceCount);
     void unregisterModel(AssetID id);
-    void drawModel(AssetID id, const glm::mat4& transform);
+    void drawModel(AssetID id, const Fleur::Math::mat4& transform);
 
     uint32_t m_CurrentFrame{0};
     uint32_t m_FramesInFlight{0};
@@ -470,7 +469,7 @@ struct backend::impl
 
     struct ShadowMapFrustumSettings
     {
-        glm::vec3 center{0.0f, 0.0f, 0.0f};
+        Fleur::Math::vec3 center{0.0f, 0.0f, 0.0f};
         float halfSize{30.0f};
         float nearPlane{0.1f};
         float farPlane{1000.0f};

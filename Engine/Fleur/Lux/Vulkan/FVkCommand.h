@@ -5,31 +5,31 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #define GLM_FORCE_RADIANS
 
-#include <glm/mat4x4.hpp>
+#include <Fleur/Math/Math.hpp>
 #include <vector>
 
 struct SFLPushConstant
 {
-    glm::mat4 lightSpaceMatrix;
-    glm::vec4 baseColorFactor;
+    Fleur::Math::mat4 lightSpaceMatrix;
+    Fleur::Math::vec4 baseColorFactor;
 
     // x = nodeTransformsStartIdx
     // y = modelTransformIdx
     // z = materialIndex
     // w = pointLightCount
-    glm::uvec4 indices;
+    Fleur::Math::uvec4 indices;
 
     // x = alphaCutoff
     // yzw = unused
-    glm::vec4 materialParams;
+    Fleur::Math::vec4 materialParams;
 
-    glm::vec4 directionalLightColor;
+    Fleur::Math::vec4 directionalLightColor;
 
     // xyz = direction, w = intensity
-    glm::vec4 directionalLightDirectionIntensity;
+    Fleur::Math::vec4 directionalLightDirectionIntensity;
 
     // xyz = camera position, w = unused
-    glm::vec4 cameraPos;
+    Fleur::Math::vec4 cameraPos;
 };
 
 class FVkCommandPool

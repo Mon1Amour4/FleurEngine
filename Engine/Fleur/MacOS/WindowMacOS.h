@@ -46,7 +46,7 @@ public:
     virtual void SetMousePos(float x, float y) override
     {
     }
-    inline virtual glm::vec2 GetMouseDir() const override
+    inline virtual Fleur::Math::vec2 GetMouseDir() const override
     {
         return {0.0f, 0.0f};
     }

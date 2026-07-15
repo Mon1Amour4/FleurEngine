@@ -72,7 +72,7 @@ void vk::backend::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
     pImpl->beginFrame(frameData);
 }
-void vk::backend::Draw(AssetID model, const glm::mat4& transform)
+void vk::backend::Draw(AssetID model, const Fleur::Math::mat4& transform)
 {
     pImpl->drawModel(model, transform);
 }
@@ -122,51 +122,51 @@ void vk::backend::ConfigureOverlay(SFLShaderStages shaderStages)
 
     pImpl->m_OverlayPass->SetShader(&overlayShader);
 }
-void vk::backend::DrawLine(glm::vec3 a, glm::vec3 b, glm::vec3 color, bool depthTest)
+void vk::backend::DrawLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color, bool depthTest)
 {
     pImpl->m_DebugDraw->AddLine(a, b, color);
 }
-void vk::backend::DrawPoint(glm::vec3 p, glm::vec3 color, float size, bool depthTest)
+void vk::backend::DrawPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size, bool depthTest)
 {
     pImpl->m_DebugDraw->AddPoint(p, color, size);
 }
 
-void vk::backend::DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color, bool depthTest)
+void vk::backend::DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color, bool depthTest)
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, color);
 }
 
-void vk::backend::DrawQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t texture, bool depthTest)
+void vk::backend::DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, texture);
 }
 
-void vk::backend::DrawBillboard(glm::vec3 center, glm::vec2 size, uint32_t texture, bool depthTest)
+void vk::backend::DrawBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddBillboard(center, size, texture);
 }
 
-void vk::backend::DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, glm::vec4 color)
+void vk::backend::DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, color);
 }
 
-void vk::backend::DrawOverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, uint32_t texture)
+void vk::backend::DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, texture);
 }
 
-void vk::backend::DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec4 color)
+void vk::backend::DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, color);
 }
 
-void vk::backend::DrawOverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, uint32_t texture)
+void vk::backend::DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, texture);
 }
 
-void vk::backend::DrawShadowMapOverlay(glm::vec2 min, glm::vec2 max)
+void vk::backend::DrawShadowMapOverlay(Fleur::Math::vec2 min, Fleur::Math::vec2 max)
 {
     pImpl->m_OverlayPass->AddShadowMapQuad(min, max);
 }
@@ -245,10 +245,10 @@ vk::backend::impl::impl(bool enableValidation,
 
         frame.scene.m_SceneNodeTransformsStorageBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(glm::mat4) + sizeof(glm::mat4), sizeof(glm::mat4));
+                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Math::mat4) + sizeof(Fleur::Math::mat4), sizeof(Fleur::Math::mat4));
 
         frame.scene.m_CameraBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
-                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(SFLGeometryUBO), sizeof(glm::mat4));
+                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(SFLGeometryUBO), sizeof(Fleur::Math::mat4));
 
         std::vector<vk::abstraction::DescriptorAllocator::PoolSizeRatio> frame_sizes = {
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_FramesInFlight},          // ssbo
@@ -1377,7 +1377,7 @@ void vk::backend::impl::endFrame()
     cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
 
     const auto& shadowFrustum = m_ShadowMapFrustumSettings;
-    glm::vec3 shadowCenter = shadowFrustum.center;
+    Fleur::Math::vec3 shadowCenter = shadowFrustum.center;
 
     // Directional light has no real position.
     // This is only a virtual camera position for shadow rendering.
@@ -1385,24 +1385,24 @@ void vk::backend::impl::endFrame()
     float shadowNear = shadowFrustum.nearPlane;
     float shadowFar = shadowFrustum.farPlane;
 
-    glm::vec3 lightPos = glm::vec3(m_FrameData.directionalLight.pos);
-    glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
+    Fleur::Math::vec3 lightPos = Fleur::Math::vec3(m_FrameData.directionalLight.pos);
+    Fleur::Math::mat4 lightView = Fleur::Math::lookAt(lightPos, shadowCenter, Fleur::Math::vec3(0.0f, 1.0f, 0.0f));
 
-    // glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-    glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    // Fleur::Math::mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    Fleur::Math::mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
     lightProjection[1][1] *= -1;
 
-    glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+    Fleur::Math::mat4 lightSpaceMatrix = lightProjection * lightView;
 
     if (shadowFrustum.drawDebugFrustum)
-        m_DebugDraw->Frustum(glm::inverse(lightSpaceMatrix), glm::vec3(0.0f, 1.0f, 1.0f));
+        m_DebugDraw->Frustum(Fleur::Math::inverse(lightSpaceMatrix), Fleur::Math::vec3(0.0f, 1.0f, 1.0f));
 
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         struct ShadowPuchConstant
         {
-            glm::mat4 lightSpaceMatrix;
+            Fleur::Math::mat4 lightSpaceMatrix;
             uint32_t modelIdx;
             uint32_t nodeIdx;
         } pc;
@@ -1438,7 +1438,7 @@ void vk::backend::impl::endFrame()
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
         pushConstant.indices.y = drawItem.modelTransformIdx;
         pushConstant.indices.w = m_PointLights.size();
-        pushConstant.cameraPos = glm::inverse(m_FrameData.camera.view)[3];
+        pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
         cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
@@ -1513,7 +1513,7 @@ void vk::backend::impl::endFrame()
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                                      const glm::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives,
+                                      const Fleur::Math::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives,
                                       uint32_t primitiveCount, const FLInstanceItem* srcInstances, uint32_t instanceCount)
 {
     if (m_RegisteredModels.contains(id))
@@ -1574,7 +1574,7 @@ void vk::backend::impl::unregisterModel(AssetID id)
     // TODO: reclaim geometry buffer space (bump allocator has no free; needs a sub-allocator).
 }
 
-void vk::backend::impl::drawModel(AssetID id, const glm::mat4& modelTransform)
+void vk::backend::impl::drawModel(AssetID id, const Fleur::Math::mat4& modelTransform)
 {
     auto it = m_RegisteredModels.find(id);
     if (it == m_RegisteredModels.end())
@@ -1586,12 +1586,12 @@ void vk::backend::impl::drawModel(AssetID id, const glm::mat4& modelTransform)
     auto& frame = GetCurrentFrame();
 
     uint32_t matricesCount = batch.nodeTransformCount + 2;
-    glm::mat4* matrices = new glm::mat4[matricesCount];
+    Fleur::Math::mat4* matrices = new Fleur::Math::mat4[matricesCount];
 
     matrices[0] = modelTransform;
-    matrices[1] = glm::mat4(glm::transpose(glm::inverse(glm::mat3(modelTransform))));
+    matrices[1] = Fleur::Math::mat4(Fleur::Math::transpose(Fleur::Math::inverse(Fleur::Math::mat3(modelTransform))));
 
-    memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(glm::mat4) * batch.nodeTransformCount);
+    memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(Fleur::Math::mat4) * batch.nodeTransformCount);
 
     uint32_t ssboCurrentIdx = frame.scene.m_SceneNodeTransformsStorageBuffer.CurrentSize() / frame.scene.m_SceneNodeTransformsStorageBuffer.StrideBytes();
     frame.scene.m_SceneNodeTransformsStorageBuffer.UploadDataToBuffer(matrices, matricesCount);

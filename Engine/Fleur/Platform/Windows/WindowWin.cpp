@@ -1,4 +1,4 @@
-﻿#include "WindowWin.h"
+#include "WindowWin.h"
 
 #include "InputWin.h"
 #include "KeyCodesWin.h"
@@ -212,7 +212,7 @@ LRESULT Fleur::WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
 
     // If the cursor has moved from someone else's window or desktop to the client area of your window
     // With each WM_MOUSEMOVE, Windows first checks whether the cursor needs to be changed. If so, it also sends WM_SETCURSOR
-    // When the active window changes If the focus has moved to your window(e.g.Alt + Tab, click on the title, Win + Tab) — Windows wants
+    // When the active window changes If the focus has moved to your window(e.g.Alt + Tab, click on the title, Win + Tab) � Windows wants
     // to make sure that the cursor is displayed correctly, and calls WM_SETCURSOR
     // When a window changes mode (client / non-client area)
     // When you call SetCapture() or ReleaseCapture()
@@ -450,10 +450,10 @@ LRESULT Fleur::WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
     // Keyboard events:
 
     // Keyboard focus:
-    // The user clicks on your window → it becomes active and gets focus → WM_SETFOCUS.
-    // The user Alt + Tab's to your window → WM_SETFOCUS.
-    // SetFocus(hWnd) is called manually → WM_SETFOCUS.
-    // After creating the window, if you immediately give it focus → it will also come.
+    // The user clicks on your window ? it becomes active and gets focus ? WM_SETFOCUS.
+    // The user Alt + Tab's to your window ? WM_SETFOCUS.
+    // SetFocus(hWnd) is called manually ? WM_SETFOCUS.
+    // After creating the window, if you immediately give it focus ? it will also come.
     case WM_SETFOCUS:
     {
         m_HasInputFocus = true;
@@ -466,9 +466,9 @@ LRESULT Fleur::WindowWin::WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM 
         break;
     }
 
-    // You Alt+Tab'd to another application → your window gets WM_KILLFOCUS.
-    // You clicked another window → the current window lost focus → WM_KILLFOCUS.
-    // You called SetFocus() on another window → the old window gets WM_KILLFOCUS, the new one gets WM_SETFOCUS.
+    // You Alt+Tab'd to another application ? your window gets WM_KILLFOCUS.
+    // You clicked another window ? the current window lost focus ? WM_KILLFOCUS.
+    // You called SetFocus() on another window ? the old window gets WM_KILLFOCUS, the new one gets WM_SETFOCUS.
     case WM_KILLFOCUS:
     {
         m_IsFrameAction = m_HasInputFocus = false;
@@ -544,7 +544,7 @@ Fleur::WindowWin::WindowWin(const WindowProps& props, EventQueue& eventQueue)
 void Fleur::WindowWin::OnUpdate(float dtTime)
 {
     UNUSED(dtTime);
-    glm::ivec2 tmp = m_MouseDir;
+    Fleur::Math::ivec2 tmp = m_MouseDir;
     m_MouseDir.x = static_cast<int>(std::lerp(m_PrevMouseDir.x, m_BufferX, 0.5f));
     m_MouseDir.y = static_cast<int>(std::lerp(m_PrevMouseDir.y, m_BufferY, 0.5f));
     m_PrevMouseDir = tmp;

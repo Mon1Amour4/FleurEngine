@@ -132,64 +132,64 @@ static uint32_t to8(float v)
     v = v < 0.0f ? 0.0f : (v > 1.0f ? 1.0f : v);
     return static_cast<uint32_t>(v * 255.0f);
 }
-static uint32_t packColor(glm::vec3 c)
+static uint32_t packColor(Fleur::Math::vec3 c)
 {
     return to8(c.r) | (to8(c.g) << 8) | (to8(c.b) << 16) | 0xFF000000u;
 }
 
-void FVkDebugDraw::AddLine(glm::vec3 a, glm::vec3 b, glm::vec3 color)
+void FVkDebugDraw::AddLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color)
 {
-    m_Lines.push_back({a, glm::vec4(color, 1.f)});
-    m_Lines.push_back({b, glm::vec4(color, 1.f)});
+    m_Lines.push_back({a, Fleur::Math::vec4(color, 1.f)});
+    m_Lines.push_back({b, Fleur::Math::vec4(color, 1.f)});
 }
 
-void FVkDebugDraw::AddPoint(glm::vec3 p, glm::vec3 color, float size)
+void FVkDebugDraw::AddPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size)
 {
     // TODO: point size — needs a push-constant or per-vertex size field (SDebugVertex has none yet).
-    m_Points.push_back({p, glm::vec4(color, 1.f)});
+    m_Points.push_back({p, Fleur::Math::vec4(color, 1.f)});
 }
 
-void FVkDebugDraw::AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color)
+void FVkDebugDraw::AddQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color)
 {
-    m_Quads.push_back({a, glm::vec2(0, 0)});
-    m_Quads.push_back({b, glm::vec2(1, 0)});
-    m_Quads.push_back({c, glm::vec2(1, 1)});
-    m_Quads.push_back({c, glm::vec2(1, 1)});
-    m_Quads.push_back({d, glm::vec2(0, 1)});
-    m_Quads.push_back({a, glm::vec2(0, 0)});
+    m_Quads.push_back({a, Fleur::Math::vec2(0, 0)});
+    m_Quads.push_back({b, Fleur::Math::vec2(1, 0)});
+    m_Quads.push_back({c, Fleur::Math::vec2(1, 1)});
+    m_Quads.push_back({c, Fleur::Math::vec2(1, 1)});
+    m_Quads.push_back({d, Fleur::Math::vec2(0, 1)});
+    m_Quads.push_back({a, Fleur::Math::vec2(0, 0)});
     m_GeometryMaterials.push_back({-1, 0, color});
     m_GeometryDrawInfos.push_back({6, static_cast<uint32_t>(m_Quads.size() - 6), static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});
 }
 
-void FVkDebugDraw::AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t textureIdx)
+void FVkDebugDraw::AddQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t textureIdx)
 {
-    m_Quads.push_back({a, glm::vec2(0, 0)});
-    m_Quads.push_back({b, glm::vec2(1, 0)});
-    m_Quads.push_back({c, glm::vec2(1, 1)});
-    m_Quads.push_back({c, glm::vec2(1, 1)});
-    m_Quads.push_back({d, glm::vec2(0, 1)});
-    m_Quads.push_back({a, glm::vec2(0, 0)});
+    m_Quads.push_back({a, Fleur::Math::vec2(0, 0)});
+    m_Quads.push_back({b, Fleur::Math::vec2(1, 0)});
+    m_Quads.push_back({c, Fleur::Math::vec2(1, 1)});
+    m_Quads.push_back({c, Fleur::Math::vec2(1, 1)});
+    m_Quads.push_back({d, Fleur::Math::vec2(0, 1)});
+    m_Quads.push_back({a, Fleur::Math::vec2(0, 0)});
     m_GeometryMaterials.push_back({static_cast<int32_t>(textureIdx), 1});
     m_GeometryDrawInfos.push_back({6, static_cast<uint32_t>(m_Quads.size() - 6), static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});
 }
 
-void FVkDebugDraw::AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textureIdx)
+void FVkDebugDraw::AddBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t textureIdx)
 {
     m_Billboards.push_back({center, size, textureIdx});
 }
 
-void FVkDebugDraw::Frustum(const glm::mat4& invViewProj, glm::vec3 color)
+void FVkDebugDraw::Frustum(const Fleur::Math::mat4& invViewProj, Fleur::Math::vec3 color)
 {
-    const std::array<glm::vec4, 8> clipCorners = {
-        glm::vec4(-1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, 1.f, 0.f, 1.f), glm::vec4(-1.f, 1.f, 0.f, 1.f),
-        glm::vec4(-1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, 1.f, 1.f, 1.f), glm::vec4(-1.f, 1.f, 1.f, 1.f),
+    const std::array<Fleur::Math::vec4, 8> clipCorners = {
+        Fleur::Math::vec4(-1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 0.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 0.f, 1.f),
+        Fleur::Math::vec4(-1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 1.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 1.f, 1.f),
     };
 
-    std::array<glm::vec3, 8> worldCorners{};
+    std::array<Fleur::Math::vec3, 8> worldCorners{};
     for (size_t i = 0; i < clipCorners.size(); ++i)
     {
-        const glm::vec4 world = invViewProj * clipCorners[i];
-        worldCorners[i] = glm::vec3(world) / world.w;
+        const Fleur::Math::vec4 world = invViewProj * clipCorners[i];
+        worldCorners[i] = Fleur::Math::vec3(world) / world.w;
     }
 
     static constexpr std::array<std::pair<uint32_t, uint32_t>, 12> edges = {
@@ -204,7 +204,7 @@ void FVkDebugDraw::Frustum(const glm::mat4& invViewProj, glm::vec3 color)
 
 void FVkDebugDraw::RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
 {
-    glm::mat4 viewProj = cameraData.proj * cameraData.view;
+    Fleur::Math::mat4 viewProj = cameraData.proj * cameraData.view;
 
     if (!m_Lines.empty())
     {
@@ -230,27 +230,27 @@ void FVkDebugDraw::RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFL
 
         if (!m_Billboards.empty())
         {
-            glm::mat4 invView = glm::inverse(cameraData.view);
-            glm::vec3 right = glm::normalize(glm::vec3(invView[0]));
-            glm::vec3 up = glm::normalize(glm::vec3(invView[1]));
+            Fleur::Math::mat4 invView = Fleur::Math::inverse(cameraData.view);
+            Fleur::Math::vec3 right = Fleur::Math::normalize(Fleur::Math::vec3(invView[0]));
+            Fleur::Math::vec3 up = Fleur::Math::normalize(Fleur::Math::vec3(invView[1]));
 
             for (const auto& billboard : m_Billboards)
             {
-                glm::vec3 halfRight = right * (billboard.size.x * 0.5f);
-                glm::vec3 halfUp = up * (billboard.size.y * 0.5f);
+                Fleur::Math::vec3 halfRight = right * (billboard.size.x * 0.5f);
+                Fleur::Math::vec3 halfUp = up * (billboard.size.y * 0.5f);
 
-                glm::vec3 a = billboard.center - halfRight + halfUp;
-                glm::vec3 b = billboard.center + halfRight + halfUp;
-                glm::vec3 c = billboard.center + halfRight - halfUp;
-                glm::vec3 d = billboard.center - halfRight - halfUp;
+                Fleur::Math::vec3 a = billboard.center - halfRight + halfUp;
+                Fleur::Math::vec3 b = billboard.center + halfRight + halfUp;
+                Fleur::Math::vec3 c = billboard.center + halfRight - halfUp;
+                Fleur::Math::vec3 d = billboard.center - halfRight - halfUp;
 
                 uint32_t vertexOffset = static_cast<uint32_t>(geometry.size());
-                geometry.push_back({a, glm::vec2(0, 0)});
-                geometry.push_back({b, glm::vec2(1, 0)});
-                geometry.push_back({c, glm::vec2(1, 1)});
-                geometry.push_back({c, glm::vec2(1, 1)});
-                geometry.push_back({d, glm::vec2(0, 1)});
-                geometry.push_back({a, glm::vec2(0, 0)});
+                geometry.push_back({a, Fleur::Math::vec2(0, 0)});
+                geometry.push_back({b, Fleur::Math::vec2(1, 0)});
+                geometry.push_back({c, Fleur::Math::vec2(1, 1)});
+                geometry.push_back({c, Fleur::Math::vec2(1, 1)});
+                geometry.push_back({d, Fleur::Math::vec2(0, 1)});
+                geometry.push_back({a, Fleur::Math::vec2(0, 0)});
 
                 m_GeometryMaterials.push_back({static_cast<int32_t>(billboard.textureIdx), 1});
                 drawInfos.push_back({6, vertexOffset, static_cast<uint32_t>(m_GeometryMaterials.size() - 1)});

@@ -17,7 +17,7 @@ protected:
     virtual std::pair<int, int> GetMousePositionImpl() const override;
     virtual int GetMouseXImpl() const override;
     virtual int GetMouseYImpl() const override;
-    virtual glm::ivec2 GetMouseDirImpl() const override;
+    virtual Fleur::Math::ivec2 GetMouseDirImpl() const override;
 
     Input::KeyInfo m_LastKey;
     Input::MouseInfo m_LastMouse;

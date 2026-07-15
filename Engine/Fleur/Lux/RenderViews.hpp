@@ -27,7 +27,7 @@ struct FLPrimitiveDrawItem
 
     Fleur::Graphics::FLMaterial material;
 
-    glm::vec3 boundingBoxCenter;
+    Fleur::Math::vec3 boundingBoxCenter;
 };
 
 struct FLInstanceItem
@@ -50,7 +50,7 @@ struct SFLModelRegisterInfo
     const uint32_t* indices{};
     uint32_t indexCount{};
 
-    const glm::mat4* nodeTransforms{};
+    const Fleur::Math::mat4* nodeTransforms{};
     uint32_t nodeTransformCount{};
 
     const FLPrimitiveDrawItem* primitives{};
@@ -63,10 +63,10 @@ struct SFLModelRegisterInfo
 // Ligts
 struct SFLPointLight
 {
-    glm::vec3 pos;
+    Fleur::Math::vec3 pos;
     float radius;
 
-    glm::vec3 color;
+    Fleur::Math::vec3 color;
     float intensity;
 };
 

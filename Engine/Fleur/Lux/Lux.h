@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <Fleur/Math/Math.hpp>
 
 #include "Color.h"
 #include "IRenderer.hpp"  // IRenderer + DTOs
@@ -25,20 +25,20 @@ public:
         : m_Backend(renderer) {};
 
     // --- Primitives ---
-    void Line(glm::vec3 a, glm::vec3 b, Fleur::Graphics::Color color, bool depthTest = true);
-    void Point(glm::vec3 p, Fleur::Graphics::Color color, float size = 4.0f, bool depthTest = true);
-    void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::Graphics::Color color, bool depthTest = true);
-    void Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest = true);
-    void Billboard(glm::vec3 center, glm::vec2 size, AssetID texture, bool depthTest = true);
+    void Line(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Graphics::Color color, bool depthTest = true);
+    void Point(Fleur::Math::vec3 p, Fleur::Graphics::Color color, float size = 4.0f, bool depthTest = true);
+    void Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Graphics::Color color, bool depthTest = true);
+    void Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, AssetID texture, bool depthTest = true);
+    void Billboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, AssetID texture, bool depthTest = true);
 
     void DrawAxes();
 
     // --- Composites (constructs from Line\Point) ---
-    void BoundingBox(Fleur::Graphics::BoundingBox boundingBox, glm::mat4 transform, Color color, bool depthTest = true);  // oriented
-    void Sphere(glm::vec3 center, float radius, Color color, int segments = 16);
-    void Ray(glm::vec3 origin, glm::vec3 dir, float length, Color color);
-    void Axes(const glm::mat4& transform, float size = 1.0f);  // RGB = XYZ ???
-    void Frustum(const glm::mat4& invViewProj, Color color);
+    void BoundingBox(Fleur::Graphics::BoundingBox boundingBox, Fleur::Math::mat4 transform, Color color, bool depthTest = true);  // oriented
+    void Sphere(Fleur::Math::vec3 center, float radius, Color color, int segments = 16);
+    void Ray(Fleur::Math::vec3 origin, Fleur::Math::vec3 dir, float length, Color color);
+    void Axes(const Fleur::Math::mat4& transform, float size = 1.0f);  // RGB = XYZ ???
+    void Frustum(const Fleur::Math::mat4& invViewProj, Color color);
 
 private:
     IRenderer* m_Backend{nullptr};
@@ -63,13 +63,13 @@ public:
 
     // Frame (immediate-mode).
     void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData);
-    void Draw(Fleur::Graphics::AssetID model, const glm::mat4& transform);
+    void Draw(Fleur::Graphics::AssetID model, const Fleur::Math::mat4& transform);
     void EndFrame();
-    void OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::Color color);
-    void OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::AssetID texture);
-    void OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::Color color);
-    void OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::AssetID texture);
-    void ShadowMapPreview(glm::vec2 min, glm::vec2 max);
+    void OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::Color color);
+    void OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::AssetID texture);
+    void OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::Color color);
+    void OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::AssetID texture);
+    void ShadowMapPreview(Fleur::Math::vec2 min, Fleur::Math::vec2 max);
     void ToggleShadowMapPreview();
     bool IsShadowMapPreviewEnabled() const
     {

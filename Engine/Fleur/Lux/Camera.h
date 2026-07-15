@@ -2,8 +2,8 @@
 
 #include "Services/ServiceInterfaces.hpp"
 
-using vec3 = glm::vec3;
-using mat4 = glm::mat4;
+using vec3 = Fleur::Math::vec3;
+using mat4 = Fleur::Math::mat4;
 
 namespace Fleur::Graphics
 {

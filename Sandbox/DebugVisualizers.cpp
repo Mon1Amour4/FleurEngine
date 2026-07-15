@@ -9,34 +9,33 @@
 
 #include <Lux/Color.h>
 
-#include <glm/glm.hpp>
-#include <glm/gtc/quaternion.hpp>
+#include <Fleur/Math/Math.hpp>
 
 namespace Fleur::Debug
 {
 
-// ===== glm::mat4 (affine TRS assumed; meaningless for a projection matrix) =====
+// ===== Fleur::Math::mat4 (affine TRS assumed; meaningless for a projection matrix) =====
 
 // Per-axis scale = length of each basis column.
-glm::vec3 FLScaleOf(const glm::mat4& m)
+Fleur::Math::vec3 FLScaleOf(const Fleur::Math::mat4& m)
 {
-    return glm::vec3(glm::length(glm::vec3(m[0])),
-                     glm::length(glm::vec3(m[1])),
-                     glm::length(glm::vec3(m[2])));
+    return Fleur::Math::vec3(Fleur::Math::length(Fleur::Math::vec3(m[0])),
+                     Fleur::Math::length(Fleur::Math::vec3(m[1])),
+                     Fleur::Math::length(Fleur::Math::vec3(m[2])));
 }
 
 // Euler angles in degrees (XYZ) of the rotation part, with scale divided out.
-glm::vec3 FLEulerOf(const glm::mat4& m)
+Fleur::Math::vec3 FLEulerOf(const Fleur::Math::mat4& m)
 {
-    const float lx = glm::length(glm::vec3(m[0]));
-    const float ly = glm::length(glm::vec3(m[1]));
-    const float lz = glm::length(glm::vec3(m[2]));
+    const float lx = Fleur::Math::length(Fleur::Math::vec3(m[0]));
+    const float ly = Fleur::Math::length(Fleur::Math::vec3(m[1]));
+    const float lz = Fleur::Math::length(Fleur::Math::vec3(m[2]));
 
-    const glm::mat3 rot(lx > 0.f ? glm::vec3(m[0]) / lx : glm::vec3(1, 0, 0),
-                        ly > 0.f ? glm::vec3(m[1]) / ly : glm::vec3(0, 1, 0),
-                        lz > 0.f ? glm::vec3(m[2]) / lz : glm::vec3(0, 0, 1));
+    const Fleur::Math::mat3 rot(lx > 0.f ? Fleur::Math::vec3(m[0]) / lx : Fleur::Math::vec3(1, 0, 0),
+                        ly > 0.f ? Fleur::Math::vec3(m[1]) / ly : Fleur::Math::vec3(0, 1, 0),
+                        lz > 0.f ? Fleur::Math::vec3(m[2]) / lz : Fleur::Math::vec3(0, 0, 1));
 
-    return glm::degrees(glm::eulerAngles(glm::quat_cast(rot)));
+    return Fleur::Math::degrees(Fleur::Math::eulerAngles(Fleur::Math::quat_cast(rot)));
 }
 
 // ===== Color =====
@@ -46,11 +45,11 @@ glm::vec3 FLEulerOf(const glm::mat4& m)
 // a per-channel hex would drop leading zeros and lose the channel boundaries.
 unsigned FLColorHexRGBA(const Fleur::Graphics::Color& c)
 {
-    const glm::vec4 v = c.ToVec4();
-    const unsigned R = static_cast<unsigned>(glm::clamp(v.r, 0.f, 1.f) * 255.f + 0.5f);
-    const unsigned G = static_cast<unsigned>(glm::clamp(v.g, 0.f, 1.f) * 255.f + 0.5f);
-    const unsigned B = static_cast<unsigned>(glm::clamp(v.b, 0.f, 1.f) * 255.f + 0.5f);
-    const unsigned A = static_cast<unsigned>(glm::clamp(v.a, 0.f, 1.f) * 255.f + 0.5f);
+    const Fleur::Math::vec4 v = c.ToVec4();
+    const unsigned R = static_cast<unsigned>(Fleur::Math::clamp(v.r, 0.f, 1.f) * 255.f + 0.5f);
+    const unsigned G = static_cast<unsigned>(Fleur::Math::clamp(v.g, 0.f, 1.f) * 255.f + 0.5f);
+    const unsigned B = static_cast<unsigned>(Fleur::Math::clamp(v.b, 0.f, 1.f) * 255.f + 0.5f);
+    const unsigned A = static_cast<unsigned>(Fleur::Math::clamp(v.a, 0.f, 1.f) * 255.f + 0.5f);
     return (R << 24) | (G << 16) | (B << 8) | A;
 }
 

@@ -133,19 +133,19 @@ void Renderer::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
     m_Backend->BeginFrame(frameData);
 }
-void Renderer::Draw(AssetID model, const glm::mat4& transform)
+void Renderer::Draw(AssetID model, const Fleur::Math::mat4& transform)
 {
     m_Backend->Draw(model, transform);
 }
 void Renderer::EndFrame()
 {
     if (m_ShowShadowMapPreview)
-        ShadowMapPreview(glm::vec2(0.62f, 0.62f), glm::vec2(0.96f, 0.96f));
+        ShadowMapPreview(Fleur::Math::vec2(0.62f, 0.62f), Fleur::Math::vec2(0.96f, 0.96f));
 
     m_Backend->EndFrame();
 }
 
-void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::Color color)
+void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::Color color)
 {
     if (!m_Backend)
         return;
@@ -153,7 +153,7 @@ void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, F
     m_Backend->DrawOverlayQuad(a, b, c, d, color.ToVec4());
 }
 
-void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, Fleur::Graphics::AssetID texture)
+void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::AssetID texture)
 {
     if (!m_Backend)
         return;
@@ -161,7 +161,7 @@ void Renderer::OverlayQuad(glm::vec2 a, glm::vec2 b, glm::vec2 c, glm::vec2 d, F
     m_Backend->DrawOverlayQuad(a, b, c, d, texture);
 }
 
-void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::Color color)
+void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::Color color)
 {
     if (!m_Backend)
         return;
@@ -169,7 +169,7 @@ void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Gra
     m_Backend->DrawOverlayTriangle(a, b, c, color.ToVec4());
 }
 
-void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Graphics::AssetID texture)
+void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::AssetID texture)
 {
     if (!m_Backend)
         return;
@@ -177,7 +177,7 @@ void Renderer::OverlayTriangle(glm::vec2 a, glm::vec2 b, glm::vec2 c, Fleur::Gra
     m_Backend->DrawOverlayTriangle(a, b, c, texture);
 }
 
-void Renderer::ShadowMapPreview(glm::vec2 min, glm::vec2 max)
+void Renderer::ShadowMapPreview(Fleur::Math::vec2 min, Fleur::Math::vec2 max)
 {
     if (!m_Backend)
         return;
@@ -204,7 +204,7 @@ void Renderer::SetSkybox(AssetID id)
 }
 
 // Debug
-void DebugDraw::Line(glm::vec3 a, glm::vec3 b, Fleur::Graphics::Color color, bool depthTest)
+void DebugDraw::Line(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Graphics::Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -212,7 +212,7 @@ void DebugDraw::Line(glm::vec3 a, glm::vec3 b, Fleur::Graphics::Color color, boo
     m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
 }
 
-void DebugDraw::Point(glm::vec3 p, Color color, float size, bool depthTest)
+void DebugDraw::Point(Fleur::Math::vec3 p, Color color, float size, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -220,7 +220,7 @@ void DebugDraw::Point(glm::vec3 p, Color color, float size, bool depthTest)
     m_Backend->DrawPoint(p, color.ToVec3(), size, depthTest);
 }
 
-void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::Graphics::Color color, bool depthTest)
+void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Graphics::Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -228,7 +228,7 @@ void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, Fleur::
     m_Backend->DrawQuad(a, b, c, d, color.ToVec4(), depthTest);
 }
 
-void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID texture, bool depthTest)
+void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, AssetID texture, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -236,7 +236,7 @@ void DebugDraw::Quad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, AssetID
     m_Backend->DrawQuad(a, b, c, d, texture, depthTest);
 }
 
-void DebugDraw::Billboard(glm::vec3 center, glm::vec2 size, AssetID texture, bool depthTest)
+void DebugDraw::Billboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, AssetID texture, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -246,30 +246,30 @@ void DebugDraw::Billboard(glm::vec3 center, glm::vec2 size, AssetID texture, boo
 
 void DebugDraw::DrawAxes()
 {
-    glm::vec3 origin{0, 0, 0};
+    Fleur::Math::vec3 origin{0, 0, 0};
     float length{1000};
 
-    const glm::vec3 xAxis(length, 0.0f, 0.0f);
-    const glm::vec3 yAxis(0.0f, length, 0.0f);
-    const glm::vec3 zAxis(0.0f, 0.0f, length);
+    const Fleur::Math::vec3 xAxis(length, 0.0f, 0.0f);
+    const Fleur::Math::vec3 yAxis(0.0f, length, 0.0f);
+    const Fleur::Math::vec3 zAxis(0.0f, 0.0f, length);
 
     Line(origin - xAxis, origin + xAxis, Fleur::Graphics::Color::Red());
     Line(origin - yAxis, origin + yAxis, Fleur::Graphics::Color::Green());
     Line(origin - zAxis, origin + zAxis, Fleur::Graphics::Color::Blue());
 }
 
-void DebugDraw::Frustum(const glm::mat4& invViewProj, Color color)
+void DebugDraw::Frustum(const Fleur::Math::mat4& invViewProj, Color color)
 {
-    const std::array<glm::vec4, 8> clipCorners = {
-        glm::vec4(-1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, 1.f, 0.f, 1.f), glm::vec4(-1.f, 1.f, 0.f, 1.f),
-        glm::vec4(-1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, 1.f, 1.f, 1.f), glm::vec4(-1.f, 1.f, 1.f, 1.f),
+    const std::array<Fleur::Math::vec4, 8> clipCorners = {
+        Fleur::Math::vec4(-1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 0.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 0.f, 1.f),
+        Fleur::Math::vec4(-1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 1.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 1.f, 1.f),
     };
 
-    std::array<glm::vec3, 8> worldCorners{};
+    std::array<Fleur::Math::vec3, 8> worldCorners{};
     for (size_t i = 0; i < clipCorners.size(); ++i)
     {
-        const glm::vec4 world = invViewProj * clipCorners[i];
-        worldCorners[i] = glm::vec3(world) / world.w;
+        const Fleur::Math::vec4 world = invViewProj * clipCorners[i];
+        worldCorners[i] = Fleur::Math::vec3(world) / world.w;
     }
 
     static constexpr std::array<std::pair<uint32_t, uint32_t>, 12> edges = {
@@ -282,20 +282,20 @@ void DebugDraw::Frustum(const glm::mat4& invViewProj, Color color)
         Line(worldCorners[a], worldCorners[b], color);
 }
 
-void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, glm::mat4 transform, Color color, bool depthTest)
+void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, Fleur::Math::mat4 transform, Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
 
     // Decompose to 12 edges here (once), forward as lines — backends stay composite-free.
-    auto corner = [&](float x, float y, float z) { return glm::vec3(transform * glm::vec4(x, y, z, 1.0f)); };
-    const glm::vec3& mn = boundingBox.GetMin();
-    const glm::vec3& mx = boundingBox.GetMax();
-    glm::vec3 c[8] = {corner(mn.x, mn.y, mn.z), corner(mx.x, mn.y, mn.z), corner(mx.x, mx.y, mn.z), corner(mn.x, mx.y, mn.z),
+    auto corner = [&](float x, float y, float z) { return Fleur::Math::vec3(transform * Fleur::Math::vec4(x, y, z, 1.0f)); };
+    const Fleur::Math::vec3& mn = boundingBox.GetMin();
+    const Fleur::Math::vec3& mx = boundingBox.GetMax();
+    Fleur::Math::vec3 c[8] = {corner(mn.x, mn.y, mn.z), corner(mx.x, mn.y, mn.z), corner(mx.x, mx.y, mn.z), corner(mn.x, mx.y, mn.z),
                       corner(mn.x, mn.y, mx.z), corner(mx.x, mn.y, mx.z), corner(mx.x, mx.y, mx.z), corner(mn.x, mx.y, mx.z)};
 
     static const int edges[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
-    glm::vec3 col = color.ToVec3();
+    Fleur::Math::vec3 col = color.ToVec3();
     for (const auto& e : edges) m_Backend->DrawLine(c[e[0]], c[e[1]], col, depthTest);
 }
 

@@ -20,11 +20,11 @@ public:
     {
         return false;
     }
-    virtual bool SetVec3f(const std::string& var, glm::vec3 vector) const override
+    virtual bool SetVec3f(const std::string& var, Fleur::Math::vec3 vector) const override
     {
         return false;
     }
-    virtual bool SetMat4f(const std::string& var, glm::mat4 matrix) const override
+    virtual bool SetMat4f(const std::string& var, Fleur::Math::mat4 matrix) const override
     {
         return false;
     }

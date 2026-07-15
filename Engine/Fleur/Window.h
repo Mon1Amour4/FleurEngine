@@ -67,7 +67,7 @@ public:
 
     virtual inline bool IsResizing() const = 0;
 
-    inline virtual glm::vec2 GetMouseDir() const = 0;
+    inline virtual Fleur::Math::vec2 GetMouseDir() const = 0;
     virtual bool HasMouseMoved(int x, int y) const = 0;
 
     virtual EInteractionMode GetInteractionMode() const = 0;

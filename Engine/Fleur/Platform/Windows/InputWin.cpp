@@ -53,7 +53,7 @@ int Fleur::InputWin::GetMouseYImpl() const
     return y;
 }
 
-glm::ivec2 Fleur::InputWin::GetMouseDirImpl() const
+Fleur::Math::ivec2 Fleur::InputWin::GetMouseDirImpl() const
 {
     const WindowWin& window = static_cast<const WindowWin&>(Application::instance().GetWindow());
     return window.GetMouseDir();

@@ -39,6 +39,6 @@ target_compile_definitions(CoreLib
 )
 
 # PUBLIC: FleurAllocator.hpp publishes MM:: types.
-target_link_libraries(CoreLib PUBLIC MemoryManager)
+target_link_libraries(CoreLib PUBLIC MemoryManager FleurMath)
 
 set_target_properties(CoreLib PROPERTIES FOLDER "Core")

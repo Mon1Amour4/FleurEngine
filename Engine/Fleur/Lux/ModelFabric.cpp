@@ -159,7 +159,7 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                 {
                     cgltf_float matrix[16];
                     cgltf_node_transform_world(&node, matrix);
-                    info.worldTransforms.emplace_back(glm::make_mat4(matrix));
+                    info.worldTransforms.emplace_back(Fleur::Math::make_mat4(matrix));
 
                     if (!uploadedMeshes.contains(reinterpret_cast<std::uintptr_t>(node.mesh)))
                     {

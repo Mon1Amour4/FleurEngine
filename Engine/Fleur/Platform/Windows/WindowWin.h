@@ -58,7 +58,7 @@ public:
     {
         return m_IsResizing;
     }
-    inline virtual glm::vec2 GetMouseDir() const override
+    inline virtual Fleur::Math::vec2 GetMouseDir() const override
     {
         return m_MouseDir;
     }
@@ -103,12 +103,12 @@ private:
     virtual void SetMousePos(int x, int y) override;
     virtual void SetMouseWheelScrollData(int x, int y) override;
 
-    glm::ivec2 m_MouseDir;
-    glm::ivec2 m_PrevMouseDir;
+    Fleur::Math::ivec2 m_MouseDir;
+    Fleur::Math::ivec2 m_PrevMouseDir;
     Input::MouseInfo m_LastMouse;
     Input::EKeyState m_PressedKeys[256];
-    glm::ivec2 m_CursorPos;
-    glm::ivec2 m_PrevCursorPos;
+    Fleur::Math::ivec2 m_CursorPos;
+    Fleur::Math::ivec2 m_PrevCursorPos;
 
     int m_BufferX, m_BufferY = 0;
     std::pair<int, int> m_MouseWheelData;

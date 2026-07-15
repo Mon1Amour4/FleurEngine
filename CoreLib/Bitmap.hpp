@@ -1,6 +1,6 @@
 #pragma once
 
-#include <glm/ext/vector_float4.hpp>
+#include <Fleur/Math/Math.hpp>
 
 namespace Fleur
 {
@@ -8,11 +8,11 @@ namespace Fleur
 template <typename Derived>
 struct BitmapFormat_UnsignedByte
 {
-    void SetPixel(uint32_t x, uint32_t y, const glm::vec4& pixelData)
+    void SetPixel(uint32_t x, uint32_t y, const Fleur::Math::vec4& pixelData)
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
-        glm::vec4 data = underlying.GetPixel(x, y);
+        Fleur::Math::vec4 data = underlying.GetPixel(x, y);
 
         uint8_t* byteData = reinterpret_cast<uint8_t*>(underlying.GetData());
 
@@ -28,14 +28,14 @@ struct BitmapFormat_UnsignedByte
             byteData[offset + 3] = uint8_t(pixelData.w * 255.0f);
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
+    Fleur::Math::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         const Derived& underlying = static_cast<const Derived&>(*this);
         const uint8_t* byteData = reinterpret_cast<const uint8_t*>(underlying.GetData());
         uint32_t comp = underlying.GetComponents();
 
         const int offset = comp * (y * underlying.GetWidth() + x);
-        return glm::vec4(comp > 0 ? float(byteData[offset + 0]) / 255.0f : 0.0f, comp > 1 ? float(byteData[offset + 1]) / 255.0f : 0.0f,
+        return Fleur::Math::vec4(comp > 0 ? float(byteData[offset + 0]) / 255.0f : 0.0f, comp > 1 ? float(byteData[offset + 1]) / 255.0f : 0.0f,
                          comp > 2 ? float(byteData[offset + 2]) / 255.0f : 0.0f, comp > 3 ? float(byteData[offset + 3]) / 255.0f : 0.0f);
     }
 
@@ -49,7 +49,7 @@ protected:
 template <typename Derived>
 struct BitmapFormat_Float
 {
-    void SetPixel(uint32_t x, uint32_t y, const glm::vec4& pixel_data)
+    void SetPixel(uint32_t x, uint32_t y, const Fleur::Math::vec4& pixel_data)
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
@@ -67,7 +67,7 @@ struct BitmapFormat_Float
             floatData[offset + 3] = pixel_data.w;
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
+    Fleur::Math::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         Derived& underlying = static_cast<Derived&>(*this);
 
@@ -75,7 +75,7 @@ struct BitmapFormat_Float
 
         const int offset = comp * (y * underlying.Width() + x);
         const float* floatData = reinterpret_cast<const float*>(underlying.Data());
-        return glm::vec4(comp > 0 ? floatData[offset + 0] : 0.0f, comp > 1 ? floatData[offset + 1] : 0.0f, comp > 2 ? floatData[offset + 2] : 0.0f,
+        return Fleur::Math::vec4(comp > 0 ? floatData[offset + 0] : 0.0f, comp > 1 ? floatData[offset + 1] : 0.0f, comp > 2 ? floatData[offset + 2] : 0.0f,
                          comp > 3 ? floatData[offset + 3] : 0.0f);
     }
 
@@ -147,12 +147,12 @@ public:
     {
     }
 
-    void SetPixel(uint32_t x, uint32_t y, const glm::vec4& pixel_data)
+    void SetPixel(uint32_t x, uint32_t y, const Fleur::Math::vec4& pixel_data)
     {
         Fmt<Bitmap>::SetPixel(x, y, pixel_data);
     }
 
-    glm::vec4 GetPixel(uint32_t x, uint32_t y) const
+    Fleur::Math::vec4 GetPixel(uint32_t x, uint32_t y) const
     {
         return Fmt<Bitmap>::GetPixel(x, y);
     }
