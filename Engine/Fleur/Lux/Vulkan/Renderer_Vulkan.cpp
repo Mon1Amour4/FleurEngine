@@ -296,6 +296,7 @@ vk::backend::impl::impl(bool enableValidation,
     }
 
     m_ShadowMapRenderTarget.Create(m_Device, m_ImmediateCommandPool, swapchainExtent, VK_SAMPLE_COUNT_1_BIT, true);
+    m_ShadowMapSampler = createShadowMapSampler();
     updateShadowMapDescriptorSets();
 
 
@@ -317,7 +318,7 @@ vk::backend::impl::impl(bool enableValidation,
     createTextureDescriptorSetPass();
 
     updateTextureDescriptorSet(m_TextureDescriptorSet, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(), m_ImageSampler);
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTarget.GetImageView(), m_ImageSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTarget.GetImageView(), m_ShadowMapSampler);
 
     m_DescriptorSetImageViewsToUpload.resize(m_FramesInFlight);
 
@@ -331,9 +332,8 @@ vk::backend::impl::impl(bool enableValidation,
     }
 
     m_OverlayPass = new FVkOverlayPass();
-    m_OverlayPass->Create(m_Device, m_Swapchain, m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet,
-                          kDebugShadowMapTextureSlot, m_MultisampledRenderTarget->GetSamplesCount(),
-                          FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
+    m_OverlayPass->Create(m_Device, m_Swapchain, m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet, kDebugShadowMapTextureSlot,
+                          m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
 
     m_DebugDraw = new FVkDebugDraw();
 }
@@ -387,6 +387,7 @@ vk::backend::impl::~impl()
     delete m_PointLightsBuffer;
     // 9. Samplers
     vkDestroySampler(m_Device->GetLogicalDevice(), m_ImageSampler, nullptr);
+    vkDestroySampler(m_Device->GetLogicalDevice(), m_ShadowMapSampler, nullptr);
 
     // 10. Swapchain
     delete m_Swapchain;
@@ -847,6 +848,32 @@ VkSampler vk::backend::impl::createTextureSampler()
     return sampler;
 }
 
+VkSampler vk::backend::impl::createShadowMapSampler()
+{
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.maxAnisotropy = 1.0f;
+    samplerInfo.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+    samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_NEAREST;
+    samplerInfo.mipLodBias = 0.0f;
+    samplerInfo.minLod = 0.0f;
+    samplerInfo.maxLod = 0.0f;
+
+    VkSampler sampler{};
+    VK_CHECK(vkCreateSampler(m_Device->GetLogicalDevice(), &samplerInfo, nullptr, &sampler));
+
+    return sampler;
+}
+
 
 void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& view)
 {
@@ -999,6 +1026,7 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
     m_DepthRenderTarget.Recreate({rect.width, rect.height}, m_MultisampledRenderTarget->GetSamplesCount());
     m_ShadowMapRenderTarget.Recreate({rect.width, rect.height}, VK_SAMPLE_COUNT_1_BIT, true);
     updateShadowMapDescriptorSets();
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTarget.GetImageView(), m_ShadowMapSampler);
     std::cout << "\nEndResize\n";
 }
 
@@ -1065,7 +1093,7 @@ void vk::backend::impl::updatePointLight(const SFLPointLight* light, uint32_t li
 void vk::backend::impl::updateShadowMapDescriptorSets()
 {
     vk::abstraction::DescriptorWriter shadowMapWriter{};
-    shadowMapWriter.write_image(0, m_ShadowMapRenderTarget.GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    shadowMapWriter.write_image(0, m_ShadowMapRenderTarget.GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                 VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
     for (auto& frame : m_Frames)
@@ -1260,8 +1288,8 @@ void vk::backend::impl::ExecuteMainPass()
 void vk::backend::impl::createTextureDescriptorSetPass()
 {
     m_TextureDescriptorSetLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
-                                         .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
-                                         .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
+                                       .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
+                                       .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
 
     createTextureDescriptorPool();
     createTextureDescriptorSets();
@@ -1348,15 +1376,16 @@ void vk::backend::impl::endFrame()
     ExecuteShadowPass();
     cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
 
-    glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
+    const auto& shadowFrustum = m_ShadowMapFrustumSettings;
+    glm::vec3 shadowCenter = shadowFrustum.center;
 
     // Directional light has no real position.
     // This is only a virtual camera position for shadow rendering.
-    float halfSize = 5.0f;
-    float shadowNear = 0.1f;
-    float shadowFar = 1000.0f;
+    float halfSize = shadowFrustum.halfSize;
+    float shadowNear = shadowFrustum.nearPlane;
+    float shadowFar = shadowFrustum.farPlane;
 
-    glm::vec3 lightPos = shadowCenter - glm::vec3(m_FrameData.directionalLight.pos);
+    glm::vec3 lightPos = glm::vec3(m_FrameData.directionalLight.pos);
     glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
 
     // glm::mat4 lightProjection = glm::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
@@ -1364,6 +1393,9 @@ void vk::backend::impl::endFrame()
     lightProjection[1][1] *= -1;
 
     glm::mat4 lightSpaceMatrix = lightProjection * lightView;
+
+    if (shadowFrustum.drawDebugFrustum)
+        m_DebugDraw->Frustum(glm::inverse(lightSpaceMatrix), glm::vec3(0.0f, 1.0f, 1.0f));
 
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
@@ -1387,12 +1419,12 @@ void vk::backend::impl::endFrame()
                                        m_PointLightDescriptorSet, frame.scene.m_ShadowMapDescriptorSet};
 
     transitionImageLayout(*cmd.GetCommandBuffer(), m_ShadowMapRenderTarget.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
     ExecuteMainPass();
 
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTarget.GetImageView(), m_ImageSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTarget.GetImageView(), m_ShadowMapSampler);
 
     cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
 
@@ -1400,7 +1432,7 @@ void vk::backend::impl::endFrame()
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         SFLPushConstant pushConstant = MakePush(primitive);
-        pushConstant.lightSpaceMatrix = lightView;
+        pushConstant.lightSpaceMatrix = lightSpaceMatrix;
         pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
         pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;

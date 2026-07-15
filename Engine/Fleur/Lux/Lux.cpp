@@ -7,6 +7,9 @@
 #include "Services/ServiceLocator.h"
 #include "Shader.h"
 
+#include <array>
+#include <utility>
+
 // All backends are compiled in; the active one is selected at runtime.
 #include "OpenGL/Renderer_OpenGL.h"
 #include "Vulkan/Renderer_Vulkan.h"
@@ -253,6 +256,30 @@ void DebugDraw::DrawAxes()
     Line(origin - xAxis, origin + xAxis, Fleur::Graphics::Color::Red());
     Line(origin - yAxis, origin + yAxis, Fleur::Graphics::Color::Green());
     Line(origin - zAxis, origin + zAxis, Fleur::Graphics::Color::Blue());
+}
+
+void DebugDraw::Frustum(const glm::mat4& invViewProj, Color color)
+{
+    const std::array<glm::vec4, 8> clipCorners = {
+        glm::vec4(-1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, 1.f, 0.f, 1.f), glm::vec4(-1.f, 1.f, 0.f, 1.f),
+        glm::vec4(-1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, 1.f, 1.f, 1.f), glm::vec4(-1.f, 1.f, 1.f, 1.f),
+    };
+
+    std::array<glm::vec3, 8> worldCorners{};
+    for (size_t i = 0; i < clipCorners.size(); ++i)
+    {
+        const glm::vec4 world = invViewProj * clipCorners[i];
+        worldCorners[i] = glm::vec3(world) / world.w;
+    }
+
+    static constexpr std::array<std::pair<uint32_t, uint32_t>, 12> edges = {
+        std::make_pair(0u, 1u), std::make_pair(1u, 2u), std::make_pair(2u, 3u), std::make_pair(3u, 0u), std::make_pair(4u, 5u),
+        std::make_pair(5u, 6u), std::make_pair(6u, 7u), std::make_pair(7u, 4u), std::make_pair(0u, 4u), std::make_pair(1u, 5u),
+        std::make_pair(2u, 6u), std::make_pair(3u, 7u),
+    };
+
+    for (const auto& [a, b] : edges)
+        Line(worldCorners[a], worldCorners[b], color);
 }
 
 void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, glm::mat4 transform, Color color, bool depthTest)

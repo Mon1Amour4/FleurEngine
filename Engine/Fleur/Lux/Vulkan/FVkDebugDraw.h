@@ -62,6 +62,7 @@ public:
     void AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, glm::vec4 color);
     void AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, uint32_t textureIdx);
     void AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textureIdx);
+    void Frustum(const glm::mat4& invViewProj, glm::vec3 color);
 
     void RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
 

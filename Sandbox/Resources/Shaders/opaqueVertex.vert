@@ -61,7 +61,7 @@ void main()
     fragTexCoord = inTexCoord;
     outWorldSpaceVertex = worldPos.xyz;
     outCameraForward = pc.cameraPos.xyz - worldPos.xyz;
-    outFragPosLightSpace = pc.lightSpaceMatrix * vec4(model * vec4(inPosition, 1.0));
+    outFragPosLightSpace = pc.lightSpaceMatrix * worldPos;
 
     mat4 NormalMatrix = ssbo.transforms[pc.indices.y + 1];
 

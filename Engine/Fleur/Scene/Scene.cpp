@@ -10,7 +10,7 @@
 namespace Fleur
 {
 Scene::Scene()
-    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(glm::vec3(-1, 0, 0), Fleur::Graphics::Color::Red(), 1))
+    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(-glm::vec3(1.0f, 2.0f, 1.0f), Fleur::Graphics::Color::White(), 1.0f))
 {
 }
 Scene::~Scene()
@@ -38,11 +38,11 @@ void Scene::Init()
 
     sunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
 
-    // auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
-    // m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
 
-    auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
-    m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+    // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
+    // m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
 
     // auto box = assets->LoadModelAsync("Box.glb");
     // m_Instances.push_back(SceneInstance{box->asset.handle, transform});
@@ -68,16 +68,18 @@ void Scene::OnUpdate(float dtTime)
 
     renderer->Debug().DrawAxes();
 
-    float speed = 1.f;
+    float speed = 0.2f;
     static float angle = 0;
     angle += dtTime * speed;
-    float radius = 10.0f;
-    glm::vec3 center = glm::vec3(0, 0, 0);
+    float radius = 100.0f;
+    glm::vec3 directionalPos = m_DirectionalLight.GetVirtualPosition();
+    glm::vec3 center = glm::vec3(0, directionalPos.y, 0);
 
     glm::vec3 pos;
     pos.x = center.x + cos(angle) * radius;
     pos.y = center.y;
     pos.z = center.z + sin(angle) * radius;
+
 
     m_DirectionalLight.SetDirection(pos);
     m_DirectionalLight.DebugDraw(renderer.get(), sunTextureIdx);
@@ -151,62 +153,6 @@ void Scene::OnUpdate(float dtTime)
 
     // Lights
     renderer->UpdatePointLight(m_OmniLights.data(), m_OmniLights.size());
-
-    // Directional Light Orthographic frustum
-    glm::vec3 shadowCenter = glm::vec3(0.0f, 0.0f, 0.0f);
-    float halfSize = 5.0f;
-    float shadowNear = 0.1f;
-    float shadowFar = 1000.0f;
-
-    glm::vec3 lightPos = m_DirectionalLight.GetVirtualPosition();
-
-    glm::mat4 lightView = glm::lookAt(lightPos, shadowCenter, glm::vec3(0.0f, 1.0f, 0.0f));
-
-    glm::mat4 lightProjection = glm::ortho(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-
-    // inverse view gives camera axes in world space
-    glm::mat4 invLightView = glm::inverse(lightView);
-
-    glm::vec3 right = glm::normalize(glm::vec3(invLightView[0]));
-    glm::vec3 up = glm::normalize(glm::vec3(invLightView[1]));
-
-    // GLM/lookAt camera looks along local -Z
-    glm::vec3 forward = -glm::normalize(glm::vec3(invLightView[2]));
-
-    // Plane centers
-    glm::vec3 nearCenter = lightPos + forward * shadowNear;
-    glm::vec3 farCenter = lightPos + forward * shadowFar;
-
-    // Near plane corners
-    glm::vec3 LNB = nearCenter - right * halfSize - up * halfSize;  // Left Near Bottom
-    glm::vec3 RNB = nearCenter + right * halfSize - up * halfSize;  // Right Near Bottom
-    glm::vec3 LNT = nearCenter - right * halfSize + up * halfSize;  // Left Near Top
-    glm::vec3 RNT = nearCenter + right * halfSize + up * halfSize;  // Right Near Top
-
-    // Far plane corners
-    glm::vec3 LFB = farCenter - right * halfSize - up * halfSize;  // Left Far Bottom
-    glm::vec3 RFB = farCenter + right * halfSize - up * halfSize;  // Right Far Bottom
-    glm::vec3 LFT = farCenter - right * halfSize + up * halfSize;  // Left Far Top
-    glm::vec3 RFT = farCenter + right * halfSize + up * halfSize;  // Right Far Top
-
-    // Near plane
-    Fleur::Graphics::Color color = Fleur::Graphics::Color::Cyan();
-    renderer->Debug().Line(LNB, RNB, color);
-    renderer->Debug().Line(RNB, RNT, color);
-    renderer->Debug().Line(RNT, LNT, color);
-    renderer->Debug().Line(LNT, LNB, color);
-
-    // Far plane
-    renderer->Debug().Line(LFB, RFB, color);
-    renderer->Debug().Line(RFB, RFT, color);
-    renderer->Debug().Line(RFT, LFT, color);
-    renderer->Debug().Line(LFT, LFB, color);
-
-    // Side edges
-    renderer->Debug().Line(LNB, LFB, color);
-    renderer->Debug().Line(RNB, RFB, color);
-    renderer->Debug().Line(LNT, LFT, color);
-    renderer->Debug().Line(RNT, RFT, color);
 }
 
 void Scene::Submit(Lux::Renderer& renderer)

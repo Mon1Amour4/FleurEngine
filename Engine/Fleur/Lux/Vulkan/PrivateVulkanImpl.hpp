@@ -26,12 +26,12 @@
 
 #include "DescriptorPoolAllocator.h"
 #include "FVkBuffer.h"
-#include "FVkDepthTarget.h"
 #include "FVkCommand.h"
 #include "FVkDebugDraw.h"
-#include "FVkOverlayPass.h"
+#include "FVkDepthTarget.h"
 #include "FVkDevice.h"
 #include "FVkMultisampler.h"
+#include "FVkOverlayPass.h"
 #include "FVkPipeline.h"
 #include "FVkShader.h"
 #include "FVkSkybox.h"
@@ -440,6 +440,7 @@ struct backend::impl
     VkImageView createTextureImageView(VkImage& image, VkFormat format);
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     VkSampler createTextureSampler();
+    VkSampler createShadowMapSampler();
 
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
@@ -464,7 +465,18 @@ struct backend::impl
 
     FVkDepthTarget m_DepthRenderTarget;
     FVkDepthTarget m_ShadowMapRenderTarget;
+    VkSampler m_ShadowMapSampler{VK_NULL_HANDLE};
     void updateShadowMapDescriptorSets();
+
+    struct ShadowMapFrustumSettings
+    {
+        glm::vec3 center{0.0f, 0.0f, 0.0f};
+        float halfSize{30.0f};
+        float nearPlane{0.1f};
+        float farPlane{1000.0f};
+        bool drawDebugFrustum{true};
+    };
+    ShadowMapFrustumSettings m_ShadowMapFrustumSettings;
 
     void startResize();
     void endResize(Fleur::SRect& rect);

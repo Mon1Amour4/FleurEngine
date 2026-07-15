@@ -1,5 +1,8 @@
 #include "FVkDebugDraw.h"
 
+#include <array>
+#include <utility>
+
 FVkDebugDraw::~FVkDebugDraw()
 {
     delete m_LinePipeline;
@@ -173,6 +176,30 @@ void FVkDebugDraw::AddQuad(glm::vec3 a, glm::vec3 b, glm::vec3 c, glm::vec3 d, u
 void FVkDebugDraw::AddBillboard(glm::vec3 center, glm::vec2 size, uint32_t textureIdx)
 {
     m_Billboards.push_back({center, size, textureIdx});
+}
+
+void FVkDebugDraw::Frustum(const glm::mat4& invViewProj, glm::vec3 color)
+{
+    const std::array<glm::vec4, 8> clipCorners = {
+        glm::vec4(-1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, -1.f, 0.f, 1.f), glm::vec4(1.f, 1.f, 0.f, 1.f), glm::vec4(-1.f, 1.f, 0.f, 1.f),
+        glm::vec4(-1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, -1.f, 1.f, 1.f), glm::vec4(1.f, 1.f, 1.f, 1.f), glm::vec4(-1.f, 1.f, 1.f, 1.f),
+    };
+
+    std::array<glm::vec3, 8> worldCorners{};
+    for (size_t i = 0; i < clipCorners.size(); ++i)
+    {
+        const glm::vec4 world = invViewProj * clipCorners[i];
+        worldCorners[i] = glm::vec3(world) / world.w;
+    }
+
+    static constexpr std::array<std::pair<uint32_t, uint32_t>, 12> edges = {
+        std::make_pair(0u, 1u), std::make_pair(1u, 2u), std::make_pair(2u, 3u), std::make_pair(3u, 0u), std::make_pair(4u, 5u),
+        std::make_pair(5u, 6u), std::make_pair(6u, 7u), std::make_pair(7u, 4u), std::make_pair(0u, 4u), std::make_pair(1u, 5u),
+        std::make_pair(2u, 6u), std::make_pair(3u, 7u),
+    };
+
+    for (const auto& [a, b] : edges)
+        AddLine(worldCorners[a], worldCorners[b], color);
 }
 
 void FVkDebugDraw::RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex)
