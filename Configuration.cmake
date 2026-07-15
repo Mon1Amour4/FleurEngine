@@ -12,6 +12,12 @@ set(_ITERATOR_DEBUG_LEVEL "0" CACHE STRING "Iterator Debug Level (0=disabled, 1=
 # in single-config (Ninja) and multi-config (VS) generators.
 if(MSVC)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+
+  # Keep MSVC's C++26 contiguous-container annotations consistent across
+  # Fleur targets and third-party static libraries such as GoogleTest.
+  # Without this, gtest.lib and FleurTests.obj can emit different
+  # detect_mismatch values for string/vector annotations.
+  add_compile_definitions(_DISABLE_STRING_ANNOTATION _DISABLE_VECTOR_ANNOTATION)
 endif()
 
 # Platform detection
