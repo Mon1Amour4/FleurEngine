@@ -114,6 +114,8 @@ if(MSVC)
 
   target_compile_features(FleurTestsAsan PRIVATE cxx_std_${FL_CPP_LANG_VER})
   target_compile_options(FleurTestsAsan PRIVATE /fsanitize=address /Zi)
-  target_link_options(FleurTestsAsan PRIVATE /fsanitize=address /INCREMENTAL:NO)
+  # /fsanitize=address belongs on compilation. Passing it directly to
+  # link.exe produces LNK4044 with the Visual Studio generator.
+  target_link_options(FleurTestsAsan PRIVATE /INCREMENTAL:NO)
   set_target_properties(FleurTestsAsan PROPERTIES FOLDER "Tests")
 endif()

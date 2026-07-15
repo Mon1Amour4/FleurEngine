@@ -12,6 +12,14 @@ project(
   LANGUAGES C CXX
 )
 
+if(MSVC)
+  # Keep MSVC's contiguous-container annotations consistent across Fleur
+  # targets and third-party static libraries such as GoogleTest.
+  # Without this, gtest.lib and test objects can emit different
+  # detect_mismatch values for string/vector annotations.
+  add_compile_definitions(_DISABLE_STRING_ANNOTATION _DISABLE_VECTOR_ANNOTATION)
+endif()
+
 # === C++ Standard ===
 set(CMAKE_CXX_STANDARD ${FL_CPP_LANG_VER})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
