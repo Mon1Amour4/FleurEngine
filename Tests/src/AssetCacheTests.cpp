@@ -9,7 +9,6 @@
 #include <thread>
 #include <vector>
 
-#include "Renderer/Material.h"
 #include "AssetCache.h"
 #include "gtest/gtest.h"
 
