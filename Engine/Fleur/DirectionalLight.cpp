@@ -48,7 +48,7 @@ void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, uint3
     Fleur::Math::vec3 C = pos + basis * localC;
     Fleur::Math::vec3 D = pos + basis * localD;
 
-    // renderer->Debug().Quad(A, B, C, D, textureIdx);
+    renderer->Debug().Quad(A, B, C, D, textureIdx);
     renderer->Debug().Line(pos, Fleur::Math::vec3(0, 0, 0), Fleur::Graphics::Color::Red());
 }
 
@@ -113,8 +113,8 @@ Fleur::Graphics::DirectionalLight::DirectionalLightDebugBasis Fleur::Graphics::D
     return basis;
 }
 
-void Fleur::Graphics::DirectionalLight::DrawArrowHead(Lux::Renderer* renderer, const Fleur::Math::vec3& end, const DirectionalLightDebugBasis& basis, float arrowSize,
-                                                      Fleur::Graphics::Color color)
+void Fleur::Graphics::DirectionalLight::DrawArrowHead(Lux::Renderer* renderer, const Fleur::Math::vec3& end, const DirectionalLightDebugBasis& basis,
+                                                      float arrowSize, Fleur::Graphics::Color color)
 {
     const Fleur::Math::vec3 arrowA = end - basis.dir * arrowSize + basis.right * arrowSize * 0.5f;
     const Fleur::Math::vec3 arrowB = end - basis.dir * arrowSize - basis.right * arrowSize * 0.5f;

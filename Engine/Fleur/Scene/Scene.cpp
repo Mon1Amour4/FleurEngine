@@ -10,7 +10,7 @@
 namespace Fleur
 {
 Scene::Scene()
-    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(-Fleur::Math::vec3(1.0f, 2.0f, 1.0f), Fleur::Graphics::Color::White(), 1.0f))
+    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(-Vec3(1.0f, 2.0f, 1.0f), Fleur::Graphics::Color::Red(), 1.0f))
 {
 }
 Scene::~Scene()
@@ -33,16 +33,20 @@ void Scene::Init()
     // Hardcoded scene. Request the model load and store the AssetID the async op
     // hands back synchronously (the id is assigned at registration, before the
     // load finishes); the renderer registers geometry under the same id later.
-    Fleur::Math::mat4 transform = Fleur::Math::identity<Fleur::Math::mat4>();
+    Mat4 transform = Fleur::Math::identity<Mat4>();
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
 
-    sunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
+    m_SunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
+    m_FloorTextureIdx = assets->LoadImage("Floors/floor_stone_tile.png").handle.id;
 
-    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
-    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+    auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
+    renderer->CreateFloor(m_FloorTextureIdx, 0);
 
-    // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
-    // m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+    // auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    // m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+
+    auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
+    m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
 
     // auto box = assets->LoadModelAsync("Box.glb");
     // m_Instances.push_back(SceneInstance{box->asset.handle, transform});
@@ -54,7 +58,7 @@ void Scene::Init()
     //   m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
 
 
-    // m_OmniLights.emplace_back(Fleur::Math::vec3(1, 3, 0), 4, Fleur::Graphics::Color::Green(), 0.5);
+    // m_OmniLights.emplace_back(Vec3(1, 3, 0), 4, Fleur::Graphics::Color::Green(), 0.5);
 }
 
 void Scene::OnUpdate(float dtTime)
@@ -68,21 +72,15 @@ void Scene::OnUpdate(float dtTime)
 
     renderer->Debug().DrawAxes();
 
-    float speed = 0.2f;
-    static float angle = 0;
-    angle += dtTime * speed;
-    float radius = 100.0f;
-    Fleur::Math::vec3 directionalPos = m_DirectionalLight.GetVirtualPosition();
-    Fleur::Math::vec3 center = Fleur::Math::vec3(0, directionalPos.y, 0);
+    float speed = 0.01f;
+    Vec3 center = Vec3(0, 0, 0);
+    Vec3 directionalDirection = m_DirectionalLight.GetDirection();
 
-    Fleur::Math::vec3 pos;
-    pos.x = center.x + cos(angle) * radius;
-    pos.y = center.y;
-    pos.z = center.z + sin(angle) * radius;
-
-
-    m_DirectionalLight.SetDirection(pos);
-    m_DirectionalLight.DebugDraw(renderer.get(), sunTextureIdx);
+    // GetVirtualPosition() is the negated direction scaled by s_PosScale.
+    // It must not be passed back into SetDirection(), otherwise the light
+    // flips between two opposite positions every frame.
+    m_DirectionalLight.SetDirection(Fleur::Math::RotatePointY(directionalDirection, center, dtTime * speed));
+    m_DirectionalLight.DebugDraw(renderer.get(), m_SunTextureIdx);
 
 
     for (auto& instance : m_Instances)
@@ -91,7 +89,7 @@ void Scene::OnUpdate(float dtTime)
         if (!model)
             return;
 
-        const Fleur::Math::vec3 targetCenter = Fleur::Math::vec3(instance.transform[3]);
+        const Vec3 targetCenter = Vec3(instance.transform[3]);
         const float targetRadius = 2.0f;
 
         for (auto& pointLight : m_OmniLights)
@@ -122,11 +120,11 @@ void Scene::OnUpdate(float dtTime)
                 const auto& srcPrimitive = srcPrimitives[j];
                 if (srcPrimitive.GetAlphaMode() == Fleur::Graphics::FLAlphaMode::FL_BLEND)
                 {
-                    Fleur::Math::mat4 transform = Fleur::Math::mat4(transforms[srcInstance.transformStartIdx + j]);
+                    Mat4 transform = Mat4(transforms[srcInstance.transformStartIdx + j]);
                     transform = instance.transform * transform;
 
                     // transform[column][row]
-                    Fleur::Math::vec3 translation = Fleur::Math::vec3(transform[3][0], transform[3][1], transform[3][2]);
+                    Vec3 translation = Vec3(transform[3][0], transform[3][1], transform[3][2]);
 
                     Fleur::Graphics::BoundingBox boundingBox = srcPrimitive.GetBoundingBox();
                     renderer->Debug().BoundingBox(boundingBox, transform, Fleur::Graphics::Color::Magenta());
@@ -136,16 +134,20 @@ void Scene::OnUpdate(float dtTime)
                 // Normals
                 /*for (size_t k = 0; k < srcPrimitive.GetVertexCount(); k++)
                 {
-                    Fleur::Math::mat4 modelMatrix = instance.transform * model->GetNodeTransforms()[srcInstance.transformStartIdx];
-                    Fleur::Math::mat3 normalMatrix = Fleur::Math::transpose(Fleur::Math::inverse(Fleur::Math::mat3(modelMatrix)));
-                    const auto& vertex = model->GetVerticesData()[srcPrimitive.GetVertexStart() + k];
+                    Mat4 modelMatrix = instance.transform * model->GetNodeTransforms()[srcInstance.transformStartIdx];
+                    Mat3 normalMatrix =
+                Fleur::Math::transpose(Fleur::Math::inverse(Mat3(modelMatrix)));
+                    const auto& vertex =
+                model->GetVerticesData()[srcPrimitive.GetVertexStart() + k];
 
-                    Fleur::Math::vec3 worldPos = Fleur::Math::vec3(modelMatrix * Fleur::Math::vec4(vertex.Position, 1.0));
-                    Fleur::Math::vec3 worldNormal = Fleur::Math::normalize(normalMatrix * vertex.Normal);
+                    Vec3 worldPos = Vec3(modelMatrix * Vec4(vertex.Position, 1.0));
+                    Vec3 worldNormal = Fleur::Math::normalize(normalMatrix *
+                vertex.Normal);
 
-                    Fleur::Math::vec3 lineStart = worldPos;
-                    Fleur::Math::vec3 lineEnd = worldPos + worldNormal * 0.1f;
-                    renderer->Debug().Line(lineStart, lineEnd, Fleur::Graphics::Color::Black());
+                    Vec3 lineStart = worldPos;
+                    Vec3 lineEnd = worldPos + worldNormal * 0.1f;
+
+                renderer->Debug().Line(lineStart, lineEnd, Fleur::Graphics::Color::Black());
                 }*/
             }
         }
@@ -162,11 +164,11 @@ void Scene::Submit(Lux::Renderer& renderer)
     {
         if (counter % 2 == 0)
         {
-            // instance.transform = Fleur::Math::rotate<float>(instance.transform, Fleur::Math::radians(0.5f), Fleur::Math::vec3(0, 1, 0));
+            // instance.transform = Fleur::Math::rotate<float>(instance.transform, Fleur::Math::radians(0.5f), Vec3(0, 1, 0));
         }
         else
         {
-            // instance.transform = Fleur::Math::rotate<float>(instance.transform, Fleur::Math::radians(-0.5f), Fleur::Math::vec3(0, 1, 0));
+            // instance.transform = Fleur::Math::rotate<float>(instance.transform, Fleur::Math::radians(-0.5f), Vec3(0, 1, 0));
         }
         renderer.Draw(instance.model.id, instance.transform);
         counter++;
@@ -176,9 +178,9 @@ void Scene::Submit(Lux::Renderer& renderer)
 Fleur::Graphics::RenderFrameData Scene::GetFrameData() const
 {
     return Fleur::Graphics::RenderFrameData{{m_Camera->GetCameraForward(), m_Camera->GetView(), m_Camera->GetProjection()},
-                                            {.dirIntens{Fleur::Math::vec4(m_DirectionalLight.GetDirection(), m_DirectionalLight.GetIntensity())},
+                                            {.dirIntens{Vec4(m_DirectionalLight.GetDirection(), m_DirectionalLight.GetIntensity())},
                                              .color = m_DirectionalLight.GetColor().ToVec4(),
-                                             .pos = Fleur::Math::vec4(m_DirectionalLight.GetVirtualPosition(), 1)}};
+                                             .pos = Vec4(m_DirectionalLight.GetVirtualPosition(), 1)}};
 }
 
 }  // namespace Fleur
