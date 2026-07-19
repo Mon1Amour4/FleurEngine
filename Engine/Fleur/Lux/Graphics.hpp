@@ -20,7 +20,7 @@ public:
     BoundingBox() = default;
     ~BoundingBox() = default;
 
-    void UpdateBoundingBox(Fleur::Math::vec3 newMin, Fleur::Math::vec3 newMax)
+    void UpdateBoundingBox(Fleur::Vec3 newMin, Fleur::Vec3 newMax)
     {
         min = Fleur::Math::min(min, newMin);
         max = Fleur::Math::max(max, newMax);
@@ -30,23 +30,23 @@ public:
         center.z = (min.z + max.z) * 0.5;
     }
 
-    inline Fleur::Math::vec3 GetMin() const
+    inline Fleur::Vec3 GetMin() const
     {
         return min;
     }
-    inline Fleur::Math::vec3 GetMax() const
+    inline Fleur::Vec3 GetMax() const
     {
         return max;
     }
-    inline Fleur::Math::vec3 GetCenter() const
+    inline Fleur::Vec3 GetCenter() const
     {
         return center;
     }
 
 private:
-    Fleur::Math::vec3 min{std::numeric_limits<float>::infinity()};
-    Fleur::Math::vec3 max{-std::numeric_limits<float>::infinity()};
-    Fleur::Math::vec3 center{0.f};
+    Fleur::Vec3 min{std::numeric_limits<float>::infinity()};
+    Fleur::Vec3 max{-std::numeric_limits<float>::infinity()};
+    Fleur::Vec3 center{0.f};
 };
 
 enum class FLAlphaMode
@@ -60,7 +60,7 @@ enum class FLAlphaMode
 // AssetID; each backend derives its own GPU material (resolved indices) from this.
 struct FLMaterial
 {
-    Fleur::Math::vec4 baseColorFactor{1.f};
+    Fleur::Vec4 baseColorFactor{1.f};
     AssetID albedo{0};
     AssetID normal{0};
     FLAlphaMode mode{FLAlphaMode::FL_OPAQUE};
@@ -75,11 +75,11 @@ enum class EGraphicsAPI
 #pragma pack(push, 1)
 struct SVertexData
 {
-    Fleur::Math::vec3 Position;
-    Fleur::Math::vec2 TexCoord;
-    Fleur::Math::vec3 Normal;
+    Fleur::Vec3 Position;
+    Fleur::Vec2 TexCoord;
+    Fleur::Vec3 Normal;
 
-    SVertexData(Fleur::Math::vec3 pos = Fleur::Math::vec3(0.0f), Fleur::Math::vec3 text_coord = Fleur::Math::vec3(0.0f), Fleur::Math::vec3 normal = Fleur::Math::vec3(0.0f))
+    SVertexData(Fleur::Vec3 pos = Fleur::Vec3(0.0f), Fleur::Vec3 text_coord = Fleur::Vec3(0.0f), Fleur::Vec3 normal = Fleur::Vec3(0.0f))
         : Position(pos)
         , TexCoord(text_coord)
         , Normal(normal)
@@ -90,16 +90,19 @@ struct SVertexData
 
 struct SFLCameraData
 {
-    Fleur::Math::vec3 cameraDir;
-    Fleur::Math::mat4 view;
-    Fleur::Math::mat4 proj;
+    Fleur::Mat4 view;
+    Fleur::Mat4 proj;
+    Fleur::Vec3 cameraDir;
+    Fleur::Vec3 cameraPos;
+    float nearPlane;
+    float farPlane;
 };
 
 struct DirectionalLightRenderData
 {
-    Fleur::Math::vec4 dirIntens{Fleur::Math::vec4(1, 0, 0, 1)};
-    Fleur::Math::vec4 color{Fleur::Math::vec4(1, 1, 1, 1)};
-    Fleur::Math::vec4 pos{Fleur::Math::vec4(0, 0, 0, 0)};
+    Fleur::Vec4 dirIntens{Fleur::Vec4(1, 0, 0, 1)};
+    Fleur::Vec4 color{Fleur::Vec4(1, 1, 1, 1)};
+    Fleur::Vec4 pos{Fleur::Vec4(0, 0, 0, 0)};
 };
 
 struct RenderFrameData
@@ -110,14 +113,14 @@ struct RenderFrameData
 
 struct SFLSSBODescriptorBuffer
 {
-    Fleur::Math::mat4 modelTransform;
-    Fleur::Math::mat4 nodeTransforms[NODE_TRANSFORMS_MAX_CUP];
+    Fleur::Mat4 modelTransform;
+    Fleur::Mat4 nodeTransforms[NODE_TRANSFORMS_MAX_CUP];
 };
 
 struct SFLGeometryUBO
 {
-    Fleur::Math::mat4 view;
-    Fleur::Math::mat4 proj;
+    Fleur::Mat4 view;
+    Fleur::Mat4 proj;
 };
 
 enum ERenderStage : uint8_t

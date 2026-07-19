@@ -13,9 +13,9 @@
 
 #include <vulkan/vulkan.h>
 
+#include <Fleur/Math/Math.hpp>
 #include <algorithm>
 #include <array>
-#include <Fleur/Math/Math.hpp>
 #include <iostream>
 #include <limits>
 #include <optional>
@@ -29,6 +29,7 @@
 #include "FVkDebugDraw.h"
 #include "FVkDepthTarget.h"
 #include "FVkDevice.h"
+#include "FVkFloor.h"
 #include "FVkMultisampler.h"
 #include "FVkOverlayPass.h"
 #include "FVkPipeline.h"
@@ -59,7 +60,7 @@ constexpr uint32_t MAX_TEXTURES = 4096;
 
 struct SGPUMaterial
 {
-    Fleur::Math::vec4 baseColorFactor{1};
+    Fleur::Vec4 baseColorFactor{1};
     uint32_t albedo{0};
     uint32_t normal{0};
     float metallic{1};
@@ -95,7 +96,7 @@ struct PrimitiveDrawInfo
 
     SGPUMaterial material;
 
-    Fleur::Math::vec3 boundingBoxCenter{};
+    Fleur::Vec3 boundingBoxCenter{};
 
     void FromMaterial(const Fleur::Graphics::FLMaterial& mat)
     {
@@ -398,7 +399,7 @@ struct backend::impl
     FVkBuffer* m_VertexBuffer{nullptr};
     FVkBuffer* m_IndexBuffer{nullptr};
 
-    std::vector<Fleur::Math::mat4> m_InstanceNodeTransforms;
+    std::vector<Fleur::Mat4> m_InstanceNodeTransforms;
 
     FVkBuffer* m_PointLightsBuffer{nullptr};
     VkDescriptorSet m_PointLightDescriptorSet;
@@ -416,7 +417,7 @@ struct backend::impl
         uint32_t modelTransformIdx{};
         uint32_t nodeTransformsStartIdx{};
 
-        Fleur::Math::vec3 boundingBoxCenter{};
+        Fleur::Vec3 boundingBoxCenter{};
     };
 
     std::vector<FLFrameDrawItem> m_OpaqueDrawItems;
@@ -425,10 +426,10 @@ struct backend::impl
     std::unordered_map<AssetID, uint32_t> m_RegisteredModels;
 
     void registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                       const Fleur::Math::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount,
+                       const Fleur::Mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives, uint32_t primitiveCount,
                        const FLInstanceItem* srcInstances, uint32_t instanceCount);
     void unregisterModel(AssetID id);
-    void drawModel(AssetID id, const Fleur::Math::mat4& transform);
+    void drawModel(AssetID id, const Fleur::Mat4& transform);
 
     uint32_t m_CurrentFrame{0};
     uint32_t m_FramesInFlight{0};
@@ -469,10 +470,10 @@ struct backend::impl
 
     struct ShadowMapFrustumSettings
     {
-        Fleur::Math::vec3 center{0.0f, 0.0f, 0.0f};
-        float halfSize{30.0f};
-        float nearPlane{0.1f};
-        float farPlane{1000.0f};
+        Fleur::Vec3 center{0.0f, 0.0f, 0.0f};
+        float halfSize{50.0f};
+        float nearDistanceFactor{0.3f};
+        float farExtension{100.0f};
         bool drawDebugFrustum{true};
     };
     ShadowMapFrustumSettings m_ShadowMapFrustumSettings;
@@ -537,8 +538,11 @@ struct backend::impl
 
     // ---------- skybox ----------
     FVkSkybox* m_Skybox{nullptr};
+    FVkFloor* m_Floor{nullptr};
     void createSkybox(AssetID id, SFLShaderStages shaderStages);
     void setSkybox(AssetID id);
+    void createFloor(AssetID texture, SFLShaderStages shaderStages, float height);
+    void setFloor(AssetID texture, float height);
 
     vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
     std::unordered_map<std::string, vk::FVkShader> m_ShaderMap;
@@ -557,5 +561,8 @@ struct backend::impl
     vk::abstraction::DescriptorAllocator m_DescriptorAlloc;
 
     Fleur::Graphics::RenderFrameData m_FrameData;
+
+    bool m_FloorTextureWasLoaded{false};
+    int32_t m_FloorTextureIdx{-1};
 };
 }  // namespace vk

@@ -42,11 +42,11 @@ void Scene::Init()
     auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
     renderer->CreateFloor(m_FloorTextureIdx, 0);
 
-    // auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
-    // m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
+    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
 
-    auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
-    m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
+    // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
+    // m_Instances.push_back(SceneInstance{helmet->asset.handle, transform});
 
     // auto box = assets->LoadModelAsync("Box.glb");
     // m_Instances.push_back(SceneInstance{box->asset.handle, transform});
@@ -177,7 +177,14 @@ void Scene::Submit(Lux::Renderer& renderer)
 
 Fleur::Graphics::RenderFrameData Scene::GetFrameData() const
 {
-    return Fleur::Graphics::RenderFrameData{{m_Camera->GetCameraForward(), m_Camera->GetView(), m_Camera->GetProjection()},
+    return Fleur::Graphics::RenderFrameData{{
+                                                m_Camera->GetView(),
+                                                m_Camera->GetProjection(),
+                                                m_Camera->GetCameraForward(),
+                                                m_Camera->GetPosition(),
+                                                m_Camera->NearClip(),
+                                                m_Camera->FarClip(),
+                                            },
                                             {.dirIntens{Vec4(m_DirectionalLight.GetDirection(), m_DirectionalLight.GetIntensity())},
                                              .color = m_DirectionalLight.GetColor().ToVec4(),
                                              .pos = Vec4(m_DirectionalLight.GetVirtualPosition(), 1)}};

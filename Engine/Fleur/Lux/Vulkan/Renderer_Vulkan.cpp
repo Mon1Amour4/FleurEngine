@@ -38,6 +38,10 @@ void vk::backend::SetSkybox(AssetID id)
 {
     pImpl->setSkybox(id);
 }
+void vk::backend::CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height)
+{
+    pImpl->createFloor(texture, shaderStages, height);
+}
 void vk::backend::StartResize()
 {
     pImpl->startResize();
@@ -72,9 +76,13 @@ void vk::backend::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
     pImpl->beginFrame(frameData);
 }
-void vk::backend::Draw(AssetID model, const Fleur::Math::mat4& transform)
+void vk::backend::Draw(AssetID model, const Fleur::Mat4& transform)
 {
     pImpl->drawModel(model, transform);
+}
+void vk::backend::SetFloor(AssetID texture, float height)
+{
+    pImpl->setFloor(texture, height);
 }
 void vk::backend::EndFrame()
 {
@@ -122,51 +130,51 @@ void vk::backend::ConfigureOverlay(SFLShaderStages shaderStages)
 
     pImpl->m_OverlayPass->SetShader(&overlayShader);
 }
-void vk::backend::DrawLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color, bool depthTest)
+void vk::backend::DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest)
 {
     pImpl->m_DebugDraw->AddLine(a, b, color);
 }
-void vk::backend::DrawPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size, bool depthTest)
+void vk::backend::DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size, bool depthTest)
 {
     pImpl->m_DebugDraw->AddPoint(p, color, size);
 }
 
-void vk::backend::DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color, bool depthTest)
+void vk::backend::DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, Fleur::Vec4 color, bool depthTest)
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, color);
 }
 
-void vk::backend::DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t texture, bool depthTest)
+void vk::backend::DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, texture);
 }
 
-void vk::backend::DrawBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t texture, bool depthTest)
+void vk::backend::DrawBillboard(Fleur::Vec3 center, Fleur::Vec2 size, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddBillboard(center, size, texture);
 }
 
-void vk::backend::DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color)
+void vk::backend::DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, color);
 }
 
-void vk::backend::DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t texture)
+void vk::backend::DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, texture);
 }
 
-void vk::backend::DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color)
+void vk::backend::DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, color);
 }
 
-void vk::backend::DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t texture)
+void vk::backend::DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, texture);
 }
 
-void vk::backend::DrawShadowMapOverlay(Fleur::Math::vec2 min, Fleur::Math::vec2 max)
+void vk::backend::DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max)
 {
     pImpl->m_OverlayPass->AddShadowMapQuad(min, max);
 }
@@ -245,10 +253,10 @@ vk::backend::impl::impl(bool enableValidation,
 
         frame.scene.m_SceneNodeTransformsStorageBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Math::mat4) + sizeof(Fleur::Math::mat4), sizeof(Fleur::Math::mat4));
+                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Mat4) + sizeof(Fleur::Mat4), sizeof(Fleur::Mat4));
 
         frame.scene.m_CameraBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
-                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(SFLGeometryUBO), sizeof(Fleur::Math::mat4));
+                                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(SFLGeometryUBO), sizeof(Fleur::Mat4));
 
         std::vector<vk::abstraction::DescriptorAllocator::PoolSizeRatio> frame_sizes = {
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_FramesInFlight},          // ssbo
@@ -344,6 +352,7 @@ vk::backend::impl::~impl()
 
     delete m_OverlayPass;
     delete m_Skybox;
+    delete m_Floor;
     delete m_DebugDraw;
 
     uint32_t framebuffersCount = m_FramesInFlight;
@@ -759,23 +768,28 @@ void vk::backend::impl::uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     for (size_t i = 0; i < pInfo->count; i++)
     {
-        auto imageView = pInfo->pData + i;
-        if (m_TextureMap.contains(imageView->ID))
+        auto& imageView = pInfo->pData[i];
+        if (m_TextureMap.contains(imageView.ID))
             continue;
 
-        VkFormat format = m_Device->GetTextureFormat(imageView->channels);
+        VkFormat format = m_Device->GetTextureFormat(imageView.channels);
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
-        uint32_t layerSize = imageView->w * imageView->h * imageView->channels;
-        uint32_t imageSize = layerSize * imageView->layerCount;
+        uint32_t layerSize = imageView.w * imageView.h * imageView.channels;
+        uint32_t imageSize = layerSize * imageView.layerCount;
         uint32_t mimMapLevel = 1;
-        if (imageView->layerCount == 1)
-            mimMapLevel = CalculateMimMapLevel(imageView->w, imageView->h);
+        if (imageView.layerCount == 1)
+            mimMapLevel = CalculateMimMapLevel(imageView.w, imageView.h);
+        auto& gpuTexture = m_TextureMap.emplace(imageView.ID, FVkTexture()).first->second;
 
-        auto& gpuTexture = m_TextureMap.emplace(imageView->ID, FVkTexture()).first->second;
+        createTexture(imageView, gpuTexture, format, aspect, mimMapLevel, imageView.layerCount);
 
-        createTexture(*imageView, gpuTexture, format, aspect, mimMapLevel, imageView->layerCount);
+        updateTextureDescriptorSet(m_TextureDescriptorSet, imageView.ID, gpuTexture.GetImageView(), m_ImageSampler);
 
-        updateTextureDescriptorSet(m_TextureDescriptorSet, imageView->ID, gpuTexture.GetImageView(), m_ImageSampler);
+        if (imageView.ID == m_FloorTextureIdx && !m_FloorTextureWasLoaded && m_Floor)
+        {
+            m_Floor->SetFloor(gpuTexture.GetImageView());
+            m_FloorTextureWasLoaded = true;
+        }
     }
 }
 
@@ -1055,6 +1069,36 @@ void vk::backend::impl::setSkybox(AssetID id)
     m_Skybox->SetSkybox(m_TextureMap[id].GetImageView());
 }
 
+void vk::backend::impl::createFloor(AssetID texture, SFLShaderStages shaderStages, float height)
+{
+    if (m_Floor)
+        return;
+
+    assert(shaderStages.vertex.shaderCode && shaderStages.fragment.shaderCode);
+
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
+                                          .vertexSize = shaderStages.vertex.sizeBytes,
+                                          .pFragmentData = shaderStages.fragment.shaderCode,
+                                          .fragmentSize = shaderStages.fragment.sizeBytes};
+    auto& floorShader = m_ShaderMap.emplace("floor", vk::FVkShader()).first->second;
+    floorShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+    m_FloorTextureIdx = texture;
+    m_Floor = new FVkFloor();
+    uint32_t idx = m_FloorTextureIdx;
+    if (m_TextureMap.find(texture) == m_TextureMap.end())
+        idx = m_FallbackTextureIdx;
+
+    m_Floor->Create(m_Device, m_Swapchain, &floorShader, m_CameraUboLayout->GetDescriptorSetLayout(), m_TextureMap[idx].GetImageView(), height,
+                    m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
+}
+
+void vk::backend::impl::setFloor(AssetID texture, float height)
+{
+    if (m_Floor)
+        m_Floor->SetFloor(m_TextureMap[texture].GetImageView(), height);
+}
+
 void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
     if (kind == EFLPassKind::Geometry)
@@ -1261,7 +1305,12 @@ void vk::backend::impl::ExecuteMainPass()
 
     if (m_Skybox)
     {
-        // m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
+        m_Skybox->Record(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
+    }
+
+    if (m_Floor)
+    {
+        // m_Floor->Record(*cmd.GetCommandBuffer(), GetCurrentFrame().scene.m_CameraDescriptor, m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
     }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
@@ -1377,32 +1426,39 @@ void vk::backend::impl::endFrame()
     cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
 
     const auto& shadowFrustum = m_ShadowMapFrustumSettings;
-    Fleur::Math::vec3 shadowCenter = shadowFrustum.center;
+    Fleur::Vec3 lightPos = Fleur::Vec3(m_FrameData.directionalLight.pos);
 
     // Directional light has no real position.
     // This is only a virtual camera position for shadow rendering.
     float halfSize = shadowFrustum.halfSize;
-    float shadowNear = shadowFrustum.nearPlane;
-    float shadowFar = shadowFrustum.farPlane;
+    const float lightDistance = Fleur::Math::length(lightPos);
+    const float shadowNear = lightDistance * shadowFrustum.nearDistanceFactor;
+    const float shadowFar = lightDistance + shadowFrustum.farExtension;
 
-    Fleur::Math::vec3 lightPos = Fleur::Math::vec3(m_FrameData.directionalLight.pos);
-    Fleur::Math::mat4 lightView = Fleur::Math::lookAt(lightPos, shadowCenter, Fleur::Math::vec3(0.0f, 1.0f, 0.0f));
+    Fleur::Vec3 up(0.0f, 1.0f, 0.0f);
+    Fleur::Vec3 lightDirection = Fleur::Math::normalize(Fleur::Vec3(m_FrameData.directionalLight.dirIntens));
 
-    // Fleur::Math::mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-    Fleur::Math::mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
+        up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
+
+    Fleur::Vec3 shadowEnd = lightPos + lightDirection * shadowFar;
+    Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, shadowEnd, up);
+
+    // Fleur::Mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    Fleur::Mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
     lightProjection[1][1] *= -1;
 
-    Fleur::Math::mat4 lightSpaceMatrix = lightProjection * lightView;
+    Fleur::Mat4 lightSpaceMatrix = lightProjection * lightView;
 
     if (shadowFrustum.drawDebugFrustum)
-        m_DebugDraw->Frustum(Fleur::Math::inverse(lightSpaceMatrix), Fleur::Math::vec3(0.0f, 1.0f, 1.0f));
+        m_DebugDraw->Frustum(Fleur::Math::inverse(lightSpaceMatrix), Fleur::Vec3(0.0f, 1.0f, 1.0f));
 
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         struct ShadowPuchConstant
         {
-            Fleur::Math::mat4 lightSpaceMatrix;
+            Fleur::Mat4 lightSpaceMatrix;
             uint32_t modelIdx;
             uint32_t nodeIdx;
         } pc;
@@ -1513,7 +1569,7 @@ void vk::backend::impl::endFrame()
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
-                                      const Fleur::Math::mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives,
+                                      const Fleur::Mat4* transformNodes, uint32_t transformNodesCount, const FLPrimitiveDrawItem* primitives,
                                       uint32_t primitiveCount, const FLInstanceItem* srcInstances, uint32_t instanceCount)
 {
     if (m_RegisteredModels.contains(id))
@@ -1574,7 +1630,7 @@ void vk::backend::impl::unregisterModel(AssetID id)
     // TODO: reclaim geometry buffer space (bump allocator has no free; needs a sub-allocator).
 }
 
-void vk::backend::impl::drawModel(AssetID id, const Fleur::Math::mat4& modelTransform)
+void vk::backend::impl::drawModel(AssetID id, const Fleur::Mat4& modelTransform)
 {
     auto it = m_RegisteredModels.find(id);
     if (it == m_RegisteredModels.end())
@@ -1586,12 +1642,12 @@ void vk::backend::impl::drawModel(AssetID id, const Fleur::Math::mat4& modelTran
     auto& frame = GetCurrentFrame();
 
     uint32_t matricesCount = batch.nodeTransformCount + 2;
-    Fleur::Math::mat4* matrices = new Fleur::Math::mat4[matricesCount];
+    Fleur::Mat4* matrices = new Fleur::Mat4[matricesCount];
 
     matrices[0] = modelTransform;
-    matrices[1] = Fleur::Math::mat4(Fleur::Math::transpose(Fleur::Math::inverse(Fleur::Math::mat3(modelTransform))));
+    matrices[1] = Fleur::Mat4(Fleur::Math::transpose(Fleur::Math::inverse(Fleur::Mat3(modelTransform))));
 
-    memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(Fleur::Math::mat4) * batch.nodeTransformCount);
+    memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(Fleur::Mat4) * batch.nodeTransformCount);
 
     uint32_t ssboCurrentIdx = frame.scene.m_SceneNodeTransformsStorageBuffer.CurrentSize() / frame.scene.m_SceneNodeTransformsStorageBuffer.StrideBytes();
     frame.scene.m_SceneNodeTransformsStorageBuffer.UploadDataToBuffer(matrices, matricesCount);
