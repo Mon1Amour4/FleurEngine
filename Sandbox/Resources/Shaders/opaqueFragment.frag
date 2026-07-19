@@ -59,7 +59,7 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
     // perform perspective divide
     vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
 
-    // glm::orthoRH_ZO already produces Vulkan depth in [0, 1].
+    // Fleur::Math::orthoRH_ZO already produces Vulkan depth in [0, 1].
     // Only x/y are in the conventional [-1, 1] NDC range and need remapping.
     // Without this guard, UVs wrap on the shared sampler and can zero out
     // the directional term across the whole scene.
@@ -71,16 +71,35 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
     if (projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
         return 0.0;
 
-    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-    float closestDepth = texture(shadowMapSampler, projCoords.xy).r; 
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
 
     float bias = max(0.0005, 0.005 * (1.0 - NdotL));
+    ivec2 shadowMapSize = textureSize(shadowMapSampler,0);
+    vec2 texelSize = 1.0 / vec2(shadowMapSize);
+
+    float shadow = 0;
+    for (int x = -1; x <= 1; x++)
+    {
+        for (int y = -1; y <= 1; y++)
+        {
+            vec2 offset = vec2(x, y) * texelSize;
+            float depth = texture(shadowMapSampler, projCoords.xy + offset).x;
+
+            shadow += float(depth + bias < currentDepth);
+        }
+    }
+
+    shadow /= 9.0;
+
+//    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+//    float closestDepth = texture(shadowMapSampler, projCoords.xy).r; 
+
+    //float bias = 0;
     // check whether current frag pos is in shadow
     // 1 - in shadow
     // 0 - isn't in sahdow 
-    float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
+    //float shadow = (currentDepth - bias) > closestDepth ? 1.0 : 0.0;
 
     return shadow;
 }
