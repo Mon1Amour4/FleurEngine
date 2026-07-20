@@ -14,6 +14,11 @@ public:
     FVkDepthTarget() = default;
     ~FVkDepthTarget() = default;
 
+    FVkDepthTarget(const FVkDepthTarget&) = delete;
+    FVkDepthTarget& operator=(const FVkDepthTarget&) = delete;
+    FVkDepthTarget(FVkDepthTarget&&) noexcept = default;
+    FVkDepthTarget& operator=(FVkDepthTarget&&) noexcept = default;
+
     void Create(const FVkDevice* device, FVkCommandPool* immediateCommandPool, VkExtent2D extent, VkSampleCountFlagBits sampleCount,
                 bool sampled = false);
     void Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled = false);

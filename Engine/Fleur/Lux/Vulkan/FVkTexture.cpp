@@ -8,6 +8,7 @@
 FVkTexture::FVkTexture()
     : m_Device(nullptr)
     , m_Format(VK_FORMAT_MAX_ENUM)
+    , m_ImageType(VK_IMAGE_TYPE_MAX_ENUM)
     , m_Aspect(VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM)
     , m_Image(nullptr)
     , m_ImageView(nullptr)
@@ -49,6 +50,7 @@ void FVkTexture::Destroy()
 
     m_Device = nullptr;
     m_Format = VK_FORMAT_MAX_ENUM;
+    m_ImageType = VK_IMAGE_TYPE_MAX_ENUM;
     m_Aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
     m_Image = VK_NULL_HANDLE;
     m_ImageView = VK_NULL_HANDLE;
@@ -65,6 +67,7 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
 
     m_Device = device;
     m_Format = createInfo.format;
+    m_ImageType = createInfo.imageType;
     m_Aspect = aspect;
     m_Mipmaps = createInfo.mipLevels;
     m_ImageFlags = createInfo.flags;
@@ -92,7 +95,8 @@ VkImageView FVkTexture::CreateImaveView()
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = m_Image;
-    viewInfo.viewType = (m_ImageFlags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) ? VK_IMAGE_VIEW_TYPE_CUBE : VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.viewType = (m_ImageFlags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) ? VK_IMAGE_VIEW_TYPE_CUBE
+                                                                               : (m_ImageType == VK_IMAGE_TYPE_3D ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D);
     viewInfo.format = m_Format;
     viewInfo.subresourceRange.aspectMask = m_Aspect;
     viewInfo.subresourceRange.baseMipLevel = 0;
@@ -109,6 +113,7 @@ void FVkTexture::moveFrom(FVkTexture&& other) noexcept
 {
     m_Device = other.m_Device;
     m_Format = other.m_Format;
+    m_ImageType = other.m_ImageType;
     m_Aspect = other.m_Aspect;
     m_Layers = other.m_Layers;
     m_Image = other.m_Image;
@@ -119,6 +124,7 @@ void FVkTexture::moveFrom(FVkTexture&& other) noexcept
 
     other.m_Device = nullptr;
     other.m_Format = VK_FORMAT_MAX_ENUM;
+    other.m_ImageType = VK_IMAGE_TYPE_MAX_ENUM;
     other.m_Aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
     other.m_Layers = 0;
     other.m_Image = VK_NULL_HANDLE;

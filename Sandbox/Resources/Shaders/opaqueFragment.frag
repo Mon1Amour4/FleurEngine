@@ -29,6 +29,7 @@ layout(std430, set = 3, binding = 0) readonly buffer PointLightBuff
 } pointLights;
 
 layout(set = 4, binding = 0) uniform sampler2D shadowMapSampler;
+layout(set = 5, binding = 0) uniform sampler3D shadowMapOffsetTexture;
 
 layout(push_constant) uniform PushConsts
 {
@@ -75,10 +76,9 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
     float currentDepth = projCoords.z;
 
     float bias = max(0.0005, 0.005 * (1.0 - NdotL));
-    ivec2 shadowMapSize = textureSize(shadowMapSampler,0);
-    vec2 texelSize = 1.0 / vec2(shadowMapSize);
 
-    float shadow = 0;
+    vec2 texelSize = 1.0 / vec2(textureSize(shadowMapSampler, 0));
+    float shadow = 0.0;
     for (int x = -1; x <= 1; x++)
     {
         for (int y = -1; y <= 1; y++)

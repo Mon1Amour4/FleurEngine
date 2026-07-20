@@ -37,6 +37,7 @@
 #include "FVkSkybox.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
+#include "ShadowMapOffsetTexture.h"
 #include "VkHelper.h"
 
 #if defined(FL_CONF_DEBUG)
@@ -373,7 +374,6 @@ struct backend::impl
         FVkCommandBuffer m_CommandBuffers;
         VkFence m_InFlightFences{VK_NULL_HANDLE};
         VkSemaphore m_ImagesAvailable{VK_NULL_HANDLE};
-        VkSemaphore m_RenderFinished{VK_NULL_HANDLE};
 
         vk::abstraction::DescriptorAllocator frameDescriptors;
         FrameSceneResources scene;
@@ -384,6 +384,7 @@ struct backend::impl
         return m_Frames[m_CurrentFrame];
     }
     std::vector<Frame> m_Frames;
+    std::vector<VkSemaphore> m_RenderFinished;
     FVkCommandPool* m_ImmediateCommandPool{nullptr};
 
     const uint32_t K_NODE_TRANSFORMS_CUP = 1023;
@@ -441,6 +442,8 @@ struct backend::impl
     VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags);
     VkSampler createTextureSampler();
     VkSampler createShadowMapSampler();
+    void createRenderFinishedSemaphores();
+    void destroyRenderFinishedSemaphores();
 
     VkSampler m_ImageSampler;
     std::unordered_map<AssetID, FVkTexture> m_TextureMap;
@@ -464,9 +467,10 @@ struct backend::impl
                        uint32_t layerCount);
 
     FVkDepthTarget m_DepthRenderTarget;
-    FVkDepthTarget m_ShadowMapRenderTarget;
+    std::vector<FVkDepthTarget> m_ShadowMapRenderTargets;
     VkSampler m_ShadowMapSampler{VK_NULL_HANDLE};
     void updateShadowMapDescriptorSets();
+    ShadowMapOffsetTexture m_ShadowMapOffsetTexture;
 
     struct ShadowMapFrustumSettings
     {

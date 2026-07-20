@@ -10,26 +10,26 @@
 
 struct SFLPushConstant
 {
-    Fleur::Math::mat4 lightSpaceMatrix;
-    Fleur::Math::vec4 baseColorFactor;
+    Fleur::Mat4 lightSpaceMatrix;
+    Fleur::Vec4 baseColorFactor;
 
     // x = nodeTransformsStartIdx
     // y = modelTransformIdx
     // z = materialIndex
     // w = pointLightCount
-    Fleur::Math::uvec4 indices;
+    Fleur::UVec4 indices;
 
     // x = alphaCutoff
     // yzw = unused
-    Fleur::Math::vec4 materialParams;
+    Fleur::Vec4 materialParams;
 
-    Fleur::Math::vec4 directionalLightColor;
+    Fleur::Vec4 directionalLightColor;
 
     // xyz = direction, w = intensity
-    Fleur::Math::vec4 directionalLightDirectionIntensity;
+    Fleur::Vec4 directionalLightDirectionIntensity;
 
     // xyz = camera position, w = unused
-    Fleur::Math::vec4 cameraPos;
+    Fleur::Vec4 cameraPos;
 };
 
 class FVkCommandPool
@@ -139,6 +139,7 @@ public:
     void TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,
                                uint32_t mipMapCount, uint32_t layerCount);
     void CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t layerSize, uint32_t layerCount);
+    void CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent3D imageExtent, uint32_t layerSize, uint32_t layerCount);
     void Submit(VkQueue queue);
 
     void GenerateMipMaps(VkPhysicalDevice physicalDevice, VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);

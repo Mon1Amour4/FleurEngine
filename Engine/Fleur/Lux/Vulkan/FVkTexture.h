@@ -19,11 +19,11 @@ public:
 
     void Destroy();
 
-    inline VkImageView GetImageView()
+    inline VkImageView GetImageView() const
     {
         return m_ImageView;
     }
-    inline VkImage GetImage()
+    inline VkImage GetImage() const
     {
         return m_Image;
     }
@@ -31,6 +31,7 @@ public:
 private:
     VkDevice m_Device;
     VkFormat m_Format;
+    VkImageType m_ImageType;
     VkImageAspectFlags m_Aspect;
     uint32_t m_Layers;
 

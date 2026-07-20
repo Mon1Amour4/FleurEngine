@@ -272,6 +272,11 @@ void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat f
 
 void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent2D imageExtent, uint32_t layerSize, uint32_t layerCount)
 {
+    CopyBufferToImage(buffer, image, VkExtent3D{imageExtent.width, imageExtent.height, 1}, layerSize, layerCount);
+}
+
+void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage image, VkExtent3D imageExtent, uint32_t layerSize, uint32_t layerCount)
+{
     for (size_t i = 0; i < layerCount; i++)
     {
         VkBufferImageCopy region{
@@ -281,7 +286,7 @@ void FVkSingleTimeCommandBuffer::CopyBufferToImage(VkBuffer buffer, VkImage imag
             .imageSubresource =
                 VkImageSubresourceLayers{.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT, .mipLevel = 0, .baseArrayLayer = (uint32_t)i, .layerCount = 1},
             .imageOffset = {0, 0, 0},
-            .imageExtent = VkExtent3D{imageExtent.width, imageExtent.height, 1},
+            .imageExtent = imageExtent,
         };
         vkCmdCopyBufferToImage(m_CommandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
