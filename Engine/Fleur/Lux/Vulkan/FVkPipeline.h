@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <cassert>
+#include <memory>
 
 #include "VkHelper.h"
 enum BindingType
@@ -91,7 +92,7 @@ public:
             return *this;
         }
 
-        FVkDescriptorSetLayout* build(VkDescriptorBindingFlagsEXT bindingFlags)
+        std::unique_ptr<FVkDescriptorSetLayout> build(VkDescriptorBindingFlagsEXT bindingFlags)
         {
             // One flag set per binding.
             std::vector<VkDescriptorBindingFlagsEXT> perBindingFlags(m_Bindings.size(), bindingFlags);
@@ -117,7 +118,7 @@ public:
             VkDescriptorSetLayout layout = VK_NULL_HANDLE;
             VK_CHECK(vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout));
 
-            return new FVkDescriptorSetLayout(m_Device, layout, m_Bindings.size());
+            return std::unique_ptr<FVkDescriptorSetLayout>(new FVkDescriptorSetLayout(m_Device, layout, m_Bindings.size()));
         }
 
     private:

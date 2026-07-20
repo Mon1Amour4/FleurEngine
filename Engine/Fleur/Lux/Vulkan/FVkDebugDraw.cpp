@@ -5,9 +5,6 @@
 
 FVkDebugDraw::~FVkDebugDraw()
 {
-    delete m_LinePipeline;
-    delete m_PointPipeline;
-    delete m_QuadPipeline;
 
     m_LineBuffers.clear();
     m_LineBuffers.shrink_to_fit();
@@ -83,7 +80,7 @@ void FVkDebugDraw::createPipelines()
         linePipelineInfo.depthFormat = m_DepthFormat;
 
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        m_LinePipeline = m_PrimitivesShader->GetPipeline(linePipelineInfo, descriptorSetLayouts);
+        m_LinePipeline = &m_PrimitivesShader->GetPipeline(linePipelineInfo, descriptorSetLayouts);
         assert(m_LinePipeline);
 
         vk::GetPipelineInfo pointPipelineInfo{};
@@ -97,7 +94,7 @@ void FVkDebugDraw::createPipelines()
         pointPipelineInfo.colorFormat = m_ColorFormat;
         pointPipelineInfo.depthFormat = m_DepthFormat;
 
-        m_PointPipeline = m_PrimitivesShader->GetPipeline(pointPipelineInfo, descriptorSetLayouts);
+        m_PointPipeline = &m_PrimitivesShader->GetPipeline(pointPipelineInfo, descriptorSetLayouts);
         assert(m_PointPipeline);
     }
 
@@ -121,7 +118,7 @@ void FVkDebugDraw::createPipelines()
         quadPipelineInfo.depthFormat = m_DepthFormat;
 
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts{m_GeometryTexturesLayout};
-        m_QuadPipeline = m_GeometryShader->GetPipeline(quadPipelineInfo, descriptorSetLayouts);
+        m_QuadPipeline = &m_GeometryShader->GetPipeline(quadPipelineInfo, descriptorSetLayouts);
         assert(m_QuadPipeline);
     }
 

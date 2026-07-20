@@ -223,7 +223,7 @@ FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkComman
     fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
     VK_CHECK(vkCreateFence(m_Device, &fenceInfo, nullptr, &m_Fence));
-    vkResetFences(m_Device, 1, &m_Fence);
+    VK_CHECK(vkResetFences(m_Device, 1, &m_Fence));
 
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -231,13 +231,13 @@ FVkSingleTimeCommandBuffer::FVkSingleTimeCommandBuffer(VkDevice device, VkComman
     allocInfo.commandPool = m_CommandPool;
     allocInfo.commandBufferCount = 1;
 
-    vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer);
+    VK_CHECK(vkAllocateCommandBuffers(m_Device, &allocInfo, &m_CommandBuffer));
 
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 
-    vkBeginCommandBuffer(m_CommandBuffer, &beginInfo);
+    VK_CHECK(vkBeginCommandBuffer(m_CommandBuffer, &beginInfo));
 }
 FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 {
@@ -249,6 +249,9 @@ FVkSingleTimeCommandBuffer::~FVkSingleTimeCommandBuffer()
 void FVkSingleTimeCommandBuffer::TransitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout,
                                                        VkImageAspectFlags aspectMask, uint32_t mipMapCount, uint32_t layerCount)
 {
+    if (oldLayout == newLayout)
+        return;
+
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;
@@ -362,12 +365,12 @@ void FVkSingleTimeCommandBuffer::GenerateMipMaps(VkPhysicalDevice physicalDevice
 
 void FVkSingleTimeCommandBuffer::Submit(VkQueue queue)
 {
-    vkEndCommandBuffer(m_CommandBuffer);
+    VK_CHECK(vkEndCommandBuffer(m_CommandBuffer));
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &m_CommandBuffer;
 
-    vkQueueSubmit(queue, 1, &submitInfo, m_Fence);
+    VK_CHECK(vkQueueSubmit(queue, 1, &submitInfo, m_Fence));
 }

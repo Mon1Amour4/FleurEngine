@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <memory>
+
 #include <RenderViews.hpp>
 #include <Fleur/Math/Math.hpp>
 #include <vector>
@@ -43,8 +45,8 @@ private:
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
-    FVkDescriptorSetLayout* m_SkyboxDescriptorSetLayout;
-    FVkPipeline* m_Pipeline;
+    std::unique_ptr<FVkDescriptorSetLayout> m_SkyboxDescriptorSetLayout;
+    FVkPipeline* m_Pipeline{nullptr}; // borrowed from FVkShader::m_PipelineCache
 
     VkSampler m_Sampler;
     VkDescriptorPool m_SkyboxDescriptorPool;
@@ -62,12 +64,12 @@ private:
     VkViewport m_DefaultViewport;
     VkRect2D m_DefaultRect;
 
-    FVkBuffer* m_VertexBuffer;
+    std::unique_ptr<FVkBuffer> m_VertexBuffer;
     const uint32_t m_SizeOfUniformBuffer;
-    FVkBuffer* m_UniformBuffer;
+    std::unique_ptr<FVkBuffer> m_UniformBuffer;
 
     static const uint32_t m_VertexCount = 36;
-    static const uint32_t m_VertexBufferSize = m_VertexCount * sizeof(Fleur::Math::vec3);
+    static const uint32_t m_VertexBufferSize = m_VertexCount * sizeof(Fleur::Vec3);
 
-    static const Fleur::Math::vec3 m_Vertices[m_VertexCount];
+    static const Fleur::Vec3 m_Vertices[m_VertexCount];
 };

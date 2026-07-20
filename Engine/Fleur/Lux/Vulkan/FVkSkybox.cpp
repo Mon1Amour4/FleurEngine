@@ -4,7 +4,7 @@
 #include <array>
 
 
-const Fleur::Math::vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
+const Fleur::Vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
     // back
     {-1.f, 1.f, -1.f},
     {-1.f, -1.f, -1.f},
@@ -70,16 +70,12 @@ FVkSkybox::FVkSkybox()
     , m_DefaultViewport(0, 0)
     , m_DefaultRect({0, 0}, {0, 0})
     , m_UniformBuffer(nullptr)
-    , m_SizeOfUniformBuffer(sizeof(Fleur::Math::mat4) * 2)
+    , m_SizeOfUniformBuffer(sizeof(Fleur::Mat4) * 2)
 {
 }
 
 FVkSkybox::~FVkSkybox()
 {
-    delete m_Pipeline;
-    delete m_SkyboxDescriptorSetLayout;
-    delete m_VertexBuffer;
-    delete m_UniformBuffer;
 
     if (m_SkyboxDescriptorPool)
         vkDestroyDescriptorPool(m_Device, m_SkyboxDescriptorPool, nullptr);
@@ -120,22 +116,22 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     pipelineInfo.depthFormat = m_DepthFormat;
 
     std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {m_SkyboxDescriptorSetLayout->GetDescriptorSetLayout()};
-    m_Pipeline = m_SkyboxShader->GetPipeline(pipelineInfo, descriptorSetLayouts);
+    m_Pipeline = &m_SkyboxShader->GetPipeline(pipelineInfo, descriptorSetLayouts);
     // 4. Descriptor pool
     createSkyboxDescriptorPool();
     // 5. Sampler
     createSkyboxSampler();
     // 6. Uniform Buffer
-    m_UniformBuffer = new FVkBuffer();
+    m_UniformBuffer = std::make_unique<FVkBuffer>();
     m_UniformBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_SizeOfUniformBuffer, m_SizeOfUniformBuffer);
-    std::array<Fleur::Math::mat4, 2> initialMatrices = {Fleur::Math::mat4(1.0f), Fleur::Math::mat4(1.0f)};
+    std::array<Fleur::Mat4, 2> initialMatrices = {Fleur::Mat4(1.0f), Fleur::Mat4(1.0f)};
     m_UniformBuffer->MemCopy(initialMatrices.data(), m_SizeOfUniformBuffer);
     // 7. Descriptor Set
     createSkyboxDescriptorSet(imageView);
     // 8. VertexBuffer
-    m_VertexBuffer = new FVkBuffer();
+    m_VertexBuffer = std::make_unique<FVkBuffer>();
     m_VertexBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VertexBufferSize,
-                         sizeof(Fleur::Math::vec3));
+                         sizeof(Fleur::Vec3));
     // 9. Copy vertices to vertex buffer
     m_VertexBuffer->MemCopy(m_Vertices, m_VertexBufferSize);
 }
@@ -268,7 +264,7 @@ void FVkSkybox::Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const F
 
     vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 0, 1, &m_SkyboxDescriptorSet, 0, nullptr);
 
-    m_UniformBuffer->MemCopy(&cameraData.view, sizeof(Fleur::Math::mat4) * 2);
+    m_UniformBuffer->MemCopy(&cameraData.view, sizeof(Fleur::Mat4) * 2);
 
     vkCmdDraw(cmd, m_VertexCount, 1, 0, 0);
 }

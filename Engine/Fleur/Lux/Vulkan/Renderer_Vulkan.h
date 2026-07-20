@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cassert>
+#include <memory>
 
 #include "IRenderer.hpp"
 
@@ -21,6 +22,8 @@ struct backend : public Fleur::Graphics::IRenderer
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) override;
     virtual void SetSkybox(AssetID id) override;
+    virtual void CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height = 0.0f) override;
+    virtual void SetFloor(AssetID texture, float height) override;
 
     backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback);
 
@@ -36,23 +39,23 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void RemoveTexture(AssetID texture) override;
 
     virtual void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData) override;
-    virtual void Draw(AssetID model, const Fleur::Math::mat4& transform) override;
+    virtual void Draw(AssetID model, const Fleur::Mat4& transform) override;
     virtual void EndFrame() override;
 
-    virtual void DrawLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color, bool depthTest = true) override;
-    virtual void DrawPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size = 4.0f, bool depthTest = true) override;
-    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color, bool depthTest = true) override;
-    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t texture, bool depthTest = true) override;
-    virtual void DrawBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t texture, bool depthTest = true) override;
-    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color) override;
-    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t texture) override;
-    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color) override;
-    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t texture) override;
-    virtual void DrawShadowMapOverlay(Fleur::Math::vec2 min, Fleur::Math::vec2 max) override;
+    virtual void DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest = true) override;
+    virtual void DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size = 4.0f, bool depthTest = true) override;
+    virtual void DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, Fleur::Vec4 color, bool depthTest = true) override;
+    virtual void DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawBillboard(Fleur::Vec3 center, Fleur::Vec2 size, uint32_t texture, bool depthTest = true) override;
+    virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color) override;
+    virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture) override;
+    virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color) override;
+    virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture) override;
+    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max) override;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
 
 private:
-    impl* pImpl;
+    std::unique_ptr<impl> pImpl;
 };
 }  // namespace vk

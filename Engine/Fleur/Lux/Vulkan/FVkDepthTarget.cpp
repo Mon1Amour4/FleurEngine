@@ -12,12 +12,12 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     assert(device);
     assert(immediateCommandPool);
 
-    m_Device = device;
-    m_ImmediateCommandPool = immediateCommandPool;
+    m_DeviceContext = device;
+    m_ImmediateCommandPoolContext = immediateCommandPool;
     m_Extent = extent;
     m_SampleCount = sampleCount;
     m_Sampled = sampled;
-    m_Format = FindDepthFormat(device->GetPhysicalDevice());
+    m_Format = FindDepthFormat(m_DeviceContext->GetPhysicalDevice());
 
     VkImageCreateInfo imageInfo{};
     imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -35,15 +35,15 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     m_Texture = std::make_unique<FVkTexture>();
-    VkImage vkImage = m_Texture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                             GetDepthAspect(m_Format));
-    m_Texture->CreateImaveView();
+    VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                              GetDepthAspect(m_Format));
+    m_Texture->CreateImageView();
 
     {
-        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_ImmediateCommandPool->GetCommandPool());
+        FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_DeviceContext->GetLogicalDevice(), m_ImmediateCommandPoolContext->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, m_Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                                        GetDepthAspect(m_Format), 1, 1);
-        frameCmd.Submit(m_Device->GetGraphicsQueue());
+        frameCmd.Submit(m_DeviceContext->GetGraphicsQueue());
     }
 
     m_Initialized = true;
@@ -51,9 +51,9 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
 
 void FVkDepthTarget::Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled)
 {
-    assert(m_Device);
-    assert(m_ImmediateCommandPool);
-    Create(m_Device, m_ImmediateCommandPool, extent, sampleCount, sampled);
+    assert(m_DeviceContext);
+    assert(m_ImmediateCommandPoolContext);
+    Create(m_DeviceContext, m_ImmediateCommandPoolContext, extent, sampleCount, sampled);
 }
 
 void FVkDepthTarget::Destroy()

@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <Fleur/Math/Math.hpp>
+#include <memory>
 #include <vector>
 
 #include "FVkBuffer.h"
@@ -15,21 +16,21 @@
 
 struct GeometryVertex
 {
-    Fleur::Math::vec3 pos;
-    Fleur::Math::vec2 uv;
+    Fleur::Vec3 pos;
+    Fleur::Vec2 uv;
 };
 
 struct DebugGeometryPushConstant
 {
-    Fleur::Math::mat4 viewProj{1.f};
-    Fleur::Math::ivec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
-    Fleur::Math::vec4 color{1.f};
+    Fleur::Mat4 viewProj{1.f};
+    Fleur::IVec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
+    Fleur::Vec4 color{1.f};
 };
 
 struct SDebugVertex
 {
-    Fleur::Math::vec3 pos;
-    Fleur::Math::vec4 color;
+    Fleur::Vec3 pos;
+    Fleur::Vec4 color;
 };
 
 // Self-contained debug-geometry renderer (lines + points). Owns its own pipelines,
@@ -55,12 +56,12 @@ public:
 
     // Per-frame: take this frame's accumulated geometry (from the frontend batch).
     // Accumulate primitives — the frontend forwards each DrawLine/DrawPoint here.
-    void AddLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color);
-    void AddPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size);
-    void AddQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color);
-    void AddQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t textureIdx);
-    void AddBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t textureIdx);
-    void Frustum(const Fleur::Math::mat4& invViewProj, Fleur::Math::vec3 color);
+    void AddLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color);
+    void AddPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size);
+    void AddQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, Fleur::Vec4 color);
+    void AddQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, uint32_t textureIdx);
+    void AddBillboard(Fleur::Vec3 center, Fleur::Vec2 size, uint32_t textureIdx);
+    void Frustum(const Fleur::Mat4& invViewProj, Fleur::Vec3 color);
 
     void RecordWorld(FVkCommandBuffer& cmd, const Fleur::Graphics::SFLCameraData& cameraData, uint32_t frameIndex);
 
@@ -82,9 +83,9 @@ private:
 
     vk::FVkShader* m_PrimitivesShader{nullptr};
     vk::FVkShader* m_GeometryShader{nullptr};
-    FVkPipeline* m_LinePipeline{nullptr};   // VK_PRIMITIVE_TOPOLOGY_LINE_LIST
-    FVkPipeline* m_PointPipeline{nullptr};  // VK_PRIMITIVE_TOPOLOGY_POINT_LIST
-    FVkPipeline* m_QuadPipeline{nullptr};   // VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
+    FVkPipeline* m_LinePipeline{nullptr};   // borrowed from FVkShader::m_PipelineCache
+    FVkPipeline* m_PointPipeline{nullptr};  // borrowed from FVkShader::m_PipelineCache
+    FVkPipeline* m_QuadPipeline{nullptr};   // borrowed from FVkShader::m_PipelineCache
     VkDescriptorSetLayout m_GeometryTexturesLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_GeometryTexturesDescriptorSet{VK_NULL_HANDLE};
 
@@ -96,7 +97,7 @@ private:
     {
         int32_t textureIdx{-1};
         int32_t textureSource{0};  // 0 = color, 1 = texture rgba, 2 = texture depth
-        Fleur::Math::vec4 color{Fleur::Math::vec4(-1, -1, -1, -1)};
+        Fleur::Vec4 color{Fleur::Vec4(-1, -1, -1, -1)};
     };
     struct PrimitiveGeometryDrawInfo
     {
@@ -110,8 +111,8 @@ private:
 
     struct BillboardDrawInfo
     {
-        Fleur::Math::vec3 center{};
-        Fleur::Math::vec2 size{};
+        Fleur::Vec3 center{};
+        Fleur::Vec2 size{};
         uint32_t textureIdx{};
     };
     std::vector<BillboardDrawInfo> m_Billboards;

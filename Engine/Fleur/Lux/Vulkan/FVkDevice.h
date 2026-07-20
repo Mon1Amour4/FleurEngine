@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include <memory>
+
 #include <cassert>
 #include <list>
 #include <string>
@@ -54,7 +56,7 @@ public:
     // ---------- pImpl ----------
     VkDevice CreateLogicalDevice(std::vector<const char*>& deivceExtensions);
 
-    [[nodiscard]] static FVkDevice* CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo);
+    [[nodiscard]] static std::unique_ptr<FVkDevice> CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo);
 
     inline VkDevice GetLogicalDevice() const
     {

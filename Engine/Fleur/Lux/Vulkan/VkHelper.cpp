@@ -16,6 +16,7 @@ uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPr
         }
     }
     assert(false);
+    return UINT32_MAX;
 }
 
 // clang-format off
@@ -26,6 +27,15 @@ void FindBarrierAccessMask(  VkImageLayout oldLayout,
                                     VkPipelineStageFlags& sourceStage, 
                                     VkPipelineStageFlags& destinationStage)
 {
+    if (oldLayout == newLayout)
+    {
+        srcAccessMask = 0;
+        dstAccessMask = 0;
+        sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        destinationStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+        return;
+    }
+
     if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
     {
         srcAccessMask = 0;
@@ -58,6 +68,14 @@ void FindBarrierAccessMask(  VkImageLayout oldLayout,
         sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
         destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
     }
+    else if (oldLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR && newLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL)
+    {
+        srcAccessMask = 0;
+        dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        destinationStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    }
     else if (oldLayout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL && newLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
     {
         srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
@@ -74,6 +92,15 @@ void FindBarrierAccessMask(  VkImageLayout oldLayout,
 
         sourceStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
         destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+    }
+    else if ((oldLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL || oldLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL) &&
+             newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+    {
+        srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+        sourceStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+        destinationStage = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
     }
     else
     {
@@ -95,6 +122,8 @@ uint32_t GetChannelsNumFromFormat(VkFormat format)
         assert(false);
         break;
     }
+
+    return 0;
 }
 
 VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features)
@@ -113,8 +142,10 @@ VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat
             return format;
         }
 
-        assert(false);
     }
+
+    assert(false);
+    return VK_FORMAT_UNDEFINED;
 }
 VkFormat FindDepthFormat(VkPhysicalDevice device)
 {
@@ -141,7 +172,7 @@ VkImageAspectFlags GetDepthAspect(VkFormat format)
     }
 }
 
-uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight)
+uint32_t CalculateMipMapLevel(uint32_t textureWidth, uint32_t textureHeight)
 {
     return static_cast<int>(floor(log2(std::max(textureWidth, textureHeight)))) + 1;
 }
@@ -154,6 +185,9 @@ bool HasStencilComponent(VkFormat format)
 void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,
                            uint32_t mipMapCount)
 {
+    if (oldLayout == newLayout)
+        return;
+
     VkImageMemoryBarrier barrier{};
     barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     barrier.oldLayout = oldLayout;

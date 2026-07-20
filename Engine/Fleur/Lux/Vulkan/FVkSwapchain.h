@@ -32,7 +32,7 @@ public:
     }
     inline uint32_t GetSwapchainImageCount() const
     {
-        return m_SwapcainImageCount;
+        return m_SwapchainImageCount;
     }
     inline bool ReadyToPresent()
     {
@@ -72,7 +72,7 @@ private:
 
     bool m_SwapchainCreated;
 
-    uint32_t m_SwapcainImageCount;
+    uint32_t m_SwapchainImageCount;
 
     inline bool isSwapchainSuitable()
     {

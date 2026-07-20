@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <Fleur/Math/Math.hpp>
+#include <memory>
 #include <vector>
 
 #include "FVkBuffer.h"
@@ -14,14 +15,14 @@
 
 struct OverlayVertex
 {
-    Fleur::Math::vec3 pos;
-    Fleur::Math::vec2 uv;
+    Fleur::Vec3 pos;
+    Fleur::Vec2 uv;
 };
 
 struct OverlayPushConstant
 {
-    Fleur::Math::ivec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
-    Fleur::Math::vec4 color{1.f};
+    Fleur::IVec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
+    Fleur::Vec4 color{1.f};
 };
 
 class FVkOverlayPass
@@ -34,11 +35,11 @@ public:
                 uint32_t shadowMapTextureSlot, VkSampleCountFlagBits sampleCount, VkFormat depthFormat, uint32_t framesInFlight);
     void SetShader(vk::FVkShader* overlayShader);
 
-    void AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color);
-    void AddQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t textureIdx);
-    void AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color);
-    void AddTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t textureIdx);
-    void AddShadowMapQuad(Fleur::Math::vec2 min, Fleur::Math::vec2 max);
+    void AddQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color);
+    void AddQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t textureIdx);
+    void AddTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color);
+    void AddTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t textureIdx);
+    void AddShadowMapQuad(Fleur::Vec2 min, Fleur::Vec2 max);
 
     void Record(FVkCommandBuffer& cmd, uint32_t frameIndex);
     void Clear();
@@ -53,7 +54,7 @@ private:
     {
         int32_t textureIdx{-1};
         int32_t textureSource{0};  // 0 = color, 1 = texture rgba, 2 = texture depth
-        Fleur::Math::vec4 color{Fleur::Math::vec4(-1, -1, -1, -1)};
+        Fleur::Vec4 color{Fleur::Vec4(-1, -1, -1, -1)};
     };
 
     struct DrawInfo
@@ -68,7 +69,7 @@ private:
     VkPhysicalDevice m_PhysicalDevice{nullptr};
 
     vk::FVkShader* m_Shader{nullptr};
-    FVkPipeline* m_Pipeline{nullptr};
+    FVkPipeline* m_Pipeline{nullptr}; // borrowed from FVkShader::m_PipelineCache
     VkDescriptorSetLayout m_TexturesLayout{VK_NULL_HANDLE};
     VkDescriptorSet m_TexturesDescriptorSet{VK_NULL_HANDLE};
     uint32_t m_ShadowMapTextureSlot{0};

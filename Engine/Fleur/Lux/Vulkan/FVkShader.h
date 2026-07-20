@@ -143,7 +143,7 @@ public:
         return m_FragmentShader;
     }
 
-    FVkPipeline* GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+    FVkPipeline& GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
     struct DescriptorSetDefaultValues
     {
         uint32_t sampler2d = 4096;

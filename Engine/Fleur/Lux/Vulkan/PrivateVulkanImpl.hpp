@@ -18,6 +18,7 @@
 #include <array>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <set>
 #include <sstream>
@@ -316,8 +317,8 @@ struct backend::impl
 
     Fleur::SRect m_SurfaceRect;
 
-    FVkDevice* m_Device;
-    FVkSwapchain* m_Swapchain;
+    std::unique_ptr<FVkDevice> m_Device;
+    std::unique_ptr<FVkSwapchain> m_Swapchain;
     VkSurfaceKHR m_Surface;
     VkSurfaceKHR createSurface(VkInstance instance, void* nativeHandle);
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
@@ -363,17 +364,20 @@ struct backend::impl
         VkDescriptorSet m_SceneNodeTransformsDescriptor{VK_NULL_HANDLE};
     };
 
-    FVkDescriptorSetLayout* m_CameraUboLayout{nullptr};
-    FVkDescriptorSetLayout* m_SceneNodeTransformsLayout{nullptr};
-    FVkDescriptorSetLayout* m_ShadowMapLayout{nullptr};
-    FVkDescriptorSetLayout* m_PointLightsLayout{nullptr};
-    FVkDescriptorSetLayout* m_TextureDescriptorSetLayout{nullptr};
+    std::unique_ptr<FVkDescriptorSetLayout> m_CameraUboLayout;
+    std::unique_ptr<FVkDescriptorSetLayout> m_SceneNodeTransformsLayout;
+    std::unique_ptr<FVkDescriptorSetLayout> m_ShadowMapLayout;
+    std::unique_ptr<FVkDescriptorSetLayout> m_PointLightsLayout;
+    std::unique_ptr<FVkDescriptorSetLayout> m_TextureDescriptorSetLayout;
     struct Frame
     {
         FVkCommandPool m_CommandPools;
         FVkCommandBuffer m_CommandBuffers;
         VkFence m_InFlightFences{VK_NULL_HANDLE};
         VkSemaphore m_ImagesAvailable{VK_NULL_HANDLE};
+
+        FVkDepthTarget m_ShadowMap;
+        VkImageLayout m_ShadowMapLayout{VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
 
         vk::abstraction::DescriptorAllocator frameDescriptors;
         FrameSceneResources scene;
@@ -385,7 +389,7 @@ struct backend::impl
     }
     std::vector<Frame> m_Frames;
     std::vector<VkSemaphore> m_RenderFinished;
-    FVkCommandPool* m_ImmediateCommandPool{nullptr};
+    std::unique_ptr<FVkCommandPool> m_ImmediateCommandPool;
 
     const uint32_t K_NODE_TRANSFORMS_CUP = 1023;
 
@@ -397,12 +401,12 @@ struct backend::impl
     void initializeVma();
     void freeVma();
 
-    FVkBuffer* m_VertexBuffer{nullptr};
-    FVkBuffer* m_IndexBuffer{nullptr};
+    std::unique_ptr<FVkBuffer> m_VertexBuffer;
+    std::unique_ptr<FVkBuffer> m_IndexBuffer;
 
     std::vector<Fleur::Mat4> m_InstanceNodeTransforms;
 
-    FVkBuffer* m_PointLightsBuffer{nullptr};
+    std::unique_ptr<FVkBuffer> m_PointLightsBuffer;
     VkDescriptorSet m_PointLightDescriptorSet;
 
     std::vector<InstancesBatch> m_Batches;
@@ -433,8 +437,10 @@ struct backend::impl
     void drawModel(AssetID id, const Fleur::Mat4& transform);
 
     uint32_t m_CurrentFrame{0};
-    uint32_t m_FramesInFlight{0};
+    static constexpr uint32_t kFramesInFlight = 3;
+    uint32_t m_FramesInFlight{kFramesInFlight};
     uint32_t m_ImageIndex = 0;
+    std::vector<VkImageLayout> m_SwapchainImageLayouts;
 
     void uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo);
 
@@ -458,16 +464,15 @@ struct backend::impl
     std::vector<std::vector<SFLDescriptorSetImage>> m_DescriptorSetImageViewsToUpload;
 
     uint32_t m_FallbackTextureIdx;
-    FVkTexture* m_FallbackCubemapTexture{nullptr};
+    std::unique_ptr<FVkTexture> m_FallbackCubemapTexture;
     void createFallbackTexture(Fleur::Graphics::SFLImageView& pInfo);
 
-    FVkMultisampler* m_MultisampledRenderTarget;
+    std::unique_ptr<FVkMultisampler> m_MultisampledRenderTarget;
 
     void createTexture(Fleur::Graphics::SFLImageView& view, FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect, uint32_t mipLevels,
                        uint32_t layerCount);
 
     FVkDepthTarget m_DepthRenderTarget;
-    std::vector<FVkDepthTarget> m_ShadowMapRenderTargets;
     VkSampler m_ShadowMapSampler{VK_NULL_HANDLE};
     void updateShadowMapDescriptorSets();
     ShadowMapOffsetTexture m_ShadowMapOffsetTexture;
@@ -541,8 +546,8 @@ struct backend::impl
 
 
     // ---------- skybox ----------
-    FVkSkybox* m_Skybox{nullptr};
-    FVkFloor* m_Floor{nullptr};
+    std::unique_ptr<FVkSkybox> m_Skybox;
+    std::unique_ptr<FVkFloor> m_Floor;
     void createSkybox(AssetID id, SFLShaderStages shaderStages);
     void setSkybox(AssetID id);
     void createFloor(AssetID texture, SFLShaderStages shaderStages, float height);
@@ -555,8 +560,8 @@ struct backend::impl
 
 
     // Debug
-    FVkDebugDraw* m_DebugDraw{nullptr};
-    FVkOverlayPass* m_OverlayPass{nullptr};
+    std::unique_ptr<FVkDebugDraw> m_DebugDraw;
+    std::unique_ptr<FVkOverlayPass> m_OverlayPass;
 
     std::vector<SFLPointLight> m_PointLights;
     void updatePointLight(const SFLPointLight* light, uint32_t lightCount);

@@ -86,12 +86,13 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
         m_VertexInput.bindingDescription.stride = inputOffset;
 
 
+        const bool hasVertexAttributes = !m_VertexInput.m_VertexInputAttributes.empty();
         m_VertexInput.createInfo =
             VkPipelineVertexInputStateCreateInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-                                                 .vertexBindingDescriptionCount = 1,
-                                                 .pVertexBindingDescriptions = &m_VertexInput.bindingDescription,
-                                                 .vertexAttributeDescriptionCount = (uint32_t)m_VertexInput.m_VertexInputAttributes.size(),
-                                                 .pVertexAttributeDescriptions = m_VertexInput.m_VertexInputAttributes.data()};
+                                                 .vertexBindingDescriptionCount = hasVertexAttributes ? 1u : 0u,
+                                                 .pVertexBindingDescriptions = hasVertexAttributes ? &m_VertexInput.bindingDescription : nullptr,
+                                                 .vertexAttributeDescriptionCount = static_cast<uint32_t>(m_VertexInput.m_VertexInputAttributes.size()),
+                                                 .pVertexAttributeDescriptions = hasVertexAttributes ? m_VertexInput.m_VertexInputAttributes.data() : nullptr};
     }
 
     for (size_t i = 0; i < 64; i++)
@@ -339,10 +340,10 @@ VkFormat vk::FVkShader::convertReflectionFormat(SpvReflectFormat format)
 
 
 // ---------- pipeline ----------
-FVkPipeline* vk::FVkShader::GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+FVkPipeline& vk::FVkShader::GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
-    FVkPipeline* pipeline = &m_PipelineCache[info];
-    if (!pipeline->GetPipelineLayout())
+    FVkPipeline& pipeline = m_PipelineCache[info];
+    if (!pipeline.GetPipelineLayout())
     {
         FGraphicsPipelineDesc desc{.descriptorSetLayouts = descriptorSetLayouts};
 
@@ -378,11 +379,11 @@ FVkPipeline* vk::FVkShader::GetPipeline(const GetPipelineInfo& info, const std::
 
         desc.colorBlendAttachment.blendEnable = info.blendEnable;
 
-        pipeline->Init(m_Device, desc);
+        pipeline.Init(m_Device, desc);
     }
     else
     {
-        assert(pipeline->GetDescriptorSetLayouts() == descriptorSetLayouts);
+        assert(pipeline.GetDescriptorSetLayouts() == descriptorSetLayouts);
     }
     return pipeline;
 }

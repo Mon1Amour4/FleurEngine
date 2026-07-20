@@ -19,13 +19,10 @@ constexpr uint32_t kDebugShadowMapTextureSlot = MAX_TEXTURES - 1;
 
 // ---------- backend ----------
 vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
-    : pImpl(new vk::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback))
+    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback))
 {
 }
-vk::backend::~backend()
-{
-    delete pImpl;
-}
+vk::backend::~backend() = default;
 void vk::backend::UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->uploadTextures(pInfo);
@@ -108,7 +105,7 @@ void vk::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
         auto& geometryShader = pImpl->m_ShaderMap.emplace("DebugGeometry", vk::FVkShader()).first->second;
         if (!geometryShader.isInitialized())
             geometryShader.Init(pImpl->m_Device->GetLogicalDevice(), geometryShaderCreateInfo);
-        pImpl->m_DebugDraw->Create(pImpl->m_Device, pImpl->m_Swapchain, &primitivesShader, &geometryShader,
+        pImpl->m_DebugDraw->Create(pImpl->m_Device.get(), pImpl->m_Swapchain.get(), &primitivesShader, &geometryShader,
                                    pImpl->m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), pImpl->m_TextureDescriptorSet,
                                    pImpl->m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(pImpl->m_Device->GetPhysicalDevice()),
                                    pImpl->m_FramesInFlight);
@@ -204,7 +201,7 @@ vk::backend::impl::impl(bool enableValidation,
 
     myVkCmdEndDebugUtilsLabelEXT = reinterpret_cast<PFN_vkCmdEndDebugUtilsLabelEXT>(vkGetInstanceProcAddr(m_VulkanInstance, "vkCmdEndDebugUtilsLabelEXT"));
 
-    m_Swapchain = new FVkSwapchain();
+    m_Swapchain = std::make_unique<FVkSwapchain>();
     m_Surface = createSurface(m_VulkanInstance, pNativeHandle);
 
     SDeviceInfo deviceInfo{};
@@ -222,17 +219,17 @@ vk::backend::impl::impl(bool enableValidation,
     initializeVma();
     m_Swapchain->CreateSwapchain(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Surface,
                                  {framebufferSize.x, framebufferSize.y, framebufferSize.width, framebufferSize.height}, m_Device->GetPresentQueueFamilyIndex());
+    m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
 
-    m_VertexBuffer = new FVkBuffer();
-    m_IndexBuffer = new FVkBuffer();
-    m_PointLightsBuffer = new FVkBuffer();
+    m_VertexBuffer = std::make_unique<FVkBuffer>();
+    m_IndexBuffer = std::make_unique<FVkBuffer>();
+    m_PointLightsBuffer = std::make_unique<FVkBuffer>();
 
-    m_MultisampledRenderTarget = new FVkMultisampler();
+    m_MultisampledRenderTarget = std::make_unique<FVkMultisampler>();
     m_MultisampledRenderTarget->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_SAMPLE_COUNT_1_BIT,
                                      m_Swapchain->GetSwapchainExtent().width, m_Swapchain->GetSwapchainExtent().height, m_Swapchain->GetImageFormat());
 
-    m_FramesInFlight = m_Swapchain->GetSwapchainImageCount();
-    m_FramesInFlight = 3;
+    m_FramesInFlight = kFramesInFlight;
 
     m_SceneNodeTransformsLayout =
         FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice()).add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1).build(0);
@@ -241,10 +238,15 @@ vk::backend::impl::impl(bool enableValidation,
 
     VkExtent2D swapchainExtent = m_Swapchain->GetSwapchainExtent();
 
-    m_ImmediateCommandPool = new FVkCommandPool();
+    m_ImmediateCommandPool = std::make_unique<FVkCommandPool>();
     m_ImmediateCommandPool->Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_TRANSIENT_BIT, m_Device->GetGraphicsQueueFamilyIndex());
 
     createFallbackTexture(fallback);
+
+    m_ImageSampler = createTextureSampler();
+    m_ShadowMapLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                            .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
+                            .build(0);
 
     m_Frames.resize(m_FramesInFlight);
     VkSemaphoreCreateInfo semaphoreInfo{};
@@ -267,10 +269,6 @@ vk::backend::impl::impl(bool enableValidation,
         };
         frame.frameDescriptors.init(m_Device->GetLogicalDevice(), 1000, frame_sizes);
 
-        m_ShadowMapLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
-                                .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-                                .build(0);
-
         frame.scene.m_SceneNodeTransformsDescriptor =
             frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_SceneNodeTransformsLayout->GetDescriptorSetLayout(), 1);
         frame.scene.m_CameraDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_CameraUboLayout->GetDescriptorSetLayout(), 1);
@@ -284,8 +282,6 @@ vk::backend::impl::impl(bool enableValidation,
         vk::abstraction::DescriptorWriter cameraUboWriter{};
         cameraUboWriter.write_buffer(0, frame.scene.m_CameraBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLGeometryUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         cameraUboWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_CameraDescriptor);
-
-        m_ImageSampler = createTextureSampler();
 
         frame.m_CommandPools.Init(m_Device->GetLogicalDevice(), VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT, m_Device->GetGraphicsQueueFamilyIndex());
         frame.m_CommandBuffers.Init(m_Device->GetLogicalDevice(), frame.m_CommandPools.GetCommandPool(), VK_COMMAND_BUFFER_LEVEL_PRIMARY);
@@ -303,14 +299,16 @@ vk::backend::impl::impl(bool enableValidation,
 
     createRenderFinishedSemaphores();
 
-    m_ShadowMapRenderTargets.resize(m_FramesInFlight);
-    for (auto& shadowMap : m_ShadowMapRenderTargets)
-        shadowMap.Create(m_Device, m_ImmediateCommandPool, swapchainExtent, VK_SAMPLE_COUNT_1_BIT, true);
+    for (Frame& frame : m_Frames)
+    {
+        frame.m_ShadowMap.Create(m_Device.get(), m_ImmediateCommandPool.get(), swapchainExtent, VK_SAMPLE_COUNT_1_BIT, true);
+        frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
     m_ShadowMapSampler = createShadowMapSampler();
     updateShadowMapDescriptorSets();
 
 
-    m_DepthRenderTarget.Create(m_Device, m_ImmediateCommandPool, swapchainExtent, m_MultisampledRenderTarget->GetSamplesCount());
+    m_DepthRenderTarget.Create(m_Device.get(), m_ImmediateCommandPool.get(), swapchainExtent, m_MultisampledRenderTarget->GetSamplesCount());
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                          1024u * 1024ul * 512ul, sizeof(Fleur::Graphics::SVertexData));
@@ -328,7 +326,7 @@ vk::backend::impl::impl(bool enableValidation,
     createTextureDescriptorSetPass();
 
     updateTextureDescriptorSet(m_TextureDescriptorSet, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(), m_ImageSampler);
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTargets.front().GetImageView(), m_ShadowMapSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_ShadowMap.GetImageView(), m_ShadowMapSampler);
 
     m_DescriptorSetImageViewsToUpload.resize(m_FramesInFlight);
 
@@ -341,15 +339,15 @@ vk::backend::impl::impl(bool enableValidation,
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 
-    m_OverlayPass = new FVkOverlayPass();
-    m_OverlayPass->Create(m_Device, m_Swapchain, m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet, kDebugShadowMapTextureSlot,
+    m_OverlayPass = std::make_unique<FVkOverlayPass>();
+    m_OverlayPass->Create(m_Device.get(), m_Swapchain.get(), m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet, kDebugShadowMapTextureSlot,
                           m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
 
-    m_DebugDraw = new FVkDebugDraw();
+    m_DebugDraw = std::make_unique<FVkDebugDraw>();
 
     // Create the random offset texture and the descriptor set that owns it.
     m_ShadowMapOffsetTexture.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_ImmediateCommandPool->GetCommandPool(),
-                                    m_Device->GetGraphicsQueue(), m_Swapchain->GetSwapchainExtent(), 3);
+                                    m_Device->GetGraphicsQueue(), 3);
 }
 
 vk::backend::impl::~impl()
@@ -357,11 +355,6 @@ vk::backend::impl::~impl()
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
 
     m_ShadowMapOffsetTexture.Destroy();
-
-    delete m_OverlayPass;
-    delete m_Skybox;
-    delete m_Floor;
-    delete m_DebugDraw;
 
     uint32_t framebuffersCount = m_FramesInFlight;
 
@@ -375,42 +368,39 @@ vk::backend::impl::~impl()
     destroyRenderFinishedSemaphores();
 
     // 2. CommandBuffer & CommandPool
-    delete m_ImmediateCommandPool;
-
     // 3. DescriptorSet & DescriptorPool & Descriptor set layout
     vkDestroyDescriptorPool(m_Device->GetLogicalDevice(), m_DescriptorPool, nullptr);
-    delete m_TextureDescriptorSetLayout;
-    delete m_CameraUboLayout;
-    delete m_SceneNodeTransformsLayout;
-    delete m_PointLightsLayout;
-    delete m_ShadowMapLayout;
 
     // 4. Pipeline
-    delete m_GeometryPipeline;
-    delete m_TransparentPipeline;
-    delete m_ShadowPipeline;
+    // Pipelines are borrowed from FVkShader pipeline caches and are destroyed with their shaders.
+
+    // Descriptor-set layouts must outlive pipeline layouts, but be destroyed before the device.
+    m_TextureDescriptorSetLayout.reset();
+    m_CameraUboLayout.reset();
+    m_SceneNodeTransformsLayout.reset();
+    m_PointLightsLayout.reset();
+    m_ShadowMapLayout.reset();
 
     // 5. Swapchain & Framebuffers & swapchain image views
 
     // 7. All ImageViews
-    delete m_MultisampledRenderTarget;
-    delete m_FallbackCubemapTexture;
     m_TextureMap.clear();
     m_Swapchain->ReleaseSwapchainImageViews();
 
     // 8. Buffers
-    delete m_VertexBuffer;
-    delete m_IndexBuffer;
-    delete m_PointLightsBuffer;
     // 9. Samplers
     vkDestroySampler(m_Device->GetLogicalDevice(), m_ImageSampler, nullptr);
     vkDestroySampler(m_Device->GetLogicalDevice(), m_ShadowMapSampler, nullptr);
 
     // 10. Swapchain
-    delete m_Swapchain;
+    m_Swapchain.reset();
 
-    // Shadow-map images own Vulkan resources and must be released before the device.
-    m_ShadowMapRenderTargets.clear();
+    // Frame-owned Vulkan resources must be released before VMA and the device.
+    m_Frames.clear();
+    m_ImmediateCommandPool.reset();
+    m_VertexBuffer.reset();
+    m_IndexBuffer.reset();
+    m_PointLightsBuffer.reset();
 
     // 15. VMA
     freeVma();
@@ -419,7 +409,7 @@ vk::backend::impl::~impl()
     vkDestroySurfaceKHR(m_VulkanInstance, m_Surface, nullptr);
 
     // 12. LogicalDevice
-    delete m_Device;
+    m_Device.reset();
 
     // 13. Debug Utills & Validation Layers
     if (m_ValidationsEnabled)
@@ -604,7 +594,7 @@ FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fl
     if (!shader.isInitialized())
         shader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
-    return shader.GetPipeline(pipelineInfo, descriptorSetLayouts);
+    return &shader.GetPipeline(pipelineInfo, descriptorSetLayouts);
 }
 
 FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
@@ -787,12 +777,12 @@ void vk::backend::impl::uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         uint32_t layerSize = imageView.w * imageView.h * imageView.channels;
         uint32_t imageSize = layerSize * imageView.layerCount;
-        uint32_t mimMapLevel = 1;
+        uint32_t mipMapLevel = 1;
         if (imageView.layerCount == 1)
-            mimMapLevel = CalculateMimMapLevel(imageView.w, imageView.h);
+            mipMapLevel = CalculateMipMapLevel(imageView.w, imageView.h);
         auto& gpuTexture = m_TextureMap.emplace(imageView.ID, FVkTexture()).first->second;
 
-        createTexture(imageView, gpuTexture, format, aspect, mimMapLevel, imageView.layerCount);
+        createTexture(imageView, gpuTexture, format, aspect, mipMapLevel, imageView.layerCount);
 
         updateTextureDescriptorSet(m_TextureDescriptorSet, imageView.ID, gpuTexture.GetImageView(), m_ImageSampler);
 
@@ -931,12 +921,12 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     m_FallbackTextureIdx = view.ID;
     auto fallbackTexture = &m_TextureMap.emplace(m_FallbackTextureIdx, FVkTexture()).first->second;
 
-    uint32_t mimMapCount = CalculateMimMapLevel(view.w, view.h);
-    createTexture(view, *fallbackTexture, format, aspect, mimMapCount, 1);
+    uint32_t mipMapCount = CalculateMipMapLevel(view.w, view.h);
+    createTexture(view, *fallbackTexture, format, aspect, mipMapCount, 1);
 
 
     // ---------- cubemap texture placeholder ----------
-    m_FallbackCubemapTexture = new FVkTexture();
+    m_FallbackCubemapTexture = std::make_unique<FVkTexture>();
 
     VkImageAspectFlagBits cubemapAspect = VK_IMAGE_ASPECT_COLOR_BIT;
     uint32_t cubemapMimMapCount = 1;
@@ -959,15 +949,15 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
     imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-    char* buffer = new char[imageSize];
+    std::vector<char> buffer(imageSize);
     for (size_t i = 0; i < CUBEMAP_LAYERS_COUNT; i++)
     {
-        memcpy(buffer + (layerSize * i), view.pData, layerSize);
+        memcpy(buffer.data() + (layerSize * i), view.pData, layerSize);
     }
 
     FVkBuffer stagingBuffer{};
     stagingBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
-    stagingBuffer.MemCopy(buffer, imageSize);
+    stagingBuffer.MemCopy(buffer.data(), imageSize);
 
     VkImage cubemapImage = m_FallbackCubemapTexture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), imageInfo,
                                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubemapAspect);
@@ -981,9 +971,8 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
                                        cubemapMimMapCount, CUBEMAP_LAYERS_COUNT);
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
-    m_FallbackCubemapTexture->CreateImaveView();
+    m_FallbackCubemapTexture->CreateImageView();
 
-    delete buffer;
 }
 
 void vk::backend::impl::updateTextureDescriptorSet(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
@@ -1059,7 +1048,7 @@ void vk::backend::impl::createTexture(Fleur::Graphics::SFLImageView& view, FVkTe
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
 
-    texture.CreateImaveView();
+    texture.CreateImageView();
 }
 
 void vk::backend::impl::startResize()
@@ -1073,10 +1062,14 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
     m_Swapchain->OnWindowResized(rect);
     m_DepthRenderTarget.Recreate({rect.width, rect.height}, m_MultisampledRenderTarget->GetSamplesCount());
-    for (auto& shadowMap : m_ShadowMapRenderTargets)
-        shadowMap.Recreate({rect.width, rect.height}, VK_SAMPLE_COUNT_1_BIT, true);
+    for (Frame& frame : m_Frames)
+    {
+        frame.m_ShadowMap.Recreate({rect.width, rect.height}, VK_SAMPLE_COUNT_1_BIT, true);
+        frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    }
+    m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
     updateShadowMapDescriptorSets();
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_ShadowMapRenderTargets.front().GetImageView(), m_ShadowMapSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_ShadowMap.GetImageView(), m_ShadowMapSampler);
     std::cout << "\nEndResize\n";
 }
 
@@ -1096,8 +1089,8 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderStages shaderStages)
     auto& skyboxShader = m_ShaderMap.emplace("skybox", vk::FVkShader()).first->second;
     skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
-    m_Skybox = new FVkSkybox();
-    m_Skybox->Create(m_Device, m_Swapchain, m_FallbackCubemapTexture->GetImageView(), &skyboxShader, m_MultisampledRenderTarget->GetSamplesCount(),
+    m_Skybox = std::make_unique<FVkSkybox>();
+    m_Skybox->Create(m_Device.get(), m_Swapchain.get(), m_FallbackCubemapTexture->GetImageView(), &skyboxShader, m_MultisampledRenderTarget->GetSamplesCount(),
                      FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
 }
 void vk::backend::impl::setSkybox(AssetID id)
@@ -1120,12 +1113,12 @@ void vk::backend::impl::createFloor(AssetID texture, SFLShaderStages shaderStage
     floorShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
     m_FloorTextureIdx = texture;
-    m_Floor = new FVkFloor();
+    m_Floor = std::make_unique<FVkFloor>();
     uint32_t idx = m_FloorTextureIdx;
     if (m_TextureMap.find(texture) == m_TextureMap.end())
         idx = m_FallbackTextureIdx;
 
-    m_Floor->Create(m_Device, m_Swapchain, &floorShader, m_CameraUboLayout->GetDescriptorSetLayout(), m_TextureMap[idx].GetImageView(), height,
+    m_Floor->Create(m_Device.get(), m_Swapchain.get(), &floorShader, m_CameraUboLayout->GetDescriptorSetLayout(), m_TextureMap[idx].GetImageView(), height,
                     m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
 }
 
@@ -1175,7 +1168,7 @@ void vk::backend::impl::updateShadowMapDescriptorSets()
     for (size_t i = 0; i < m_Frames.size(); ++i)
     {
         vk::abstraction::DescriptorWriter shadowMapWriter{};
-        shadowMapWriter.write_image(0, m_ShadowMapRenderTargets[i].GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+        shadowMapWriter.write_image(0, m_Frames[i].m_ShadowMap.GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         auto& frame = m_Frames[i];
         shadowMapWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_ShadowMapDescriptorSet);
@@ -1241,11 +1234,13 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, const FBeginRenderin
 
 void vk::backend::impl::ExecuteShadowPass()
 {
-    auto& cmd = GetCurrentFrame().m_CommandBuffers;
-    auto& shadowMap = m_ShadowMapRenderTargets[m_CurrentFrame];
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+    auto& shadowMap = frame.m_ShadowMap;
 
     transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+                          frame.m_ShadowMapLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     VkRect2D renderArea{
         .offset = {0, 0},
@@ -1297,8 +1292,9 @@ void vk::backend::impl::ExecuteMainPass()
 {
     auto& cmd = GetCurrentFrame().m_CommandBuffers;
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), VK_IMAGE_LAYOUT_UNDEFINED,
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), m_SwapchainImageLayouts[m_ImageIndex],
                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkRect2D renderArea{
         .offset = {0, 0},
@@ -1393,12 +1389,14 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
         vkQueueWaitIdle(m_Device->GetPresentQueue());
         destroyRenderFinishedSemaphores();
         m_Swapchain->Recreate(m_Surface, m_Device->GetPresentQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
-                              m_DepthRenderTarget.GetImageView());
+                               m_DepthRenderTarget.GetImageView());
+        m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
         createRenderFinishedSemaphores();
     }
     m_FrameData = frameData;
 
     Frame& frame = GetCurrentFrame();
+    assert(m_CurrentFrame < m_Frames.size());
 
     VkResult waitForFences = vkWaitForFences(m_Device->GetLogicalDevice(), 1, &frame.m_InFlightFences, VK_TRUE, UINT64_MAX);
     if (waitForFences != VK_SUCCESS)
@@ -1423,6 +1421,7 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
         return false;
     }
 
+    assert(m_ImageIndex < m_RenderFinished.size());
     if (m_ImageIndex >= m_RenderFinished.size())
     {
         DBG_PRINTM("Acquired swap chain image index is outside render-finished semaphore array")
@@ -1520,9 +1519,10 @@ void vk::backend::impl::endFrame()
     std::array<VkDescriptorSet, 6> dst{frame.scene.m_CameraDescriptor, m_TextureDescriptorSet, frame.scene.m_SceneNodeTransformsDescriptor,
                                        m_PointLightDescriptorSet, frame.scene.m_ShadowMapDescriptorSet, m_ShadowMapOffsetTexture.GetDescriptorSet()};
 
-    auto& shadowMap = m_ShadowMapRenderTargets[m_CurrentFrame];
+    auto& shadowMap = GetCurrentFrame().m_ShadowMap;
     transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
     ExecuteMainPass();
@@ -1578,7 +1578,8 @@ void vk::backend::impl::endFrame()
     m_DebugDraw->Clear();
     cmd.EndRendering();
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     cmd.End();
 
     VkSemaphore waitSemaphores[] = {frame.m_ImagesAvailable};
@@ -1688,7 +1689,7 @@ void vk::backend::impl::drawModel(AssetID id, const Fleur::Mat4& modelTransform)
     auto& frame = GetCurrentFrame();
 
     uint32_t matricesCount = batch.nodeTransformCount + 2;
-    Fleur::Mat4* matrices = new Fleur::Mat4[matricesCount];
+    std::vector<Fleur::Mat4> matrices(matricesCount);
 
     matrices[0] = modelTransform;
     matrices[1] = Fleur::Mat4(Fleur::Math::transpose(Fleur::Math::inverse(Fleur::Mat3(modelTransform))));
@@ -1696,8 +1697,7 @@ void vk::backend::impl::drawModel(AssetID id, const Fleur::Mat4& modelTransform)
     memcpy(&matrices[2], &m_InstanceNodeTransforms[batch.globalNodeStartIdx], sizeof(Fleur::Mat4) * batch.nodeTransformCount);
 
     uint32_t ssboCurrentIdx = frame.scene.m_SceneNodeTransformsStorageBuffer.CurrentSize() / frame.scene.m_SceneNodeTransformsStorageBuffer.StrideBytes();
-    frame.scene.m_SceneNodeTransformsStorageBuffer.UploadDataToBuffer(matrices, matricesCount);
-    delete[] matrices;
+    frame.scene.m_SceneNodeTransformsStorageBuffer.UploadDataToBuffer(matrices.data(), matricesCount);
 
     for (size_t i = 0; i < batch.instancesCount; i++)
     {

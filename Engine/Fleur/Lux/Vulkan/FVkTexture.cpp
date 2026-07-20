@@ -90,7 +90,7 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
     return m_Image;
 }
 
-VkImageView FVkTexture::CreateImaveView()
+VkImageView FVkTexture::CreateImageView()
 {
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;

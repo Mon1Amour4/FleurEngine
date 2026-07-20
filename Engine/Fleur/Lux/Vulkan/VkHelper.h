@@ -17,7 +17,7 @@ uint32_t GetChannelsNumFromFormat(VkFormat format);
 VkFormat FindSupportedFormat(VkPhysicalDevice device, const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 VkFormat FindDepthFormat(VkPhysicalDevice device);
 VkImageAspectFlags GetDepthAspect(VkFormat format);
-uint32_t CalculateMimMapLevel(uint32_t textureWidth, uint32_t textureHeight);
+uint32_t CalculateMipMapLevel(uint32_t textureWidth, uint32_t textureHeight);
 bool HasStencilComponent(VkFormat format);
 
 void transitionImageLayout(VkCommandBuffer cmd, VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags aspectMask,

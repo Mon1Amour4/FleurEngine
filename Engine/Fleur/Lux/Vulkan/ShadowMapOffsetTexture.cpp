@@ -11,6 +11,7 @@
 namespace
 {
 constexpr float kPi = 3.14159265358979323846f;
+constexpr VkExtent2D kPatternExtent{128, 128};
 }
 
 ShadowMapOffsetTexture::~ShadowMapOffsetTexture()
@@ -58,11 +59,10 @@ void ShadowMapOffsetTexture::Generate(VkExtent2D extent, uint32_t filterSize)
     }
 }
 
-void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue,
-                                    VkExtent2D extent, uint32_t filterSize)
+void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue, uint32_t filterSize)
 {
     Destroy();
-    Generate(extent, filterSize);
+    Generate(kPatternExtent, filterSize);
     m_Device = device;
 
     VkImageCreateInfo imageInfo{};
@@ -96,7 +96,7 @@ void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDe
         commandBuffer.Submit(graphicsQueue);
     }
 
-    m_Texture.CreateImaveView();
+    m_Texture.CreateImageView();
 
     VkSamplerCreateInfo samplerInfo{};
     samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;

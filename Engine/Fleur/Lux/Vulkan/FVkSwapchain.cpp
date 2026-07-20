@@ -12,7 +12,7 @@ FVkSwapchain::FVkSwapchain()
     , m_Swapchain(nullptr)
     , m_SwapchainImageFormat(VK_FORMAT_MAX_ENUM)
     , m_SwapchainExtent({0, 0})
-    , m_SwapcainImageCount(0)
+    , m_SwapchainImageCount(0)
 {
 }
 FVkSwapchain::~FVkSwapchain()
@@ -22,7 +22,7 @@ FVkSwapchain::~FVkSwapchain()
 
 void FVkSwapchain::ReleaseSwapchainImageViews()
 {
-    for (size_t i = 0; i < m_SwapcainImageCount; i++)
+    for (size_t i = 0; i < m_SwapchainImageCount; i++)
     {
         vkDestroyImageView(m_Device, m_SwapchainImageViews[i], nullptr);
     }
@@ -46,7 +46,7 @@ void FVkSwapchain::CreateSwapchain(VkDevice device, VkPhysicalDevice physicalDev
 
     uint32_t imageCount = m_SurfaceCapabilities.minImageCount + 1;
     imageCount = std::clamp(imageCount, m_SurfaceCapabilities.minImageCount, m_SurfaceCapabilities.maxImageCount);
-    m_SwapcainImageCount = imageCount;
+    m_SwapchainImageCount = imageCount;
 
     VkSurfaceFormatKHR surfaceFormat = ChooseSwapSurfaceFormat(m_SurfaceFormats);
     m_SwapchainImageFormat = surfaceFormat.format;

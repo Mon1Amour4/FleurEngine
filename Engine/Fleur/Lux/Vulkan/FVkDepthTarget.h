@@ -39,8 +39,9 @@ public:
     static VkFormat FindDepthFormat(VkPhysicalDevice device);
 
 private:
-    const FVkDevice* m_Device{nullptr};
-    FVkCommandPool* m_ImmediateCommandPool{nullptr};
+    // Non-owning context pointers. The caller must keep both objects alive until this target is destroyed.
+    const FVkDevice* m_DeviceContext{nullptr};
+    FVkCommandPool* m_ImmediateCommandPoolContext{nullptr};
     std::unique_ptr<FVkTexture> m_Texture;
 
     VkFormat m_Format{VK_FORMAT_UNDEFINED};

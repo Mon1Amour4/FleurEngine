@@ -17,7 +17,7 @@ public:
     ShadowMapOffsetTexture& operator=(const ShadowMapOffsetTexture&) = delete;
 
     void Generate(VkExtent2D extent, uint32_t filterSize);
-    void Create(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue, VkExtent2D extent, uint32_t filterSize);
+    void Create(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue, uint32_t filterSize);
     void Destroy();
 
     const std::vector<float>& GetData() const { return m_Data; }

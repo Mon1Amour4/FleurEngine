@@ -87,7 +87,7 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     return m_Device;
 }
 
-FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo)
+std::unique_ptr<FVkDevice> FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& deviceInfo)
 {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
@@ -118,7 +118,7 @@ FVkDevice* FVkDevice::CreateSuitableDevice(VkInstance instance, SDeviceInfo& dev
     {
         if (IsDeviceSuitable(physicalDevices[i], deviceInfo))
         {
-            return new FVkDevice(physicalDevices[i], FindGraphicsQueueFamily(physicalDevices[i], deviceInfo.surface));
+            return std::make_unique<FVkDevice>(physicalDevices[i], FindGraphicsQueueFamily(physicalDevices[i], deviceInfo.surface));
         }
     }
 

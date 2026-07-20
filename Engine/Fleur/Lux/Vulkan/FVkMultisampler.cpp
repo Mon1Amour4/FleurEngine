@@ -36,7 +36,7 @@ void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkS
     imageInfo.samples = m_MSAASamples;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     m_Texture.CreateImage(m_Device, m_PhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
-    m_Texture.CreateImaveView();
+    m_Texture.CreateImageView();
 }
 
 VkSampleCountFlagBits FVkMultisampler::getMaxUsableSampleCount(bool depth)
