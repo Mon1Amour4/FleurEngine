@@ -14,12 +14,15 @@
 namespace
 {
 constexpr uint32_t kDebugShadowMapTextureSlot = MAX_TEXTURES - 1;
+constexpr uint32_t kPointLightShadowFaceCount = 6;
+constexpr float kPointLightShadowNear = 0.1f;
 }
 
 
 // ---------- backend ----------
-vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback)
-    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback))
+vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback,
+                     uint32_t maxPointLights)
+    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights))
 {
 }
 vk::backend::~backend() = default;
@@ -52,6 +55,8 @@ void vk::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
     assert(shaderStages.fragment.shaderCode && shaderStages.fragment.sizeBytes > 0);
     assert(shaderStages.vertex.shaderCode && shaderStages.vertex.sizeBytes > 0);
+    if (kind == EFLPassKind::PointLightShadow)
+        assert(shaderStages.geometry.shaderCode && shaderStages.geometry.sizeBytes > 0);
 
     pImpl->createPass(kind, shaderStages);
 }
@@ -140,42 +145,34 @@ void vk::backend::DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::V
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, color);
 }
-
 void vk::backend::DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddQuad(a, b, c, d, texture);
 }
-
 void vk::backend::DrawBillboard(Fleur::Vec3 center, Fleur::Vec2 size, uint32_t texture, bool depthTest)
 {
     pImpl->m_DebugDraw->AddBillboard(center, size, texture);
 }
-
 void vk::backend::DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, color);
 }
-
 void vk::backend::DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddQuad(a, b, c, d, texture);
 }
-
 void vk::backend::DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, color);
 }
-
 void vk::backend::DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture)
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, texture);
 }
-
 void vk::backend::DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max)
 {
     pImpl->m_OverlayPass->AddShadowMapQuad(min, max);
 }
-
 void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCount)
 {
     pImpl->updatePointLight(light, lightCount);
@@ -185,10 +182,13 @@ void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCou
 // ---------- impl ----------
 // clang-format off
 vk::backend::impl::impl(bool enableValidation, 
-                        void* pNativeHandle, Fleur::SRect& framebufferSize,
-                        Fleur::Graphics::SFLImageView& fallback)
-// clang-format on
+                         void* pNativeHandle, Fleur::SRect& framebufferSize,
+                         Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights)
+    // clang-format on
+    : m_PointLightShadowMaps(std::min(maxPointLights, POINT_LIGHTS_CAPACITY))
 {
+    assert(maxPointLights > 0);
+    m_MaxPointLights = std::min(maxPointLights, POINT_LIGHTS_CAPACITY);
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
 #if defined(FLEUR_PLATFORM_WIN)
@@ -320,7 +320,7 @@ vk::backend::impl::impl(bool enableValidation,
                               .add(0, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
                               .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
     m_PointLightsBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
-                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, POINT_LIGHTS_MAX_CUP * sizeof(SFLPointLight),
+                              VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_MaxPointLights * sizeof(SFLPointLight),
                               sizeof(SFLPointLight));
 
     createTextureDescriptorSetPass();
@@ -340,14 +340,20 @@ vk::backend::impl::impl(bool enableValidation,
     }
 
     m_OverlayPass = std::make_unique<FVkOverlayPass>();
-    m_OverlayPass->Create(m_Device.get(), m_Swapchain.get(), m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet, kDebugShadowMapTextureSlot,
-                          m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
+    m_OverlayPass->Create(m_Device.get(), m_Swapchain.get(), m_TextureDescriptorSetLayout->GetDescriptorSetLayout(), m_TextureDescriptorSet,
+                          kDebugShadowMapTextureSlot, m_MultisampledRenderTarget->GetSamplesCount(),
+                          FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
 
     m_DebugDraw = std::make_unique<FVkDebugDraw>();
 
     // Create the random offset texture and the descriptor set that owns it.
     m_ShadowMapOffsetTexture.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_ImmediateCommandPool->GetCommandPool(),
                                     m_Device->GetGraphicsQueue(), 3);
+
+    const uint32_t pointShadowMapResolution = std::max(swapchainExtent.width, swapchainExtent.height);
+    m_PointLightShadowMaps.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), pointShadowMapResolution,
+                                  FindDepthFormat(m_Device->GetPhysicalDevice()));
+    createPointLightShadowMapsDescriptorSet();
 }
 
 vk::backend::impl::~impl()
@@ -355,6 +361,7 @@ vk::backend::impl::~impl()
     vkDeviceWaitIdle(m_Device->GetLogicalDevice());
 
     m_ShadowMapOffsetTexture.Destroy();
+    m_PointLightShadowMaps.Destroy();
 
     uint32_t framebuffersCount = m_FramesInFlight;
 
@@ -379,7 +386,7 @@ vk::backend::impl::~impl()
     m_CameraUboLayout.reset();
     m_SceneNodeTransformsLayout.reset();
     m_PointLightsLayout.reset();
-    m_ShadowMapLayout.reset();
+    m_PointLightShadowMapsLayout.reset();
 
     // 5. Swapchain & Framebuffers & swapchain image views
 
@@ -683,14 +690,14 @@ void vk::backend::impl::createTextureDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[0].descriptorCount = MAX_TEXTURES + 1;
+    poolSizes[0].descriptorCount = MAX_TEXTURES + POINT_LIGHTS_CAPACITY + 1;
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-                                        .maxSets = 3,
+                                        .maxSets = 4,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -731,17 +738,17 @@ void vk::backend::impl::createTextureDescriptorSets()
     VkDescriptorSetAllocateInfo pointLightsDescriptorSetAllocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &pointLightsDsl};
 
-    VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &pointLightsDescriptorSetAllocInfo, &m_PointLightDescriptorSet));
+    VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &pointLightsDescriptorSetAllocInfo, &m_PointLightsDescriptorSet));
 
     VkDescriptorBufferInfo pointLightBufferInfo{};
     pointLightBufferInfo.buffer = m_PointLightsBuffer->GetBuffer();
     pointLightBufferInfo.offset = 0;
-    pointLightBufferInfo.range = POINT_LIGHTS_MAX_CUP * sizeof(Fleur::Graphics::SFLPointLight);
+    pointLightBufferInfo.range = m_MaxPointLights * sizeof(Fleur::Graphics::SFLPointLight);
 
     VkWriteDescriptorSet pointLightDescriptorWrites{};
     pointLightDescriptorWrites.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     pointLightDescriptorWrites.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    pointLightDescriptorWrites.dstSet = m_PointLightDescriptorSet;
+    pointLightDescriptorWrites.dstSet = m_PointLightsDescriptorSet;
     pointLightDescriptorWrites.dstBinding = 0;
     pointLightDescriptorWrites.dstArrayElement = 0;
     pointLightDescriptorWrites.descriptorCount = 1;
@@ -895,8 +902,7 @@ void vk::backend::impl::createRenderFinishedSemaphores()
     semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 
     m_RenderFinished.assign(m_Swapchain->GetSwapchainImageCount(), VK_NULL_HANDLE);
-    for (VkSemaphore& semaphore : m_RenderFinished)
-        VK_CHECK(vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &semaphore));
+    for (VkSemaphore& semaphore : m_RenderFinished) VK_CHECK(vkCreateSemaphore(m_Device->GetLogicalDevice(), &semaphoreInfo, nullptr, &semaphore));
 }
 
 void vk::backend::impl::destroyRenderFinishedSemaphores()
@@ -972,7 +978,6 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
         frameCmd.Submit(m_Device->GetGraphicsQueue());
     }
     m_FallbackCubemapTexture->CreateImageView();
-
 }
 
 void vk::backend::impl::updateTextureDescriptorSet(VkDescriptorSet& set, uint32_t idx, VkImageView imageView, VkSampler& sampler)
@@ -1134,9 +1139,13 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
     {
         // TODO if pipeline already exists, need to release it
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
-            m_CameraUboLayout->GetDescriptorSetLayout(),           m_TextureDescriptorSetLayout->GetDescriptorSetLayout(),
-            m_SceneNodeTransformsLayout->GetDescriptorSetLayout(), m_PointLightsLayout->GetDescriptorSetLayout(),
-            m_ShadowMapLayout->GetDescriptorSetLayout(),            m_ShadowMapOffsetTexture.GetDescriptorSetLayout(),
+            m_CameraUboLayout->GetDescriptorSetLayout(),
+            m_TextureDescriptorSetLayout->GetDescriptorSetLayout(),
+            m_SceneNodeTransformsLayout->GetDescriptorSetLayout(),
+            m_PointLightsLayout->GetDescriptorSetLayout(),
+            m_ShadowMapLayout->GetDescriptorSetLayout(),
+            m_ShadowMapOffsetTexture.GetDescriptorSetLayout(),
+            m_PointLightShadowMapsLayout->GetDescriptorSetLayout(),
         };
         m_GeometryPipeline =
             createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
@@ -1150,15 +1159,36 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
         };
         m_ShadowPipeline = createShadowPipeline(shaderStages.vertex, shaderStages.fragment, VK_SAMPLE_COUNT_1_BIT, descriptorSetLayouts);
     }
+    else if (kind == EFLPassKind::PointLightShadow)
+    {
+        vk::ShaderCreateInfo shaderCreateInfo{
+            .pVertexData = shaderStages.vertex.shaderCode,
+            .vertexSize = shaderStages.vertex.sizeBytes,
+            .pGeometryData = shaderStages.geometry.shaderCode,
+            .geometrySize = shaderStages.geometry.sizeBytes,
+            .pFragmentData = shaderStages.fragment.shaderCode,
+            .fragmentSize = shaderStages.fragment.sizeBytes,
+        };
+
+        auto& pointLightShadowShader = m_ShaderMap.emplace("PointLightShadow", vk::FVkShader()).first->second;
+        if (!pointLightShadowShader.isInitialized())
+            pointLightShadowShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
+
+        m_PointLightShadowMaps.CreatePipeline(pointLightShadowShader, m_SceneNodeTransformsLayout->GetDescriptorSetLayout());
+    }
 }
 
 void vk::backend::impl::updatePointLight(const SFLPointLight* light, uint32_t lightCount)
 {
     m_PointLights.clear();
-    m_PointLights.reserve(lightCount);
-    m_PointLights.insert(m_PointLights.begin(), lightCount, *light);
+    if (lightCount == 0)
+        return;
 
-    assert(m_PointLights.size() <= POINT_LIGHTS_MAX_CUP);
+    assert(light != nullptr);
+    m_PointLights.reserve(lightCount);
+    m_PointLights.assign(light, light + lightCount);
+
+    assert(m_PointLights.size() <= m_MaxPointLights);
 
     m_PointLightsBuffer->UploadDataToBuffer(light, lightCount);
 }
@@ -1292,8 +1322,8 @@ void vk::backend::impl::ExecuteMainPass()
 {
     auto& cmd = GetCurrentFrame().m_CommandBuffers;
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(), m_SwapchainImageLayouts[m_ImageIndex],
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
+                          m_SwapchainImageLayouts[m_ImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
     VkRect2D renderArea{
@@ -1373,8 +1403,39 @@ void vk::backend::impl::createTextureDescriptorSetPass()
                                        .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, MAX_TEXTURES)
                                        .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT);
 
+    m_PointLightShadowMapsLayout = FVkDescriptorSetLayout::Builder(m_Device->GetLogicalDevice())
+                                       .add(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, POINT_LIGHTS_CAPACITY)
+                                       .build(0);
+
     createTextureDescriptorPool();
     createTextureDescriptorSets();
+}
+
+void vk::backend::impl::createPointLightShadowMapsDescriptorSet()
+{
+    const VkDescriptorSetLayout layout = m_PointLightShadowMapsLayout->GetDescriptorSetLayout();
+
+    VkDescriptorSetAllocateInfo allocateInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+    allocateInfo.descriptorPool = m_DescriptorPool;
+    allocateInfo.descriptorSetCount = 1;
+    allocateInfo.pSetLayouts = &layout;
+    VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &allocateInfo, &m_PointLightShadowMapsDescriptorSet));
+
+    std::array<VkDescriptorImageInfo, POINT_LIGHTS_CAPACITY> imageInfos{};
+    for (uint32_t index = 0; index < POINT_LIGHTS_CAPACITY; ++index)
+    {
+        imageInfos[index].sampler = m_ShadowMapSampler;
+        imageInfos[index].imageView = m_PointLightShadowMaps.GetCubeImageView(index);
+        imageInfos[index].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+    VkWriteDescriptorSet write{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstSet = m_PointLightShadowMapsDescriptorSet;
+    write.dstBinding = 0;
+    write.descriptorCount = POINT_LIGHTS_CAPACITY;
+    write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    write.pImageInfo = imageInfos.data();
+    vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &write, 0, nullptr);
 }
 
 
@@ -1389,7 +1450,7 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
         vkQueueWaitIdle(m_Device->GetPresentQueue());
         destroyRenderFinishedSemaphores();
         m_Swapchain->Recreate(m_Surface, m_Device->GetPresentQueueFamilyIndex(), m_MultisampledRenderTarget->GetTexture()->GetImageView(),
-                               m_DepthRenderTarget.GetImageView());
+                              m_DepthRenderTarget.GetImageView());
         m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
         createRenderFinishedSemaphores();
     }
@@ -1466,7 +1527,7 @@ void vk::backend::impl::endFrame()
     Frame& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
 
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Directional Light Shadow Pass");
     ExecuteShadowPass();
     cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
 
@@ -1489,8 +1550,7 @@ void vk::backend::impl::endFrame()
     Fleur::Vec3 shadowEnd = lightPos + lightDirection * shadowFar;
     Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, shadowEnd, up);
 
-    // Fleur::Mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-    Fleur::Mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    Fleur::Mat4 lightProjection = Fleur::Math::ortho(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
     lightProjection[1][1] *= -1;
 
     Fleur::Mat4 lightSpaceMatrix = lightProjection * lightView;
@@ -1516,13 +1576,63 @@ void vk::backend::impl::endFrame()
     cmd.EndRendering();
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
-    std::array<VkDescriptorSet, 6> dst{frame.scene.m_CameraDescriptor, m_TextureDescriptorSet, frame.scene.m_SceneNodeTransformsDescriptor,
-                                       m_PointLightDescriptorSet, frame.scene.m_ShadowMapDescriptorSet, m_ShadowMapOffsetTexture.GetDescriptorSet()};
+    // Point Light
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Point Light Shadow Pass");
+    std::array<Fleur::Mat4, kPointLightShadowFaceCount> faceViewProjections{};
+    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceDirections{
+        Fleur::Vec3(+1, 0, 0), Fleur::Vec3(-1, 0, 0), Fleur::Vec3(0, +1, 0),
+        Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1), Fleur::Vec3(0, 0, -1)};
+    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceUps{
+        Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1),
+        Fleur::Vec3(0, 0, -1), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0)};
+
+    m_PointLightShadowMaps.PrepareForSampling(cmd);
+
+    for (size_t i = 0; i < m_PointLights.size(); i++)
+    {
+        const float shadowFar = m_PointLights[i].radius;
+        Fleur::Mat4 shadowProj = Fleur::Math::perspective(Fleur::Math::radians(90.0f), 1.0f, kPointLightShadowNear, shadowFar);
+        shadowProj[1][1] *= -1;
+
+        for (size_t j = 0; j < kPointLightShadowFaceCount; j++)
+        {
+            faceViewProjections[j] = shadowProj * Fleur::Math::lookAt(Fleur::Vec3(m_PointLights[i].pos),
+                                                                       m_PointLights[i].pos + faceDirections[j], faceUps[j]);
+        }
+        m_PointLightShadowMaps.UpdateMatrices(static_cast<uint32_t>(i), faceViewProjections);
+        m_PointLightShadowMaps.Begin(cmd, i);
+
+        cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+        cmd.BindDescriptorSets(m_PointLightShadowMaps.GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
+
+        for (const auto& drawItem : m_OpaqueDrawItems)
+        {
+            const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+            const PointLightShadowMap::PushConstant pc = m_PointLightShadowMaps.MakePushConstant(
+                drawItem.modelTransformIdx,
+                drawItem.nodeTransformsStartIdx);
+
+            cmd.PushConstant(m_PointLightShadowMaps.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
+            cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+        }
+
+        m_PointLightShadowMaps.End(cmd);
+    }
+
+    std::array<VkDescriptorSet, 7> dst{frame.scene.m_CameraDescriptor,
+                                       m_TextureDescriptorSet,
+                                       frame.scene.m_SceneNodeTransformsDescriptor,
+                                       m_PointLightsDescriptorSet,
+                                       frame.scene.m_ShadowMapDescriptorSet,
+                                       m_ShadowMapOffsetTexture.GetDescriptorSet(),
+                                       m_PointLightShadowMapsDescriptorSet};
 
     auto& shadowMap = GetCurrentFrame().m_ShadowMap;
     transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
     ExecuteMainPass();
@@ -1578,7 +1688,7 @@ void vk::backend::impl::endFrame()
     m_DebugDraw->Clear();
     cmd.EndRendering();
     transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
-                           VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
     m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
     cmd.End();
 

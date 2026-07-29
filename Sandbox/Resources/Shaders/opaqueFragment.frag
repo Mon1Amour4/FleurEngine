@@ -2,18 +2,6 @@
 
 #extension GL_EXT_nonuniform_qualifier : enable
 
-#define POINT_LIGHTS_MAX_CUP 32
-
-layout(location = 0) in vec2 fragTexCoord;
-layout(location = 1) in vec3 worldSpaceNormal;
-layout(location = 2) in vec3 worldSpaceVertex;
-layout(location = 3) in vec3 cameraForward;
-layout(location = 4) in vec4 FragPosLightSpace;
-
-layout(location = 0) out vec4 outColor;
-
-layout(set = 1, binding = 0) uniform sampler2D texSampler[];
-
 struct PointLight
 {
   vec3 pos;
@@ -22,14 +10,6 @@ struct PointLight
   vec3 color;
   float intensity;
 };
-
-layout(std430, set = 3, binding = 0) readonly buffer PointLightBuff
-{
-    PointLight lights[POINT_LIGHTS_MAX_CUP];
-} pointLights;
-
-layout(set = 4, binding = 0) uniform sampler2D shadowMapSampler;
-layout(set = 5, binding = 0) uniform sampler3D shadowMapOffsetTexture;
 
 layout(push_constant) uniform PushConsts
 {
@@ -55,6 +35,44 @@ layout(push_constant) uniform PushConsts
     vec4 cameraPos;
 } pc;
 
+layout(location = 0) in vec2 fragTexCoord;
+layout(location = 1) in vec3 worldSpaceNormal;
+layout(location = 2) in vec3 worldSpaceVertex;
+layout(location = 3) in vec3 cameraForward;
+layout(location = 4) in vec4 FragPosLightSpace;
+
+layout(location = 0) out vec4 outColor;
+
+layout(set = 1, binding = 0) uniform sampler2D texSampler[];
+layout(set = 4, binding = 0) uniform sampler2D shadowMapSampler;
+layout(set = 5, binding = 0) uniform sampler3D shadowMapOffsetTexture;
+layout(std430, set = 3, binding = 0) readonly buffer PointLightBuff
+{
+    PointLight lights[12];
+} pointLights;
+
+layout(set = 6, binding = 0) uniform samplerCube pointLightShadowMaps[12];
+
+const float pointLightShadowNear = 0.1;
+const float pointLightShadowBias = 0.05;
+
+float PointLightShadowCalculation(int lightIndex, vec3 fragPos)
+{
+    float shadowFar = pointLights.lights[lightIndex].radius;
+
+    vec3 fragToLight = fragPos - pointLights.lights[lightIndex].pos;
+    // Perspective depth stores distance along the selected cubemap face axis,
+    // not the radial distance to the point light.
+    float currentDistance = max(abs(fragToLight.x),
+                                max(abs(fragToLight.y), abs(fragToLight.z)));
+
+    float shadowMapDepth = texture(pointLightShadowMaps[nonuniformEXT(lightIndex)], normalize(fragToLight)).r;
+    float closestDistance = (pointLightShadowNear * shadowFar) /
+                            (shadowFar - shadowMapDepth * (shadowFar - pointLightShadowNear));
+
+    return float(currentDistance - pointLightShadowBias > closestDistance);
+}
+
 float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
 {
     // perform perspective divide
@@ -77,20 +95,23 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
 
     float bias = max(0.0005, 0.005 * (1.0 - NdotL));
 
+    const int filterSize = 3;
+    const int sampleCount = filterSize * filterSize;
+    ivec3 offsetTextureSize = textureSize(shadowMapOffsetTexture, 0);
+    vec2 offsetTextureCoord = (floor(gl_FragCoord.xy) + 0.5) / vec2(offsetTextureSize.xy);
     vec2 texelSize = 1.0 / vec2(textureSize(shadowMapSampler, 0));
-    float shadow = 0.0;
-    for (int x = -1; x <= 1; x++)
-    {
-        for (int y = -1; y <= 1; y++)
-        {
-            vec2 offset = vec2(x, y) * texelSize;
-            float depth = texture(shadowMapSampler, projCoords.xy + offset).x;
 
-            shadow += float(depth + bias < currentDepth);
-        }
+    float shadow = 0.0;
+    for (int sampleIndex = 0; sampleIndex < sampleCount; sampleIndex++)
+    {
+        float z = (float(sampleIndex) + 0.5) / float(sampleCount);
+        vec2 offset = texture(shadowMapOffsetTexture, vec3(offsetTextureCoord, z)).rg;
+        float depth = texture(shadowMapSampler, projCoords.xy + offset * texelSize).x;
+
+        shadow += float(depth + bias < currentDepth);
     }
 
-    shadow /= 9.0;
+    shadow /= float(sampleCount);
 
 //    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
 //    float closestDepth = texture(shadowMapSampler, projCoords.xy).r; 
@@ -104,12 +125,13 @@ float ShadowCalculation(vec4 fragPosLightSpace, float NdotL)
     return shadow;
 }
 
+
 void main() 
 {
     vec3 V = normalize(cameraForward);
     // Directional light is stored as the ray direction, so shading needs the opposite vector.
     vec3 L = normalize(-pc.directionalLightDirectionIntensity.xyz);
-    float I = pc.directionalLightDirectionIntensity.w;
+    float DirectionalIntensity = pc.directionalLightDirectionIntensity.w;
     float shininess = 200;
 
     vec4 albedo = texture(texSampler[pc.indices.z], fragTexCoord) * pc.baseColorFactor;
@@ -130,29 +152,47 @@ void main()
     NdotL = max(0.0, NdotL);
 
     vec4 ambient  = albedo * 0.05;
-    vec4 diffuse  = albedo * NdotL * vec4(pc.directionalLightColor.xyz, 1.0);
-    vec4 specular = vec4(1.0) * pow(NdotH, shininess);
+    vec4 DirectionalDiffuse  = albedo * NdotL * vec4(pc.directionalLightColor.xyz, 1.0);
+    vec4 DirectionalSpecular = vec4(1.0) * pow(NdotH, shininess);
 
-    vec4 pointLightColor = vec4(0,0,0,1);
+    vec3 PointLightsColor = vec3(0.0);
     for (int i = 0; i < pc.indices.w; i++)
     {
-        //vec3 lightDir = worldSpaceNormal - (pointLights.lights[i].pos);
-        vec3 lightDir = pointLights.lights[i].pos - worldSpaceVertex;
-        float lightLength = length(lightDir);
+        vec3 lightVector = pointLights.lights[i].pos - worldSpaceVertex;
+        float lightDistance = length(lightVector);
 
-        if (lightLength < pointLights.lights[i].radius)
+        if (lightDistance <= pointLights.lights[i].radius)
         {
-            float lightDotN = max(0, dot(worldSpaceNormal, normalize(lightDir)));
-            pointLightColor = pointLightColor +  vec4(pointLights.lights[i].color,1) * pointLights.lights[i].intensity * lightDotN;
+            vec3 pointLightDirection = normalize(lightVector);
+            float pointLightNdotL = max(0.0, dot(worldSpaceNormal, pointLightDirection));
+            float attenuation = 1.0 - lightDistance / pointLights.lights[i].radius;
+
+            vec3 pointDiffuse = albedo.rgb * pointLightNdotL;
+
+            float pointLightNdotH = 0.0;
+            if (pointLightNdotL > 0.0)
+            {
+                vec3 pointH = normalize(pointLightDirection + V);
+                pointLightNdotH = max(0.0, dot(worldSpaceNormal, pointH));
+            }
+
+            vec3 pointSpecular = vec3(pow(pointLightNdotH, shininess));
+            float pointLightVisibility = 1.0 - PointLightShadowCalculation(i, worldSpaceVertex);
+
+            PointLightsColor += (pointDiffuse + pointSpecular) *
+                                pointLights.lights[i].color *
+                                pointLights.lights[i].intensity *
+                                attenuation * pointLightVisibility;
         }
     }
-    float shadow = ShadowCalculation(FragPosLightSpace, NdotL);  
+    float DirectionalVisibility = 1 - ShadowCalculation(FragPosLightSpace, NdotL);
     // TODO: split lighting terms explicitly. Right now only the directional diffuse/specular
     // term is shadowed; decide whether point lights should stay unshadowed or get their own shadows.
-    outColor = ambient + pointLightColor + ((diffuse + specular) * I) * (1.0 - shadow);
+    vec4 DirectionalLightColor = (DirectionalDiffuse + DirectionalSpecular) * DirectionalIntensity * DirectionalVisibility;
+
+
+    outColor = ambient + DirectionalLightColor + vec4(PointLightsColor, 0.0);
     outColor.a = albedo.a;
-    //outColor = ambient + pointLightColor + ((diffuse + specular) * I);
-    //outColor = ambient + pointLightColor + (diffuse) * I;
 }
 
 
