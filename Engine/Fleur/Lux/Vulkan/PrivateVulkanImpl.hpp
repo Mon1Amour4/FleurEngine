@@ -535,9 +535,14 @@ struct backend::impl
         uint32_t viewMask = 0;
     };
     void BeginRendering(VkCommandBuffer cmd, const FBeginRenderingDesc& desc);
+    void BeginShadowRendering();
     void ExecuteShadowPass();
-
+    void ExecuteDirectionalShadowSubpass();
+    void ExecutePointLightShadowSubpass();
     void ExecuteMainPass();
+    void SubmitFrame();
+
+    Fleur::Mat4 m_LightSpaceMatrix{};
 
 
     // ---------- textures ----------

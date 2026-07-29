@@ -16,7 +16,7 @@ namespace
 constexpr uint32_t kDebugShadowMapTextureSlot = MAX_TEXTURES - 1;
 constexpr uint32_t kPointLightShadowFaceCount = 6;
 constexpr float kPointLightShadowNear = 0.1f;
-}
+}  // namespace
 
 
 // ---------- backend ----------
@@ -127,10 +127,8 @@ void vk::backend::ConfigureOverlay(SFLShaderStages shaderStages)
 {
     const auto vertex = pImpl->shaderInfo(shaderStages.vertex);
     const auto fragment = pImpl->shaderInfo(shaderStages.fragment);
-    vk::ShaderCreateInfo overlayShaderCreateInfo{.pVertexData = vertex.shaderCode,
-                                                 .vertexSize = vertex.sizeBytes,
-                                                 .pFragmentData = fragment.shaderCode,
-                                                 .fragmentSize = fragment.sizeBytes};
+    vk::ShaderCreateInfo overlayShaderCreateInfo{
+        .pVertexData = vertex.shaderCode, .vertexSize = vertex.sizeBytes, .pFragmentData = fragment.shaderCode, .fragmentSize = fragment.sizeBytes};
 
     auto& overlayShader = pImpl->m_ShaderMap.emplace("Overlay", vk::FVkShader()).first->second;
     if (!overlayShader.isInitialized())
@@ -622,7 +620,7 @@ FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fl
 }
 
 FVkPipeline* vk::backend::impl::createOpaquePipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                                       VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+                                                     VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = false;
@@ -1105,10 +1103,8 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderStages shaderStages)
 
     const auto vertex = shaderInfo(shaderStages.vertex);
     const auto fragment = shaderInfo(shaderStages.fragment);
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = vertex.shaderCode,
-                                          .vertexSize = vertex.sizeBytes,
-                                          .pFragmentData = fragment.shaderCode,
-                                          .fragmentSize = fragment.sizeBytes};
+    vk::ShaderCreateInfo shaderCreateInfo{
+        .pVertexData = vertex.shaderCode, .vertexSize = vertex.sizeBytes, .pFragmentData = fragment.shaderCode, .fragmentSize = fragment.sizeBytes};
 
     auto& skyboxShader = m_ShaderMap.emplace("skybox", vk::FVkShader()).first->second;
     skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
@@ -1131,10 +1127,8 @@ void vk::backend::impl::createFloor(AssetID texture, SFLShaderStages shaderStage
 
     const auto vertex = shaderInfo(shaderStages.vertex);
     const auto fragment = shaderInfo(shaderStages.fragment);
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = vertex.shaderCode,
-                                          .vertexSize = vertex.sizeBytes,
-                                          .pFragmentData = fragment.shaderCode,
-                                          .fragmentSize = fragment.sizeBytes};
+    vk::ShaderCreateInfo shaderCreateInfo{
+        .pVertexData = vertex.shaderCode, .vertexSize = vertex.sizeBytes, .pFragmentData = fragment.shaderCode, .fragmentSize = fragment.sizeBytes};
     auto& floorShader = m_ShaderMap.emplace("floor", vk::FVkShader()).first->second;
     floorShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
@@ -1290,7 +1284,7 @@ void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, const FBeginRenderin
     vkCmdBeginRendering(cmd, &renderingInfo);
 }
 
-void vk::backend::impl::ExecuteShadowPass()
+void vk::backend::impl::BeginShadowRendering()
 {
     auto& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
@@ -1345,6 +1339,119 @@ void vk::backend::impl::ExecuteShadowPass()
     cmd.SetScissors(defaultScissors);
 }
 
+void vk::backend::impl::ExecuteDirectionalShadowSubpass()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+
+    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
+
+    const auto& shadowFrustum = m_ShadowMapFrustumSettings;
+    Fleur::Vec3 lightPos = Fleur::Vec3(m_FrameData.directionalLight.pos);
+    float halfSize = shadowFrustum.halfSize;
+    const float lightDistance = Fleur::Math::length(lightPos);
+    const float shadowNear = lightDistance * shadowFrustum.nearDistanceFactor;
+    const float shadowFar = lightDistance + shadowFrustum.farExtension;
+
+    Fleur::Vec3 up(0.0f, 1.0f, 0.0f);
+    Fleur::Vec3 lightDirection = Fleur::Math::normalize(Fleur::Vec3(m_FrameData.directionalLight.dirIntens));
+
+    if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
+        up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
+
+    Fleur::Vec3 shadowEnd = lightPos + lightDirection * shadowFar;
+    Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, shadowEnd, up);
+    Fleur::Mat4 lightProjection = Fleur::Math::ortho(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
+    lightProjection[1][1] *= -1;
+    m_LightSpaceMatrix = lightProjection * lightView;
+
+    if (shadowFrustum.drawDebugFrustum)
+        m_DebugDraw->Frustum(Fleur::Math::inverse(m_LightSpaceMatrix), Fleur::Vec3(0.0f, 1.0f, 1.0f));
+
+    for (const auto& drawItem : m_OpaqueDrawItems)
+    {
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        struct ShadowPushConstant
+        {
+            Fleur::Mat4 lightSpaceMatrix;
+            uint32_t modelIdx;
+            uint32_t nodeIdx;
+        } pc;
+        pc.lightSpaceMatrix = m_LightSpaceMatrix;
+        pc.modelIdx = drawItem.modelTransformIdx;
+        pc.nodeIdx = drawItem.nodeTransformsStartIdx;
+        cmd.PushConstant(m_ShadowPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+
+    cmd.EndRendering();
+}
+
+void vk::backend::impl::ExecutePointLightShadowSubpass()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+
+    std::array<Fleur::Mat4, kPointLightShadowFaceCount> faceViewProjections{};
+    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceDirections{Fleur::Vec3(+1, 0, 0), Fleur::Vec3(-1, 0, 0), Fleur::Vec3(0, +1, 0),
+                                                                             Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1), Fleur::Vec3(0, 0, -1)};
+    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceUps{Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1),
+                                                                      Fleur::Vec3(0, 0, -1), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0)};
+
+    m_PointLightShadowMaps.PrepareForSampling(cmd);
+
+    for (size_t i = 0; i < m_PointLights.size(); i++)
+    {
+        const float shadowFar = m_PointLights[i].radius;
+        Fleur::Mat4 shadowProj = Fleur::Math::perspective(Fleur::Math::radians(90.0f), 1.0f, kPointLightShadowNear, shadowFar);
+        shadowProj[1][1] *= -1;
+
+        for (size_t j = 0; j < kPointLightShadowFaceCount; j++)
+        {
+            faceViewProjections[j] = shadowProj * Fleur::Math::lookAt(Fleur::Vec3(m_PointLights[i].pos), m_PointLights[i].pos + faceDirections[j], faceUps[j]);
+        }
+        m_PointLightShadowMaps.UpdateMatrices(static_cast<uint32_t>(i), faceViewProjections);
+        m_PointLightShadowMaps.Begin(cmd, i);
+
+        cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+        cmd.BindDescriptorSets(m_PointLightShadowMaps.GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
+
+        for (const auto& drawItem : m_OpaqueDrawItems)
+        {
+            const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+            const PointLightShadowMap::PushConstant pc = m_PointLightShadowMaps.MakePushConstant(drawItem.modelTransformIdx, drawItem.nodeTransformsStartIdx);
+            cmd.PushConstant(m_PointLightShadowMaps.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
+            cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+        }
+
+        m_PointLightShadowMaps.End(cmd);
+    }
+}
+
+void vk::backend::impl::ExecuteShadowPass()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+    auto& shadowMap = frame.m_ShadowMap;
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Directional Shadow Subpass");
+    BeginShadowRendering();
+    ExecuteDirectionalShadowSubpass();
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Point Light Shadow Subpass");
+    ExecutePointLightShadowSubpass();
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
+                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
+    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+}
 
 void vk::backend::impl::ExecuteMainPass()
 {
@@ -1423,6 +1530,102 @@ void vk::backend::impl::ExecuteMainPass()
         .extent = m_Swapchain->GetSwapchainExtent(),
     };
     cmd.SetScissors(defaultScissors);
+
+    auto& frame = GetCurrentFrame();
+    const auto& shadowMap = frame.m_ShadowMap;
+    std::array<VkDescriptorSet, 7> descriptorSets{frame.scene.m_CameraDescriptor,
+                                                  m_TextureDescriptorSet,
+                                                  frame.scene.m_SceneNodeTransformsDescriptor,
+                                                  m_PointLightsDescriptorSet,
+                                                  frame.scene.m_ShadowMapDescriptorSet,
+                                                  m_ShadowMapOffsetTexture.GetDescriptorSet(),
+                                                  m_PointLightShadowMapsDescriptorSet};
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Opaque Pass");
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, shadowMap.GetImageView(), m_ShadowMapSampler);
+    cmd.BindDescriptorSets(m_OpaquePipeline->GetPipelineLayout(), descriptorSets.data(), descriptorSets.size());
+
+    for (const auto& drawItem : m_OpaqueDrawItems)
+    {
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        SFLPushConstant pushConstant = MakePush(primitive);
+        pushConstant.lightSpaceMatrix = m_LightSpaceMatrix;
+        pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
+        pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
+        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
+        pushConstant.indices.y = drawItem.modelTransformIdx;
+        pushConstant.indices.w = m_PointLights.size();
+        pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
+        cmd.PushConstant(m_OpaquePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+
+    cmd.BindPipeline(m_TransparentPipeline->GetPipeline());
+    for (const auto& drawItem : m_TransparentDrawItems)
+    {
+        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        SFLPushConstant pushConstant = MakePush(primitive);
+        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
+        pushConstant.indices.y = drawItem.modelTransformIdx;
+        pushConstant.indices.w = m_PointLights.size();
+        cmd.PushConstant(m_TransparentPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    m_OpaqueDrawItems.clear();
+    m_TransparentDrawItems.clear();
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Overlay Pass");
+    m_OverlayPass->Record(cmd, m_CurrentFrame);
+    m_OverlayPass->Clear();
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Debug Pass");
+    m_DebugDraw->RecordWorld(cmd, m_FrameData.camera, m_CurrentFrame);
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+    m_DebugDraw->Clear();
+
+    cmd.EndRendering();
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    cmd.End();
+}
+
+void vk::backend::impl::SubmitFrame()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+
+    VkSemaphore waitSemaphores[] = {frame.m_ImagesAvailable};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = cmd.GetCommandBuffer();
+
+    VkSemaphore signalSemaphores[] = {m_RenderFinished[m_ImageIndex]};
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, frame.m_InFlightFences));
+
+    VkPresentInfoKHR presentInfo{};
+    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+    presentInfo.pResults = nullptr;
+
+    VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &m_ImageIndex;
+    vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
+
+    m_CurrentFrame = (m_CurrentFrame + 1) % m_FramesInFlight;
 }
 
 void vk::backend::impl::createTextureDescriptorSetPass()
@@ -1465,7 +1668,6 @@ void vk::backend::impl::createPointLightShadowMapsDescriptorSet()
     write.pImageInfo = imageInfos.data();
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &write, 0, nullptr);
 }
-
 
 bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
@@ -1552,207 +1754,9 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
 
 void vk::backend::impl::endFrame()
 {
-    Frame& frame = GetCurrentFrame();
-    auto& cmd = frame.m_CommandBuffers;
-
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Directional Shadow Subpass");
     ExecuteShadowPass();
-    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
-
-    const auto& shadowFrustum = m_ShadowMapFrustumSettings;
-    Fleur::Vec3 lightPos = Fleur::Vec3(m_FrameData.directionalLight.pos);
-
-    // Directional light has no real position.
-    // This is only a virtual camera position for shadow rendering.
-    float halfSize = shadowFrustum.halfSize;
-    const float lightDistance = Fleur::Math::length(lightPos);
-    const float shadowNear = lightDistance * shadowFrustum.nearDistanceFactor;
-    const float shadowFar = lightDistance + shadowFrustum.farExtension;
-
-    Fleur::Vec3 up(0.0f, 1.0f, 0.0f);
-    Fleur::Vec3 lightDirection = Fleur::Math::normalize(Fleur::Vec3(m_FrameData.directionalLight.dirIntens));
-
-    if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
-        up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
-
-    Fleur::Vec3 shadowEnd = lightPos + lightDirection * shadowFar;
-    Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, shadowEnd, up);
-
-    Fleur::Mat4 lightProjection = Fleur::Math::ortho(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-    lightProjection[1][1] *= -1;
-
-    Fleur::Mat4 lightSpaceMatrix = lightProjection * lightView;
-
-    if (shadowFrustum.drawDebugFrustum)
-        m_DebugDraw->Frustum(Fleur::Math::inverse(lightSpaceMatrix), Fleur::Vec3(0.0f, 1.0f, 1.0f));
-
-    for (const auto& drawItem : m_OpaqueDrawItems)
-    {
-        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-        struct ShadowPuchConstant
-        {
-            Fleur::Mat4 lightSpaceMatrix;
-            uint32_t modelIdx;
-            uint32_t nodeIdx;
-        } pc;
-        pc.lightSpaceMatrix = lightSpaceMatrix;
-        pc.modelIdx = drawItem.modelTransformIdx;
-        pc.nodeIdx = drawItem.nodeTransformsStartIdx;
-        cmd.PushConstant(m_ShadowPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
-        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
-    }
-    cmd.EndRendering();
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-
-    // Point Light
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Point Light Shadow Subpass");
-    std::array<Fleur::Mat4, kPointLightShadowFaceCount> faceViewProjections{};
-    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceDirections{
-        Fleur::Vec3(+1, 0, 0), Fleur::Vec3(-1, 0, 0), Fleur::Vec3(0, +1, 0),
-        Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1), Fleur::Vec3(0, 0, -1)};
-    const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceUps{
-        Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, 0, +1),
-        Fleur::Vec3(0, 0, -1), Fleur::Vec3(0, -1, 0), Fleur::Vec3(0, -1, 0)};
-
-    m_PointLightShadowMaps.PrepareForSampling(cmd);
-
-    for (size_t i = 0; i < m_PointLights.size(); i++)
-    {
-        const float shadowFar = m_PointLights[i].radius;
-        Fleur::Mat4 shadowProj = Fleur::Math::perspective(Fleur::Math::radians(90.0f), 1.0f, kPointLightShadowNear, shadowFar);
-        shadowProj[1][1] *= -1;
-
-        for (size_t j = 0; j < kPointLightShadowFaceCount; j++)
-        {
-            faceViewProjections[j] = shadowProj * Fleur::Math::lookAt(Fleur::Vec3(m_PointLights[i].pos),
-                                                                       m_PointLights[i].pos + faceDirections[j], faceUps[j]);
-        }
-        m_PointLightShadowMaps.UpdateMatrices(static_cast<uint32_t>(i), faceViewProjections);
-        m_PointLightShadowMaps.Begin(cmd, i);
-
-        cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-        cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
-        cmd.BindDescriptorSets(m_PointLightShadowMaps.GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
-
-        for (const auto& drawItem : m_OpaqueDrawItems)
-        {
-            const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-            const PointLightShadowMap::PushConstant pc = m_PointLightShadowMaps.MakePushConstant(
-                drawItem.modelTransformIdx,
-                drawItem.nodeTransformsStartIdx);
-
-            cmd.PushConstant(m_PointLightShadowMaps.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
-            cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
-        }
-
-        m_PointLightShadowMaps.End(cmd);
-    }
-
-    std::array<VkDescriptorSet, 7> dst{frame.scene.m_CameraDescriptor,
-                                       m_TextureDescriptorSet,
-                                       frame.scene.m_SceneNodeTransformsDescriptor,
-                                       m_PointLightsDescriptorSet,
-                                       frame.scene.m_ShadowMapDescriptorSet,
-                                       m_ShadowMapOffsetTexture.GetDescriptorSet(),
-                                       m_PointLightShadowMapsDescriptorSet};
-
-    auto& shadowMap = GetCurrentFrame().m_ShadowMap;
-    transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Opaque Pass");
     ExecuteMainPass();
-
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, shadowMap.GetImageView(), m_ShadowMapSampler);
-
-    cmd.BindDescriptorSets(m_OpaquePipeline->GetPipelineLayout(), dst.data(), dst.size());
-
-    for (const auto& drawItem : m_OpaqueDrawItems)
-    {
-        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-        SFLPushConstant pushConstant = MakePush(primitive);
-        pushConstant.lightSpaceMatrix = lightSpaceMatrix;
-        pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
-        pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
-        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
-        pushConstant.indices.y = drawItem.modelTransformIdx;
-        pushConstant.indices.w = m_PointLights.size();
-        pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
-        cmd.PushConstant(m_OpaquePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
-    }
-    //
-
-    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
-    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
-    cmd.BindPipeline(m_TransparentPipeline->GetPipeline());
-
-    for (const auto& drawItem : m_TransparentDrawItems)
-    {
-        const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-        SFLPushConstant pushConstant = MakePush(primitive);
-        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
-        pushConstant.indices.y = drawItem.modelTransformIdx;
-        pushConstant.indices.w = m_PointLights.size();
-        cmd.PushConstant(m_TransparentPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
-        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
-    }
-
-    m_OpaqueDrawItems.clear();
-    m_TransparentDrawItems.clear();
-
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Overlay Pass");
-    m_OverlayPass->Record(cmd, m_CurrentFrame);
-    m_OverlayPass->Clear();
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Debug Pass");
-    m_DebugDraw->RecordWorld(cmd, m_FrameData.camera, m_CurrentFrame);
-    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
-    m_DebugDraw->Clear();
-    cmd.EndRendering();
-    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
-                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
-    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    cmd.End();
-
-    VkSemaphore waitSemaphores[] = {frame.m_ImagesAvailable};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-
-    VkSubmitInfo submitInfo{};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
-    submitInfo.pWaitDstStageMask = waitStages;
-    submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = cmd.GetCommandBuffer();
-
-    VkSemaphore signalSemaphores[] = {m_RenderFinished[m_ImageIndex]};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
-    VK_CHECK(vkQueueSubmit(m_Device->GetGraphicsQueue(), 1, &submitInfo, frame.m_InFlightFences));
-
-    VkPresentInfoKHR presentInfo{};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-    presentInfo.pResults = nullptr;
-
-    VkSwapchainKHR swapChains[] = {m_Swapchain->GetSwapchain()};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapChains;
-    presentInfo.pImageIndices = &m_ImageIndex;
-
-    vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
-
-    m_CurrentFrame = (m_CurrentFrame + 1) % m_FramesInFlight;
+    SubmitFrame();
 }
 
 void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t verticesCount, const uint32_t* indices, uint32_t indexCount,
