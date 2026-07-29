@@ -20,11 +20,11 @@ public:
     template <typename T>
     bool Set(std::string_view name, const T& var)
     {
-        if constexpr (GetPureTypeAndCompare<Fleur::Math::vec3, T>())
+        if constexpr (GetPureTypeAndCompare<Fleur::Vec3, T>())
         {
             return SetVec3fImpl(name, var);
         }
-        else if constexpr (GetPureTypeAndCompare<Fleur::Math::mat4, T>())
+        else if constexpr (GetPureTypeAndCompare<Fleur::Mat4, T>())
         {
             return SetMat4fImpl(name, var);
         }
@@ -59,8 +59,8 @@ protected:
     {
     }
     std::string name;
-    [[nodiscard]] virtual bool SetVec3fImpl(std::string_view name, const Fleur::Math::vec3& vec) = 0;
-    [[nodiscard]] virtual bool SetMat4fImpl(std::string_view name, const Fleur::Math::mat4& matrix) = 0;
+    [[nodiscard]] virtual bool SetVec3fImpl(std::string_view name, const Fleur::Vec3& vec) = 0;
+    [[nodiscard]] virtual bool SetMat4fImpl(std::string_view name, const Fleur::Mat4& matrix) = 0;
     [[nodiscard]] virtual bool SetText2dImpl(std::string_view name, const Texture& texture) = 0;
 };
 }  // namespace Fleur::Graphics

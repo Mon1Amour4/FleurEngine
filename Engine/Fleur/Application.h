@@ -20,6 +20,7 @@ namespace Fleur::Graphics
 class Model;
 class Texture;
 class Skybox;
+class LightingSystem;
 }  // namespace Fleur::Graphics
 
 namespace Fleur
@@ -37,6 +38,7 @@ public:
         bool Vsync = false;
         WindowProps WindowProperties = WindowProps{};
         float FixedDt = 0.025f;
+        uint32_t maxPointLights = 128;
     };
 
     void Init(ApplicationBootSettings& settings);
@@ -83,6 +85,7 @@ private:
     uint32_t m_WindowBarBufferSize{128};
 
     std::unique_ptr<Scene> m_Scene;
+    std::unique_ptr<Fleur::Graphics::LightingSystem> m_LightingSystem;
 };
 
 }  // namespace Fleur

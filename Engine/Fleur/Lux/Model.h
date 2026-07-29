@@ -208,7 +208,7 @@ public:
         std::vector<Fleur::Graphics::FLMaterial> materials;
 
         std::vector<FLMeshInstance> meshInstance;
-        std::vector<Fleur::Math::mat4> worldTransforms;
+        std::vector<Fleur::Mat4> worldTransforms;
 
         std::vector<Fleur::Graphics::SVertexData> m_Vertices;
         std::vector<uint32_t> m_Indices;
@@ -220,7 +220,7 @@ public:
     };
     void PostCreate(SFLPostCreateInfo&& info);
 
-    const Fleur::Math::mat4* GetNodeTransforms() const
+    const Fleur::Mat4* GetNodeTransforms() const
     {
         return m_WorldTransforms.data();
     }
@@ -254,6 +254,6 @@ private:
     std::vector<FLMaterial> m_Materials;
 
     std::vector<FLMeshInstance> m_MeshInstance;
-    std::vector<Fleur::Math::mat4> m_WorldTransforms;
+    std::vector<Fleur::Mat4> m_WorldTransforms;
 };
 }  // namespace Fleur::Graphics

@@ -25,13 +25,13 @@ public:
 
     uint32_t ToRGBA8() const;
 
-    Fleur::Math::vec3 ToVec3() const
+    Fleur::Vec3 ToVec3() const
     {
-        return Fleur::Math::vec3(r, g, b);
+        return Fleur::Vec3(r, g, b);
     }
-    Fleur::Math::vec4 ToVec4() const
+    Fleur::Vec4 ToVec4() const
     {
-        return Fleur::Math::vec4(r, g, b, a);
+        return Fleur::Vec4(r, g, b, a);
     }
 
 #pragma region Predefined colors

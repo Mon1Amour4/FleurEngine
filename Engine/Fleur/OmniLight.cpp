@@ -2,6 +2,14 @@
 
 #include "Lux/Lux.h"
 
+Fleur::Graphics::OmniLight::OmniLight()
+    : m_Pos(0.0f)
+    , m_Radius(0.0f)
+    , m_Color(Fleur::Graphics::Color::Black())
+    , m_Intensity(0.0f)
+{
+}
+
 Fleur::Graphics::OmniLight::OmniLight(Fleur::Math::vec3 position, float radius, Fleur::Graphics::Color color, float intensity)
     : m_Pos(position)
     , m_Radius(radius)
@@ -9,6 +17,29 @@ Fleur::Graphics::OmniLight::OmniLight(Fleur::Math::vec3 position, float radius, 
     , m_Intensity(intensity)
 {
     assert(radius > 0);
+}
+
+void Fleur::Graphics::OmniLight::SetPosition(Fleur::Math::vec3 position)
+{
+    m_Pos = position;
+}
+
+void Fleur::Graphics::OmniLight::SetRadius(float radius)
+{
+    if (radius <= 0.0f)
+        return;
+
+    m_Radius = radius;
+}
+
+void Fleur::Graphics::OmniLight::SetColor(Fleur::Graphics::Color color)
+{
+    m_Color = color;
+}
+
+void Fleur::Graphics::OmniLight::SetIntensity(float intensity)
+{
+    m_Intensity = intensity;
 }
 
 void Fleur::Graphics::OmniLight::DebugDraw(Lux::Renderer* renderer, Fleur::Graphics::Color color) const

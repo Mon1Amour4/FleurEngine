@@ -51,6 +51,7 @@ set(ENGINE_HEADERS
     Fleur/AssetCache.h
     # Scene
     Fleur/Scene/Scene.h
+    Fleur/LightingSystem.h
 )
 
 set(ENGINE_SOURCES
@@ -76,6 +77,7 @@ set(ENGINE_SOURCES
     # Scene
     Fleur/Scene/Scene.cpp
     #Light
+    Fleur/LightingSystem.cpp
     Fleur/DirectionalLight.h
     Fleur/DirectionalLight.cpp
     Fleur/OmniLight.h

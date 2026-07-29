@@ -8,6 +8,7 @@
 #include "Shader.h"
 
 #include <array>
+#include <cmath>
 #include <utility>
 
 // All backends are compiled in; the active one is selected at runtime.
@@ -23,24 +24,6 @@ Renderer::Renderer()
 Renderer::~Renderer()
 {
     OnShutdown();
-}
-
-void Renderer::UpdatePointLight(const Fleur::Graphics::OmniLight* pLight, uint32_t lightCount)
-{
-    if (lightCount == 0)
-        return;
-
-    std::vector<SFLPointLight> lights;
-    lights.reserve(lightCount);
-    for (size_t i = 0; i < lightCount; i++)
-    {
-        auto& light = lights.emplace_back();
-        light.pos = pLight[i].GetPosition();
-        light.radius = pLight[i].GetRadius();
-        light.color = pLight[i].GetColor().ToVec3();
-        light.intensity = pLight[i].GetIntensity();
-    }
-    m_Backend->UpdatePointLight(lights.data(), lightCount);
 }
 
 void Renderer::OnInit()
@@ -72,9 +55,9 @@ void Renderer::initBackend()
     bool validation = true;
 
     if (m_Api == Fleur::Graphics::EGraphicsAPI::OpenGL)
-        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView);
+        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights);
     else
-        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView);
+        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights);
 
     m_Debug = new DebugDraw(m_Backend);
 
@@ -90,6 +73,12 @@ void Renderer::initBackend()
 
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Shadow, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowVertex").obj),
                                                                  shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowFragment").obj)});
+
+    m_Backend->CreatePass(
+        Fleur::Graphics::EFLPassKind::PointLightShadow,
+        {.vertex = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowVertex").obj),
+         .fragment = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowFragment").obj),
+         .geometry = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowGeometry").obj)});
 
     m_Backend->CreateSkybox(fallbackAsset.handle.id, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxVertex").obj),
                                                       shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxFragment").obj)});
@@ -131,21 +120,41 @@ void Renderer::RemoveTexture(AssetID texture)
 
 void Renderer::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 {
+    if (frameData.pointLightsDirty)
+        m_Backend->UpdatePointLight(frameData.pointLights.data(), static_cast<uint32_t>(frameData.pointLights.size()));
+
     m_Backend->BeginFrame(frameData);
 }
-void Renderer::Draw(AssetID model, const Fleur::Math::mat4& transform)
+void Renderer::Draw(AssetID model, const Fleur::Mat4& transform)
 {
     m_Backend->Draw(model, transform);
+}
+void Renderer::CreateFloor(Fleur::Graphics::AssetID texture, float height)
+{
+    if (!m_Backend)
+        return;
+
+    auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    m_Backend->CreateFloor(texture,
+                           {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("floorVertex").obj),
+                            shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("floorFragment").obj)},
+                           height);
+}
+
+void Renderer::SetFloor(Fleur::Graphics::AssetID texture, float height)
+{
+    if (m_Backend)
+        m_Backend->SetFloor(texture, height);
 }
 void Renderer::EndFrame()
 {
     if (m_ShowShadowMapPreview)
-        ShadowMapPreview(Fleur::Math::vec2(0.62f, 0.62f), Fleur::Math::vec2(0.96f, 0.96f));
+        ShadowMapPreview(Fleur::Vec2(0.62f, 0.62f), Fleur::Vec2(0.96f, 0.96f));
 
     m_Backend->EndFrame();
 }
 
-void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::Color color)
+void Renderer::OverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Graphics::Color color)
 {
     if (!m_Backend)
         return;
@@ -153,7 +162,7 @@ void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math
     m_Backend->DrawOverlayQuad(a, b, c, d, color.ToVec4());
 }
 
-void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Graphics::AssetID texture)
+void Renderer::OverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Graphics::AssetID texture)
 {
     if (!m_Backend)
         return;
@@ -161,7 +170,7 @@ void Renderer::OverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math
     m_Backend->DrawOverlayQuad(a, b, c, d, texture);
 }
 
-void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::Color color)
+void Renderer::OverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Graphics::Color color)
 {
     if (!m_Backend)
         return;
@@ -169,7 +178,7 @@ void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::
     m_Backend->DrawOverlayTriangle(a, b, c, color.ToVec4());
 }
 
-void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Graphics::AssetID texture)
+void Renderer::OverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Graphics::AssetID texture)
 {
     if (!m_Backend)
         return;
@@ -177,7 +186,7 @@ void Renderer::OverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::
     m_Backend->DrawOverlayTriangle(a, b, c, texture);
 }
 
-void Renderer::ShadowMapPreview(Fleur::Math::vec2 min, Fleur::Math::vec2 max)
+void Renderer::ShadowMapPreview(Fleur::Vec2 min, Fleur::Vec2 max)
 {
     if (!m_Backend)
         return;
@@ -204,7 +213,7 @@ void Renderer::SetSkybox(AssetID id)
 }
 
 // Debug
-void DebugDraw::Line(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Graphics::Color color, bool depthTest)
+void DebugDraw::Line(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Graphics::Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -212,7 +221,7 @@ void DebugDraw::Line(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Graphics::
     m_Backend->DrawLine(a, b, color.ToVec3(), depthTest);
 }
 
-void DebugDraw::Point(Fleur::Math::vec3 p, Color color, float size, bool depthTest)
+void DebugDraw::Point(Fleur::Vec3 p, Color color, float size, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -220,7 +229,7 @@ void DebugDraw::Point(Fleur::Math::vec3 p, Color color, float size, bool depthTe
     m_Backend->DrawPoint(p, color.ToVec3(), size, depthTest);
 }
 
-void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Graphics::Color color, bool depthTest)
+void DebugDraw::Quad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, Fleur::Graphics::Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -228,7 +237,7 @@ void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3
     m_Backend->DrawQuad(a, b, c, d, color.ToVec4(), depthTest);
 }
 
-void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, AssetID texture, bool depthTest)
+void DebugDraw::Quad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, AssetID texture, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -236,7 +245,7 @@ void DebugDraw::Quad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3
     m_Backend->DrawQuad(a, b, c, d, texture, depthTest);
 }
 
-void DebugDraw::Billboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, AssetID texture, bool depthTest)
+void DebugDraw::Billboard(Fleur::Vec3 center, Fleur::Vec2 size, AssetID texture, bool depthTest)
 {
     if (!m_Backend)
         return;
@@ -246,30 +255,57 @@ void DebugDraw::Billboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, Asse
 
 void DebugDraw::DrawAxes()
 {
-    Fleur::Math::vec3 origin{0, 0, 0};
+    Fleur::Vec3 origin{0, 0, 0};
     float length{1000};
 
-    const Fleur::Math::vec3 xAxis(length, 0.0f, 0.0f);
-    const Fleur::Math::vec3 yAxis(0.0f, length, 0.0f);
-    const Fleur::Math::vec3 zAxis(0.0f, 0.0f, length);
+    const Fleur::Vec3 xAxis(length, 0.0f, 0.0f);
+    const Fleur::Vec3 yAxis(0.0f, length, 0.0f);
+    const Fleur::Vec3 zAxis(0.0f, 0.0f, length);
 
     Line(origin - xAxis, origin + xAxis, Fleur::Graphics::Color::Red());
     Line(origin - yAxis, origin + yAxis, Fleur::Graphics::Color::Green());
     Line(origin - zAxis, origin + zAxis, Fleur::Graphics::Color::Blue());
 }
 
-void DebugDraw::Frustum(const Fleur::Math::mat4& invViewProj, Color color)
+void DebugDraw::Sphere(Fleur::Vec3 center, float radius, Color color, int segments)
 {
-    const std::array<Fleur::Math::vec4, 8> clipCorners = {
-        Fleur::Math::vec4(-1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 0.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 0.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 0.f, 1.f),
-        Fleur::Math::vec4(-1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, -1.f, 1.f, 1.f), Fleur::Math::vec4(1.f, 1.f, 1.f, 1.f), Fleur::Math::vec4(-1.f, 1.f, 1.f, 1.f),
+    if (!m_Backend || radius <= 0.0f || segments < 3)
+        return;
+
+    constexpr float twoPi = 6.28318530718f;
+    const Fleur::Vec3 xAxis(1.0f, 0.0f, 0.0f);
+    const Fleur::Vec3 yAxis(0.0f, 1.0f, 0.0f);
+    const Fleur::Vec3 zAxis(0.0f, 0.0f, 1.0f);
+
+    auto drawCircle = [&](Fleur::Vec3 axisA, Fleur::Vec3 axisB)
+    {
+        Fleur::Vec3 previous = center + axisA * radius;
+        for (int i = 1; i <= segments; ++i)
+        {
+            const float angle = twoPi * static_cast<float>(i) / static_cast<float>(segments);
+            const Fleur::Vec3 current = center + axisA * (std::cos(angle) * radius) + axisB * (std::sin(angle) * radius);
+            Line(previous, current, color);
+            previous = current;
+        }
     };
 
-    std::array<Fleur::Math::vec3, 8> worldCorners{};
+    drawCircle(xAxis, yAxis);
+    drawCircle(xAxis, zAxis);
+    drawCircle(yAxis, zAxis);
+}
+
+void DebugDraw::Frustum(const Fleur::Mat4& invViewProj, Color color)
+{
+    const std::array<Fleur::Vec4, 8> clipCorners = {
+        Fleur::Vec4(-1.f, -1.f, 0.f, 1.f), Fleur::Vec4(1.f, -1.f, 0.f, 1.f), Fleur::Vec4(1.f, 1.f, 0.f, 1.f), Fleur::Vec4(-1.f, 1.f, 0.f, 1.f),
+        Fleur::Vec4(-1.f, -1.f, 1.f, 1.f), Fleur::Vec4(1.f, -1.f, 1.f, 1.f), Fleur::Vec4(1.f, 1.f, 1.f, 1.f), Fleur::Vec4(-1.f, 1.f, 1.f, 1.f),
+    };
+
+    std::array<Fleur::Vec3, 8> worldCorners{};
     for (size_t i = 0; i < clipCorners.size(); ++i)
     {
-        const Fleur::Math::vec4 world = invViewProj * clipCorners[i];
-        worldCorners[i] = Fleur::Math::vec3(world) / world.w;
+        const Fleur::Vec4 world = invViewProj * clipCorners[i];
+        worldCorners[i] = Fleur::Vec3(world) / world.w;
     }
 
     static constexpr std::array<std::pair<uint32_t, uint32_t>, 12> edges = {
@@ -282,20 +318,20 @@ void DebugDraw::Frustum(const Fleur::Math::mat4& invViewProj, Color color)
         Line(worldCorners[a], worldCorners[b], color);
 }
 
-void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, Fleur::Math::mat4 transform, Color color, bool depthTest)
+void DebugDraw::BoundingBox(Fleur::Graphics::BoundingBox boundingBox, Fleur::Mat4 transform, Color color, bool depthTest)
 {
     if (!m_Backend)
         return;
 
     // Decompose to 12 edges here (once), forward as lines — backends stay composite-free.
-    auto corner = [&](float x, float y, float z) { return Fleur::Math::vec3(transform * Fleur::Math::vec4(x, y, z, 1.0f)); };
-    const Fleur::Math::vec3& mn = boundingBox.GetMin();
-    const Fleur::Math::vec3& mx = boundingBox.GetMax();
-    Fleur::Math::vec3 c[8] = {corner(mn.x, mn.y, mn.z), corner(mx.x, mn.y, mn.z), corner(mx.x, mx.y, mn.z), corner(mn.x, mx.y, mn.z),
+    auto corner = [&](float x, float y, float z) { return Fleur::Vec3(transform * Fleur::Vec4(x, y, z, 1.0f)); };
+    const Fleur::Vec3& mn = boundingBox.GetMin();
+    const Fleur::Vec3& mx = boundingBox.GetMax();
+    Fleur::Vec3 c[8] = {corner(mn.x, mn.y, mn.z), corner(mx.x, mn.y, mn.z), corner(mx.x, mx.y, mn.z), corner(mn.x, mx.y, mn.z),
                       corner(mn.x, mn.y, mx.z), corner(mx.x, mn.y, mx.z), corner(mx.x, mx.y, mx.z), corner(mn.x, mx.y, mx.z)};
 
     static const int edges[12][2] = {{0, 1}, {1, 2}, {2, 3}, {3, 0}, {4, 5}, {5, 6}, {6, 7}, {7, 4}, {0, 4}, {1, 5}, {2, 6}, {3, 7}};
-    Fleur::Math::vec3 col = color.ToVec3();
+    Fleur::Vec3 col = color.ToVec3();
     for (const auto& e : edges) m_Backend->DrawLine(c[e[0]], c[e[1]], col, depthTest);
 }
 

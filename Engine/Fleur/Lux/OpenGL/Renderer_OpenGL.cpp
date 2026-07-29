@@ -106,8 +106,8 @@ GLuint compileProgram(const char* vs, const char* fs)
 }  // namespace
 
 // ---------- backend (public shim) ----------
-gl::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback)
-    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback))
+gl::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights)
+    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights))
 {
 }
 gl::backend::~backend()
@@ -135,6 +135,17 @@ void gl::backend::SetSkybox(AssetID id)
 {
     pImpl->setSkybox(id);
 }
+void gl::backend::CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height)
+{
+    (void)texture;
+    (void)shaderStages;
+    (void)height;
+}
+void gl::backend::SetFloor(AssetID texture, float height)
+{
+    (void)texture;
+    (void)height;
+}
 void gl::backend::RegisterModel(const SFLModelRegisterInfo& info)
 {
     pImpl->registerModel(info.model, info.vertices, info.vertexCount, info.indices, info.indexCount, info.primitives, info.primitiveCount);
@@ -155,7 +166,7 @@ void gl::backend::BeginFrame(const RenderFrameData& frameData)
 {
     pImpl->beginFrame(frameData);
 }
-void gl::backend::Draw(AssetID model, const Fleur::Math::mat4& transform)
+void gl::backend::Draw(AssetID model, const Fleur::Mat4& transform)
 {
     pImpl->draw(model, transform);
 }
@@ -172,8 +183,9 @@ void gl::backend::EndResize(Fleur::SRect& rect)
 }
 
 // ---------- impl ----------
-gl::backend::impl::impl(bool /*enableValidation*/, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback)
+gl::backend::impl::impl(bool /*enableValidation*/, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights)
 {
+    m_MaxPointLights = maxPointLights;
     m_Width = framebufferSize.width;
     m_Height = framebufferSize.height;
     m_FallbackTexture = fallback.ID;
@@ -327,7 +339,7 @@ void gl::backend::impl::beginFrame(const RenderFrameData& frameData)
     glBindVertexArray(m_Vao);
 }
 
-void gl::backend::impl::draw(AssetID model, const Fleur::Math::mat4& transform)
+void gl::backend::impl::draw(AssetID model, const Fleur::Mat4& transform)
 {
     if (!m_GeometryProgram)
         return;
@@ -447,7 +459,7 @@ void gl::backend::impl::renderSkybox()
     glDepthFunc(GL_LEQUAL);
     glUseProgram(m_SkyboxProgram);
 
-    Fleur::Math::mat4 viewNoTranslation = Fleur::Math::mat4(Fleur::Math::mat3(m_View));  // strip camera translation
+    Fleur::Mat4 viewNoTranslation = Fleur::Mat4(Fleur::Mat3(m_View));  // strip camera translation
     glUniformMatrix4fv(glGetUniformLocation(m_SkyboxProgram, "uView"), 1, GL_FALSE, &viewNoTranslation[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(m_SkyboxProgram, "uProj"), 1, GL_FALSE, &m_Proj[0][0]);
     glUniform1i(glGetUniformLocation(m_SkyboxProgram, "uSkybox"), 0);

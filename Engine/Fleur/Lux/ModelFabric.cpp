@@ -356,17 +356,18 @@ void Fleur::Graphics::CGLTFModelFabric::PrintNodeMeshes(const cgltf_data* data)
     {
         const cgltf_node& node = data->nodes[i];
 
-        std::cout << "node[" << i << "] ";
+       // std::cout << "node[" << i << "] ";
 
         if (!node.mesh)
         {
-            std::cout << "mesh: nullptr\n";
+         //   std::cout << "mesh: nullptr\n";
             continue;
         }
 
         auto meshIndex = node.mesh - data->meshes;
 
-        std::cout << "node_addr: " << &node << " mesh_addr: " << node.mesh << " mesh_index: " << meshIndex << " node_name: " << (node.name ? node.name : "null")
-                  << " mesh_name: " << (node.mesh->name ? node.mesh->name : "null") << "\n";
+        // std::cout << "node_addr: " << &node << " mesh_addr: " << node.mesh << " mesh_index: " << meshIndex << " node_name: " << (node.name ? node.name :
+        // "null")
+        //           << " mesh_name: " << (node.mesh->name ? node.mesh->name : "null") << "\n";
     }
 }

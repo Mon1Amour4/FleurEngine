@@ -8,9 +8,6 @@
 #define VMA_IMPLEMENTATION
 #include "vk_mem_alloc.h"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-
 #include <vulkan/vulkan.h>
 
 #include <Fleur/Math/Math.hpp>
@@ -38,6 +35,7 @@
 #include "FVkSkybox.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
+#include "PointLightShadowMap.h"
 #include "ShadowMapOffsetTexture.h"
 #include "VkHelper.h"
 
@@ -55,6 +53,7 @@
 #define CUBEMAP_LAYERS_COUNT 6
 
 constexpr uint32_t MAX_TEXTURES = 4096;
+constexpr uint32_t POINT_LIGHTS_CAPACITY = 12;
 
 #pragma endregion
 
@@ -291,7 +290,7 @@ PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT = nullptr;
 
 struct backend::impl
 {
-    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback);
+    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights);
     ~impl();
 
     bool beginFrame(const Fleur::Graphics::RenderFrameData& frameData);
@@ -364,10 +363,15 @@ struct backend::impl
         VkDescriptorSet m_SceneNodeTransformsDescriptor{VK_NULL_HANDLE};
     };
 
+    PointLightShadowMap m_PointLightShadowMaps;
+    VkDescriptorSet m_PointLightsDescriptorSet{VK_NULL_HANDLE};
+    VkDescriptorSet m_PointLightShadowMapsDescriptorSet{VK_NULL_HANDLE};
+
     std::unique_ptr<FVkDescriptorSetLayout> m_CameraUboLayout;
     std::unique_ptr<FVkDescriptorSetLayout> m_SceneNodeTransformsLayout;
     std::unique_ptr<FVkDescriptorSetLayout> m_ShadowMapLayout;
     std::unique_ptr<FVkDescriptorSetLayout> m_PointLightsLayout;
+    std::unique_ptr<FVkDescriptorSetLayout> m_PointLightShadowMapsLayout;
     std::unique_ptr<FVkDescriptorSetLayout> m_TextureDescriptorSetLayout;
     struct Frame
     {
@@ -407,7 +411,8 @@ struct backend::impl
     std::vector<Fleur::Mat4> m_InstanceNodeTransforms;
 
     std::unique_ptr<FVkBuffer> m_PointLightsBuffer;
-    VkDescriptorSet m_PointLightDescriptorSet;
+    // VkDescriptorSet m_PointLightDescriptorSet;
+    uint32_t m_MaxPointLights{0};
 
     std::vector<InstancesBatch> m_Batches;
     std::vector<PrimitiveDrawInfo> m_Primitives;
@@ -539,6 +544,7 @@ struct backend::impl
     VkDescriptorPool m_DescriptorPool;
 
     void createTextureDescriptorSetPass();
+    void createPointLightShadowMapsDescriptorSet();
 
     void createTextureDescriptorPool();
 
@@ -567,8 +573,6 @@ struct backend::impl
     void updatePointLight(const SFLPointLight* light, uint32_t lightCount);
 
     // Descriptors
-    vk::abstraction::DescriptorAllocator m_DescriptorAlloc;
-
     Fleur::Graphics::RenderFrameData m_FrameData;
 
     bool m_FloorTextureWasLoaded{false};

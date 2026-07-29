@@ -11,10 +11,20 @@ FVkPipeline::FVkPipeline()
 
 FVkPipeline::~FVkPipeline()
 {
+    Destroy();
+}
+
+void FVkPipeline::Destroy()
+{
     if (m_Pipeline)
         vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
     if (m_PipelineLayout)
         vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+
+    m_Pipeline = VK_NULL_HANDLE;
+    m_PipelineLayout = VK_NULL_HANDLE;
+    m_Device = VK_NULL_HANDLE;
+    m_DescriptorSetLayouts.clear();
 }
 
 void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)

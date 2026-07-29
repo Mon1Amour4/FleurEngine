@@ -88,7 +88,7 @@ enable_testing()
 # === Subdirectories ===
 # Order matters: lower layers first.
 add_subdirectory(MemoryManager)
-add_subdirectory(Math)
+add_subdirectory(Engine/Fleur/Math)
 add_subdirectory(CoreLib)
 add_subdirectory(Tessera)
 add_subdirectory(Engine)

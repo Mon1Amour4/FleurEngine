@@ -1,6 +1,7 @@
 #include "Scene.h"
 
 #include <Fleur/Math/Math.hpp>
+#include <algorithm>
 
 #include "AssetsManager.h"
 #include "FleurAllocator.hpp"
@@ -9,8 +10,8 @@
 
 namespace Fleur
 {
-Scene::Scene()
-    : m_DirectionalLight(Fleur::Graphics::DirectionalLight(-Vec3(1.0f, 2.0f, 1.0f), Fleur::Graphics::Color::Red(), 1.0f))
+Scene::Scene(Fleur::Graphics::LightingSystem* lightingSystem)
+    : m_LightingSystem(lightingSystem)
 {
 }
 Scene::~Scene()
@@ -36,8 +37,13 @@ void Scene::Init()
     Mat4 transform = Fleur::Math::identity<Mat4>();
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
 
-    m_SunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
     m_FloorTextureIdx = assets->LoadImage("Floors/floor_stone_tile.png").handle.id;
+    m_SunTextureIdx = assets->LoadImage("DirectionalLightDebug.png").handle.id;
+
+    m_DirectionalLightHandle = m_LightingSystem->CreateDirectionalLight(Vec3(-1.0f, -2.0f, 1.0f), Fleur::Graphics::Color::White(), 0.7f);
+    m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(Vec3(8, 2, +2), 5, Fleur::Graphics::Color::Red(), 0.7f));
+    m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(Vec3(-9, 2, -2), 5, Fleur::Graphics::Color::Green(), 0.7f));
+    m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(Vec3(0, 1, 0), 3, Fleur::Graphics::Color::White(), 0.7f));
 
     auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
     renderer->CreateFloor(m_FloorTextureIdx, 0);
@@ -56,9 +62,6 @@ void Scene::Init()
 
     //  auto AlphaBlendModeTest = assets->LoadModelAsync("Sponza/AlphaBlendModeTest.glb");
     //   m_Instances.push_back(SceneInstance{AlphaBlendModeTest->asset.handle, transform});
-
-
-    // m_OmniLights.emplace_back(Vec3(1, 3, 0), 4, Fleur::Graphics::Color::Green(), 0.5);
 }
 
 void Scene::OnUpdate(float dtTime)
@@ -72,15 +75,30 @@ void Scene::OnUpdate(float dtTime)
 
     renderer->Debug().DrawAxes();
 
-    float speed = 0.01f;
+    float speed = 0.08f;
     Vec3 center = Vec3(0, 0, 0);
-    Vec3 directionalDirection = m_DirectionalLight.GetDirection();
+    const auto* directionalLight = m_LightingSystem->GetDirectionalLight(m_DirectionalLightHandle);
+    if (!directionalLight)
+        return;
+
+    Vec3 directionalDirection = directionalLight->GetDirection();
 
     // GetVirtualPosition() is the negated direction scaled by s_PosScale.
     // It must not be passed back into SetDirection(), otherwise the light
     // flips between two opposite positions every frame.
-    m_DirectionalLight.SetDirection(Fleur::Math::RotatePointY(directionalDirection, center, dtTime * speed));
-    m_DirectionalLight.DebugDraw(renderer.get(), m_SunTextureIdx);
+    m_LightingSystem->SetDirection(m_DirectionalLightHandle, Fleur::Math::RotatePointY(directionalDirection, center, dtTime * speed));
+
+    m_LightingSystem->GetDirectionalLight(m_DirectionalLightHandle)->DebugDraw(&*renderer, m_SunTextureIdx);
+
+    const auto lightingFrameData = m_LightingSystem->BuildFrameData();
+    for (const auto& pointLight : lightingFrameData.pointLights)
+    {
+        const Fleur::Graphics::Color lightColor(pointLight.color.x, pointLight.color.y, pointLight.color.z);
+        renderer->Debug().Sphere(pointLight.pos, pointLight.radius, lightColor);
+
+        const float iconSize = std::max(0.1f, pointLight.radius * 0.1f);
+        renderer->Debug().Billboard(pointLight.pos, Fleur::Vec2(iconSize), m_SunTextureIdx, false);
+    }
 
 
     for (auto& instance : m_Instances)
@@ -88,22 +106,6 @@ void Scene::OnUpdate(float dtTime)
         auto* model = assets->Get<Fleur::Graphics::Model>(instance.model).obj;
         if (!model)
             return;
-
-        const Vec3 targetCenter = Vec3(instance.transform[3]);
-        const float targetRadius = 2.0f;
-
-        for (auto& pointLight : m_OmniLights)
-        {
-            const float distance = Fleur::Math::length(pointLight.GetPosition() - targetCenter);
-
-            if (distance > pointLight.GetRadius() + targetRadius)
-                continue;
-
-            pointLight.DebugDrawToTarget(renderer.get(), targetCenter, targetRadius, Fleur::Graphics::Color::Magenta());
-        }
-
-        // m_DirectionalLight.DebugDrawToTarget(renderer.get(), instance.transform[3], 10, Fleur::Graphics::Color::Black());
-
 
         const auto* transforms = model->GetNodeTransforms();
         uint32_t instanceCount = model->GetMeshInstanceCount();
@@ -152,9 +154,6 @@ void Scene::OnUpdate(float dtTime)
             }
         }
     }
-
-    // Lights
-    renderer->UpdatePointLight(m_OmniLights.data(), m_OmniLights.size());
 }
 
 void Scene::Submit(Lux::Renderer& renderer)
@@ -175,19 +174,20 @@ void Scene::Submit(Lux::Renderer& renderer)
     }
 }
 
-Fleur::Graphics::RenderFrameData Scene::GetFrameData() const
+Fleur::Graphics::RenderFrameData Scene::GetFrameData()
 {
-    return Fleur::Graphics::RenderFrameData{{
-                                                m_Camera->GetView(),
-                                                m_Camera->GetProjection(),
-                                                m_Camera->GetCameraForward(),
-                                                m_Camera->GetPosition(),
-                                                m_Camera->NearClip(),
-                                                m_Camera->FarClip(),
-                                            },
-                                            {.dirIntens{Vec4(m_DirectionalLight.GetDirection(), m_DirectionalLight.GetIntensity())},
-                                             .color = m_DirectionalLight.GetColor().ToVec4(),
-                                             .pos = Vec4(m_DirectionalLight.GetVirtualPosition(), 1)}};
+    Fleur::Graphics::RenderFrameData frameData{
+        .camera =
+            {
+                m_Camera->GetView(),
+                m_Camera->GetProjection(),
+                m_Camera->GetCameraForward(),
+                m_Camera->GetPosition(),
+                m_Camera->NearClip(),
+                m_Camera->FarClip(),
+            },
+    };
+    return frameData;
 }
 
 }  // namespace Fleur

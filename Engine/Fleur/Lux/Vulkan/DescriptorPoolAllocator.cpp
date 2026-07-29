@@ -163,9 +163,28 @@ void vk::abstraction::DescriptorWriter::write_image(int binding, VkImageView ima
     writes.push_back(write);
 }
 
+void vk::abstraction::DescriptorWriter::write_image_array(int binding, const VkDescriptorImageInfo* pImageInfos, uint32_t imageCount,
+                                                           VkDescriptorType type)
+{
+    assert(pImageInfos != nullptr);
+    assert(imageCount > 0);
+
+    auto& infos = imageArrayInfos.emplace_back(pImageInfos, pImageInfos + imageCount);
+
+    VkWriteDescriptorSet write = {.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+    write.dstBinding = binding;
+    write.dstSet = VK_NULL_HANDLE;
+    write.descriptorCount = imageCount;
+    write.descriptorType = type;
+    write.pImageInfo = infos.data();
+
+    writes.push_back(write);
+}
+
 void vk::abstraction::DescriptorWriter::clear()
 {
     imageInfos.clear();
+    imageArrayInfos.clear();
     writes.clear();
     bufferInfos.clear();
 }

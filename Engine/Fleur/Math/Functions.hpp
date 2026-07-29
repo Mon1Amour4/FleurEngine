@@ -23,6 +23,7 @@ using glm::make_mat4;
 using glm::max;
 using glm::min;
 using glm::normalize;
+using glm::ortho;
 using glm::orthoRH_ZO;
 using glm::perspective;
 using glm::pi;

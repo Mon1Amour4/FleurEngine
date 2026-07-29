@@ -27,7 +27,7 @@ struct GlPrimitive
 
 struct backend::impl
 {
-    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback);
+    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights);
     ~impl();
 
     // ---------- context (mirrors FVkDevice) ----------
@@ -38,13 +38,14 @@ struct backend::impl
 
     int m_Width{0};
     int m_Height{0};
+    uint32_t m_MaxPointLights{0};
 
     // ---------- frame ----------
-    Fleur::Math::mat4 m_View{1.0f};
-    Fleur::Math::mat4 m_Proj{1.0f};
-    Fleur::Math::vec3 m_CameraDir{0.0f};
+    Fleur::Mat4 m_View{1.0f};
+    Fleur::Mat4 m_Proj{1.0f};
+    Fleur::Vec3 m_CameraDir{0.0f};
     void beginFrame(const RenderFrameData& frameData);
-    void draw(AssetID model, const Fleur::Math::mat4& transform);
+    void draw(AssetID model, const Fleur::Mat4& transform);
     void endFrame();
 
     // ---------- resources ----------

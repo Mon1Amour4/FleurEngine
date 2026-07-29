@@ -2,8 +2,8 @@
 
 #include "Services/ServiceInterfaces.hpp"
 
-using vec3 = Fleur::Math::vec3;
-using mat4 = Fleur::Math::mat4;
+using Vec3 = Fleur::Vec3;
+using Mat4 = Fleur::Mat4;
 
 namespace Fleur::Graphics
 {
@@ -15,7 +15,7 @@ public:
 
     FLEUR_NON_COPYABLE_NON_MOVABLE(Camera);
 
-    inline mat4 GetView() const
+    inline Mat4 GetView() const
     {
         return m_View;
     }
@@ -27,16 +27,20 @@ public:
     {
         return m_Pitch;
     }
-    inline mat4 GetProjection() const
+    inline Mat4 GetProjection() const
     {
         return m_Projection;
     }
-    inline vec3 GetCameraForward() const
+    inline Vec3 GetCameraForward() const
     {
         return m_CameraForward;
     }
+    inline Vec3 GetPosition() const
+    {
+        return m_Position;
+    }
 
-    const mat4* GetViewPtr() const;
+    const Mat4* GetViewPtr() const;
 
     static Camera* GetActiveCamera();
 
@@ -54,12 +58,12 @@ private:
     void UpdateForward();
     void RotateCamera(float dtTime);
     static Camera* s_ActiveCamera;
-    vec3 m_Position{0.f};
-    mat4 m_View;
-    mat4 m_Projection;
+    Vec3 m_Position{0.f};
+    Mat4 m_View{Fleur::Mat4(1.0f)};
+    Mat4 m_Projection{Fleur::Mat4(1.0f)};
 
-    vec3 m_CameraForward;
-    vec3 m_Up;
+    Vec3 m_CameraForward{Fleur::Vec3(0.0f, 0.0f, -1.0f)};
+    Vec3 m_Up{Fleur::Vec3(0.0f, 1.0f, 0.0f)};
 
     uint16_t m_FOV{60};
 

@@ -30,6 +30,7 @@ set(TESTS_SOURCES
     ${SRC_FOLDER}/SmartPtrAllocatorTests.cpp
     ${SRC_FOLDER}/SmallEdgeTests.cpp
     ${SRC_FOLDER}/AllocatorSoakTests.cpp
+    ${SRC_FOLDER}/LightingSystemTests.cpp
     # MemoryManager .natvis file
     ${SRC_FOLDER}/../../MemoryManager/MemoryManager.natvis
 )

@@ -14,6 +14,7 @@ enum class EFLPassKind
 {
     Geometry,
     Shadow,
+    PointLightShadow,
     Overlay
 };
 
@@ -26,6 +27,7 @@ struct SFLShaderStages
 {
     SFLShaderInfo vertex;
     SFLShaderInfo fragment;
+    SFLShaderInfo geometry;
 };
 
 struct SFLDebugDrawShaders
@@ -47,6 +49,8 @@ struct IRenderer
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;
+    virtual void CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height = 0.0f) = 0;
+    virtual void SetFloor(AssetID texture, float height) = 0;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
     virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) = 0;
@@ -58,21 +62,21 @@ struct IRenderer
     virtual void RemoveTexture(AssetID texture) = 0;
 
     virtual void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData) = 0;
-    virtual void Draw(AssetID model, const Fleur::Math::mat4& transform) = 0;
+    virtual void Draw(AssetID model, const Fleur::Mat4& transform) = 0;
     virtual void EndFrame() = 0;
 
     // Debug geometry — primitives only. Composites (AABB/Sphere/...) decompose into
     // these on the frontend, so backends never duplicate the composite math.
-    virtual void DrawLine(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 color, bool depthTest = true) = 0;
-    virtual void DrawPoint(Fleur::Math::vec3 p, Fleur::Math::vec3 color, float size = 4.0f, bool depthTest = true) = 0;
-    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, Fleur::Math::vec4 color, bool depthTest = true) = 0;
-    virtual void DrawQuad(Fleur::Math::vec3 a, Fleur::Math::vec3 b, Fleur::Math::vec3 c, Fleur::Math::vec3 d, uint32_t texture, bool depthTest = true) = 0;
-    virtual void DrawBillboard(Fleur::Math::vec3 center, Fleur::Math::vec2 size, uint32_t texture, bool depthTest = true) = 0;
-    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, Fleur::Math::vec4 color) = 0;
-    virtual void DrawOverlayQuad(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec2 d, uint32_t texture) = 0;
-    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, Fleur::Math::vec4 color) = 0;
-    virtual void DrawOverlayTriangle(Fleur::Math::vec2 a, Fleur::Math::vec2 b, Fleur::Math::vec2 c, uint32_t texture) = 0;
-    virtual void DrawShadowMapOverlay(Fleur::Math::vec2 min, Fleur::Math::vec2 max) = 0;
+    virtual void DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest = true) = 0;
+    virtual void DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size = 4.0f, bool depthTest = true) = 0;
+    virtual void DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, Fleur::Vec4 color, bool depthTest = true) = 0;
+    virtual void DrawQuad(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 c, Fleur::Vec3 d, uint32_t texture, bool depthTest = true) = 0;
+    virtual void DrawBillboard(Fleur::Vec3 center, Fleur::Vec2 size, uint32_t texture, bool depthTest = true) = 0;
+    virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color) = 0;
+    virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture) = 0;
+    virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color) = 0;
+    virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture) = 0;
+    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max) = 0;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };

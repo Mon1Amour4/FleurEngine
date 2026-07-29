@@ -4,9 +4,8 @@
 #include <vector>
 
 #include "AssetHandle.h"
-#include "DirectionalLight.h"
+#include "LightingSystem.h"
 #include "Lux/Lux.h"  // Lux::Renderer, AssetID
-#include "OmniLight.h"
 
 namespace Fleur::Graphics
 {
@@ -18,7 +17,7 @@ namespace Fleur
 struct SceneInstance
 {
     Fleur::AssetHandle model;
-    Fleur::Math::mat4 transform;
+    Mat4 transform;
 };
 
 // Owns the world's instances + the camera. Submits draws to Lux each frame.
@@ -29,7 +28,7 @@ struct SceneInstance
 class Scene : public IUpdatable
 {
 public:
-    Scene();
+    explicit Scene(Fleur::Graphics::LightingSystem* lightingSystem);
     ~Scene();
 
     void Init();  // hardcode instances + camera
@@ -37,15 +36,17 @@ public:
 
     void Submit(Lux::Renderer& renderer);  // per-frame draw submission
 
-    [[nodiscard]] Fleur::Graphics::RenderFrameData GetFrameData() const;
+    [[nodiscard]] Fleur::Graphics::RenderFrameData GetFrameData();
 
 private:
-    Fleur::Graphics::DirectionalLight m_DirectionalLight;
-    std::vector<Fleur::Graphics::OmniLight> m_OmniLights;
+    Fleur::Graphics::LightingSystem* m_LightingSystem{nullptr};
+    Fleur::Graphics::DirectionalLightHandle m_DirectionalLightHandle;
+    std::vector<Fleur::Graphics::PointLightHandle> m_PointLightHandles;
 
     std::vector<SceneInstance> m_Instances;
     Graphics::Camera* m_Camera{nullptr};
 
-    uint32_t sunTextureIdx;
+    uint32_t m_FloorTextureIdx;
+    uint32_t m_SunTextureIdx;
 };
 }  // namespace Fleur

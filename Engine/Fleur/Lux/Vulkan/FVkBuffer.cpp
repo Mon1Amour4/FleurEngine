@@ -17,6 +17,11 @@ FVkBuffer::FVkBuffer()
 }
 FVkBuffer::~FVkBuffer()
 {
+    Destroy();
+}
+
+void FVkBuffer::Destroy()
+{
     if (m_MappedMemory)
     {
         vkUnmapMemory(m_Device, m_Memory);
@@ -34,6 +39,12 @@ FVkBuffer::~FVkBuffer()
         vkFreeMemory(m_Device, m_Memory, nullptr);
         m_Memory = VK_NULL_HANDLE;
     }
+
+    m_Device = VK_NULL_HANDLE;
+    m_SizeBytes = 0;
+    m_CurrentSizeBytes = 0;
+    m_StrideSizeBytes = 0;
+    m_MemoryUsage = 0;
 }
 
 void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize)

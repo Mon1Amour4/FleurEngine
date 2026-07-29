@@ -25,7 +25,7 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height = 0.0f) override;
     virtual void SetFloor(AssetID texture, float height) override;
 
-    backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback);
+    backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights);
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;

@@ -12,6 +12,7 @@ namespace Fleur::Graphics
 class OmniLight
 {
 public:
+    OmniLight();
     OmniLight(Fleur::Math::vec3 position, float radius, Fleur::Graphics::Color color, float intensity);
 
     Fleur::Math::vec3 GetPosition() const
@@ -30,6 +31,10 @@ public:
     {
         return m_Intensity;
     }
+    void SetPosition(Fleur::Math::vec3 position);
+    void SetRadius(float radius);
+    void SetColor(Fleur::Graphics::Color color);
+    void SetIntensity(float intensity);
     void DebugDraw(Lux::Renderer* renderer, Fleur::Graphics::Color debugColor) const;
     void DebugDrawToTarget(Lux::Renderer* renderer, const Fleur::Math::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color) const;
 

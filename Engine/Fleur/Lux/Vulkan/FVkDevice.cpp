@@ -55,7 +55,8 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
     }
 
 
-    VkPhysicalDeviceFeatures deviceFeatures{};  // Empty for now
+    VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.geometryShader = VK_TRUE;
 
     VkPhysicalDeviceDescriptorIndexingFeatures indexing{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
                                                         .shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
@@ -148,6 +149,9 @@ bool FVkDevice::IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& d
     VkPhysicalDeviceFeatures deviceFeatures;
     vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
     vkGetPhysicalDeviceFeatures(physicalDevice, &deviceFeatures);
+
+    if (!deviceFeatures.geometryShader)
+        return false;
 
     if (!CheckDeviceExtensionSupport(physicalDevice, deviceInfo.requiredDeviceExtensions))
         return false;

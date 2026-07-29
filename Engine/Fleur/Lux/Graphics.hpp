@@ -1,12 +1,9 @@
 #pragma once
 
 #include <Fleur/Math/Math.hpp>
+#include <vector>
 
 #define NODE_TRANSFORMS_MAX_CUP 1023
-#define POINT_LIGHTS_MAX_CUP 32
-
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#define GLM_FORCE_RADIANS
 
 #include "glm/glm.hpp"
 
@@ -105,10 +102,21 @@ struct DirectionalLightRenderData
     Fleur::Vec4 pos{Fleur::Vec4(0, 0, 0, 0)};
 };
 
+struct SFLPointLight
+{
+    Fleur::Vec3 pos;
+    float radius;
+
+    Fleur::Vec3 color;
+    float intensity;
+};
+
 struct RenderFrameData
 {
     SFLCameraData camera;
     DirectionalLightRenderData directionalLight;
+    bool pointLightsDirty{false};
+    std::vector<SFLPointLight> pointLights;
 };
 
 struct SFLSSBODescriptorBuffer

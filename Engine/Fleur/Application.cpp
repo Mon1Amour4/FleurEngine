@@ -5,8 +5,11 @@
 #include "KeyCodes.h"
 #include "Lux/Lux.h"
 #include "Lux/Toolchain.h"
+#include "LightingSystem.h"
 #include "Scene/Scene.h"
 #include "ThreadPool.h"
+
+#include <utility>
 
 using Texture = Fleur::Graphics::Texture;
 using Image2D = Fleur::Graphics::Image2D;
@@ -30,6 +33,7 @@ Fleur::Application::Application()
 
 Fleur::Application::~Application()
 {
+    m_LightingSystem.reset();
     delete m_WindowBarTitleBuffer;
 }
 
@@ -174,10 +178,13 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
 
     auto renderer = ServiceLocator::instance().Register<Renderer>();
     renderer.value()->Init();
+    renderer.value()->SetMaxPointLights(settings.maxPointLights);
     renderer.value()->SetBackend(settings.Renderer);
     renderer.value()->SetVSync(settings.Vsync);
 
-    m_Scene = std::make_unique<Scene>();
+    m_LightingSystem = std::make_unique<Fleur::Graphics::LightingSystem>(settings.maxPointLights);
+
+    m_Scene = std::make_unique<Scene>(m_LightingSystem.get());
     m_Scene->Init();  // requests its own model loads via AssetsManager
 
     assetsManager->get()->LoadCubemapAsync(
@@ -237,6 +244,7 @@ void Fleur::Application::Run()
 
         m_Window->OnUpdate(dtTime);
         m_Scene->OnUpdate(dtTime);
+        m_LightingSystem->Update(dtTime);
 
         for (auto layer : m_LayerStack)
         {
@@ -246,6 +254,13 @@ void Fleur::Application::Run()
         assetsManager->OnUpdate(dtTime);
 
         Fleur::Graphics::RenderFrameData sceneFrameData = m_Scene->GetFrameData();
+        Fleur::Graphics::LightingFrameData lightingFrameData = m_LightingSystem->ConsumeFrameData();
+        sceneFrameData.directionalLight = lightingFrameData.directionalLight;
+        sceneFrameData.pointLightsDirty = lightingFrameData.pointLightsDirty;
+        if (lightingFrameData.pointLightsDirty)
+        {
+            sceneFrameData.pointLights = std::move(lightingFrameData.pointLights);
+        }
         renderer->BeginFrame(sceneFrameData);
         m_Scene->Submit(*renderer);
         renderer->EndFrame();

@@ -13,6 +13,8 @@ vk::FVkShader::~FVkShader()
 {
     if (m_VertexShader.shaderModule)
         vkDestroyShaderModule(m_Device, m_VertexShader.shaderModule, nullptr);
+    if (m_GeometryShader.shaderModule)
+        vkDestroyShaderModule(m_Device, m_GeometryShader.shaderModule, nullptr);
     if (m_FragmentShader.shaderModule)
         vkDestroyShaderModule(m_Device, m_FragmentShader.shaderModule, nullptr);
 }
@@ -29,12 +31,21 @@ void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
 
     VK_CHECK(vkCreateShaderModule(m_Device, &vertexcreateInfo, nullptr, &m_VertexShader.shaderModule));
 
+    if (info.pGeometryData && info.geometrySize > 0)
+    {
+        VkShaderModuleCreateInfo geometryCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = info.geometrySize, .pCode = reinterpret_cast<const uint32_t*>(info.pGeometryData)};
+        VK_CHECK(vkCreateShaderModule(m_Device, &geometryCreateInfo, nullptr, &m_GeometryShader.shaderModule));
+    }
+
     VkShaderModuleCreateInfo fragmentcreateInfo{
         .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO, .codeSize = info.fragmentSize, .pCode = reinterpret_cast<const uint32_t*>(info.pFragmentData)};
 
     VK_CHECK(vkCreateShaderModule(m_Device, &fragmentcreateInfo, nullptr, &m_FragmentShader.shaderModule));
 
     getReflection(m_VertexShader, info.pVertexData, info.vertexSize);
+    if (m_GeometryShader.shaderModule)
+        getReflection(m_GeometryShader, info.pGeometryData, info.geometrySize);
     getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize);
     mergePushConstants();
 }
@@ -95,7 +106,7 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
                                                  .pVertexAttributeDescriptions = hasVertexAttributes ? m_VertexInput.m_VertexInputAttributes.data() : nullptr};
     }
 
-    for (size_t i = 0; i < 64; i++)
+    for (size_t i = 0; i < module.descriptor_set_count; i++)
     {
         SpvReflectDescriptorSet* currentDescriptorSet = module.descriptor_sets + i;
         if (currentDescriptorSet->binding_count != 0)
@@ -129,6 +140,8 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
         pushConstant.offset = currentReflectionPushConstant->offset;
         pushConstant.size = currentReflectionPushConstant->size;
     }
+    free(input_vars);
+
     // Output variables, descriptor bindings, descriptor sets, and push constants
     // can be enumerated and extracted using a similar mechanism.
 

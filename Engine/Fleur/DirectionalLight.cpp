@@ -3,7 +3,14 @@
 #include <cstdlib>
 
 
-float Fleur::Graphics::DirectionalLight::s_PosScale = 100;
+float Fleur::Graphics::DirectionalLight::s_PosScale = 1000;
+
+Fleur::Graphics::DirectionalLight::DirectionalLight()
+    : m_Direction(0.0f, -1.0f, 0.0f)
+    , m_Color(Fleur::Graphics::Color::Black())
+    , m_Intensity(0.0f)
+{
+}
 
 Fleur::Graphics::DirectionalLight::DirectionalLight(Fleur::Math::vec3 direction, Fleur::Graphics::Color color, float intensity)
     : m_Direction(Fleur::Math::normalize(direction))
@@ -18,6 +25,16 @@ void Fleur::Graphics::DirectionalLight::SetDirection(Fleur::Math::vec3 dir)
         return;
 
     m_Direction = Fleur::Math::normalize(dir);
+}
+
+void Fleur::Graphics::DirectionalLight::SetColor(Fleur::Graphics::Color color)
+{
+    m_Color = color;
+}
+
+void Fleur::Graphics::DirectionalLight::SetIntensity(float intensity)
+{
+    m_Intensity = intensity;
 }
 
 void Fleur::Graphics::DirectionalLight::DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx)

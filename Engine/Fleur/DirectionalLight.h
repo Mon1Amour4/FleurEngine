@@ -1,4 +1,4 @@
-#pragma ocne
+#pragma once
 
 #include "Lux/Color.h"
 #include "Lux/Lux.h"
@@ -13,6 +13,7 @@ namespace Fleur::Graphics
 class DirectionalLight
 {
 public:
+    DirectionalLight();
     DirectionalLight(Fleur::Math::vec3 direction, Fleur::Graphics::Color color, float intensity);
 
     inline Fleur::Math::vec3 GetDirection() const
@@ -33,6 +34,8 @@ public:
     }
 
     void SetDirection(Fleur::Math::vec3);
+    void SetColor(Fleur::Graphics::Color color);
+    void SetIntensity(float intensity);
 
     void DebugDraw(Lux::Renderer* renderer, uint32_t textureIdx);
     void DebugDrawToTarget(Lux::Renderer* renderer, const Fleur::Math::vec3& targetCenter, float targetRadius, Fleur::Graphics::Color color);

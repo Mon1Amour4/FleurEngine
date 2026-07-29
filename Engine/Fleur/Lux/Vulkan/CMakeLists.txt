@@ -28,6 +28,7 @@ SET(PROJECT_HEADERS
     FVkDepthTarget.h
     FVkOverlayPass.h
     ShadowMapOffsetTexture.h
+    PointLightShadowMap.h
     VkHelper.h
     FVkShader.h
     DescriptorPoolAllocator.h
@@ -51,6 +52,7 @@ SET(PROJECT_SOURCES
     FVkDepthTarget.cpp
     FVkOverlayPass.cpp
     ShadowMapOffsetTexture.cpp
+    PointLightShadowMap.cpp
     VkHelper.cpp
     FVkShader.cpp
     DescriptorPoolAllocator.cpp

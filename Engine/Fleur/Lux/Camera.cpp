@@ -8,10 +8,6 @@ static constexpr float MOUSE_EPSILON = 1e-3f;
 Fleur::Graphics::Camera* Fleur::Graphics::Camera::s_ActiveCamera = nullptr;
 
 Fleur::Graphics::Camera::Camera()
-    : m_Up(Fleur::Math::vec3(0.0f, 1.0f, 0.0f))
-    , m_CameraForward(0.0f, 0.0f, -1.0f)
-    , m_View(Fleur::Math::mat4(1.0f))
-    , m_Projection(Fleur::Math::mat4(1.0f))
 {
     m_Projection = Fleur::Math::perspective(Fleur::Math::radians((float)m_FOV), 1280.0F / 720.0F, m_NearClip, m_FarClip);
     UpdateForward();
@@ -22,7 +18,7 @@ void Fleur::Graphics::Camera::Activate()
     s_ActiveCamera = this;
 }
 
-const mat4* Fleur::Graphics::Camera::GetViewPtr() const
+const Mat4* Fleur::Graphics::Camera::GetViewPtr() const
 {
     return &m_View;
 }
@@ -92,7 +88,7 @@ float Fleur::Graphics::Camera::NearClip() const
 
 void Fleur::Graphics::Camera::UpdateForward()
 {
-    Fleur::Math::vec3 direction;
+    Fleur::Vec3 direction;
     direction.x = cos(Fleur::Math::radians(m_Yaw)) * cos(Fleur::Math::radians(m_Pitch));
     direction.y = sin(Fleur::Math::radians(m_Pitch));
     direction.z = sin(Fleur::Math::radians(m_Yaw)) * cos(Fleur::Math::radians(m_Pitch));
@@ -101,7 +97,7 @@ void Fleur::Graphics::Camera::UpdateForward()
 
 void Fleur::Graphics::Camera::RotateCamera(float dtTime)
 {
-    Fleur::Math::vec2 mouseDir = Input::GetMouseDir();
+    Fleur::Vec2 mouseDir = Input::GetMouseDir();
     if (fabs(mouseDir.x) > MOUSE_EPSILON || fabs(mouseDir.y) > MOUSE_EPSILON)
     {
         m_Yaw += mouseDir.x * m_MouseSensitivity;            //* dtTime;

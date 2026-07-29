@@ -10,6 +10,8 @@ public:
     FVkBuffer();
     ~FVkBuffer();
 
+    void Destroy();
+
     void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
 
     void CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer);

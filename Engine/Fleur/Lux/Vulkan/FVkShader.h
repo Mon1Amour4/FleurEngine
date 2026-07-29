@@ -17,6 +17,9 @@ struct ShaderCreateInfo
     const void* const pVertexData;
     size_t vertexSize;
 
+    const void* const pGeometryData{nullptr};
+    size_t geometrySize{0};
+
     const void* const pFragmentData;
     size_t fragmentSize;
 };
@@ -134,6 +137,11 @@ public:
         return m_PushConstants;
     }
 
+    inline VkShaderModule GetGeometryShader() const
+    {
+        return m_GeometryShader.shaderModule;
+    }
+
     inline const FVkShader::ShaderData& GetVertexShaderData() const
     {
         return m_VertexShader;
@@ -141,6 +149,11 @@ public:
     inline const FVkShader::ShaderData& GetFragmentShaderData() const
     {
         return m_FragmentShader;
+    }
+
+    inline const FVkShader::ShaderData& GetGeometryShaderData() const
+    {
+        return m_GeometryShader;
     }
 
     FVkPipeline& GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
@@ -158,6 +171,7 @@ private:
     VkDevice m_Device;
 
     ShaderData m_VertexShader;
+    ShaderData m_GeometryShader;
     ShaderData m_FragmentShader;
 
     struct VertexInput

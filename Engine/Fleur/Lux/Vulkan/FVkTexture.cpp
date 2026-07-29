@@ -1,6 +1,7 @@
 #include "FVkTexture.h"
 
 #include <cassert>
+#include <iostream>
 #include <utility>
 
 #include "VkHelper.h"
@@ -78,6 +79,10 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(m_Device, m_Image, &memRequirements);
 
+    std::cout << "[Vulkan] Image memory allocation: " << (memRequirements.size / (1024ull * 1024ull)) << " MiB"
+              << ", extent=" << createInfo.extent.width << "x" << createInfo.extent.height << "x" << createInfo.extent.depth
+              << ", layers=" << createInfo.arrayLayers << ", mipLevels=" << createInfo.mipLevels << ", format=" << createInfo.format << std::endl;
+
     VkMemoryAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocInfo.allocationSize = memRequirements.size;
@@ -92,17 +97,24 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
 
 VkImageView FVkTexture::CreateImageView()
 {
+    const VkImageViewType viewType = (m_ImageFlags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
+                                         ? VK_IMAGE_VIEW_TYPE_CUBE
+                                         : (m_ImageType == VK_IMAGE_TYPE_3D ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D);
+    return CreateImageView(viewType, m_Layers);
+}
+
+VkImageView FVkTexture::CreateImageView(VkImageViewType viewType, uint32_t layerCount)
+{
     VkImageViewCreateInfo viewInfo{};
     viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     viewInfo.image = m_Image;
-    viewInfo.viewType = (m_ImageFlags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) ? VK_IMAGE_VIEW_TYPE_CUBE
-                                                                               : (m_ImageType == VK_IMAGE_TYPE_3D ? VK_IMAGE_VIEW_TYPE_3D : VK_IMAGE_VIEW_TYPE_2D);
+    viewInfo.viewType = viewType;
     viewInfo.format = m_Format;
     viewInfo.subresourceRange.aspectMask = m_Aspect;
     viewInfo.subresourceRange.baseMipLevel = 0;
     viewInfo.subresourceRange.levelCount = m_Mipmaps;
     viewInfo.subresourceRange.baseArrayLayer = 0;
-    viewInfo.subresourceRange.layerCount = m_Layers;
+    viewInfo.subresourceRange.layerCount = layerCount;
 
     VK_CHECK(vkCreateImageView(m_Device, &viewInfo, nullptr, &m_ImageView));
 

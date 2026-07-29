@@ -13,7 +13,7 @@ public:
     {
     }
 
-    inline const Fleur::Math::vec3* GetVertexData() const
+    inline const Fleur::Vec3* GetVertexData() const
     {
         return m_SkyboxVertices.data();
     }
@@ -30,54 +30,54 @@ public:
 
 private:
     Fleur::Graphics::FLMaterial m_Material;
-    static constexpr std::array<Fleur::Math::vec3, 36> m_SkyboxVertices = {
+    static constexpr std::array<Fleur::Vec3, 36> m_SkyboxVertices = {
         // +X
-        Fleur::Math::vec3(1, -1, -1),
-        Fleur::Math::vec3(1, -1, 1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(1, 1, -1),
-        Fleur::Math::vec3(1, -1, -1),
+        Fleur::Vec3(1, -1, -1),
+        Fleur::Vec3(1, -1, 1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(1, 1, -1),
+        Fleur::Vec3(1, -1, -1),
 
         // -X
-        Fleur::Math::vec3(-1, -1, 1),
-        Fleur::Math::vec3(-1, -1, -1),
-        Fleur::Math::vec3(-1, 1, -1),
-        Fleur::Math::vec3(-1, 1, -1),
-        Fleur::Math::vec3(-1, 1, 1),
-        Fleur::Math::vec3(-1, -1, 1),
+        Fleur::Vec3(-1, -1, 1),
+        Fleur::Vec3(-1, -1, -1),
+        Fleur::Vec3(-1, 1, -1),
+        Fleur::Vec3(-1, 1, -1),
+        Fleur::Vec3(-1, 1, 1),
+        Fleur::Vec3(-1, -1, 1),
 
         // +Y
-        Fleur::Math::vec3(-1, 1, -1),
-        Fleur::Math::vec3(1, 1, -1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(-1, 1, 1),
-        Fleur::Math::vec3(-1, 1, -1),
+        Fleur::Vec3(-1, 1, -1),
+        Fleur::Vec3(1, 1, -1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(-1, 1, 1),
+        Fleur::Vec3(-1, 1, -1),
 
         // -Y
-        Fleur::Math::vec3(-1, -1, 1),
-        Fleur::Math::vec3(1, -1, 1),
-        Fleur::Math::vec3(1, -1, -1),
-        Fleur::Math::vec3(1, -1, -1),
-        Fleur::Math::vec3(-1, -1, -1),
-        Fleur::Math::vec3(-1, -1, 1),
+        Fleur::Vec3(-1, -1, 1),
+        Fleur::Vec3(1, -1, 1),
+        Fleur::Vec3(1, -1, -1),
+        Fleur::Vec3(1, -1, -1),
+        Fleur::Vec3(-1, -1, -1),
+        Fleur::Vec3(-1, -1, 1),
 
         // +Z
-        Fleur::Math::vec3(-1, -1, 1),
-        Fleur::Math::vec3(-1, 1, 1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(1, 1, 1),
-        Fleur::Math::vec3(1, -1, 1),
-        Fleur::Math::vec3(-1, -1, 1),
+        Fleur::Vec3(-1, -1, 1),
+        Fleur::Vec3(-1, 1, 1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(1, 1, 1),
+        Fleur::Vec3(1, -1, 1),
+        Fleur::Vec3(-1, -1, 1),
 
         // -Z
-        Fleur::Math::vec3(1, -1, -1),
-        Fleur::Math::vec3(1, 1, -1),
-        Fleur::Math::vec3(-1, 1, -1),
-        Fleur::Math::vec3(-1, 1, -1),
-        Fleur::Math::vec3(-1, -1, -1),
-        Fleur::Math::vec3(1, -1, -1),
+        Fleur::Vec3(1, -1, -1),
+        Fleur::Vec3(1, 1, -1),
+        Fleur::Vec3(-1, 1, -1),
+        Fleur::Vec3(-1, 1, -1),
+        Fleur::Vec3(-1, -1, -1),
+        Fleur::Vec3(1, -1, -1),
     };
 };
 }  // namespace Fleur::Graphics

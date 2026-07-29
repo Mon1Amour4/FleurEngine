@@ -162,12 +162,13 @@ public:
     ~FVkPipeline();
 
     void Init(VkDevice device, FGraphicsPipelineDesc& desc);
+    void Destroy();
 
-    VkPipeline GetPipeline()
+    VkPipeline GetPipeline() const
     {
         return m_Pipeline;
     }
-    VkPipelineLayout GetPipelineLayout()
+    VkPipelineLayout GetPipelineLayout() const
     {
         return m_PipelineLayout;
     }

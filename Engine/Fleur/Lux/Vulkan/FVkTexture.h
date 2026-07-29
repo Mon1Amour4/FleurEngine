@@ -16,6 +16,7 @@ public:
     VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties,
                         VkImageAspectFlags aspect);
     VkImageView CreateImageView();
+    VkImageView CreateImageView(VkImageViewType viewType, uint32_t layerCount);
 
     void Destroy();
 
