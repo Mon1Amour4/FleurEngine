@@ -71,6 +71,7 @@ struct backend::impl
 
     // ---------- passes ----------
     void createPass(EFLPassKind kind, SFLShaderStages shaderStages);
+    void createShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages);
 
     // ---------- skybox ----------
     GLuint m_SkyboxProgram{0};

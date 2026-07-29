@@ -37,7 +37,6 @@ Fleur::AssetsManager::~AssetsManager()
 void Fleur::AssetsManager::OnInit()
 {
     m_Stopping.store(false, std::memory_order_release);
-    load_all_shaders();
 }
 void Fleur::AssetsManager::OnShutdown()
 {
@@ -93,22 +92,25 @@ void Fleur::AssetsManager::OnUpdate(float dtTime)
         m_ImagesToUpload.framesSinceLastUpload++;
 }
 
-void Fleur::AssetsManager::load_all_shaders()
+ShaderAsset Fleur::AssetsManager::LoadShader(std::string_view name, std::string_view path)
 {
-    auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
-    auto path = fileSystem->GetFullPathToFolder("Shaders");
+    if (name.empty() || path.empty())
+        return {};
 
-    std::vector<std::string> paths = fileSystem->GetAllFilesInFolder(path->c_str(), ".spv");
-
-    for (const auto& path : paths)
+    if (m_ShaderMapString.find(std::string(name)) != m_ShaderMapString.end())
     {
-        AssetID id = GetNextID();
-        auto vec = fileSystem->ReadFileBinary(path);
-        auto name = fileSystem->GetFileNameWithoutExtFromPath(path);
-
-        m_ShaderMapString.emplace(std::move(name), id);
-        m_ShaderMap.emplace(id, ShaderType(vec.data(), vec.size()));
+        FL_CORE_ERROR("[AssetsManager] Shader already loaded: {0}", name);
+        return Get<ShaderType>(name);
     }
+
+    auto fileSystem = ServiceLocator::instance().GetService<Fleur::FS::FileSystem>();
+    auto code = fileSystem->ReadFileBinary(path);
+    const AssetID id = GetNextID();
+    const std::string logicalName{name};
+    m_ShaderMapString.emplace(logicalName, id);
+    m_ShaderMap.emplace(id, ShaderType(code.data(), code.size()));
+    m_ShaderRegistry.emplace(logicalName, ShaderType(code.data(), code.size()));
+    return Get<ShaderType>(logicalName);
 }
 
 void Fleur::AssetsManager::PollMessages()

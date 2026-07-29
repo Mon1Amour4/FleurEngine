@@ -1,5 +1,11 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 namespace Fleur::Graphics
 {
 
@@ -17,5 +23,7 @@ public:
 private:
     std::vector<char> byteCode;
 };
+
+using ShaderRegistry = std::unordered_map<std::string, Shader>;
 
 }  // namespace Fleur::Graphics

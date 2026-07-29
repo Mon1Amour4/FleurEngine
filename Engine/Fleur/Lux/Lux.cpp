@@ -30,6 +30,15 @@ void Renderer::OnInit()
 {
 }  // the backend is created on demand via SetBackend (runtime-selected)
 
+void Renderer::Initialize(Fleur::Graphics::EGraphicsAPI api)
+{
+    if (m_Backend)
+        return;
+
+    m_Api = api;
+    initBackend();
+}
+
 void Renderer::SetBackend(Fleur::Graphics::EGraphicsAPI api)
 {
     if (m_Backend && m_Api == api)
@@ -45,6 +54,7 @@ void Renderer::initBackend()
 {
     Fleur::Application& application = Fleur::Application::instance();
     auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    FL_CORE_ASSERT(m_ShaderRegistry, "Renderer shader registry was not initialized");
 
     auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
     Fleur::Graphics::SFLImageView fallbackView = fallbackAsset.obj->GetView();
@@ -59,29 +69,30 @@ void Renderer::initBackend()
     else
         m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights);
 
+    m_Backend->SetShaderRegistry(*m_ShaderRegistry);
+
     m_Debug = new DebugDraw(m_Backend);
+    InitializePipelines();
+}
 
-    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Geometry, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueVertex").obj),
-                                                                   shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("opaqueFragment").obj)});
+void Renderer::InitializePipelines()
+{
+    FL_CORE_ASSERT(m_Backend, "Renderer backend was not initialized");
 
-    m_Backend->ConfigureDebugDraw({.primitives = {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugVertex").obj),
-                                                  shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugFragment").obj)},
-                                   .geometry = {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryVertex").obj),
-                                                shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("debugGeometryFragment").obj)}});
-    m_Backend->ConfigureOverlay({shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("overlayVertex").obj),
-                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("overlayFragment").obj)});
+    auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
+    auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
 
-    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Shadow, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowVertex").obj),
-                                                                 shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("shadowFragment").obj)});
+    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Opaque, {"opaqueVertex", "opaqueFragment"});
+    m_Backend->ConfigureDebugDraw({.primitives = {"debugVertex", "debugFragment"},
+                                   .geometry = {"debugGeometryVertex", "debugGeometryFragment"}});
+    m_Backend->ConfigureOverlay({"overlayVertex", "overlayFragment"});
 
-    m_Backend->CreatePass(
-        Fleur::Graphics::EFLPassKind::PointLightShadow,
-        {.vertex = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowVertex").obj),
-         .fragment = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowFragment").obj),
-         .geometry = shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("pointLightShadowGeometry").obj)});
+    m_Backend->CreateShadowPass(Fleur::Graphics::EFLShadowPassKind::Directional, {"shadowVertex", "shadowFragment"});
 
-    m_Backend->CreateSkybox(fallbackAsset.handle.id, {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxVertex").obj),
-                                                      shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("skyboxFragment").obj)});
+    m_Backend->CreateShadowPass(Fleur::Graphics::EFLShadowPassKind::PointLight,
+                                 {.vertex = "pointLightShadowVertex", .fragment = "pointLightShadowFragment", .geometry = "pointLightShadowGeometry"});
+
+    m_Backend->CreateSkybox(fallbackAsset.handle.id, {"skyboxVertex", "skyboxFragment"});
 }
 
 void Renderer::OnShutdown()
@@ -91,14 +102,6 @@ void Renderer::OnShutdown()
 
     delete m_Backend;
     m_Backend = nullptr;
-}
-
-Fleur::Graphics::SFLShaderInfo Renderer::shaderInfo(Fleur::Graphics::Shader* shader)
-{
-    if (!shader)
-        return Fleur::Graphics::SFLShaderInfo();
-
-    return {shader->GetShaderCode(), shader->GetShaderCodeSizeB()};
 }
 
 void Renderer::Register(const Fleur::Graphics::SFLModelRegisterInfo& info)
@@ -134,11 +137,7 @@ void Renderer::CreateFloor(Fleur::Graphics::AssetID texture, float height)
     if (!m_Backend)
         return;
 
-    auto assetsManager = Fleur::ServiceLocator::instance().GetService<Fleur::AssetsManager>();
-    m_Backend->CreateFloor(texture,
-                           {shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("floorVertex").obj),
-                            shaderInfo(assetsManager->Get<Fleur::Graphics::Shader>("floorFragment").obj)},
-                           height);
+    m_Backend->CreateFloor(texture, {"floorVertex", "floorFragment"}, height);
 }
 
 void Renderer::SetFloor(Fleur::Graphics::AssetID texture, float height)

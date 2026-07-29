@@ -92,7 +92,12 @@ public:
     }
 
     // Runtime backend selection / live switching (all backends are compiled in).
+    void Initialize(Fleur::Graphics::EGraphicsAPI api);
     void SetBackend(Fleur::Graphics::EGraphicsAPI api);
+    void SetShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders)
+    {
+        m_ShaderRegistry = &shaders;
+    }
     void SetMaxPointLights(uint32_t maxPointLights)
     {
         m_MaxPointLights = maxPointLights;
@@ -119,13 +124,14 @@ protected:
 private:
     DebugDraw* m_Debug{nullptr};
 
-    Fleur::Graphics::SFLShaderInfo shaderInfo(Fleur::Graphics::Shader* shader);
     void initBackend();
+    void InitializePipelines();
 
     Fleur::Graphics::IRenderer* m_Backend{nullptr};
     Fleur::Graphics::EGraphicsAPI m_Api{Fleur::Graphics::EGraphicsAPI::Vulkan};
     bool m_Vsync{true};
     bool m_ShowShadowMapPreview{false};
     uint32_t m_MaxPointLights{128};
+    const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
 };
 }  // namespace Lux

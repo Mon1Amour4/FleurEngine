@@ -174,12 +174,16 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     auto assetsManager = ServiceLocator::instance().Register<Fleur::AssetsManager>();
     assetsManager.value()->OnInit();
 
+    for (const auto& shaderFile : fileSystem.value()->ScanShaders())
+        assetsManager.value()->LoadShader(shaderFile.name, shaderFile.path);
+
     assetsManager.value()->LoadImage("Placeholders/wall_placeholder2.png");
 
     auto renderer = ServiceLocator::instance().Register<Renderer>();
     renderer.value()->Init();
+    renderer.value()->SetShaderRegistry(assetsManager.value()->GetShaderRegistry());
     renderer.value()->SetMaxPointLights(settings.maxPointLights);
-    renderer.value()->SetBackend(settings.Renderer);
+    renderer.value()->Initialize(settings.Renderer);
     renderer.value()->SetVSync(settings.Vsync);
 
     m_LightingSystem = std::make_unique<Fleur::Graphics::LightingSystem>(settings.maxPointLights);

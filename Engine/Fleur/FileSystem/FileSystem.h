@@ -13,6 +13,12 @@ class Model;
 namespace Fleur::FS
 {
 
+struct ShaderFile
+{
+    std::string name;
+    std::string path;
+};
+
 class Application;
 
 class FLEUR_API FileSystem : public Service<FileSystem>
@@ -33,6 +39,7 @@ public:
     void WriteToFile(std::string_view fileName, const char* buffer);
 
     std::vector<std::string> GetAllFilesInFolder(std::string_view fullPathToFolder, const char* extensions = ".*");
+    std::vector<ShaderFile> ScanShaders() const;
     std::string GetFileNameWithoutExtFromPath(std::string_view path);
 
     friend class Application;

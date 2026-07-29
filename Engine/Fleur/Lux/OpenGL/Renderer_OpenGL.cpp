@@ -115,9 +115,18 @@ gl::backend::~backend()
     delete pImpl;
 }
 
+void gl::backend::SetShaderRegistry(const ShaderRegistry& shaders)
+{
+    (void)shaders;
+}
+
 void gl::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
     pImpl->createPass(kind, shaderStages);
+}
+void gl::backend::CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages)
+{
+    pImpl->createShadowPass(kind, shaderStages);
 }
 void gl::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
 {
@@ -283,8 +292,12 @@ void gl::backend::impl::createGeometry()
 
 void gl::backend::impl::createPass(EFLPassKind kind, SFLShaderStages /*shaderStages*/)
 {
-    if (kind == EFLPassKind::Geometry)
+    if (kind == EFLPassKind::Opaque)
         m_GeometryProgram = compileProgram(kGeometryVS, kGeometryFS);
+}
+
+void gl::backend::impl::createShadowPass(EFLShadowPassKind /*kind*/, SFLShaderStages /*shaderStages*/)
+{
 }
 
 void gl::backend::impl::registerModel(AssetID id, const SVertexData* vertices, uint32_t vertexCount, const uint32_t* indices, uint32_t indexCount,

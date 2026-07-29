@@ -18,6 +18,7 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual ~backend() override;
 
     void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
+    void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) override;
     void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) override;
     void ConfigureOverlay(SFLShaderStages shaderStages) override;
     void CreateSkybox(AssetID id, SFLShaderStages shaderStages) override;
@@ -36,6 +37,7 @@ struct backend : public Fleur::Graphics::IRenderer
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
+    void SetShaderRegistry(const ShaderRegistry& shaders) override;
 
     void DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest = true) override {};  // TODO: GlDebugDraw
     void DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size = 4.0f, bool depthTest = true) override {};

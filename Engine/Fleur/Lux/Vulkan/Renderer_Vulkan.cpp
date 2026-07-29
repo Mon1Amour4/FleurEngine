@@ -26,6 +26,10 @@ vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& f
 {
 }
 vk::backend::~backend() = default;
+void vk::backend::SetShaderRegistry(const ShaderRegistry& shaders)
+{
+    pImpl->setShaderRegistry(shaders);
+}
 void vk::backend::UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
     pImpl->uploadTextures(pInfo);
@@ -53,12 +57,11 @@ void vk::backend::EndResize(Fleur::SRect& rect)
 
 void vk::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
-    assert(shaderStages.fragment.shaderCode && shaderStages.fragment.sizeBytes > 0);
-    assert(shaderStages.vertex.shaderCode && shaderStages.vertex.sizeBytes > 0);
-    if (kind == EFLPassKind::PointLightShadow)
-        assert(shaderStages.geometry.shaderCode && shaderStages.geometry.sizeBytes > 0);
-
     pImpl->createPass(kind, shaderStages);
+}
+void vk::backend::CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages)
+{
+    pImpl->createShadowPass(kind, shaderStages);
 }
 
 void vk::backend::RegisterModel(const SFLModelRegisterInfo& info)
@@ -94,14 +97,18 @@ void vk::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
 {
     if (!pImpl->m_DebugDraw->IsInitialized())
     {
-        vk::ShaderCreateInfo primitivesShaderCreateInfo{.pVertexData = shaders.primitives.vertex.shaderCode,
-                                                        .vertexSize = shaders.primitives.vertex.sizeBytes,
-                                                        .pFragmentData = shaders.primitives.fragment.shaderCode,
-                                                        .fragmentSize = shaders.primitives.fragment.sizeBytes};
-        vk::ShaderCreateInfo geometryShaderCreateInfo{.pVertexData = shaders.geometry.vertex.shaderCode,
-                                                      .vertexSize = shaders.geometry.vertex.sizeBytes,
-                                                      .pFragmentData = shaders.geometry.fragment.shaderCode,
-                                                      .fragmentSize = shaders.geometry.fragment.sizeBytes};
+        const auto primitivesVertex = pImpl->shaderInfo(shaders.primitives.vertex);
+        const auto primitivesFragment = pImpl->shaderInfo(shaders.primitives.fragment);
+        const auto geometryVertex = pImpl->shaderInfo(shaders.geometry.vertex);
+        const auto geometryFragment = pImpl->shaderInfo(shaders.geometry.fragment);
+        vk::ShaderCreateInfo primitivesShaderCreateInfo{.pVertexData = primitivesVertex.shaderCode,
+                                                        .vertexSize = primitivesVertex.sizeBytes,
+                                                        .pFragmentData = primitivesFragment.shaderCode,
+                                                        .fragmentSize = primitivesFragment.sizeBytes};
+        vk::ShaderCreateInfo geometryShaderCreateInfo{.pVertexData = geometryVertex.shaderCode,
+                                                      .vertexSize = geometryVertex.sizeBytes,
+                                                      .pFragmentData = geometryFragment.shaderCode,
+                                                      .fragmentSize = geometryFragment.sizeBytes};
 
         auto& primitivesShader = pImpl->m_ShaderMap.emplace("DebugPrimitives", vk::FVkShader()).first->second;
         if (!primitivesShader.isInitialized())
@@ -118,10 +125,12 @@ void vk::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
 }
 void vk::backend::ConfigureOverlay(SFLShaderStages shaderStages)
 {
-    vk::ShaderCreateInfo overlayShaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
-                                                 .vertexSize = shaderStages.vertex.sizeBytes,
-                                                 .pFragmentData = shaderStages.fragment.shaderCode,
-                                                 .fragmentSize = shaderStages.fragment.sizeBytes};
+    const auto vertex = pImpl->shaderInfo(shaderStages.vertex);
+    const auto fragment = pImpl->shaderInfo(shaderStages.fragment);
+    vk::ShaderCreateInfo overlayShaderCreateInfo{.pVertexData = vertex.shaderCode,
+                                                 .vertexSize = vertex.sizeBytes,
+                                                 .pFragmentData = fragment.shaderCode,
+                                                 .fragmentSize = fragment.sizeBytes};
 
     auto& overlayShader = pImpl->m_ShaderMap.emplace("Overlay", vk::FVkShader()).first->second;
     if (!overlayShader.isInitialized())
@@ -587,9 +596,17 @@ VkSurfaceKHR vk::backend::impl::createSurface(VkInstance instance, void* pNative
     return m_Surface;
 }
 
+Fleur::Graphics::SFLShaderBytecode vk::backend::impl::shaderInfo(std::string_view name) const
+{
+    assert(m_ShaderRegistry != nullptr);
+    const auto it = m_ShaderRegistry->find(std::string(name));
+    assert(it != m_ShaderRegistry->end());
+    return {it->second.GetShaderCode(), it->second.GetShaderCodeSizeB()};
+}
 
-FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderInfo pVertexInfo,
-                                                       Fleur::Graphics::SFLShaderInfo pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
+
+FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo,
+                                                       Fleur::Graphics::SFLShaderBytecode pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
                                                        const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
@@ -604,7 +621,7 @@ FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fl
     return &shader.GetPipeline(pipelineInfo, descriptorSetLayouts);
 }
 
-FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+FVkPipeline* vk::backend::impl::createOpaquePipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                                        VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::GetPipelineInfo pipelineInfo{};
@@ -622,7 +639,7 @@ FVkPipeline* vk::backend::impl::createGeometryPipeline(Fleur::Graphics::SFLShade
     return createGraphicsPipeline("opaque", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
-FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                                           VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::GetPipelineInfo pipelineInfo{};
@@ -640,7 +657,7 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
     return createGraphicsPipeline("opaque", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
-FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                                      VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
 {
     vk::GetPipelineInfo pipelineInfo{};
@@ -672,7 +689,7 @@ FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderI
     return createGraphicsPipeline("shadow", pVertexInfo, pFragmentInfo, pipelineInfo, descriptorSetLayouts);
 }
 
-VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo)
+VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo)
 {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
@@ -1083,13 +1100,15 @@ void vk::backend::impl::createSkybox(AssetID id, SFLShaderStages shaderStages)
     if (m_Skybox)
         return;
 
-    assert(shaderStages.vertex.shaderCode);
-    assert(shaderStages.fragment.shaderCode);
+    assert(!shaderStages.vertex.empty());
+    assert(!shaderStages.fragment.empty());
 
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
-                                          .vertexSize = shaderStages.vertex.sizeBytes,
-                                          .pFragmentData = shaderStages.fragment.shaderCode,
-                                          .fragmentSize = shaderStages.fragment.sizeBytes};
+    const auto vertex = shaderInfo(shaderStages.vertex);
+    const auto fragment = shaderInfo(shaderStages.fragment);
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = vertex.shaderCode,
+                                          .vertexSize = vertex.sizeBytes,
+                                          .pFragmentData = fragment.shaderCode,
+                                          .fragmentSize = fragment.sizeBytes};
 
     auto& skyboxShader = m_ShaderMap.emplace("skybox", vk::FVkShader()).first->second;
     skyboxShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
@@ -1108,12 +1127,14 @@ void vk::backend::impl::createFloor(AssetID texture, SFLShaderStages shaderStage
     if (m_Floor)
         return;
 
-    assert(shaderStages.vertex.shaderCode && shaderStages.fragment.shaderCode);
+    assert(!shaderStages.vertex.empty() && !shaderStages.fragment.empty());
 
-    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = shaderStages.vertex.shaderCode,
-                                          .vertexSize = shaderStages.vertex.sizeBytes,
-                                          .pFragmentData = shaderStages.fragment.shaderCode,
-                                          .fragmentSize = shaderStages.fragment.sizeBytes};
+    const auto vertex = shaderInfo(shaderStages.vertex);
+    const auto fragment = shaderInfo(shaderStages.fragment);
+    vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = vertex.shaderCode,
+                                          .vertexSize = vertex.sizeBytes,
+                                          .pFragmentData = fragment.shaderCode,
+                                          .fragmentSize = fragment.sizeBytes};
     auto& floorShader = m_ShaderMap.emplace("floor", vk::FVkShader()).first->second;
     floorShader.Init(m_Device->GetLogicalDevice(), shaderCreateInfo);
 
@@ -1135,7 +1156,10 @@ void vk::backend::impl::setFloor(AssetID texture, float height)
 
 void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStages)
 {
-    if (kind == EFLPassKind::Geometry)
+    const auto vertex = shaderInfo(shaderStages.vertex);
+    const auto fragment = shaderInfo(shaderStages.fragment);
+
+    if (kind == EFLPassKind::Opaque)
     {
         // TODO if pipeline already exists, need to release it
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
@@ -1147,28 +1171,32 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
             m_ShadowMapOffsetTexture.GetDescriptorSetLayout(),
             m_PointLightShadowMapsLayout->GetDescriptorSetLayout(),
         };
-        m_GeometryPipeline =
-            createGeometryPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
-        m_TransparentPipeline =
-            createTransparentPipeline(shaderStages.vertex, shaderStages.fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
+        m_OpaquePipeline = createOpaquePipeline(vertex, fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
+        m_TransparentPipeline = createTransparentPipeline(vertex, fragment, m_MultisampledRenderTarget->GetSamplesCount(), descriptorSetLayouts);
     }
-    else if (kind == EFLPassKind::Shadow)
+}
+
+void vk::backend::impl::createShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages)
+{
+    const auto vertex = shaderInfo(shaderStages.vertex);
+    const auto fragment = shaderInfo(shaderStages.fragment);
+
+    if (kind == EFLShadowPassKind::Directional)
     {
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {
             m_SceneNodeTransformsLayout->GetDescriptorSetLayout(),
         };
-        m_ShadowPipeline = createShadowPipeline(shaderStages.vertex, shaderStages.fragment, VK_SAMPLE_COUNT_1_BIT, descriptorSetLayouts);
+        m_ShadowPipeline = createShadowPipeline(vertex, fragment, VK_SAMPLE_COUNT_1_BIT, descriptorSetLayouts);
     }
-    else if (kind == EFLPassKind::PointLightShadow)
+    else if (kind == EFLShadowPassKind::PointLight)
     {
-        vk::ShaderCreateInfo shaderCreateInfo{
-            .pVertexData = shaderStages.vertex.shaderCode,
-            .vertexSize = shaderStages.vertex.sizeBytes,
-            .pGeometryData = shaderStages.geometry.shaderCode,
-            .geometrySize = shaderStages.geometry.sizeBytes,
-            .pFragmentData = shaderStages.fragment.shaderCode,
-            .fragmentSize = shaderStages.fragment.sizeBytes,
-        };
+        const auto geometry = shaderInfo(shaderStages.geometry);
+        vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = vertex.shaderCode,
+                                              .vertexSize = vertex.sizeBytes,
+                                              .pGeometryData = geometry.shaderCode,
+                                              .geometrySize = geometry.sizeBytes,
+                                              .pFragmentData = fragment.shaderCode,
+                                              .fragmentSize = fragment.sizeBytes};
 
         auto& pointLightShadowShader = m_ShaderMap.emplace("PointLightShadow", vk::FVkShader()).first->second;
         if (!pointLightShadowShader.isInitialized())
@@ -1380,7 +1408,7 @@ void vk::backend::impl::ExecuteMainPass()
     cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
 
 
-    cmd.BindPipeline(m_GeometryPipeline->GetPipeline());
+    cmd.BindPipeline(m_OpaquePipeline->GetPipeline());
 
     VkViewport defaultViewport{.x = 0,
                                .y = 0,
@@ -1489,7 +1517,7 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
         return false;
     }
 
-    if (!m_GeometryPipeline)
+    if (!m_OpaquePipeline)
         return false;
 
     VkResult resetFences = vkResetFences(m_Device->GetLogicalDevice(), 1, &frame.m_InFlightFences);
@@ -1527,7 +1555,8 @@ void vk::backend::impl::endFrame()
     Frame& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
 
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Directional Light Shadow Pass");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Directional Shadow Subpass");
     ExecuteShadowPass();
     cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
 
@@ -1577,7 +1606,7 @@ void vk::backend::impl::endFrame()
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
     // Point Light
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Point Light Shadow Pass");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Point Light Shadow Subpass");
     std::array<Fleur::Mat4, kPointLightShadowFaceCount> faceViewProjections{};
     const std::array<Fleur::Vec3, kPointLightShadowFaceCount> faceDirections{
         Fleur::Vec3(+1, 0, 0), Fleur::Vec3(-1, 0, 0), Fleur::Vec3(0, +1, 0),
@@ -1633,13 +1662,14 @@ void vk::backend::impl::endFrame()
                           VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
     frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
-    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Main Pass");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Opaque Pass");
     ExecuteMainPass();
 
     updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, shadowMap.GetImageView(), m_ShadowMapSampler);
 
-    cmd.BindDescriptorSets(m_GeometryPipeline->GetPipelineLayout(), dst.data(), dst.size());
+    cmd.BindDescriptorSets(m_OpaquePipeline->GetPipelineLayout(), dst.data(), dst.size());
 
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
@@ -1652,7 +1682,7 @@ void vk::backend::impl::endFrame()
         pushConstant.indices.y = drawItem.modelTransformIdx;
         pushConstant.indices.w = m_PointLights.size();
         pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
-        cmd.PushConstant(m_GeometryPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        cmd.PushConstant(m_OpaquePipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
     //

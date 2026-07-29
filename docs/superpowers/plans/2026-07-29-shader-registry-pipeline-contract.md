@@ -4,7 +4,7 @@
 
 **Goal:** Load every compiled shader from the shader resource directory during `Application::Init`, register it through `AssetsManager`, and make renderer pipeline creation reference shader names instead of passing shader bytecode.
 
-**Architecture:** `FileSystem` exposes a shader scan returning logical shader names and file paths. `Application` performs the scan and calls `AssetsManager::LoadShader` for each result before renderer backend initialization. `Renderer` receives a shader registry from `AssetsManager`, creates backend shader objects once, stores them by name, and passes only shader-name contracts to `IRenderer` pipeline setup.
+**Architecture:** `FileSystem` exposes a shader scan returning logical shader names and file paths. `Application` performs the scan and calls `AssetsManager::LoadShader` for each result before renderer backend selection. After the Vulkan/OpenGL backend and device are initialized, `Renderer` passes the registry to the backend; the backend resolves names, creates its shader objects, stores them by name, and uses only shader-name contracts for pipeline setup.
 
 **Tech Stack:** C++17, `std::filesystem`, existing Fleur services, Vulkan/OpenGL renderer contracts, SPIR-V `.spv` assets.
 
@@ -45,7 +45,7 @@
 - Modify: `Engine/Fleur/Lux/OpenGL/Renderer_OpenGL.cpp`
 
 - [ ] Replace `SFLShaderInfo`/`SFLShaderStages` pipeline inputs with a name-based stage descriptor, using empty names for unused stages.
-- [ ] Add a renderer initialization input containing the shader registry from `AssetsManager` and create backend shader objects into `Renderer`'s name map.
+- [ ] Add a renderer initialization input containing the shader registry from `AssetsManager`; after backend/device initialization, create backend shader objects into the backend name map.
 - [ ] Make `CreatePass`, `CreateSkybox`, `CreateFloor`, `ConfigureOverlay`, and `ConfigureDebugDraw` resolve stage names through that map before forwarding to the backend.
 - [ ] Remove `Renderer::shaderInfo()` and all direct shader-bytecode extraction from `AssetsManager` in `Lux.cpp`.
 - [ ] Keep OpenGL compiling with the new interface even where shader stages are currently ignored.
@@ -70,4 +70,3 @@
 - [ ] Build the affected Sandbox target.
 - [ ] Verify that startup finds all `.spv` shader names and that the Vulkan pipeline setup uses names only.
 - [ ] Run `git diff --check` and inspect the final staged file list.
-

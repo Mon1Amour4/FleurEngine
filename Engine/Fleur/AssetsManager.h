@@ -24,6 +24,7 @@ using ModelRecord = Fleur::AssetRecord<Fleur::Graphics::Model>;
 using CubemapRecord = Fleur::AssetRecord<Fleur::Graphics::CubemapImage>;
 
 using ImageAsset = Fleur::Asset<ImageType>;
+using ShaderAsset = Fleur::Asset<ShaderType>;
 using ModelAsset = Fleur::Asset<ModelType>;
 using CubemapAsset = Fleur::Asset<CubemapType>;
 
@@ -143,6 +144,11 @@ public:
     // ---------- Sync ----------
     /// Loads a model immediately and returns an asset with a valid handle.
     ModelAsset LoadModel(std::string_view path);
+    ShaderAsset LoadShader(std::string_view name, std::string_view path);
+    const Fleur::Graphics::ShaderRegistry& GetShaderRegistry() const
+    {
+        return m_ShaderRegistry;
+    }
     /// Loads a 2D image immediately and returns an asset with a valid handle.
     ImageAsset LoadImage(std::string_view path, ImageImportSettings imageSettings = {.imageSource = IMAGE_SOURCE_DISK});
     /// Loads a cubemap immediately and returns an asset with a valid handle.
@@ -285,9 +291,9 @@ private:
     std::atomic_bool m_Stopping{false};
     std::atomic<uint32_t> m_InFlightTasks{0};
 
-    void load_all_shaders();
     std::unordered_map<std::string, AssetID> m_ShaderMapString;
     std::unordered_map<AssetID, Fleur::Graphics::Shader> m_ShaderMap;
+    Fleur::Graphics::ShaderRegistry m_ShaderRegistry;
 
     Fleur::AssetCache<Fleur::Graphics::Image2D> m_Image2DCache;
     Fleur::AssetCache<Fleur::Graphics::Model> m_ModelCache;

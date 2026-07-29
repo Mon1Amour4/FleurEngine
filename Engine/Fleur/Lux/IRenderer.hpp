@@ -3,7 +3,10 @@
 #include "../WindowPrimitives.hpp"
 #include "Graphics.hpp"
 #include "RenderViews.hpp"
+#include "Shader.h"
 #include "glm/glm.hpp"
+
+#include <string_view>
 
 namespace Fleur::Graphics
 {
@@ -12,22 +15,26 @@ namespace Fleur::Graphics
 
 enum class EFLPassKind
 {
-    Geometry,
-    Shadow,
-    PointLightShadow,
-    Overlay
+    Opaque,
+    Shadow
 };
 
-struct SFLShaderInfo
+enum class EFLShadowPassKind
+{
+    Directional,
+    PointLight
+};
+
+struct SFLShaderBytecode
 {
     const char* shaderCode{nullptr};
     uint32_t sizeBytes{0};
 };
 struct SFLShaderStages
 {
-    SFLShaderInfo vertex;
-    SFLShaderInfo fragment;
-    SFLShaderInfo geometry;
+    std::string_view vertex;
+    std::string_view fragment;
+    std::string_view geometry;
 };
 
 struct SFLDebugDrawShaders
@@ -46,6 +53,7 @@ struct IRenderer
 
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;
+    virtual void SetShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders) = 0;
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;
@@ -53,6 +61,7 @@ struct IRenderer
     virtual void SetFloor(AssetID texture, float height) = 0;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) = 0;
+    virtual void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) = 0;
     virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) = 0;
     virtual void ConfigureOverlay(SFLShaderStages shaderStages) = 0;
 

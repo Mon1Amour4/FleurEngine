@@ -14,6 +14,8 @@
 #endif
 #include <Application.h>
 
+#include <algorithm>
+
 class Fleur::FS::FileSystem::FileSystemImpl
 {
     friend class FileSystem;
@@ -232,6 +234,25 @@ std::vector<std::string> Fleur::FS::FileSystem::GetAllFilesInFolder(std::string_
         delete[] buffer;
     }
     return paths;
+}
+
+std::vector<Fleur::FS::ShaderFile> Fleur::FS::FileSystem::ScanShaders() const
+{
+    const auto shaderFolder = GetFullPathToFolder("Shaders");
+    if (!shaderFolder)
+        return {};
+
+    std::vector<ShaderFile> shaders;
+    for (const auto& entry : std::filesystem::directory_iterator(*shaderFolder))
+    {
+        if (!entry.is_regular_file() || entry.path().extension() != ".spv")
+            continue;
+
+        shaders.push_back({entry.path().stem().string(), entry.path().lexically_normal().string()});
+    }
+
+    std::sort(shaders.begin(), shaders.end(), [](const ShaderFile& lhs, const ShaderFile& rhs) { return lhs.name < rhs.name; });
+    return shaders;
 }
 
 std::string Fleur::FS::FileSystem::GetFileNameWithoutExtFromPath(std::string_view pathToFile)

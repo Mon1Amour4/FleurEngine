@@ -29,8 +29,10 @@ struct backend : public Fleur::Graphics::IRenderer
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
+    void SetShaderRegistry(const ShaderRegistry& shaders) override;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
+    virtual void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) override;
     virtual void ConfigureDebugDraw(const SFLDebugDrawShaders& shaders) override;
     virtual void ConfigureOverlay(SFLShaderStages shaderStages) override;
 

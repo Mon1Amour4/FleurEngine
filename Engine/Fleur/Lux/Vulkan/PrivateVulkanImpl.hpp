@@ -19,6 +19,7 @@
 #include <optional>
 #include <set>
 #include <sstream>
+#include <string_view>
 #include <vector>
 
 #include "DescriptorPoolAllocator.h"
@@ -322,23 +323,23 @@ struct backend::impl
     VkSurfaceKHR createSurface(VkInstance instance, void* nativeHandle);
     std::vector<const char*> deviceExtensions = {VK_KHR_SWAPCHAIN_EXTENSION_NAME, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME};
 
-    // ---------- geometryPipeline ----------
+    // ---------- opaque pipelines ----------
 
-    FVkPipeline* m_GeometryPipeline{nullptr};
-    FVkPipeline* createGeometryPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+    FVkPipeline* m_OpaquePipeline{nullptr};
+    FVkPipeline* createOpaquePipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                         VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
     FVkPipeline* m_TransparentPipeline{nullptr};
-    FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+    FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                            VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
 
     FVkPipeline* m_ShadowPipeline{nullptr};
-    FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+    FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                       VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
-    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderInfo pVertexInfo, Fleur::Graphics::SFLShaderInfo pFragmentInfo,
+    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
                                         const vk::GetPipelineInfo& pipelineInfo, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
 
     // ---------- shaders ----------
-    VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderInfo* pShaderInfo);
+    VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo);
 
 
     // ---------- commandBuffer ----------
@@ -554,15 +555,21 @@ struct backend::impl
     // ---------- skybox ----------
     std::unique_ptr<FVkSkybox> m_Skybox;
     std::unique_ptr<FVkFloor> m_Floor;
+    const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
+    void setShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders)
+    {
+        m_ShaderRegistry = &shaders;
+    }
+    Fleur::Graphics::SFLShaderBytecode shaderInfo(std::string_view name) const;
     void createSkybox(AssetID id, SFLShaderStages shaderStages);
     void setSkybox(AssetID id);
     void createFloor(AssetID texture, SFLShaderStages shaderStages, float height);
     void setFloor(AssetID texture, float height);
 
-    vk::FVkShader* AddShader(ShaderCreateInfo& shaderInfo);
     std::unordered_map<std::string, vk::FVkShader> m_ShaderMap;
 
     void createPass(EFLPassKind kind, SFLShaderStages shaderStages);
+    void createShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages);
 
 
     // Debug
