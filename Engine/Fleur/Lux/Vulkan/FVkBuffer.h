@@ -2,7 +2,7 @@
 
 #include <vulkan/vulkan.h>
 
-#include "vk_mem_alloc.h"
+#include "FVkMemoryTracker.h"
 
 class FVkBuffer
 {
@@ -10,9 +10,15 @@ public:
     FVkBuffer();
     ~FVkBuffer();
 
+    FVkBuffer(const FVkBuffer&) = delete;
+    FVkBuffer& operator=(const FVkBuffer&) = delete;
+    FVkBuffer(FVkBuffer&& other) noexcept;
+    FVkBuffer& operator=(FVkBuffer&& other) noexcept;
+
     void Destroy();
 
-    void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
+    void Init(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, FVkAllocationCategory category,
+              VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize);
 
     void CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer);
     void MemCopy(const void* src, size_t size);
@@ -50,6 +56,7 @@ public:
 
 private:
     VkDevice m_Device;
+    FVkMemoryTracker* m_MemoryTracker;
 
     uint64_t m_SizeBytes;
     uint64_t m_CurrentSizeBytes;
@@ -60,4 +67,6 @@ private:
 
     VkMemoryPropertyFlags m_MemoryUsage;
     void* m_MappedMemory;
+
+    void moveFrom(FVkBuffer&& other) noexcept;
 };

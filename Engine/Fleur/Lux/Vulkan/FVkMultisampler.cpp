@@ -11,8 +11,8 @@ FVkMultisampler::~FVkMultisampler()
 {
 }
 
-void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkSampleCountFlagBits desiredSampleCount, uint32_t width, uint32_t height,
-                           VkFormat format)
+void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker,
+                           VkSampleCountFlagBits desiredSampleCount, uint32_t width, uint32_t height, VkFormat format)
 {
     m_Device = device;
     m_PhysicalDevice = physicalDevice;
@@ -35,7 +35,8 @@ void FVkMultisampler::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkS
     imageInfo.usage = VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     imageInfo.samples = m_MSAASamples;
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    m_Texture.CreateImage(m_Device, m_PhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_Texture.CreateImage(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::RenderTarget, imageInfo,
+                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
     m_Texture.CreateImageView();
 }
 

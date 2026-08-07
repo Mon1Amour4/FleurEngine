@@ -9,6 +9,8 @@
 #include "FVkBuffer.h"
 #include "FVkDevice.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSwapchain.h"
 
@@ -16,7 +18,7 @@ class FVkFloor
 {
 public:
     ~FVkFloor();
-    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, vk::FVkShader* shader, VkDescriptorSetLayout cameraLayout, VkImageView textureView,
+    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, vk::FVkShader* shader, VkImageView textureView,
                 float height, VkSampleCountFlagBits sampleCount, VkFormat depthFormat);
 
     void SetFloor(VkImageView textureView);
@@ -36,12 +38,10 @@ private:
     };
 
     VkDevice m_Device{VK_NULL_HANDLE};
-    FVkPipeline* m_Pipeline{nullptr}; // borrowed from FVkShader::m_PipelineCache
+    FVkPipeline* m_Pipeline{nullptr}; // borrowed from m_PipelineCache
+    std::shared_ptr<FVkPipelineLayout> m_PipelineLayout;
+    FVkPipelineCache m_PipelineCache;
     vk::FVkShader* m_Shader{nullptr};
-    std::unique_ptr<FVkDescriptorSetLayout> m_TextureLayout;
-    VkDescriptorPool m_DescriptorPool{VK_NULL_HANDLE};
-    VkDescriptorSet m_DescriptorSet{VK_NULL_HANDLE};
-    VkSampler m_Sampler{VK_NULL_HANDLE};
     float m_Height{0.0f};
     VkViewport m_Viewport{};
     VkRect2D m_Scissor{};

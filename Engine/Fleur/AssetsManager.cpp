@@ -176,6 +176,7 @@ void Fleur::AssetsManager::PollMessages()
 
                 Fleur::Graphics::SFLModelRegisterInfo regInfo{};
                 regInfo.model = message.ID;
+                regInfo.modelBoundingBox = model->GetBoundingBox();
                 regInfo.vertices = model->GetVerticesData();
                 regInfo.vertexCount = model->GetVertexCount();
                 regInfo.indices = model->GetIdxData();

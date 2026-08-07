@@ -57,7 +57,6 @@ const Fleur::Vec3 FVkSkybox::m_Vertices[m_VertexCount] = {
 FVkSkybox::FVkSkybox()
     : m_Device(nullptr)
     , m_PhysicalDevice(nullptr)
-    , m_SkyboxDescriptorSetLayout(nullptr)
     , m_Pipeline(nullptr)
     , m_Sampler(nullptr)
     , m_SkyboxDescriptorPool(nullptr)
@@ -100,9 +99,7 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     m_SampleCount = sampleCount;
     m_DepthFormat = depthFormat;
 
-    // 1. Descriptor set layout
-    createSkyboxDescriptorSetLayout();
-    // 2. Pipeline
+    // 1. Pipeline
 
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.cullMode = VK_CULL_MODE_NONE;
@@ -115,33 +112,27 @@ void FVkSkybox::Create(const FVkDevice* device, const FVkSwapchain* swapchain, V
     pipelineInfo.colorFormat = m_ColorFormat;
     pipelineInfo.depthFormat = m_DepthFormat;
 
-    std::vector<VkDescriptorSetLayout> descriptorSetLayouts = {m_SkyboxDescriptorSetLayout->GetDescriptorSetLayout()};
-    m_Pipeline = &m_SkyboxShader->GetPipeline(pipelineInfo, descriptorSetLayouts);
-    // 4. Descriptor pool
+    m_PipelineLayout = std::make_shared<FVkPipelineLayout>();
+    m_PipelineLayout->Init(m_Device, *m_SkyboxShader);
+    m_Pipeline = &m_PipelineCache.Get(*m_SkyboxShader, pipelineInfo, m_PipelineLayout);
+    // 3. Descriptor pool
     createSkyboxDescriptorPool();
-    // 5. Sampler
+    // 4. Sampler
     createSkyboxSampler();
-    // 6. Uniform Buffer
+    // 5. Uniform Buffer
     m_UniformBuffer = std::make_unique<FVkBuffer>();
-    m_UniformBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_SizeOfUniformBuffer, m_SizeOfUniformBuffer);
+    m_UniformBuffer->Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                          VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, m_SizeOfUniformBuffer, m_SizeOfUniformBuffer);
     std::array<Fleur::Mat4, 2> initialMatrices = {Fleur::Mat4(1.0f), Fleur::Mat4(1.0f)};
     m_UniformBuffer->MemCopy(initialMatrices.data(), m_SizeOfUniformBuffer);
-    // 7. Descriptor Set
+    // 6. Descriptor Set
     createSkyboxDescriptorSet(imageView);
-    // 8. VertexBuffer
+    // 7. VertexBuffer
     m_VertexBuffer = std::make_unique<FVkBuffer>();
-    m_VertexBuffer->Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VertexBufferSize,
-                         sizeof(Fleur::Vec3));
-    // 9. Copy vertices to vertex buffer
+    m_VertexBuffer->Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, m_VertexBufferSize, sizeof(Fleur::Vec3));
+    // 8. Copy vertices to vertex buffer
     m_VertexBuffer->MemCopy(m_Vertices, m_VertexBufferSize);
-}
-
-void FVkSkybox::createSkyboxDescriptorSetLayout()
-{
-    m_SkyboxDescriptorSetLayout = (FVkDescriptorSetLayout::Builder(m_Device)
-                                       .add(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT, 1)
-                                       .add(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1)
-                                       .build(VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT));
 }
 
 void FVkSkybox::createSkyboxDescriptorPool()
@@ -190,7 +181,8 @@ void FVkSkybox::createSkyboxSampler()
 }
 void FVkSkybox::createSkyboxDescriptorSet(VkImageView imageView)
 {
-    auto skyboxDescriptorSetLayout = m_SkyboxDescriptorSetLayout->GetDescriptorSetLayout();
+    const VkDescriptorSetLayout skyboxDescriptorSetLayout = m_PipelineLayout->GetSetLayout(0);
+    assert(skyboxDescriptorSetLayout != VK_NULL_HANDLE);
     VkDescriptorSetAllocateInfo skyboxDescriptorSetAllocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
                                                              .descriptorPool = m_SkyboxDescriptorPool,
                                                              .descriptorSetCount = 1,

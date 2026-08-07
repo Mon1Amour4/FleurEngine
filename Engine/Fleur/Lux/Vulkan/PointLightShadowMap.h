@@ -11,6 +11,8 @@
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkTexture.h"
 
@@ -29,8 +31,8 @@ public:
     PointLightShadowMap(const PointLightShadowMap&) = delete;
     PointLightShadowMap& operator=(const PointLightShadowMap&) = delete;
 
-    void Create(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t resolution, VkFormat depthFormat);
-    void CreatePipeline(vk::FVkShader& shader, VkDescriptorSetLayout transformDescriptorSetLayout);
+    void Create(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, uint32_t resolution, VkFormat depthFormat);
+    void CreatePipeline(vk::FVkShader& shader);
     void Begin(FVkCommandBuffer& commandBuffer, uint32_t lightIndex);
     void End(FVkCommandBuffer& commandBuffer);
     void PrepareForSampling(FVkCommandBuffer& commandBuffer);
@@ -44,10 +46,6 @@ public:
     uint32_t GetTextureCount() const
     {
         return m_TextureCount;
-    }
-    VkDescriptorSetLayout GetMatricesDescriptorSetLayout() const
-    {
-        return m_MatricesDescriptorSetLayout;
     }
     VkPipeline GetPipeline() const
     {
@@ -98,7 +96,8 @@ private:
 
     uint32_t m_ActiveLightIndex{UINT32_MAX};
     vk::abstraction::DescriptorAllocator m_DescriptorAllocator;
-    VkDescriptorSetLayout m_MatricesDescriptorSetLayout{VK_NULL_HANDLE};
 
     FVkPipeline* m_Pipeline{nullptr};
+    std::shared_ptr<FVkPipelineLayout> m_PipelineLayout;
+    FVkPipelineCache m_PipelineCache;
 };

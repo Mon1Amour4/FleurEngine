@@ -4,22 +4,23 @@
 
 #include "Renderer_Vulkan.h"
 
+#include <Fleur/Log.h>
 
-#define VMA_IMPLEMENTATION
-#include "vk_mem_alloc.h"
 
 #include <vulkan/vulkan.h>
 
 #include <Fleur/Math/Math.hpp>
 #include <algorithm>
 #include <array>
-#include <iostream>
+#include <cmath>
+#include <chrono>
 #include <limits>
 #include <memory>
 #include <optional>
 #include <set>
 #include <sstream>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 #include "DescriptorPoolAllocator.h"
@@ -32,6 +33,8 @@
 #include "FVkMultisampler.h"
 #include "FVkOverlayPass.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSkybox.h"
 #include "FVkSwapchain.h"
@@ -41,13 +44,15 @@
 #include "VkHelper.h"
 
 #if defined(FL_CONF_DEBUG)
-#define DBG_PRINT(moduleText, text) std::cout << moduleText << text << std::endl;
+#define DBG_PRINT(moduleText, text) \
+    do { std::ostringstream logMessage; logMessage << moduleText << text; FL_CORE_INFO("{}", logMessage.str()); } while (false);
 #define MODULE "[Vulkan] "
-#define DBG_PRINTM(text) std::cout << MODULE << text << std::endl;
+#define DBG_PRINTM(text) \
+    do { std::ostringstream logMessage; logMessage << MODULE << text; FL_CORE_INFO("{}", logMessage.str()); } while (false);
 #else
-#define DBG_PRINT(moduleText, text)
+#define DBG_PRINT(moduleText, text) do { } while (false)
 #define MODULE
-#define DBG_PRINTM(text)
+#define DBG_PRINTM(text) do { } while (false)
 #endif
 
 #define VULKAN_VERSION VK_API_VERSION_1_4
@@ -291,8 +296,11 @@ PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT = nullptr;
 
 struct backend::impl
 {
-    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights);
+    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights,
+         std::shared_ptr<spdlog::logger> logger);
     ~impl();
+
+    std::shared_ptr<spdlog::logger> m_Logger;
 
     bool beginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void endFrame();
@@ -318,6 +326,7 @@ struct backend::impl
     Fleur::SRect m_SurfaceRect;
 
     std::unique_ptr<FVkDevice> m_Device;
+    std::chrono::steady_clock::time_point m_LastMemoryDiagnosis{};
     std::unique_ptr<FVkSwapchain> m_Swapchain;
     VkSurfaceKHR m_Surface;
     VkSurfaceKHR createSurface(VkInstance instance, void* nativeHandle);
@@ -327,16 +336,16 @@ struct backend::impl
 
     FVkPipeline* m_OpaquePipeline{nullptr};
     FVkPipeline* createOpaquePipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                        VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+                                      VkSampleCountFlagBits samplesCount);
     FVkPipeline* m_TransparentPipeline{nullptr};
     FVkPipeline* createTransparentPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                           VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+                                           VkSampleCountFlagBits samplesCount);
 
     FVkPipeline* m_ShadowPipeline{nullptr};
     FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                      VkSampleCountFlagBits samplesCount, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+                                      VkSampleCountFlagBits samplesCount);
     FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                        const vk::GetPipelineInfo& pipelineInfo, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
+                                        const vk::GetPipelineInfo& pipelineInfo);
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo);
@@ -367,13 +376,12 @@ struct backend::impl
     PointLightShadowMap m_PointLightShadowMaps;
     VkDescriptorSet m_PointLightsDescriptorSet{VK_NULL_HANDLE};
     VkDescriptorSet m_PointLightShadowMapsDescriptorSet{VK_NULL_HANDLE};
+    VkDescriptorSet m_ShadowMapOffsetDescriptorSet{VK_NULL_HANDLE};
 
-    std::unique_ptr<FVkDescriptorSetLayout> m_CameraUboLayout;
-    std::unique_ptr<FVkDescriptorSetLayout> m_SceneNodeTransformsLayout;
-    std::unique_ptr<FVkDescriptorSetLayout> m_ShadowMapLayout;
-    std::unique_ptr<FVkDescriptorSetLayout> m_PointLightsLayout;
-    std::unique_ptr<FVkDescriptorSetLayout> m_PointLightShadowMapsLayout;
-    std::unique_ptr<FVkDescriptorSetLayout> m_TextureDescriptorSetLayout;
+    std::shared_ptr<FVkPipelineLayout> m_OpaquePipelineLayout;
+    bool m_OpaqueDescriptorSetsInitialized{false};
+    FVkPipelineCache m_PipelineCache;
+    std::unordered_map<std::string, std::shared_ptr<FVkPipelineLayout>> m_PipelineLayouts;
     struct Frame
     {
         FVkCommandPool m_CommandPools;
@@ -400,11 +408,6 @@ struct backend::impl
 
     VkMemoryRequirements memRequirements;
 
-
-    // ---------- vma ----------
-    VmaAllocator m_Allocator;
-    void initializeVma();
-    void freeVma();
 
     std::unique_ptr<FVkBuffer> m_VertexBuffer;
     std::unique_ptr<FVkBuffer> m_IndexBuffer;
@@ -546,11 +549,10 @@ struct backend::impl
 
 
     // ---------- textures ----------
-    VkDescriptorSet m_TextureDescriptorSet;
-    VkDescriptorPool m_DescriptorPool;
+    VkDescriptorSet m_TextureDescriptorSet{VK_NULL_HANDLE};
+    VkDescriptorPool m_DescriptorPool{VK_NULL_HANDLE};
 
-    void createTextureDescriptorSetPass();
-    void createPointLightShadowMapsDescriptorSet();
+    void initializeOpaqueDescriptorSets();
 
     void createTextureDescriptorPool();
 
@@ -561,9 +563,20 @@ struct backend::impl
     std::unique_ptr<FVkSkybox> m_Skybox;
     std::unique_ptr<FVkFloor> m_Floor;
     const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
+    Fleur::Graphics::BoundingBox m_ShadowSceneBounds{};
+    bool m_HasShadowSceneBounds{false};
+    bool m_DirectionalShadowFrustumDirty{true};
+    Fleur::Vec3 m_LastDirectionalLightDirection{0.0f};
+    bool m_HasLastDirectionalLightDirection{false};
     void setShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders)
     {
         m_ShaderRegistry = &shaders;
+    }
+    void setShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds)
+    {
+        m_ShadowSceneBounds = bounds;
+        m_HasShadowSceneBounds = true;
+        m_DirectionalShadowFrustumDirty = true;
     }
     Fleur::Graphics::SFLShaderBytecode shaderInfo(std::string_view name) const;
     void createSkybox(AssetID id, SFLShaderStages shaderStages);

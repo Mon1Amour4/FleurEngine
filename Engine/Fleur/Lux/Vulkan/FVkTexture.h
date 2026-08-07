@@ -2,6 +2,8 @@
 
 #include <vulkan/vulkan.h>
 
+#include "FVkMemoryTracker.h"
+
 class FVkTexture
 {
 public:
@@ -13,8 +15,8 @@ public:
     FVkTexture(FVkTexture&& other) noexcept;
     FVkTexture& operator=(FVkTexture&& other) noexcept;
 
-    VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties,
-                        VkImageAspectFlags aspect);
+    VkImage CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, FVkAllocationCategory category,
+                        VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties, VkImageAspectFlags aspect);
     VkImageView CreateImageView();
     VkImageView CreateImageView(VkImageViewType viewType, uint32_t layerCount);
 
@@ -31,6 +33,7 @@ public:
 
 private:
     VkDevice m_Device;
+    FVkMemoryTracker* m_MemoryTracker;
     VkFormat m_Format;
     VkImageType m_ImageType;
     VkImageAspectFlags m_Aspect;

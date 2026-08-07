@@ -18,6 +18,7 @@ struct SceneInstance
 {
     Fleur::AssetHandle model;
     Mat4 transform;
+    bool shadowBoundsRegistered{false};
 };
 
 // Owns the world's instances + the camera. Submits draws to Lux each frame.

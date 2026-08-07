@@ -10,6 +10,8 @@
 #include "FVkCommand.h"
 #include "FVkDevice.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSwapchain.h"
 #include "Graphics.hpp"
@@ -47,7 +49,6 @@ public:
                 const FVkSwapchain* swapchain,
                 vk::FVkShader* primitivesShader,
                 vk::FVkShader* geometryShader,
-                VkDescriptorSetLayout geometryTexturesLayout,
                 VkDescriptorSet geometryTexturesDescriptorSet,
                 VkSampleCountFlagBits sampleCount,
                 VkFormat depthFormat,
@@ -83,10 +84,12 @@ private:
 
     vk::FVkShader* m_PrimitivesShader{nullptr};
     vk::FVkShader* m_GeometryShader{nullptr};
-    FVkPipeline* m_LinePipeline{nullptr};   // borrowed from FVkShader::m_PipelineCache
-    FVkPipeline* m_PointPipeline{nullptr};  // borrowed from FVkShader::m_PipelineCache
-    FVkPipeline* m_QuadPipeline{nullptr};   // borrowed from FVkShader::m_PipelineCache
-    VkDescriptorSetLayout m_GeometryTexturesLayout{VK_NULL_HANDLE};
+    FVkPipeline* m_LinePipeline{nullptr};   // borrowed from m_PipelineCache
+    FVkPipeline* m_PointPipeline{nullptr};  // borrowed from m_PipelineCache
+    FVkPipeline* m_QuadPipeline{nullptr};   // borrowed from m_PipelineCache
+    std::shared_ptr<FVkPipelineLayout> m_PrimitivesPipelineLayout;
+    std::shared_ptr<FVkPipelineLayout> m_GeometryPipelineLayout;
+    FVkPipelineCache m_PipelineCache;
     VkDescriptorSet m_GeometryTexturesDescriptorSet{VK_NULL_HANDLE};
 
     // Per-frame GPU buffers (x framesInFlight) so we never stomp data the GPU is

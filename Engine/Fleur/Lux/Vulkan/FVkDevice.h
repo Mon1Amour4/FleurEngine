@@ -12,6 +12,7 @@
 
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
+#include "FVkMemoryTracker.h"
 
 struct FleurQueueFamilies
 {
@@ -94,6 +95,11 @@ public:
         return m_SupportedFormatsMap[channels];
     }
 
+    inline FVkMemoryTracker& GetMemoryTracker() const
+    {
+        return const_cast<FVkMemoryTracker&>(m_MemoryTracker);
+    }
+
 private:
     static bool IsDeviceSuitable(VkPhysicalDevice physicalDevice, SDeviceInfo& deviceInfo);
     static FleurQueueFamilies FindGraphicsQueueFamily(VkPhysicalDevice physicalDevice, VkSurfaceKHR surface);
@@ -111,6 +117,7 @@ private:
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
 
+    FVkMemoryTracker m_MemoryTracker;
     std::list<FVkBuffer> m_StagingBuffers;
 
     std::unordered_map<uint32_t, VkFormat> m_SupportedFormatsMap;

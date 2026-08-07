@@ -6,8 +6,6 @@
 #include <string>
 #include <vector>
 
-uint32_t FindMemoryType(VkPhysicalDevice device, uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
 void FindBarrierAccessMask(VkImageLayout oldLayout, VkImageLayout newLayout,
                            VkAccessFlags& srcAccessMask,  // VkImageMemoryBarrier
                            VkAccessFlags& dstAccessMask,  // VkImageMemoryBarrier

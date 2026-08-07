@@ -22,9 +22,10 @@ PointLightShadowMap::PointLightShadowMap(uint32_t textureCount)
 PointLightShadowMap::~PointLightShadowMap()
 {
     Destroy();
+    m_PipelineLayout.reset();
 }
 
-void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t resolution, VkFormat depthFormat)
+void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, uint32_t resolution, VkFormat depthFormat)
 {
     Destroy();
 
@@ -55,7 +56,8 @@ void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevic
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        m_PointLightShadowMaps[index].CreateImage(m_Device, m_PhysicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+        m_PointLightShadowMaps[index].CreateImage(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::DepthTarget, imageInfo,
+                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
         m_PointLightShadowMaps[index].CreateImageView(VK_IMAGE_VIEW_TYPE_CUBE, kCubeLayers);
 
         VkImageViewCreateInfo arrayViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -68,10 +70,9 @@ void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevic
         VK_CHECK(vkCreateImageView(m_Device, &arrayViewInfo, nullptr, &m_ArrayImageViews[index]));
     }
 
-    m_MatricesBuffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+    m_MatricesBuffer.Init(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                           sizeof(ShadowMatrices) * m_TextureCount, sizeof(ShadowMatrices));
 
-    createDescriptorSet();
 }
 
 void PointLightShadowMap::Begin(FVkCommandBuffer& commandBuffer, uint32_t lightIndex)
@@ -214,17 +215,8 @@ void PointLightShadowMap::transitionImageLayout(VkCommandBuffer commandBuffer, V
 
 void PointLightShadowMap::createDescriptorSet()
 {
-    VkDescriptorSetLayoutBinding binding{};
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
-
-    VkDescriptorSetLayoutCreateInfo layoutInfo{VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO};
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &binding;
-    VK_CHECK(vkCreateDescriptorSetLayout(m_Device, &layoutInfo, nullptr, &m_MatricesDescriptorSetLayout));
-
+    const VkDescriptorSetLayout layout = m_PipelineLayout->GetSetLayout(1);
+    assert(layout != VK_NULL_HANDLE);
     std::array<vk::abstraction::DescriptorAllocator::PoolSizeRatio, 1> poolRatios{{
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
     }};
@@ -232,7 +224,7 @@ void PointLightShadowMap::createDescriptorSet()
     m_MatricesDescriptorSets.resize(m_TextureCount);
     for (uint32_t index = 0; index < m_TextureCount; ++index)
     {
-        m_MatricesDescriptorSets[index] = m_DescriptorAllocator.allocate(m_Device, m_MatricesDescriptorSetLayout, 1);
+        m_MatricesDescriptorSets[index] = m_DescriptorAllocator.allocate(m_Device, layout, 1);
 
         const VkDeviceSize offset = sizeof(ShadowMatrices) * index;
         vk::abstraction::DescriptorWriter writer;
@@ -251,13 +243,9 @@ void PointLightShadowMap::UpdateMatrices(uint32_t lightIndex, const std::array<F
     m_MatricesBuffer.Unmap();
 }
 
-void PointLightShadowMap::CreatePipeline(vk::FVkShader& shader, VkDescriptorSetLayout transformDescriptorSetLayout)
+void PointLightShadowMap::CreatePipeline(vk::FVkShader& shader)
 {
     assert(m_Device != VK_NULL_HANDLE);
-    assert(m_MatricesDescriptorSetLayout != VK_NULL_HANDLE);
-    assert(transformDescriptorSetLayout != VK_NULL_HANDLE);
-
-    std::vector<VkDescriptorSetLayout> layouts{transformDescriptorSetLayout, m_MatricesDescriptorSetLayout};
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
     pipelineInfo.depthTestEnable = true;
@@ -268,7 +256,10 @@ void PointLightShadowMap::CreatePipeline(vk::FVkShader& shader, VkDescriptorSetL
     pipelineInfo.colorFormat = VK_FORMAT_UNDEFINED;
     pipelineInfo.depthFormat = m_DepthFormat;
 
-    m_Pipeline = &shader.GetPipeline(pipelineInfo, layouts);
+    m_PipelineLayout = std::make_shared<FVkPipelineLayout>();
+    m_PipelineLayout->Init(m_Device, shader);
+    createDescriptorSet();
+    m_Pipeline = &m_PipelineCache.Get(shader, pipelineInfo, m_PipelineLayout);
 }
 
 void PointLightShadowMap::Destroy()
@@ -287,13 +278,10 @@ void PointLightShadowMap::Destroy()
 
     m_MatricesBuffer.Destroy();
     m_DescriptorAllocator.destroy_pools(m_Device);
-    if (m_MatricesDescriptorSetLayout != VK_NULL_HANDLE)
-        vkDestroyDescriptorSetLayout(m_Device, m_MatricesDescriptorSetLayout, nullptr);
     std::fill(m_ArrayImageViews.begin(), m_ArrayImageViews.end(), VK_NULL_HANDLE);
     m_MatricesDescriptorSets.clear();
     m_ImagesInitialized = false;
     m_ActiveLightIndex = UINT32_MAX;
-    m_MatricesDescriptorSetLayout = VK_NULL_HANDLE;
     m_Device = VK_NULL_HANDLE;
     m_PhysicalDevice = VK_NULL_HANDLE;
 }

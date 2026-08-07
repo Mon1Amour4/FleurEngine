@@ -10,7 +10,8 @@ public:
     FVkMultisampler();
     ~FVkMultisampler();
 
-    void Init(VkDevice device, VkPhysicalDevice physicalDevice, VkSampleCountFlagBits desiredSampleCount, uint32_t width, uint32_t height, VkFormat format);
+    void Init(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, VkSampleCountFlagBits desiredSampleCount,
+              uint32_t width, uint32_t height, VkFormat format);
 
     inline VkSampleCountFlagBits GetSamplesCount()
     {

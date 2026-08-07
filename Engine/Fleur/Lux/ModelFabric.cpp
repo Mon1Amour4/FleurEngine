@@ -204,8 +204,20 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
 
                         info.meshInstance.emplace_back(info.meshes.size() - 1, 0, info.worldTransforms.size() - 1);
 
-                        BoundingBox meshBoundingBox = modelMesh.GetBoundingBox();
-                        info.modelBoundingBox.UpdateBoundingBox(meshBoundingBox.GetMin(), meshBoundingBox.GetMax());
+                    }
+
+                    const uint32_t meshIndex = uploadedMeshes.at(reinterpret_cast<std::uintptr_t>(node.mesh));
+                    const BoundingBox meshBoundingBox = info.meshes[meshIndex].GetBoundingBox();
+                    const Fleur::Vec3 meshMin = meshBoundingBox.GetMin();
+                    const Fleur::Vec3 meshMax = meshBoundingBox.GetMax();
+                    const Fleur::Mat4& nodeTransform = info.worldTransforms.back();
+                    const Fleur::Vec3 meshCorners[8] = {
+                        {meshMin.x, meshMin.y, meshMin.z}, {meshMax.x, meshMin.y, meshMin.z}, {meshMax.x, meshMax.y, meshMin.z}, {meshMin.x, meshMax.y, meshMin.z},
+                        {meshMin.x, meshMin.y, meshMax.z}, {meshMax.x, meshMin.y, meshMax.z}, {meshMax.x, meshMax.y, meshMax.z}, {meshMin.x, meshMax.y, meshMax.z}};
+                    for (const Fleur::Vec3& corner : meshCorners)
+                    {
+                        const Fleur::Vec3 worldCorner = Fleur::Vec3(nodeTransform * Fleur::Vec4(corner, 1.0f));
+                        info.modelBoundingBox.UpdateBoundingBox(worldCorner, worldCorner);
                     }
 
                     info.meshInstance.back().drawCount++;

@@ -14,14 +14,13 @@ FVkDebugDraw::~FVkDebugDraw()
 }
 
 void FVkDebugDraw::Create(const FVkDevice* device, const FVkSwapchain* swapchain, vk::FVkShader* primitivesShader, vk::FVkShader* geometryShader,
-                          VkDescriptorSetLayout geometryTexturesLayout, VkDescriptorSet geometryTexturesDescriptorSet, VkSampleCountFlagBits sampleCount,
+                          VkDescriptorSet geometryTexturesDescriptorSet, VkSampleCountFlagBits sampleCount,
                           VkFormat depthFormat, uint32_t framesInFlight)
 {
     m_Device = device->GetLogicalDevice();
     m_PhysicalDevice = device->GetPhysicalDevice();
     m_PrimitivesShader = primitivesShader;
     m_GeometryShader = geometryShader;
-    m_GeometryTexturesLayout = geometryTexturesLayout;
     m_GeometryTexturesDescriptorSet = geometryTexturesDescriptorSet;
     m_ColorFormat = swapchain->GetImageFormat();
     m_Extent = swapchain->GetSwapchainExtent();
@@ -42,16 +41,17 @@ void FVkDebugDraw::Create(const FVkDevice* device, const FVkSwapchain* swapchain
     for (size_t i = 0; i < frameCount; i++)
     {
         FVkBuffer& lineBuffer = m_LineBuffers.emplace_back();
-        lineBuffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, kVertexBufferSize,
-                        kVertexBufferStride);
+        lineBuffer.Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                        VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, kVertexBufferSize, kVertexBufferStride);
 
         FVkBuffer& pointBuffer = m_PointBuffers.emplace_back();
-        pointBuffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, kVertexBufferSize,
-                         kVertexBufferStride);
+        pointBuffer.Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, kVertexBufferSize, kVertexBufferStride);
 
         FVkBuffer& geometryBuffer = m_GeometryBuffers.emplace_back();
-        geometryBuffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                            sizeof(GeometryVertex) * kMaxVertsPerFrame, sizeof(GeometryVertex));
+        geometryBuffer.Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                            VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(GeometryVertex) * kMaxVertsPerFrame,
+                            sizeof(GeometryVertex));
     }
 
     createPipelines();
@@ -79,8 +79,9 @@ void FVkDebugDraw::createPipelines()
         linePipelineInfo.colorFormat = m_ColorFormat;
         linePipelineInfo.depthFormat = m_DepthFormat;
 
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        m_LinePipeline = &m_PrimitivesShader->GetPipeline(linePipelineInfo, descriptorSetLayouts);
+        m_PrimitivesPipelineLayout = std::make_shared<FVkPipelineLayout>();
+        m_PrimitivesPipelineLayout->Init(m_Device, *m_PrimitivesShader);
+        m_LinePipeline = &m_PipelineCache.Get(*m_PrimitivesShader, linePipelineInfo, m_PrimitivesPipelineLayout);
         assert(m_LinePipeline);
 
         vk::GetPipelineInfo pointPipelineInfo{};
@@ -94,7 +95,7 @@ void FVkDebugDraw::createPipelines()
         pointPipelineInfo.colorFormat = m_ColorFormat;
         pointPipelineInfo.depthFormat = m_DepthFormat;
 
-        m_PointPipeline = &m_PrimitivesShader->GetPipeline(pointPipelineInfo, descriptorSetLayouts);
+        m_PointPipeline = &m_PipelineCache.Get(*m_PrimitivesShader, pointPipelineInfo, m_PrimitivesPipelineLayout);
         assert(m_PointPipeline);
     }
 
@@ -117,8 +118,9 @@ void FVkDebugDraw::createPipelines()
         quadPipelineInfo.colorFormat = m_ColorFormat;
         quadPipelineInfo.depthFormat = m_DepthFormat;
 
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{m_GeometryTexturesLayout};
-        m_QuadPipeline = &m_GeometryShader->GetPipeline(quadPipelineInfo, descriptorSetLayouts);
+        m_GeometryPipelineLayout = std::make_shared<FVkPipelineLayout>();
+        m_GeometryPipelineLayout->Init(m_Device, *m_GeometryShader);
+        m_QuadPipeline = &m_PipelineCache.Get(*m_GeometryShader, quadPipelineInfo, m_GeometryPipelineLayout);
         assert(m_QuadPipeline);
     }
 

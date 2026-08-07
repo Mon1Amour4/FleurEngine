@@ -3,9 +3,6 @@
 #include <cassert>
 
 #include "VkHelper.h"
-#include "vk_mem_alloc.h"
-
-
 // ---------- commandPool ----------
 FVkCommandPool::FVkCommandPool()
     : m_Device(nullptr)

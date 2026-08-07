@@ -73,7 +73,7 @@ void Scene::OnUpdate(float dtTime)
     auto assets = ServiceLocator::instance().GetService<AssetsManager>();
     auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
 
-    renderer->Debug().DrawAxes();
+    // renderer->Debug().DrawAxes();
 
     float speed = 0.08f;
     Vec3 center = Vec3(0, 0, 0);
@@ -94,18 +94,26 @@ void Scene::OnUpdate(float dtTime)
     for (const auto& pointLight : lightingFrameData.pointLights)
     {
         const Fleur::Graphics::Color lightColor(pointLight.color.x, pointLight.color.y, pointLight.color.z);
-        renderer->Debug().Sphere(pointLight.pos, pointLight.radius, lightColor);
+        // renderer->Debug().Sphere(pointLight.pos, pointLight.radius, lightColor);
 
         const float iconSize = std::max(0.1f, pointLight.radius * 0.1f);
-        renderer->Debug().Billboard(pointLight.pos, Fleur::Vec2(iconSize), m_SunTextureIdx, false);
+        // renderer->Debug().Billboard(pointLight.pos, Fleur::Vec2(iconSize), m_SunTextureIdx, false);
     }
 
 
     for (auto& instance : m_Instances)
     {
         auto* model = assets->Get<Fleur::Graphics::Model>(instance.model).obj;
-        if (!model)
-            return;
+        // The cache exposes the Model object before async loading finishes.
+        // Do not consume its default (infinite) bounding box or empty GPU data.
+        if (!model || model->GetMeshInstanceCount() == 0 || model->GetPrimitiveCount() == 0)
+            continue;
+
+        if (!instance.shadowBoundsRegistered)
+        {
+            renderer->RegisterShadowInstance(instance.model.id, instance.transform, model->GetBoundingBox());
+            instance.shadowBoundsRegistered = true;
+        }
 
         const auto* transforms = model->GetNodeTransforms();
         uint32_t instanceCount = model->GetMeshInstanceCount();
@@ -129,8 +137,8 @@ void Scene::OnUpdate(float dtTime)
                     Vec3 translation = Vec3(transform[3][0], transform[3][1], transform[3][2]);
 
                     Fleur::Graphics::BoundingBox boundingBox = srcPrimitive.GetBoundingBox();
-                    renderer->Debug().BoundingBox(boundingBox, transform, Fleur::Graphics::Color::Magenta());
-                    renderer->Debug().Point(translation + boundingBox.GetCenter(), Fleur::Graphics::Color::Green());
+                    // renderer->Debug().BoundingBox(boundingBox, transform, Fleur::Graphics::Color::Magenta());
+                    // renderer->Debug().Point(translation + boundingBox.GetCenter(), Fleur::Graphics::Color::Green());
                 }
 
                 // Normals

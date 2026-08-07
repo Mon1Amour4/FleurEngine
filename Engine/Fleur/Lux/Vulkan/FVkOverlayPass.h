@@ -10,6 +10,8 @@
 #include "FVkCommand.h"
 #include "FVkDevice.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSwapchain.h"
 
@@ -31,7 +33,7 @@ public:
     FVkOverlayPass() = default;
     ~FVkOverlayPass();
 
-    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkDescriptorSetLayout texturesLayout, VkDescriptorSet texturesDescriptorSet,
+    void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkDescriptorSet texturesDescriptorSet,
                 uint32_t shadowMapTextureSlot, VkSampleCountFlagBits sampleCount, VkFormat depthFormat, uint32_t framesInFlight);
     void SetShader(vk::FVkShader* overlayShader);
 
@@ -69,8 +71,9 @@ private:
     VkPhysicalDevice m_PhysicalDevice{nullptr};
 
     vk::FVkShader* m_Shader{nullptr};
-    FVkPipeline* m_Pipeline{nullptr}; // borrowed from FVkShader::m_PipelineCache
-    VkDescriptorSetLayout m_TexturesLayout{VK_NULL_HANDLE};
+    FVkPipeline* m_Pipeline{nullptr}; // borrowed from m_PipelineCache
+    std::shared_ptr<FVkPipelineLayout> m_PipelineLayout;
+    FVkPipelineCache m_PipelineCache;
     VkDescriptorSet m_TexturesDescriptorSet{VK_NULL_HANDLE};
     uint32_t m_ShadowMapTextureSlot{0};
 

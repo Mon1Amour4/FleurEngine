@@ -43,7 +43,7 @@ layout(location = 4) in vec4 FragPosLightSpace;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 1, binding = 0) uniform sampler2D texSampler[];
+layout(set = 1, binding = 0) uniform sampler2D texSampler[4096];
 layout(set = 4, binding = 0) uniform sampler2D shadowMapSampler;
 layout(set = 5, binding = 0) uniform sampler3D shadowMapOffsetTexture;
 layout(std430, set = 3, binding = 0) readonly buffer PointLightBuff

@@ -64,6 +64,8 @@ public:
     // Frame (immediate-mode).
     void BeginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void Draw(Fleur::Graphics::AssetID model, const Fleur::Mat4& transform);
+    void RegisterShadowInstance(Fleur::Graphics::AssetID model, const Fleur::Mat4& transform,
+                                const Fleur::Graphics::BoundingBox& localBounds);
     void SetFloor(Fleur::Graphics::AssetID texture, float height);
     void EndFrame();
     void OverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Graphics::Color color);
@@ -133,5 +135,7 @@ private:
     bool m_ShowShadowMapPreview{false};
     uint32_t m_MaxPointLights{128};
     const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
+    Fleur::Graphics::BoundingBox m_ShadowSceneBounds{};
+    bool m_HasShadowSceneBounds{false};
 };
 }  // namespace Lux

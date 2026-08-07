@@ -1,13 +1,13 @@
 #include "FVkTexture.h"
 
 #include <cassert>
-#include <iostream>
 #include <utility>
 
 #include "VkHelper.h"
 
 FVkTexture::FVkTexture()
     : m_Device(nullptr)
+    , m_MemoryTracker(nullptr)
     , m_Format(VK_FORMAT_MAX_ENUM)
     , m_ImageType(VK_IMAGE_TYPE_MAX_ENUM)
     , m_Aspect(VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM)
@@ -46,10 +46,12 @@ void FVkTexture::Destroy()
     {
         vkDestroyImageView(m_Device, m_ImageView, nullptr);
         vkDestroyImage(m_Device, m_Image, nullptr);
-        vkFreeMemory(m_Device, m_Memory, nullptr);
+        assert(m_MemoryTracker != nullptr);
+        m_MemoryTracker->Free(m_Memory);
     }
 
     m_Device = nullptr;
+    m_MemoryTracker = nullptr;
     m_Format = VK_FORMAT_MAX_ENUM;
     m_ImageType = VK_IMAGE_TYPE_MAX_ENUM;
     m_Aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;
@@ -61,12 +63,14 @@ void FVkTexture::Destroy()
     m_ImageFlags = 0;
 }
 
-VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties,
-                                VkImageAspectFlags aspect)
+VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, FVkAllocationCategory category,
+                                VkImageCreateInfo& createInfo, VkMemoryPropertyFlags properties, VkImageAspectFlags aspect)
 {
+    (void)physicalDevice;
     Destroy();
 
     m_Device = device;
+    m_MemoryTracker = &memoryTracker;
     m_Format = createInfo.format;
     m_ImageType = createInfo.imageType;
     m_Aspect = aspect;
@@ -79,18 +83,23 @@ VkImage FVkTexture::CreateImage(VkDevice device, VkPhysicalDevice physicalDevice
     VkMemoryRequirements memRequirements;
     vkGetImageMemoryRequirements(m_Device, m_Image, &memRequirements);
 
-    std::cout << "[Vulkan] Image memory allocation: " << (memRequirements.size / (1024ull * 1024ull)) << " MiB"
-              << ", extent=" << createInfo.extent.width << "x" << createInfo.extent.height << "x" << createInfo.extent.depth
-              << ", layers=" << createInfo.arrayLayers << ", mipLevels=" << createInfo.mipLevels << ", format=" << createInfo.format << std::endl;
+    m_Memory = m_MemoryTracker->Allocate(memRequirements, properties, category);
+    if (m_Memory == VK_NULL_HANDLE)
+    {
+        vkDestroyImage(m_Device, m_Image, nullptr);
+        m_Image = VK_NULL_HANDLE;
+        return VK_NULL_HANDLE;
+    }
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex = FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
-
-    VK_CHECK(vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_Memory));
-
-    VK_CHECK(vkBindImageMemory(m_Device, m_Image, m_Memory, 0));
+    const VkResult bindResult = vkBindImageMemory(m_Device, m_Image, m_Memory, 0);
+    if (bindResult != VK_SUCCESS)
+    {
+        m_MemoryTracker->Free(m_Memory);
+        m_Memory = VK_NULL_HANDLE;
+        vkDestroyImage(m_Device, m_Image, nullptr);
+        m_Image = VK_NULL_HANDLE;
+        VK_CHECK(bindResult);
+    }
 
     return m_Image;
 }
@@ -124,6 +133,7 @@ VkImageView FVkTexture::CreateImageView(VkImageViewType viewType, uint32_t layer
 void FVkTexture::moveFrom(FVkTexture&& other) noexcept
 {
     m_Device = other.m_Device;
+    m_MemoryTracker = other.m_MemoryTracker;
     m_Format = other.m_Format;
     m_ImageType = other.m_ImageType;
     m_Aspect = other.m_Aspect;
@@ -135,6 +145,7 @@ void FVkTexture::moveFrom(FVkTexture&& other) noexcept
     m_ImageFlags = other.m_ImageFlags;
 
     other.m_Device = nullptr;
+    other.m_MemoryTracker = nullptr;
     other.m_Format = VK_FORMAT_MAX_ENUM;
     other.m_ImageType = VK_IMAGE_TYPE_MAX_ENUM;
     other.m_Aspect = VK_IMAGE_ASPECT_FLAG_BITS_MAX_ENUM;

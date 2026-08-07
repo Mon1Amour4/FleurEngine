@@ -3,6 +3,7 @@
 #include "Application.h"
 #include "AssetsManager.h"
 #include "Image2D.h"
+#include "Log.h"
 #include "Lux.h"
 #include "Services/ServiceLocator.h"
 #include "Shader.h"
@@ -65,9 +66,9 @@ void Renderer::initBackend()
     bool validation = true;
 
     if (m_Api == Fleur::Graphics::EGraphicsAPI::OpenGL)
-        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights);
+        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, Fleur::Log::GetCoreLogger());
     else
-        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights);
+        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, Fleur::Log::GetCoreLogger());
 
     m_Backend->SetShaderRegistry(*m_ShaderRegistry);
 
@@ -131,6 +132,24 @@ void Renderer::BeginFrame(const Fleur::Graphics::RenderFrameData& frameData)
 void Renderer::Draw(AssetID model, const Fleur::Mat4& transform)
 {
     m_Backend->Draw(model, transform);
+}
+
+void Renderer::RegisterShadowInstance(AssetID model, const Fleur::Mat4& transform,
+                                      const Fleur::Graphics::BoundingBox& localBounds)
+{
+    (void)model;
+    const Fleur::Vec3 min = localBounds.GetMin();
+    const Fleur::Vec3 max = localBounds.GetMax();
+    const auto corner = [&](float x, float y, float z) { return Fleur::Vec3(transform * Fleur::Vec4(x, y, z, 1.0f)); };
+    const Fleur::Vec3 corners[8] = {
+        corner(min.x, min.y, min.z), corner(max.x, min.y, min.z), corner(max.x, max.y, min.z), corner(min.x, max.y, min.z),
+        corner(min.x, min.y, max.z), corner(max.x, min.y, max.z), corner(max.x, max.y, max.z), corner(min.x, max.y, max.z)};
+
+    for (const auto& worldCorner : corners)
+        m_ShadowSceneBounds.UpdateBoundingBox(worldCorner, worldCorner);
+
+    m_HasShadowSceneBounds = true;
+    m_Backend->SetShadowSceneBounds(m_ShadowSceneBounds);
 }
 void Renderer::CreateFloor(Fleur::Graphics::AssetID texture, float height)
 {

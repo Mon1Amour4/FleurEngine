@@ -35,8 +35,9 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     m_Texture = std::make_unique<FVkTexture>();
-    VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(), imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                                              GetDepthAspect(m_Format));
+    VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(),
+                                              m_DeviceContext->GetMemoryTracker(), FVkAllocationCategory::DepthTarget, imageInfo,
+                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(m_Format));
     m_Texture->CreateImageView();
 
     {

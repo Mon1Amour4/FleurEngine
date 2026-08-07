@@ -6,17 +6,11 @@
 #include <memory>
 
 #include "VkHelper.h"
-enum BindingType
-{
-    UNIFORM_BUFFER,
-    TEXTURE2D,
-    CUBEMAP,
-};
+
+class FVkPipelineLayout;
 
 struct FGraphicsPipelineDesc
 {
-    const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts;
-
     // Shaders
     VkShaderModule vertexShader;
     VkShaderModule fragmentShader;
@@ -54,7 +48,7 @@ struct FGraphicsPipelineDesc
     const char* vertexEntryPointName = nullptr;
     const char* fragmentEntryPointName = nullptr;
 
-    std::vector<VkPipelineShaderStageCreateInfo>* shaderStages = nullptr;
+    const std::vector<VkPipelineShaderStageCreateInfo>* shaderStages = nullptr;
 
     VkPipelineColorBlendAttachmentState colorBlendAttachment{
         .blendEnable = false,
@@ -68,100 +62,13 @@ struct FGraphicsPipelineDesc
     };
 };
 
-class FVkDescriptorSetLayout
-{
-public:
-    class Builder
-    {
-    public:
-        Builder(VkDevice device)
-            : m_Device(device)
-        {
-        }
-
-        Builder& add(uint32_t bindingIdx, VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t count)
-        {
-            VkDescriptorSetLayoutBinding binding{};
-            binding.binding = bindingIdx;
-            binding.descriptorType = type;
-            binding.descriptorCount = count;
-            binding.stageFlags = stageFlags;
-            binding.pImmutableSamplers = nullptr;
-
-            m_Bindings.push_back(binding);
-            return *this;
-        }
-
-        std::unique_ptr<FVkDescriptorSetLayout> build(VkDescriptorBindingFlagsEXT bindingFlags)
-        {
-            // One flag set per binding.
-            std::vector<VkDescriptorBindingFlagsEXT> perBindingFlags(m_Bindings.size(), bindingFlags);
-
-            VkDescriptorSetLayoutBindingFlagsCreateInfoEXT bindingFlagsInfo{};
-            bindingFlagsInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT;
-            bindingFlagsInfo.bindingCount = static_cast<uint32_t>(perBindingFlags.size());
-            bindingFlagsInfo.pBindingFlags = perBindingFlags.data();
-
-            VkDescriptorSetLayoutCreateFlags layoutFlags = 0;
-            if (bindingFlags & VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT)
-            {
-                layoutFlags |= VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT_EXT;
-            }
-
-            VkDescriptorSetLayoutCreateInfo info{};
-            info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-            info.pNext = perBindingFlags.empty() ? nullptr : &bindingFlagsInfo;
-            info.flags = layoutFlags;
-            info.bindingCount = static_cast<uint32_t>(m_Bindings.size());
-            info.pBindings = m_Bindings.data();
-
-            VkDescriptorSetLayout layout = VK_NULL_HANDLE;
-            VK_CHECK(vkCreateDescriptorSetLayout(m_Device, &info, nullptr, &layout));
-
-            return std::unique_ptr<FVkDescriptorSetLayout>(new FVkDescriptorSetLayout(m_Device, layout, m_Bindings.size()));
-        }
-
-    private:
-        VkDevice m_Device;
-        std::vector<VkDescriptorSetLayoutBinding> m_Bindings;
-        uint32_t m_CurrentBinding = 0;
-    };
-
-    ~FVkDescriptorSetLayout()
-    {
-        if (m_Layout != VK_NULL_HANDLE)
-            vkDestroyDescriptorSetLayout(m_Device, m_Layout, nullptr);
-    }
-
-    VkDescriptorSetLayout GetDescriptorSetLayout() const
-    {
-        return m_Layout;
-    }
-    inline uint32_t GetBindingCount() const
-    {
-        return m_BindingCount;
-    }
-
-private:
-    FVkDescriptorSetLayout(VkDevice device, VkDescriptorSetLayout layout, uint32_t bindingCount)
-        : m_Device(device)
-        , m_Layout(layout)
-        , m_BindingCount(bindingCount)
-    {
-    }
-
-    VkDevice m_Device;
-    VkDescriptorSetLayout m_Layout = VK_NULL_HANDLE;
-    uint32_t m_BindingCount;
-};
-
 class FVkPipeline
 {
 public:
     FVkPipeline();
     ~FVkPipeline();
 
-    void Init(VkDevice device, FGraphicsPipelineDesc& desc);
+    void Init(VkDevice device, FGraphicsPipelineDesc& desc, const std::shared_ptr<FVkPipelineLayout>& pipelineLayout);
     void Destroy();
 
     VkPipeline GetPipeline() const
@@ -172,16 +79,10 @@ public:
     {
         return m_PipelineLayout;
     }
-    const std::vector<VkDescriptorSetLayout>& GetDescriptorSetLayouts() const
-    {
-        return m_DescriptorSetLayouts;
-    }
-
 private:
     VkDevice m_Device;
     VkPipeline m_Pipeline;
     VkPipelineLayout m_PipelineLayout;
-    std::vector<VkDescriptorSetLayout> m_DescriptorSetLayouts;
+    std::shared_ptr<FVkPipelineLayout> m_LayoutOwner;
 
-    uint32_t GetBindingIdx();
 };

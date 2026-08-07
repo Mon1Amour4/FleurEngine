@@ -1,4 +1,5 @@
 #include "FVkPipeline.h"
+#include "FVkPipelineLayout.h"
 
 #include <cassert>
 
@@ -18,32 +19,22 @@ void FVkPipeline::Destroy()
 {
     if (m_Pipeline)
         vkDestroyPipeline(m_Device, m_Pipeline, nullptr);
-    if (m_PipelineLayout)
-        vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
-
     m_Pipeline = VK_NULL_HANDLE;
     m_PipelineLayout = VK_NULL_HANDLE;
+    m_LayoutOwner.reset();
     m_Device = VK_NULL_HANDLE;
-    m_DescriptorSetLayouts.clear();
 }
 
-void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
+void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc, const std::shared_ptr<FVkPipelineLayout>& pipelineLayout)
 {
+    assert(pipelineLayout);
     assert(desc.cullMode != VK_CULL_MODE_FLAG_BITS_MAX_ENUM);
     assert(desc.frontFace != VK_FRONT_FACE_MAX_ENUM);
     assert(desc.shaderStages && desc.shaderStages->size() > 0);
 
     m_Device = device;
-    m_DescriptorSetLayouts = desc.descriptorSetLayouts;
-
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                                                  .setLayoutCount = (uint32_t)m_DescriptorSetLayouts.size(),
-                                                  .pSetLayouts = m_DescriptorSetLayouts.data(),
-                                                  .pushConstantRangeCount = desc.pushConstants ? (uint32_t)desc.pushConstants->size() : 0,
-                                                  .pPushConstantRanges = desc.pushConstants ? desc.pushConstants->data() : nullptr};
-
-
-    VK_CHECK(vkCreatePipelineLayout(m_Device, &pipelineLayoutInfo, nullptr, &m_PipelineLayout));
+    m_LayoutOwner = pipelineLayout;
+    m_PipelineLayout = pipelineLayout->Get();
 
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -146,9 +137,4 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc)
     pipelineInfo.basePipelineIndex = -1;               // Optional
 
     VK_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &m_Pipeline));
-}
-
-uint32_t FVkPipeline::GetBindingIdx()
-{
-    return 0;
 }

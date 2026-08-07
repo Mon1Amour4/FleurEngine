@@ -16,9 +16,11 @@ SET(PROJECT_HEADERS
     PrivateVulkanImpl.hpp
     Renderer_Vulkan.h
     FVkDevice.h
+    FVkMemoryTracker.h
     FVkBuffer.h
     FVkCommand.h
     FVkPipeline.h
+    FVkPipelineCache.h
     FVkMultisampler.h
     FVkTexture.h
     FVkSwapchain.h
@@ -31,6 +33,7 @@ SET(PROJECT_HEADERS
     PointLightShadowMap.h
     VkHelper.h
     FVkShader.h
+    FVkPipelineLayout.h
     DescriptorPoolAllocator.h
     ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.h
     ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/glm
@@ -40,9 +43,11 @@ SET(PROJECT_SOURCES
     # Vulkan
     Renderer_Vulkan.cpp
     FVkDevice.cpp
+    FVkMemoryTracker.cpp
     FVkBuffer.cpp
     FVkCommand.cpp
     FVkPipeline.cpp
+    FVkPipelineCache.cpp
     FVkMultisampler.cpp
     FVkTexture.cpp
     FVkSwapchain.cpp
@@ -55,6 +60,7 @@ SET(PROJECT_SOURCES
     PointLightShadowMap.cpp
     VkHelper.cpp
     FVkShader.cpp
+    FVkPipelineLayout.cpp
     DescriptorPoolAllocator.cpp
      ${VULKAN_SPIRV_REFLECT_PATH}/spirv_reflect.c
 )
@@ -68,21 +74,22 @@ ADD_LIBRARY(VulkanBackend STATIC ${PROJECT_HEADERS} ${PROJECT_SOURCES})
 
 TARGET_COMPILE_DEFINITIONS(VulkanBackend
     PRIVATE
+        FLEUR_BUILD_LIB
         $<$<CONFIG:Debug>:FL_CONF_DEBUG>
 )
 
 TARGET_COMPILE_DEFINITIONS(VulkanBackend PRIVATE ${PRIVATE_COMPILE_DEFINITIONS})
 
+if(MSVC)
+    TARGET_COMPILE_OPTIONS(VulkanBackend PRIVATE /utf-8)
+endif()
+
 # Vulkan
 FIND_PACKAGE(Vulkan REQUIRED)
 TARGET_LINK_LIBRARIES(VulkanBackend PRIVATE Vulkan::Vulkan FleurMath)
-# VulkanMemoryAllocator
-SET(VULKAN_MEMORY_ALLOCATOR_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/VulkanMemoryAllocator)
-ADD_SUBDIRECTORY(${VULKAN_MEMORY_ALLOCATOR_PATH} "${CMAKE_BINARY_DIR}/VulkanMemoryAllocator")
-TARGET_LINK_LIBRARIES(VulkanBackend PRIVATE GPUOpen::VulkanMemoryAllocator)
-
-LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${VULKAN_MEMORY_ALLOCATOR_PATH}/include)
 LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${VULKAN_SPIRV_REFLECT_PATH})
+LIST(APPEND VULKAN_PRIVATE_INCLUDE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/../../../
+                                        ${CMAKE_CURRENT_SOURCE_DIR}/../../../External/spdlog/include)
 
 TARGET_INCLUDE_DIRECTORIES(VulkanBackend PRIVATE ${VULKAN_PRIVATE_INCLUDE_DIRS})
 TARGET_INCLUDE_DIRECTORIES(VulkanBackend PUBLIC ${VULKAN_PUBLIC_INCLUDE_DIRS})

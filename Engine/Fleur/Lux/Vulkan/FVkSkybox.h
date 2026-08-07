@@ -11,6 +11,8 @@
 #include "FVkCommand.h"
 #include "FVkDevice.h"
 #include "FVkPipeline.h"
+#include "FVkPipelineCache.h"
+#include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
@@ -36,7 +38,6 @@ public:
     void Record(VkCommandBuffer& cmd, VkExtent2D swapchainExtent, const Fleur::Graphics::SFLCameraData& cameraData);
 
 private:
-    void createSkyboxDescriptorSetLayout();
     void createSkyboxDescriptorPool();
     void createSkyboxSampler();
     void createSkyboxDescriptorSet(VkImageView imageView);
@@ -45,8 +46,9 @@ private:
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
-    std::unique_ptr<FVkDescriptorSetLayout> m_SkyboxDescriptorSetLayout;
-    FVkPipeline* m_Pipeline{nullptr}; // borrowed from FVkShader::m_PipelineCache
+    FVkPipeline* m_Pipeline{nullptr}; // borrowed from m_PipelineCache
+    std::shared_ptr<FVkPipelineLayout> m_PipelineLayout;
+    FVkPipelineCache m_PipelineCache;
 
     VkSampler m_Sampler;
     VkDescriptorPool m_SkyboxDescriptorPool;

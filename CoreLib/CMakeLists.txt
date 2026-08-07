@@ -26,7 +26,7 @@ target_compile_features(CoreLib PUBLIC cxx_std_${FL_CPP_LANG_VER})
 target_include_directories(CoreLib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(MSVC)
-  target_compile_options(CoreLib PRIVATE /W4 /WX /utf-8)
+  target_compile_options(CoreLib PRIVATE /W4 /WX /utf-8 /EHsc)
 else()
   target_compile_options(CoreLib PRIVATE -Wall -Wextra -Werror)
 endif()

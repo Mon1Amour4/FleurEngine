@@ -1,5 +1,6 @@
 #include <cstddef>
-#include <iostream>
+#include <memory>
+#include <utility>
 
 #include "PrivateOpenGLImpl.hpp"
 
@@ -65,7 +66,7 @@ const float kSkyboxVerts[] = {-1, 1,  -1, -1, -1, -1, 1,  -1, -1, 1,  -1, -1, 1,
                               -1, 1,  -1, 1,  1,  -1, 1,  1,  1,  1,  1,  1,  -1, 1,  1,  -1, 1,  -1,  //
                               -1, -1, -1, -1, -1, 1,  1,  -1, -1, 1,  -1, -1, -1, -1, 1,  1,  -1, 1};
 
-GLuint compileShader(GLenum type, const char* src)
+GLuint compileShader(GLenum type, const char* src, const std::shared_ptr<spdlog::logger>& logger)
 {
     GLuint shader = glCreateShader(type);
     glShaderSource(shader, 1, &src, nullptr);
@@ -76,16 +77,16 @@ GLuint compileShader(GLenum type, const char* src)
     {
         char log[1024];
         glGetShaderInfoLog(shader, sizeof(log), nullptr, log);
-        std::cout << "[OpenGL] shader compile: " << log << '\n';
+        logger->error("[OpenGL] shader compile: {}", log);
         assert(false);
     }
     return shader;
 }
 
-GLuint compileProgram(const char* vs, const char* fs)
+GLuint compileProgram(const char* vs, const char* fs, const std::shared_ptr<spdlog::logger>& logger)
 {
-    GLuint v = compileShader(GL_VERTEX_SHADER, vs);
-    GLuint f = compileShader(GL_FRAGMENT_SHADER, fs);
+    GLuint v = compileShader(GL_VERTEX_SHADER, vs, logger);
+    GLuint f = compileShader(GL_FRAGMENT_SHADER, fs, logger);
     GLuint program = glCreateProgram();
     glAttachShader(program, v);
     glAttachShader(program, f);
@@ -96,7 +97,7 @@ GLuint compileProgram(const char* vs, const char* fs)
     {
         char log[1024];
         glGetProgramInfoLog(program, sizeof(log), nullptr, log);
-        std::cout << "[OpenGL] program link: " << log << '\n';
+        logger->error("[OpenGL] program link: {}", log);
         assert(false);
     }
     glDeleteShader(v);
@@ -106,8 +107,9 @@ GLuint compileProgram(const char* vs, const char* fs)
 }  // namespace
 
 // ---------- backend (public shim) ----------
-gl::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights)
-    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights))
+gl::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+                     std::shared_ptr<spdlog::logger> logger)
+    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, std::move(logger)))
 {
 }
 gl::backend::~backend()
@@ -118,6 +120,10 @@ gl::backend::~backend()
 void gl::backend::SetShaderRegistry(const ShaderRegistry& shaders)
 {
     (void)shaders;
+}
+void gl::backend::SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds)
+{
+    (void)bounds;
 }
 
 void gl::backend::CreatePass(EFLPassKind kind, SFLShaderStages shaderStages)
@@ -192,7 +198,9 @@ void gl::backend::EndResize(Fleur::SRect& rect)
 }
 
 // ---------- impl ----------
-gl::backend::impl::impl(bool /*enableValidation*/, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights)
+gl::backend::impl::impl(bool /*enableValidation*/, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+                        std::shared_ptr<spdlog::logger> logger)
+    : m_Logger(std::move(logger))
 {
     m_MaxPointLights = maxPointLights;
     m_Width = framebufferSize.width;
@@ -243,7 +251,7 @@ void gl::backend::impl::createContext(void* pNativeHandle)
 
     if (!gladLoaderLoadWGL(m_Hdc))
     {
-        std::cout << "[OpenGL] Failed to load WGL\n";
+        m_Logger->error("[OpenGL] Failed to load WGL");
         assert(false);
     }
 
@@ -256,11 +264,11 @@ void gl::backend::impl::createContext(void* pNativeHandle)
 
     if (!gladLoaderLoadGL())
     {
-        std::cout << "[OpenGL] Failed to load GL\n";
+        m_Logger->error("[OpenGL] Failed to load GL");
         assert(false);
     }
 
-    std::cout << "[OpenGL] " << glGetString(GL_VERSION) << '\n';
+    m_Logger->info("[OpenGL] {}", reinterpret_cast<const char*>(glGetString(GL_VERSION)));
 }
 
 // ---------- geometry ----------
@@ -293,7 +301,7 @@ void gl::backend::impl::createGeometry()
 void gl::backend::impl::createPass(EFLPassKind kind, SFLShaderStages /*shaderStages*/)
 {
     if (kind == EFLPassKind::Opaque)
-        m_GeometryProgram = compileProgram(kGeometryVS, kGeometryFS);
+        m_GeometryProgram = compileProgram(kGeometryVS, kGeometryFS, m_Logger);
 }
 
 void gl::backend::impl::createShadowPass(EFLShadowPassKind /*kind*/, SFLShaderStages /*shaderStages*/)
@@ -443,7 +451,7 @@ GLuint gl::backend::impl::createCubemap(const SFLImageView& view)
 
 void gl::backend::impl::createSkybox(AssetID id, SFLShaderStages /*shaderStages*/)
 {
-    m_SkyboxProgram = compileProgram(kSkyboxVS, kSkyboxFS);
+    m_SkyboxProgram = compileProgram(kSkyboxVS, kSkyboxFS, m_Logger);
 
     glGenVertexArrays(1, &m_SkyboxVao);
     glGenBuffers(1, &m_SkyboxVbo);

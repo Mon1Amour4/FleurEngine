@@ -7,14 +7,33 @@
 
 FVkBuffer::FVkBuffer()
     : m_Device(nullptr)
+    , m_MemoryTracker(nullptr)
     , m_SizeBytes(0)
     , m_CurrentSizeBytes(0)
     , m_StrideSizeBytes(0)
     , m_VkBuffer(nullptr)
+    , m_Memory(VK_NULL_HANDLE)
     , m_MemoryUsage(0)
     , m_MappedMemory(nullptr)
 {
 }
+
+FVkBuffer::FVkBuffer(FVkBuffer&& other) noexcept
+{
+    moveFrom(std::move(other));
+}
+
+FVkBuffer& FVkBuffer::operator=(FVkBuffer&& other) noexcept
+{
+    if (this != &other)
+    {
+        Destroy();
+        moveFrom(std::move(other));
+    }
+
+    return *this;
+}
+
 FVkBuffer::~FVkBuffer()
 {
     Destroy();
@@ -36,20 +55,26 @@ void FVkBuffer::Destroy()
 
     if (m_Memory != VK_NULL_HANDLE)
     {
-        vkFreeMemory(m_Device, m_Memory, nullptr);
+        assert(m_MemoryTracker != nullptr);
+        m_MemoryTracker->Free(m_Memory);
         m_Memory = VK_NULL_HANDLE;
     }
 
     m_Device = VK_NULL_HANDLE;
+    m_MemoryTracker = nullptr;
     m_SizeBytes = 0;
     m_CurrentSizeBytes = 0;
     m_StrideSizeBytes = 0;
     m_MemoryUsage = 0;
 }
 
-void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
+void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, FVkAllocationCategory category,
+                     VkBufferUsageFlags usage, VkDeviceSize sizeBytes, VkDeviceSize strideSize)
 {
+    (void)physicalDevice;
+    Destroy();
     m_Device = device;
+    m_MemoryTracker = &memoryTracker;
     m_SizeBytes = sizeBytes;
     m_StrideSizeBytes = strideSize;
 
@@ -62,15 +87,46 @@ void FVkBuffer::Init(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferU
     VkMemoryRequirements memRequirements;
     vkGetBufferMemoryRequirements(m_Device, m_VkBuffer, &memRequirements);
 
-    VkMemoryAllocateInfo allocInfo{};
-    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-    allocInfo.allocationSize = memRequirements.size;
-    allocInfo.memoryTypeIndex =
-        FindMemoryType(physicalDevice, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    m_Memory = m_MemoryTracker->Allocate(memRequirements, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, category);
+    if (m_Memory == VK_NULL_HANDLE)
+    {
+        vkDestroyBuffer(m_Device, m_VkBuffer, nullptr);
+        m_VkBuffer = VK_NULL_HANDLE;
+        return;
+    }
 
-    VK_CHECK(vkAllocateMemory(m_Device, &allocInfo, nullptr, &m_Memory));
+    const VkResult bindResult = vkBindBufferMemory(m_Device, m_VkBuffer, m_Memory, 0);
+    if (bindResult != VK_SUCCESS)
+    {
+        m_MemoryTracker->Free(m_Memory);
+        m_Memory = VK_NULL_HANDLE;
+        vkDestroyBuffer(m_Device, m_VkBuffer, nullptr);
+        m_VkBuffer = VK_NULL_HANDLE;
+        VK_CHECK(bindResult);
+    }
+}
 
-    VK_CHECK(vkBindBufferMemory(m_Device, m_VkBuffer, m_Memory, 0));
+void FVkBuffer::moveFrom(FVkBuffer&& other) noexcept
+{
+    m_Device = other.m_Device;
+    m_MemoryTracker = other.m_MemoryTracker;
+    m_SizeBytes = other.m_SizeBytes;
+    m_CurrentSizeBytes = other.m_CurrentSizeBytes;
+    m_StrideSizeBytes = other.m_StrideSizeBytes;
+    m_VkBuffer = other.m_VkBuffer;
+    m_Memory = other.m_Memory;
+    m_MemoryUsage = other.m_MemoryUsage;
+    m_MappedMemory = other.m_MappedMemory;
+
+    other.m_Device = VK_NULL_HANDLE;
+    other.m_MemoryTracker = nullptr;
+    other.m_VkBuffer = VK_NULL_HANDLE;
+    other.m_Memory = VK_NULL_HANDLE;
+    other.m_MappedMemory = nullptr;
+    other.m_SizeBytes = 0;
+    other.m_CurrentSizeBytes = 0;
+    other.m_StrideSizeBytes = 0;
+    other.m_MemoryUsage = 0;
 }
 
 void FVkBuffer::CopyToAnother(VkBuffer* dstBuffer, VkDeviceSize size, VkCommandBuffer* cmdBuffer)

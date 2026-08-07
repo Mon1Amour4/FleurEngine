@@ -6,12 +6,11 @@ FVkOverlayPass::~FVkOverlayPass()
 {
 }
 
-void FVkOverlayPass::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkDescriptorSetLayout texturesLayout, VkDescriptorSet texturesDescriptorSet,
+void FVkOverlayPass::Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkDescriptorSet texturesDescriptorSet,
                             uint32_t shadowMapTextureSlot, VkSampleCountFlagBits sampleCount, VkFormat depthFormat, uint32_t framesInFlight)
 {
     m_Device = device->GetLogicalDevice();
     m_PhysicalDevice = device->GetPhysicalDevice();
-    m_TexturesLayout = texturesLayout;
     m_TexturesDescriptorSet = texturesDescriptorSet;
     m_ShadowMapTextureSlot = shadowMapTextureSlot;
     m_ColorFormat = swapchain->GetImageFormat();
@@ -22,8 +21,9 @@ void FVkOverlayPass::Create(const FVkDevice* device, const FVkSwapchain* swapcha
     for (size_t i = 0; i < framesInFlight; i++)
     {
         FVkBuffer& buffer = m_Buffers.emplace_back();
-        buffer.Init(m_Device, m_PhysicalDevice, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                    sizeof(OverlayVertex) * kMaxVertsPerFrame, sizeof(OverlayVertex));
+        buffer.Init(m_Device, m_PhysicalDevice, device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+                    VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, sizeof(OverlayVertex) * kMaxVertsPerFrame,
+                    sizeof(OverlayVertex));
     }
 
     m_Initialized = true;
@@ -50,8 +50,9 @@ void FVkOverlayPass::SetShader(vk::FVkShader* overlayShader)
     pipelineInfo.colorFormat = m_ColorFormat;
     pipelineInfo.depthFormat = m_DepthFormat;
 
-    std::vector<VkDescriptorSetLayout> descriptorSetLayouts{m_TexturesLayout};
-    m_Pipeline = &m_Shader->GetPipeline(pipelineInfo, descriptorSetLayouts);
+    m_PipelineLayout = std::make_shared<FVkPipelineLayout>();
+    m_PipelineLayout->Init(m_Device, *m_Shader);
+    m_Pipeline = &m_PipelineCache.Get(*m_Shader, pipelineInfo, m_PipelineLayout);
     assert(m_Pipeline);
 }
 

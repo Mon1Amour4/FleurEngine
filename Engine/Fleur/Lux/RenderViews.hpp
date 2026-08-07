@@ -43,6 +43,7 @@ struct FLInstanceItem
 struct SFLModelRegisterInfo
 {
     AssetID model{};
+    BoundingBox modelBoundingBox{};
 
     const SVertexData* vertices{};
     uint32_t vertexCount{};

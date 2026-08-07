@@ -1,8 +1,10 @@
 #include "FVkShader.h"
+#include "FVkPipelineLayout.h"
 
+#include <algorithm>
 #include <cassert>
 
-vk::FVkShader::DescriptorSetDefaultValues vk::FVkShader::m_DefaultValues;
+#include <Fleur/Log.h>
 
 vk::FVkShader::FVkShader()
     : m_Device(nullptr)
@@ -11,12 +13,24 @@ vk::FVkShader::FVkShader()
 
 vk::FVkShader::~FVkShader()
 {
-    if (m_VertexShader.shaderModule)
-        vkDestroyShaderModule(m_Device, m_VertexShader.shaderModule, nullptr);
-    if (m_GeometryShader.shaderModule)
-        vkDestroyShaderModule(m_Device, m_GeometryShader.shaderModule, nullptr);
-    if (m_FragmentShader.shaderModule)
-        vkDestroyShaderModule(m_Device, m_FragmentShader.shaderModule, nullptr);
+    DestroyModules();
+}
+
+void vk::FVkShader::DestroyModules()
+{
+    if (m_Device != VK_NULL_HANDLE)
+    {
+        if (m_VertexShader.shaderModule)
+            vkDestroyShaderModule(m_Device, m_VertexShader.shaderModule, nullptr);
+        if (m_GeometryShader.shaderModule)
+            vkDestroyShaderModule(m_Device, m_GeometryShader.shaderModule, nullptr);
+        if (m_FragmentShader.shaderModule)
+            vkDestroyShaderModule(m_Device, m_FragmentShader.shaderModule, nullptr);
+    }
+
+    m_VertexShader.shaderModule = VK_NULL_HANDLE;
+    m_GeometryShader.shaderModule = VK_NULL_HANDLE;
+    m_FragmentShader.shaderModule = VK_NULL_HANDLE;
 }
 
 void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
@@ -43,15 +57,44 @@ void vk::FVkShader::Init(VkDevice device, ShaderCreateInfo& info)
 
     VK_CHECK(vkCreateShaderModule(m_Device, &fragmentcreateInfo, nullptr, &m_FragmentShader.shaderModule));
 
-    getReflection(m_VertexShader, info.pVertexData, info.vertexSize);
-    if (m_GeometryShader.shaderModule)
-        getReflection(m_GeometryShader, info.pGeometryData, info.geometrySize);
-    getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize);
-    mergePushConstants();
+    try
+    {
+        if (!getReflection(m_VertexShader, info.pVertexData, info.vertexSize))
+        {
+            DestroyModules();
+            return;
+        }
+        if (m_GeometryShader.shaderModule)
+        {
+            if (!getReflection(m_GeometryShader, info.pGeometryData, info.geometrySize))
+            {
+                DestroyModules();
+                return;
+            }
+        }
+        if (!getReflection(m_FragmentShader, info.pFragmentData, info.fragmentSize))
+        {
+            DestroyModules();
+            return;
+        }
+        mergePushConstants();
+    }
+    catch (...)
+    {
+        DestroyModules();
+        throw;
+    }
+
+    std::sort(m_Reflection.descriptorBindings.begin(), m_Reflection.descriptorBindings.end(), [](const auto& lhs, const auto& rhs) {
+        if (lhs.set != rhs.set)
+            return lhs.set < rhs.set;
+        return lhs.binding < rhs.binding;
+    });
+    m_Reflection.pushConstants = m_PushConstants;
 }
 
 
-void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize)
+bool vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize)
 {
     SpvReflectShaderModule module;
     SpvReflectResult result = spvReflectCreateShaderModule(vertexSize, pVertexData, &module);
@@ -62,6 +105,11 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
     SpvReflectInterfaceVariable** input_vars = (SpvReflectInterfaceVariable**)malloc(var_count * sizeof(SpvReflectInterfaceVariable*));
+    const auto failReflection = [&]() {
+        free(input_vars);
+        spvReflectDestroyShaderModule(&module);
+        return false;
+    };
     result = spvReflectEnumerateInputVariables(&module, &var_count, input_vars);
     assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
@@ -113,21 +161,40 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
         {
             for (size_t j = 0; j < currentDescriptorSet->binding_count; j++)
             {
-                auto& vec = m_GlobalDescriptorSetLayoutBindingsMap[currentDescriptorSet->set];
-                auto& emplacedBinding = vec.emplace_back();
-
                 SpvReflectDescriptorBinding* reflectBinding = currentDescriptorSet->bindings[j];
-                emplacedBinding.binding = reflectBinding->binding;
-                emplacedBinding.descriptorType = convertReflectionDescriptorType(reflectBinding->descriptor_type);
-                emplacedBinding.descriptorCount = reflectBinding->count;
-                if (emplacedBinding.descriptorCount == 0)
+                const VkDescriptorType descriptorType = convertReflectionDescriptorType(reflectBinding->descriptor_type);
+                const uint32_t descriptorCount = reflectBinding->count;
+                if (descriptorCount == 0)
                 {
-                    if (emplacedBinding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER)
-                        emplacedBinding.descriptorCount = m_DefaultValues.sampler2d;
+                    FL_CORE_ERROR("[Vulkan] Shader reflection failed: stage={} has unsupported runtime descriptor array at set={}, binding={}",
+                                  static_cast<uint32_t>(shaderData.shaderStage), currentDescriptorSet->set, reflectBinding->binding);
+                    return failReflection();
                 }
 
-                emplacedBinding.stageFlags = shaderData.shaderStage;
-                emplacedBinding.pImmutableSamplers = nullptr;
+                auto existing = std::find_if(m_Reflection.descriptorBindings.begin(), m_Reflection.descriptorBindings.end(), [&](const auto& binding) {
+                    return binding.set == currentDescriptorSet->set && binding.binding == reflectBinding->binding;
+                });
+
+                if (existing == m_Reflection.descriptorBindings.end())
+                {
+                    m_Reflection.descriptorBindings.push_back(FVkDescriptorBindingReflection{
+                        .set = currentDescriptorSet->set,
+                        .binding = reflectBinding->binding,
+                        .descriptorType = descriptorType,
+                        .descriptorCount = descriptorCount,
+                        .stageFlags = static_cast<VkShaderStageFlags>(shaderData.shaderStage),
+                    });
+                }
+                else
+                {
+                    if (existing->descriptorType != descriptorType || existing->descriptorCount != descriptorCount)
+                    {
+                        FL_CORE_ERROR("[Vulkan] Shader reflection failed: incompatible descriptor at set={}, binding={}, stage={}", currentDescriptorSet->set,
+                                      reflectBinding->binding, static_cast<uint32_t>(shaderData.shaderStage));
+                        return failReflection();
+                    }
+                    existing->stageFlags |= shaderData.shaderStage;
+                }
             }
         }
     }
@@ -147,6 +214,7 @@ void vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
 
     // Destroy the reflection data when no longer required.
     spvReflectDestroyShaderModule(&module);
+    return true;
 }
 
 void vk::FVkShader::mergePushConstants()
@@ -353,50 +421,34 @@ VkFormat vk::FVkShader::convertReflectionFormat(SpvReflectFormat format)
 
 
 // ---------- pipeline ----------
-FVkPipeline& vk::FVkShader::GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts)
+void vk::FVkShader::BuildPipeline(FVkPipeline& pipeline, const GetPipelineInfo& info,
+                                  const std::shared_ptr<FVkPipelineLayout>& pipelineLayout) const
 {
-    FVkPipeline& pipeline = m_PipelineCache[info];
-    if (!pipeline.GetPipelineLayout())
-    {
-        FGraphicsPipelineDesc desc{.descriptorSetLayouts = descriptorSetLayouts};
+    assert(pipelineLayout);
 
-        desc.pushConstants = &m_PushConstants;
-        desc.pVertexInputState = &m_VertexInput.createInfo;
+    FGraphicsPipelineDesc desc{};
+    desc.pushConstants = &m_PushConstants;
+    desc.pVertexInputState = &m_VertexInput.createInfo;
+    desc.topology = info.topology;
+    desc.vertexShader = m_VertexShader.shaderModule;
+    desc.fragmentShader = m_FragmentShader.shaderModule;
+    desc.depthTestEnable = info.depthTestEnable;
+    desc.depthWriteEnable = info.depthWriteEnable;
+    desc.depthCompareOp = info.depthCompareOp;
+    desc.samplesCount = info.samplesCount;
+    desc.cullMode = info.cullMode;
+    desc.frontFace = info.frontFace;
+    desc.depthBiasEnable = info.depthBiasEnable;
+    desc.depthBiasConstantFactor = info.depthBiasConstantFactor;
+    desc.depthBiasClamp = info.depthBiasClamp;
+    desc.depthBiasSlopeFactor = info.depthBiasSlopeFactor;
+    desc.colorAttachmentCount = info.colorAttachmentCount;
+    desc.colorFormat = info.colorFormat;
+    desc.depthFormat = info.depthFormat;
+    desc.vertexEntryPointName = m_VertexShader.entryPoint.c_str();
+    desc.fragmentEntryPointName = m_FragmentShader.entryPoint.c_str();
+    desc.shaderStages = &m_ShaderStages;
+    desc.colorBlendAttachment.blendEnable = info.blendEnable;
 
-        desc.topology = info.topology;
-
-        desc.vertexShader = m_VertexShader.shaderModule;
-        desc.fragmentShader = m_FragmentShader.shaderModule;
-
-        desc.depthTestEnable = info.depthTestEnable;
-        desc.depthWriteEnable = info.depthWriteEnable;
-        desc.depthCompareOp = info.depthCompareOp;
-
-        desc.samplesCount = info.samplesCount;
-        desc.cullMode = info.cullMode;
-        desc.frontFace = info.frontFace;
-
-        desc.depthBiasEnable = info.depthBiasEnable;
-        desc.depthBiasConstantFactor = info.depthBiasConstantFactor;
-        desc.depthBiasClamp = info.depthBiasClamp;
-        desc.depthBiasSlopeFactor = info.depthBiasSlopeFactor;
-
-        desc.colorAttachmentCount = info.colorAttachmentCount;
-        desc.colorFormat = info.colorFormat;
-        desc.depthFormat = info.depthFormat;
-
-        desc.vertexEntryPointName = m_VertexShader.entryPoint.c_str();
-        desc.fragmentEntryPointName = m_FragmentShader.entryPoint.c_str();
-
-        desc.shaderStages = &m_ShaderStages;
-
-        desc.colorBlendAttachment.blendEnable = info.blendEnable;
-
-        pipeline.Init(m_Device, desc);
-    }
-    else
-    {
-        assert(pipeline.GetDescriptorSetLayouts() == descriptorSetLayouts);
-    }
-    return pipeline;
+    pipeline.Init(m_Device, desc, pipelineLayout);
 }

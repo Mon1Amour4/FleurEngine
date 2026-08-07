@@ -9,6 +9,8 @@
 #include <glad/wgl.h>
 
 #include <Fleur/Math/Math.hpp>
+#include <Fleur/Log.h>
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -27,8 +29,11 @@ struct GlPrimitive
 
 struct backend::impl
 {
-    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights);
+    impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+         std::shared_ptr<spdlog::logger> logger);
     ~impl();
+
+    std::shared_ptr<spdlog::logger> m_Logger;
 
     // ---------- context (mirrors FVkDevice) ----------
     HWND m_Hwnd{nullptr};

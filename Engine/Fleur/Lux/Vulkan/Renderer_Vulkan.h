@@ -7,6 +7,11 @@
 
 using namespace Fleur::Graphics;
 
+namespace spdlog
+{
+class logger;
+}
+
 namespace vk
 {
 
@@ -25,11 +30,13 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void CreateFloor(AssetID texture, SFLShaderStages shaderStages, float height = 0.0f) override;
     virtual void SetFloor(AssetID texture, float height) override;
 
-    backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights);
+    backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+            std::shared_ptr<spdlog::logger> logger);
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
     void SetShaderRegistry(const ShaderRegistry& shaders) override;
+    void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) override;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
     virtual void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) override;

@@ -54,6 +54,7 @@ struct IRenderer
     virtual void StartResize() = 0;
     virtual void EndResize(Fleur::SRect& rect) = 0;
     virtual void SetShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders) = 0;
+    virtual void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) = 0;
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;

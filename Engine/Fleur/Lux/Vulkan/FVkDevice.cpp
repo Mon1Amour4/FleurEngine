@@ -1,10 +1,11 @@
 #include "FVkDevice.h"
 
+#include <Fleur/Log.h>
+
 #include <vulkan/vulkan.h>
 
 #include <array>
 #include <cassert>
-#include <iostream>
 #include <set>
 #include <stdexcept>
 
@@ -19,6 +20,14 @@ FVkDevice::FVkDevice(VkPhysicalDevice physicalDevice, FleurQueueFamilies graphic
 
 FVkDevice::~FVkDevice()
 {
+    if (m_Device != VK_NULL_HANDLE)
+    {
+        vkDeviceWaitIdle(m_Device);
+        m_StagingBuffers.clear();
+        m_MemoryTracker.PrintDiagnosis();
+        assert(m_MemoryTracker.GetLiveAllocationCount() == 0);
+    }
+
     vkDestroyDevice(m_Device, nullptr);
 }
 
@@ -80,6 +89,7 @@ VkDevice FVkDevice::CreateLogicalDevice(std::vector<const char*>& deivceExtensio
                                         .pEnabledFeatures = &deviceFeatures};
 
     VK_CHECK(vkCreateDevice(m_PhysicalDevice, &deviceCreateInfo, nullptr, &m_Device));
+    m_MemoryTracker.Init(m_PhysicalDevice, m_Device);
     vkGetDeviceQueue(m_Device, m_QueueFamilies.m_GraphicsFamily.m_Idx, 0, &m_GraphicsQueue);
     vkGetDeviceQueue(m_Device, m_QueueFamilies.m_PresentFamily.m_Idx, 1, &m_PresentQueue);
 
@@ -343,8 +353,7 @@ void FVkDevice::QueueFamiliesProperties::Print() const
     {
         std::string str = presentSupport[i] == true ? "PRESENT | " : "";
 
-        std::cout << "Available QueueFamily: " << str.c_str() << QueueFlagsToString(properties[i].queueFlags).c_str() << ", count: " << properties[i].queueCount
-                  << std::endl;
+        FL_CORE_INFO("Available QueueFamily: {}{}, count: {}", str, QueueFlagsToString(properties[i].queueFlags), properties[i].queueCount);
     }
 }
 

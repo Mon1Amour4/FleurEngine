@@ -5,13 +5,31 @@
 #include <vulkan/vulkan.h>
 
 #include <functional>
-#include <map>
-#include <unordered_map>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #include "FVkPipeline.h"
 
+class FVkPipelineLayout;
+
 namespace vk
 {
+struct FVkDescriptorBindingReflection
+{
+    uint32_t set = 0;
+    uint32_t binding = 0;
+    VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+    uint32_t descriptorCount = 0;
+    VkShaderStageFlags stageFlags = 0;
+};
+
+struct FVkShaderReflection
+{
+    std::vector<FVkDescriptorBindingReflection> descriptorBindings;
+    std::vector<VkPushConstantRange> pushConstants;
+};
+
 struct ShaderCreateInfo
 {
     const void* const pVertexData;
@@ -116,58 +134,28 @@ public:
     FVkShader();
     ~FVkShader();
 
+    FVkShader(const FVkShader&) = delete;
+    FVkShader& operator=(const FVkShader&) = delete;
+    FVkShader(FVkShader&&) = delete;
+    FVkShader& operator=(FVkShader&&) = delete;
+
     void Init(VkDevice device, ShaderCreateInfo& info);
 
-    inline VkShaderModule GetVertexShader() const
+    inline const FVkShaderReflection& GetReflection() const
     {
-        return m_VertexShader.shaderModule;
-    }
-    inline VkShaderModule GetFragmentShader() const
-    {
-        return m_FragmentShader.shaderModule;
+        return m_Reflection;
     }
 
-    inline const VkPipelineVertexInputStateCreateInfo* GetVertexInputState() const
-    {
-        return &m_VertexInput.createInfo;
-    }
-
-    inline const std::vector<VkPushConstantRange>& GetPushConstants() const
-    {
-        return m_PushConstants;
-    }
-
-    inline VkShaderModule GetGeometryShader() const
-    {
-        return m_GeometryShader.shaderModule;
-    }
-
-    inline const FVkShader::ShaderData& GetVertexShaderData() const
-    {
-        return m_VertexShader;
-    }
-    inline const FVkShader::ShaderData& GetFragmentShaderData() const
-    {
-        return m_FragmentShader;
-    }
-
-    inline const FVkShader::ShaderData& GetGeometryShaderData() const
-    {
-        return m_GeometryShader;
-    }
-
-    FVkPipeline& GetPipeline(const GetPipelineInfo& info, const std::vector<VkDescriptorSetLayout>& descriptorSetLayouts);
-    struct DescriptorSetDefaultValues
-    {
-        uint32_t sampler2d = 4096;
-    };
-
+    void BuildPipeline(FVkPipeline& pipeline, const GetPipelineInfo& info,
+                       const std::shared_ptr<FVkPipelineLayout>& pipelineLayout) const;
     bool isInitialized() const
     {
         return m_VertexShader.shaderModule && m_FragmentShader.shaderModule;
     }
 
 private:
+    void DestroyModules();
+
     VkDevice m_Device;
 
     ShaderData m_VertexShader;
@@ -183,20 +171,16 @@ private:
 
 
     std::vector<VkPushConstantRange> m_PushConstants;
-    std::map<uint32_t, std::vector<VkDescriptorSetLayoutBinding>> m_GlobalDescriptorSetLayoutBindingsMap;
+    FVkShaderReflection m_Reflection;
 
-    void getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize);
+    bool getReflection(ShaderData& shaderData, const void* const pVertexData, size_t vertexSize);
     void mergePushConstants();
     VkShaderStageFlagBits convertReflectionShaderStage(SpvReflectShaderStageFlagBits stage);
     VkDescriptorType convertReflectionDescriptorType(SpvReflectDescriptorType type);
     VkFormat convertReflectionFormat(SpvReflectFormat format);
 
-    // ---------- pipeline ----------
-    std::unordered_map<GetPipelineInfo, FVkPipeline> m_PipelineCache;
-
     std::vector<VkPipelineShaderStageCreateInfo> m_ShaderStages;
 
 
-    static DescriptorSetDefaultValues m_DefaultValues;
 };
 }  // namespace vk

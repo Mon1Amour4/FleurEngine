@@ -59,7 +59,8 @@ void ShadowMapOffsetTexture::Generate(VkExtent2D extent, uint32_t filterSize)
     }
 }
 
-void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDevice, VkCommandPool commandPool, VkQueue graphicsQueue, uint32_t filterSize)
+void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, VkCommandPool commandPool,
+                                    VkQueue graphicsQueue, uint32_t filterSize)
 {
     Destroy();
     Generate(kPatternExtent, filterSize);
@@ -78,11 +79,13 @@ void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDe
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-    m_Texture.CreateImage(device, physicalDevice, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
+    m_Texture.CreateImage(device, physicalDevice, memoryTracker, FVkAllocationCategory::Texture, imageInfo,
+                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_COLOR_BIT);
 
     FVkBuffer stagingBuffer{};
     const VkDeviceSize imageSize = static_cast<VkDeviceSize>(m_Data.size() * sizeof(float));
-    stagingBuffer.Init(device, physicalDevice, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, sizeof(float) * 2);
+    stagingBuffer.Init(device, physicalDevice, memoryTracker, FVkAllocationCategory::Staging, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                       imageSize, sizeof(float) * 2);
     stagingBuffer.MemCopy(m_Data.data(), imageSize);
 
     {
@@ -109,36 +112,11 @@ void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDe
     samplerInfo.maxLod = 0.0f;
     VK_CHECK(vkCreateSampler(device, &samplerInfo, nullptr, &m_Sampler));
 
-    VkDescriptorSetLayoutBinding binding{};
-    binding.binding = 0;
-    binding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    binding.descriptorCount = 1;
-    binding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+}
 
-    VkDescriptorSetLayoutCreateInfo layoutInfo{};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    layoutInfo.bindingCount = 1;
-    layoutInfo.pBindings = &binding;
-    VK_CHECK(vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &m_DescriptorSetLayout));
-
-    VkDescriptorPoolSize poolSize{};
-    poolSize.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSize.descriptorCount = 1;
-
-    VkDescriptorPoolCreateInfo poolInfo{};
-    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    poolInfo.maxSets = 1;
-    poolInfo.poolSizeCount = 1;
-    poolInfo.pPoolSizes = &poolSize;
-    VK_CHECK(vkCreateDescriptorPool(device, &poolInfo, nullptr, &m_DescriptorPool));
-
-    VkDescriptorSetAllocateInfo allocationInfo{};
-    allocationInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocationInfo.descriptorPool = m_DescriptorPool;
-    allocationInfo.descriptorSetCount = 1;
-    allocationInfo.pSetLayouts = &m_DescriptorSetLayout;
-    VK_CHECK(vkAllocateDescriptorSets(device, &allocationInfo, &m_DescriptorSet));
-
+void ShadowMapOffsetTexture::UpdateDescriptorSet(VkDescriptorSet descriptorSet) const
+{
+    assert(descriptorSet != VK_NULL_HANDLE);
     VkDescriptorImageInfo imageInfoDescriptor{};
     imageInfoDescriptor.sampler = m_Sampler;
     imageInfoDescriptor.imageView = m_Texture.GetImageView();
@@ -146,12 +124,12 @@ void ShadowMapOffsetTexture::Create(VkDevice device, VkPhysicalDevice physicalDe
 
     VkWriteDescriptorSet write{};
     write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write.dstSet = m_DescriptorSet;
+    write.dstSet = descriptorSet;
     write.dstBinding = 0;
     write.descriptorCount = 1;
     write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     write.pImageInfo = &imageInfoDescriptor;
-    vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    vkUpdateDescriptorSets(m_Device, 1, &write, 0, nullptr);
 }
 
 void ShadowMapOffsetTexture::Destroy()
@@ -162,14 +140,7 @@ void ShadowMapOffsetTexture::Destroy()
     m_Texture.Destroy();
     if (m_Sampler != VK_NULL_HANDLE)
         vkDestroySampler(m_Device, m_Sampler, nullptr);
-    if (m_DescriptorSetLayout != VK_NULL_HANDLE)
-        vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
-    if (m_DescriptorPool != VK_NULL_HANDLE)
-        vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 
     m_Sampler = VK_NULL_HANDLE;
-    m_DescriptorSetLayout = VK_NULL_HANDLE;
-    m_DescriptorPool = VK_NULL_HANDLE;
-    m_DescriptorSet = VK_NULL_HANDLE;
     m_Device = VK_NULL_HANDLE;
 }
