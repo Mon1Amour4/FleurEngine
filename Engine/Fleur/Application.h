@@ -39,6 +39,9 @@ public:
         WindowProps WindowProperties = WindowProps{};
         float FixedDt = 0.025f;
         uint32_t maxPointLights = 128;
+        uint32_t cascadeCount = 5;
+        Fleur::Graphics::LightSampling directionalLightSampling = Fleur::Graphics::LightSampling::Default;
+        Fleur::Graphics::LightSampling pointLightSampling = Fleur::Graphics::LightSampling::Default;
     };
 
     void Init(ApplicationBootSettings& settings);

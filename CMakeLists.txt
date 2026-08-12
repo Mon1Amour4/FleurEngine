@@ -18,6 +18,18 @@ if(MSVC)
   # Without this, gtest.lib and test objects can emit different
   # detect_mismatch values for string/vector annotations.
   add_compile_definitions(_DISABLE_STRING_ANNOTATION _DISABLE_VECTOR_ANNOTATION)
+
+  # Keep debug symbols enabled for Visual Studio/CMake Debug configurations.
+  # CMake 3.24 does not reliably populate DebugInformationFormat from the
+  # newer CMAKE_MSVC_DEBUG_INFORMATION_FORMAT variable.
+  add_compile_options(
+    "$<$<CONFIG:Debug>:/Zi>"
+    "$<$<CONFIG:RelWithDebInfo>:/Zi>"
+  )
+  add_link_options(
+    "$<$<CONFIG:Debug>:/DEBUG>"
+    "$<$<CONFIG:RelWithDebInfo>:/DEBUG>"
+  )
 endif()
 
 # === C++ Standard ===

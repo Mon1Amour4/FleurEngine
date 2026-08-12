@@ -9,23 +9,26 @@
 #define VK_USE_PLATFORM_WIN32_KHR
 #endif
 
-#include "PrivateVulkanImpl.hpp"
-
-#include <utility>
 #include <chrono>
+#include <utility>
+
+#include "PrivateVulkanImpl.hpp"
 
 namespace
 {
 constexpr uint32_t kDebugShadowMapTextureSlot = MAX_TEXTURES - 1;
 constexpr uint32_t kPointLightShadowFaceCount = 6;
+constexpr uint32_t kDirectionalShadowMapResolution = 2048;
 constexpr float kPointLightShadowNear = 0.1f;
 }  // namespace
 
 
 // ---------- backend ----------
 vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback,
-                     uint32_t maxPointLights, std::shared_ptr<spdlog::logger> logger)
-    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, std::move(logger)))
+                     uint32_t maxPointLights, uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                     Fleur::Graphics::LightSampling pointLight, std::shared_ptr<spdlog::logger> logger)
+    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, cascadeCount,
+                                                 directionalLight, pointLight, std::move(logger)))
 {
 }
 vk::backend::~backend() = default;
@@ -36,6 +39,11 @@ void vk::backend::SetShaderRegistry(const ShaderRegistry& shaders)
 void vk::backend::SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds)
 {
     pImpl->setShadowSceneBounds(bounds);
+}
+void vk::backend::SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                                    Fleur::Graphics::LightSampling pointLight)
+{
+    pImpl->setShadowSettings(cascadeCount, directionalLight, pointLight);
 }
 void vk::backend::UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
@@ -124,8 +132,7 @@ void vk::backend::ConfigureDebugDraw(const SFLDebugDrawShaders& shaders)
         auto& geometryShader = pImpl->m_ShaderMap.try_emplace("DebugGeometry").first->second;
         if (!geometryShader.isInitialized())
             geometryShader.Init(pImpl->m_Device->GetLogicalDevice(), geometryShaderCreateInfo);
-        pImpl->m_DebugDraw->Create(pImpl->m_Device.get(), pImpl->m_Swapchain.get(), &primitivesShader, &geometryShader,
-                                   pImpl->m_TextureDescriptorSet,
+        pImpl->m_DebugDraw->Create(pImpl->m_Device.get(), pImpl->m_Swapchain.get(), &primitivesShader, &geometryShader, pImpl->m_TextureDescriptorSet,
                                    pImpl->m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(pImpl->m_Device->GetPhysicalDevice()),
                                    pImpl->m_FramesInFlight);
     }
@@ -145,6 +152,16 @@ void vk::backend::ConfigureOverlay(SFLShaderStages shaderStages)
         return;
 
     pImpl->m_OverlayPass->SetShader(&overlayShader);
+
+    const VkDescriptorSetLayout shadowMapLayout = pImpl->m_OverlayPass->GetShadowMapSetLayout();
+    VkDescriptorSetAllocateInfo shadowMapAllocateInfo{
+        .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+        .descriptorPool = pImpl->m_DescriptorPool,
+        .descriptorSetCount = 1,
+        .pSetLayouts = &shadowMapLayout,
+    };
+    VK_CHECK(vkAllocateDescriptorSets(pImpl->m_Device->GetLogicalDevice(), &shadowMapAllocateInfo, &pImpl->m_OverlayShadowMapDescriptorSet));
+    pImpl->m_OverlayPass->SetShadowMapDescriptorSet(pImpl->m_OverlayShadowMapDescriptorSet);
 }
 void vk::backend::DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest)
 {
@@ -183,8 +200,14 @@ void vk::backend::DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 
 {
     pImpl->m_OverlayPass->AddTriangle(a, b, c, texture);
 }
-void vk::backend::DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max)
+void vk::backend::DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max, int32_t layer)
 {
+    auto& frame = pImpl->GetCurrentFrame();
+    vk::abstraction::DescriptorWriter shadowMapWriter{};
+    shadowMapWriter.write_image(0, frame.m_DirectionalLightShadowMap.GetImageView(), pImpl->m_ShadowMapSampler,
+                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    shadowMapWriter.update_set(pImpl->m_Device->GetLogicalDevice(), pImpl->m_OverlayShadowMapDescriptorSet);
+    pImpl->m_OverlayPass->SetShadowMapLayer(layer);
     pImpl->m_OverlayPass->AddShadowMapQuad(min, max);
 }
 void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCount)
@@ -197,12 +220,17 @@ void vk::backend::UpdatePointLight(const SFLPointLight* light, uint32_t lightCou
 // clang-format off
 vk::backend::impl::impl(bool enableValidation,
                          void* pNativeHandle, Fleur::SRect& framebufferSize,
-                         Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights, std::shared_ptr<spdlog::logger> logger)
+                         Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights, uint32_t cascadeCount,
+                         Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
+                         std::shared_ptr<spdlog::logger> logger)
     // clang-format on
     : m_Logger(std::move(logger))
     , m_PointLightShadowMaps(std::min(maxPointLights, POINT_LIGHTS_CAPACITY))
 {
     assert(maxPointLights > 0);
+    m_CascadeCount = std::clamp(cascadeCount, 1u, static_cast<uint32_t>(kMaxCascadeCount));
+    m_DirectionalLightSampling = directionalLight;
+    m_PointLightSampling = pointLight;
     m_MaxPointLights = std::min(maxPointLights, POINT_LIGHTS_CAPACITY);
     std::vector<const char*> validationLayers{"VK_LAYER_KHRONOS_validation"};
     std::vector<const char*> instanceExtensions{"VK_EXT_debug_utils", "VK_KHR_surface"};
@@ -261,8 +289,14 @@ vk::backend::impl::impl(bool enableValidation,
         Frame& frame = m_Frames[i];
 
         frame.scene.m_SceneNodeTransformsStorageBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
-                                                            FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Mat4) + sizeof(Fleur::Mat4), sizeof(Fleur::Mat4));
+                                                             FVkAllocationCategory::Buffer,
+                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                             NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Mat4) + sizeof(Fleur::Mat4), sizeof(Fleur::Mat4));
+
+        frame.scene.m_DirectionalShadowMatricesBuffer.Init(
+            m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+            sizeof(DirectionalShadowMatrices), sizeof(Fleur::Mat4));
 
         frame.scene.m_CameraBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
                                         FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
@@ -270,7 +304,7 @@ vk::backend::impl::impl(bool enableValidation,
 
         std::vector<vk::abstraction::DescriptorAllocator::PoolSizeRatio> frame_sizes = {
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_FramesInFlight},          // ssbo
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_FramesInFlight},          // camera data
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, m_FramesInFlight * 2},      // camera data + directional shadow matrices
             {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, m_FramesInFlight},  // shadowMap
         };
         frame.frameDescriptors.init(m_Device->GetLogicalDevice(), 1000, frame_sizes);
@@ -293,8 +327,10 @@ vk::backend::impl::impl(bool enableValidation,
 
     for (Frame& frame : m_Frames)
     {
-        frame.m_ShadowMap.Create(m_Device.get(), m_ImmediateCommandPool.get(), swapchainExtent, VK_SAMPLE_COUNT_1_BIT, true);
-        frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        frame.m_DirectionalLightShadowMap.Create(m_Device.get(), m_ImmediateCommandPool.get(),
+                                                 VkExtent2D{kDirectionalShadowMapResolution, kDirectionalShadowMapResolution},
+                                                 VK_SAMPLE_COUNT_1_BIT, true, m_CascadeCount);
+        frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     m_ShadowMapSampler = createShadowMapSampler();
 
@@ -302,8 +338,7 @@ vk::backend::impl::impl(bool enableValidation,
     m_DepthRenderTarget.Create(m_Device.get(), m_ImmediateCommandPool.get(), swapchainExtent, m_MultisampledRenderTarget->GetSamplesCount());
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
-                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul,
-                         sizeof(Fleur::Graphics::SVertexData));
+                         VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul, sizeof(Fleur::Graphics::SVertexData));
 
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
                         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul, sizeof(uint32_t));
@@ -324,8 +359,7 @@ vk::backend::impl::impl(bool enableValidation,
     }
 
     m_OverlayPass = std::make_unique<FVkOverlayPass>();
-    m_OverlayPass->Create(m_Device.get(), m_Swapchain.get(), m_TextureDescriptorSet,
-                          kDebugShadowMapTextureSlot, m_MultisampledRenderTarget->GetSamplesCount(),
+    m_OverlayPass->Create(m_Device.get(), m_Swapchain.get(), m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_MultisampledRenderTarget->GetSamplesCount(),
                           FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()), m_FramesInFlight);
 
     m_DebugDraw = std::make_unique<FVkDebugDraw>();
@@ -581,10 +615,13 @@ Fleur::Graphics::SFLShaderBytecode vk::backend::impl::shaderInfo(std::string_vie
 
 
 FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo,
-                                                       Fleur::Graphics::SFLShaderBytecode pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo)
+                                                       Fleur::Graphics::SFLShaderBytecode pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
+                                                       Fleur::Graphics::SFLShaderBytecode pGeometryInfo)
 {
     vk::ShaderCreateInfo shaderCreateInfo{.pVertexData = pVertexInfo.shaderCode,
                                           .vertexSize = pVertexInfo.sizeBytes,
+                                          .pGeometryData = pGeometryInfo.shaderCode,
+                                          .geometrySize = pGeometryInfo.sizeBytes,
                                           .pFragmentData = pFragmentInfo.shaderCode,
                                           .fragmentSize = pFragmentInfo.sizeBytes};
 
@@ -608,6 +645,10 @@ FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fl
     {
         m_OpaquePipelineLayout = reflectedLayout;
         initializeOpaqueDescriptorSets();
+    }
+    else if (std::string_view(shaderKey) == "shadow")
+    {
+        m_ShadowPipelineLayout = reflectedLayout;
     }
 
     return &m_PipelineCache.Get(shader, pipelineInfo, reflectedLayout);
@@ -649,8 +690,8 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
     return createGraphicsPipeline("opaque", pVertexInfo, pFragmentInfo, pipelineInfo);
 }
 
-FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                                     VkSampleCountFlagBits samplesCount)
+FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pGeometryInfo,
+                                                      Fleur::Graphics::SFLShaderBytecode pFragmentInfo, VkSampleCountFlagBits samplesCount)
 {
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = false;
@@ -678,7 +719,7 @@ FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderB
     pipelineInfo.depthBiasClamp = 0.0f;
     pipelineInfo.depthBiasSlopeFactor = 1.75f;
 
-    return createGraphicsPipeline("shadow", pVertexInfo, pFragmentInfo, pipelineInfo);
+    return createGraphicsPipeline("shadow", pVertexInfo, pFragmentInfo, pipelineInfo, pGeometryInfo);
 }
 
 VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo)
@@ -699,14 +740,14 @@ void vk::backend::impl::createTextureDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[0].descriptorCount = MAX_TEXTURES + POINT_LIGHTS_CAPACITY + 2;
+    poolSizes[0].descriptorCount = MAX_TEXTURES + POINT_LIGHTS_CAPACITY + 3;
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-        .maxSets = 4,
+                                         .maxSets = 5,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -723,8 +764,7 @@ void vk::backend::impl::createTextureDescriptorSets()
         m_OpaquePipelineLayout->GetSetLayout(5),
         m_OpaquePipelineLayout->GetSetLayout(6),
     };
-    for (VkDescriptorSetLayout layout : layouts)
-        assert(layout != VK_NULL_HANDLE);
+    for (VkDescriptorSetLayout layout : layouts) assert(layout != VK_NULL_HANDLE);
 
     VkDescriptorSetAllocateInfo texturesDescriptorSetAllocInfo{
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &layouts[0]};
@@ -991,9 +1031,8 @@ void vk::backend::impl::createFallbackTexture(Fleur::Graphics::SFLImageView& vie
                        VK_BUFFER_USAGE_TRANSFER_SRC_BIT, imageSize, layerSize);
     stagingBuffer.MemCopy(buffer.data(), imageSize);
 
-    VkImage cubemapImage = m_FallbackCubemapTexture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(),
-                                                                 m_Device->GetMemoryTracker(), FVkAllocationCategory::Texture, imageInfo,
-                                                                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubemapAspect);
+    VkImage cubemapImage = m_FallbackCubemapTexture->CreateImage(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
+                                                                 FVkAllocationCategory::Texture, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, cubemapAspect);
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_Device->GetLogicalDevice(), m_ImmediateCommandPool->GetCommandPool());
@@ -1098,12 +1137,14 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
     m_DepthRenderTarget.Recreate({rect.width, rect.height}, m_MultisampledRenderTarget->GetSamplesCount());
     for (Frame& frame : m_Frames)
     {
-        frame.m_ShadowMap.Recreate({rect.width, rect.height}, VK_SAMPLE_COUNT_1_BIT, true);
-        frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+        frame.m_DirectionalLightShadowMap.Recreate({kDirectionalShadowMapResolution, kDirectionalShadowMapResolution}, VK_SAMPLE_COUNT_1_BIT, true,
+                                                    m_CascadeCount);
+        frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
     updateShadowMapDescriptorSets();
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_ShadowMap.GetImageView(), m_ShadowMapSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_DirectionalLightShadowMap.GetImageView(),
+                               m_ShadowMapSampler);
     m_Logger->info("EndResize");
 }
 
@@ -1162,8 +1203,8 @@ void vk::backend::impl::createFloor(AssetID texture, SFLShaderStages shaderStage
     if (m_TextureMap.find(texture) == m_TextureMap.end())
         idx = m_FallbackTextureIdx;
 
-    m_Floor->Create(m_Device.get(), m_Swapchain.get(), &floorShader, m_TextureMap[idx].GetImageView(), height,
-                    m_MultisampledRenderTarget->GetSamplesCount(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
+    m_Floor->Create(m_Device.get(), m_Swapchain.get(), &floorShader, m_TextureMap[idx].GetImageView(), height, m_MultisampledRenderTarget->GetSamplesCount(),
+                    FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
 }
 
 void vk::backend::impl::setFloor(AssetID texture, float height)
@@ -1192,7 +1233,19 @@ void vk::backend::impl::createShadowPass(EFLShadowPassKind kind, SFLShaderStages
 
     if (kind == EFLShadowPassKind::Directional)
     {
-        m_ShadowPipeline = createShadowPipeline(vertex, fragment, VK_SAMPLE_COUNT_1_BIT);
+        const auto geometry = shaderInfo(shaderStages.geometry);
+        m_ShadowPipeline = createShadowPipeline(vertex, geometry, fragment, VK_SAMPLE_COUNT_1_BIT);
+
+        for (Frame& frame : m_Frames)
+        {
+            frame.scene.m_DirectionalShadowMatricesDescriptor =
+                frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_ShadowPipelineLayout->GetSetLayout(1), 1);
+
+            vk::abstraction::DescriptorWriter matricesWriter{};
+            matricesWriter.write_buffer(0, frame.scene.m_DirectionalShadowMatricesBuffer.GetBuffer(), sizeof(DirectionalShadowMatrices), 0,
+                                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            matricesWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_DirectionalShadowMatricesDescriptor);
+        }
     }
     else if (kind == EFLShadowPassKind::PointLight)
     {
@@ -1232,13 +1285,54 @@ void vk::backend::impl::updatePointLight(const SFLPointLight* light, uint32_t li
     m_PointLightsBuffer->UploadDataToBuffer(light, lightCount);
 }
 
+std::vector<Fleur::Vec4> vk::backend::impl::getFrustumCornersWorldSpace(const Fleur::Mat4& proj, const Fleur::Mat4& view)
+{
+    const auto inv = Fleur::Math::inverse(proj * view);
+
+    std::vector<Fleur::Vec4> frustumCorners;
+    for (unsigned int x = 0; x < 2; ++x)
+    {
+        for (unsigned int y = 0; y < 2; ++y)
+        {
+            for (unsigned int z = 0; z < 2; ++z)
+            {
+                const Fleur::Vec4 pt = inv * Fleur::Vec4(2.0f * x - 1.0f, 2.0f * y - 1.0f, z, 1.0f);
+                frustumCorners.push_back(pt / pt.w);
+            }
+        }
+    }
+
+    return frustumCorners;
+}
+std::array<Fleur::Vec4, 8> vk::backend::impl::SplitFrustum(const std::vector<Fleur::Vec4>& corners, float splitNear, float splitFar)
+{
+    std::array<Fleur::Vec4, 8> result{};
+
+    const int nearIndices[4] = {0, 2, 4, 6};
+    const int farIndices[4] = {1, 3, 5, 7};
+
+    for (int i = 0; i < 4; ++i)
+    {
+        const auto& nearCorner = corners[nearIndices[i]];
+        const auto& farCorner = corners[farIndices[i]];
+
+        result[nearIndices[i]] = nearCorner + (farCorner - nearCorner) * splitNear;
+
+        result[farIndices[i]] = nearCorner + (farCorner - nearCorner) * splitFar;
+    }
+
+    return result;
+}
+
 void vk::backend::impl::updateShadowMapDescriptorSets()
 {
     for (size_t i = 0; i < m_Frames.size(); ++i)
     {
         vk::abstraction::DescriptorWriter shadowMapWriter{};
-        shadowMapWriter.write_image(0, m_Frames[i].m_ShadowMap.GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        shadowMapWriter.write_image(0, m_Frames[i].m_DirectionalLightShadowMap.GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        shadowMapWriter.write_buffer(1, m_Frames[i].scene.m_DirectionalShadowMatricesBuffer.GetBuffer(), sizeof(DirectionalShadowMatrices), 0,
+                                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         auto& frame = m_Frames[i];
         shadowMapWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_ShadowMapDescriptorSet);
     }
@@ -1305,19 +1399,22 @@ void vk::backend::impl::BeginShadowRendering()
 {
     auto& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
-    auto& shadowMap = frame.m_ShadowMap;
+    auto& directionalLightShadowMap = frame.m_DirectionalLightShadowMap;
 
-    transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          frame.m_ShadowMapLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    transitionImageLayout(*cmd.GetCommandBuffer(), directionalLightShadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
+                           frame.m_DirectionalLightShadowMapLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
+                           m_CascadeCount);
+    frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
+    const VkExtent2D shadowExtent = directionalLightShadowMap.GetExtent();
     VkRect2D renderArea{
         .offset = {0, 0},
-        .extent = {.width = m_Swapchain->GetSwapchainExtent().width, .height = m_Swapchain->GetSwapchainExtent().height},
+        .extent = shadowExtent,
     };
 
     FRenderingDepthAttachmentDesc depthDesc{};
-    depthDesc.imageView = shadowMap.GetImageView();
+    // GetImageView() returns the layered VK_IMAGE_VIEW_TYPE_2D_ARRAY view used by the cascade shadow map.
+    depthDesc.imageView = directionalLightShadowMap.GetImageView();
     depthDesc.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     depthDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     depthDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
@@ -1330,7 +1427,7 @@ void vk::backend::impl::BeginShadowRendering()
     renderingDesc.colorAttachment = nullptr;
     renderingDesc.depthAttachment = &depthDesc;
 
-    renderingDesc.layerCount = 1;
+    renderingDesc.layerCount = m_CascadeCount;
     renderingDesc.viewMask = 0;
 
     BeginRendering(*cmd.GetCommandBuffer(), renderingDesc);
@@ -1343,17 +1440,171 @@ void vk::backend::impl::BeginShadowRendering()
 
     VkViewport defaultViewport{.x = 0,
                                .y = 0,
-                               .width = (float)m_Swapchain->GetSwapchainExtent().width,
-                               .height = (float)m_Swapchain->GetSwapchainExtent().height,
+                               .width = (float)shadowExtent.width,
+                               .height = (float)shadowExtent.height,
                                .minDepth = 0,
                                .maxDepth = 1.0f};
     cmd.SetViewport(defaultViewport);
 
     VkRect2D defaultScissors{
         .offset = VkOffset2D{.x = 0, .y = 0},
-        .extent = m_Swapchain->GetSwapchainExtent(),
+        .extent = shadowExtent,
     };
     cmd.SetScissors(defaultScissors);
+}
+
+vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirectionalShadowFrustum(
+    const std::array<Fleur::Vec4, 8>& corners, const Fleur::Vec3& lightDirection, const std::array<Fleur::Vec4, 8>* casterCorners,
+    size_t cascadeIndex) const
+{
+    DirectionalLightShadowFrustum result{};
+
+    Fleur::Vec3 up(0.0f, 1.0f, 0.0f);
+    if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
+        up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
+
+    for (const Fleur::Vec4& corner : corners)
+        result.center += Fleur::Vec3(corner);
+    result.center /= static_cast<float>(corners.size());
+
+    for (const Fleur::Vec4& corner : corners)
+    {
+        result.radius = std::max(result.radius, Fleur::Math::length(Fleur::Vec3(corner) - result.center));
+    }
+
+    // Keep the light-space basis fixed while the camera moves. Building the
+    // view around result.center makes the entire shadow grid follow the camera
+    // and defeats texel snapping. The anchor is a stable world-space point;
+    // only the orthographic center below follows the cascade bounds.
+    const Fleur::Vec3 lightAnchor = m_ShadowMapFrustumSettings.center;
+    float lightDistance = std::max(100.0f, m_ShadowMapFrustumSettings.farExtension + m_ShadowMapFrustumSettings.halfSize);
+    if (m_HasShadowSceneBounds)
+    {
+        const Fleur::Vec3 sceneExtent = m_ShadowSceneBounds.GetMax() - m_ShadowSceneBounds.GetMin();
+        lightDistance = std::max(lightDistance, Fleur::Math::length(sceneExtent) + 10.0f);
+    }
+    const Fleur::Vec3 lightPos = lightAnchor - lightDirection * lightDistance;
+    const Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, lightAnchor, up);
+
+    float minX = std::numeric_limits<float>::infinity();
+    float maxX = -std::numeric_limits<float>::infinity();
+    float minY = std::numeric_limits<float>::infinity();
+    float maxY = -std::numeric_limits<float>::infinity();
+    float minZ = std::numeric_limits<float>::infinity();
+    float maxZ = -std::numeric_limits<float>::infinity();
+
+    const auto accumulateLightSpaceBounds = [&](const auto& points) {
+        for (const Fleur::Vec4& corner : points)
+        {
+            const Fleur::Vec3 lightSpaceCorner = Fleur::Vec3(lightView * corner);
+            minX = std::min(minX, lightSpaceCorner.x);
+            maxX = std::max(maxX, lightSpaceCorner.x);
+            minY = std::min(minY, lightSpaceCorner.y);
+            maxY = std::max(maxY, lightSpaceCorner.y);
+            minZ = std::min(minZ, lightSpaceCorner.z);
+            maxZ = std::max(maxZ, lightSpaceCorner.z);
+        }
+    };
+    accumulateLightSpaceBounds(corners);
+    if (casterCorners)
+        accumulateLightSpaceBounds(*casterCorners);
+
+    if (!std::isfinite(minX) || !std::isfinite(maxX) || !std::isfinite(minY) || !std::isfinite(maxY) || !std::isfinite(minZ) ||
+        !std::isfinite(maxZ))
+    {
+        return result;
+    }
+
+    const float cascadeNear = std::max(0.01f, -maxZ);
+    const float cascadeFar = std::max(cascadeNear + 0.1f, -minZ);
+    constexpr float depthPadding = 2.0f;
+    const float shadowNear = std::max(0.01f, cascadeNear - depthPadding);
+    const float shadowFar = std::max(shadowNear + 0.1f, cascadeFar + depthPadding);
+
+    float halfWidth = std::max((maxX - minX) * 0.5f, 0.01f);
+    float halfHeight = std::max((maxY - minY) * 0.5f, 0.01f);
+    if (cascadeIndex < m_CascadeCount)
+    {
+        m_StableCascadeHalfWidths[cascadeIndex] = std::max(m_StableCascadeHalfWidths[cascadeIndex], halfWidth);
+        m_StableCascadeHalfHeights[cascadeIndex] = std::max(m_StableCascadeHalfHeights[cascadeIndex], halfHeight);
+        halfWidth = m_StableCascadeHalfWidths[cascadeIndex];
+        halfHeight = m_StableCascadeHalfHeights[cascadeIndex];
+    }
+    // One texel of guard band prevents nearest-texel center snapping from
+    // moving an original bound just outside the orthographic projection.
+    halfWidth += (2.0f * halfWidth) / static_cast<float>(kDirectionalShadowMapResolution);
+    halfHeight += (2.0f * halfHeight) / static_cast<float>(kDirectionalShadowMapResolution);
+    const float texelSizeX = (2.0f * halfWidth) / static_cast<float>(kDirectionalShadowMapResolution);
+    const float texelSizeY = (2.0f * halfHeight) / static_cast<float>(kDirectionalShadowMapResolution);
+    const float centerX = Fleur::ShadowMath::SnapToTexel((minX + maxX) * 0.5f, texelSizeX);
+    const float centerY = Fleur::ShadowMath::SnapToTexel((minY + maxY) * 0.5f, texelSizeY);
+
+    Fleur::Mat4 lightProjection =
+        Fleur::Math::orthoRH_ZO(centerX - halfWidth, centerX + halfWidth, centerY - halfHeight, centerY + halfHeight, shadowNear, shadowFar);
+    // Flip the complete NDC Y row for Vulkan. The translation term must be
+    // flipped together with the scale when the ortho box is not centered at 0.
+    lightProjection[1][1] *= -1;
+    lightProjection[3][1] *= -1;
+    result.lightSpaceMatrix = lightProjection * lightView;
+    return result;
+}
+
+void vk::backend::impl::UpdateDirectionalShadowFrustum(const Fleur::Vec3& lightDirection)
+{
+    if (!m_HasLastDirectionalLightDirection || Fleur::Math::abs(lightDirection.x - m_LastDirectionalLightDirection.x) > 0.0001f ||
+        Fleur::Math::abs(lightDirection.y - m_LastDirectionalLightDirection.y) > 0.0001f ||
+        Fleur::Math::abs(lightDirection.z - m_LastDirectionalLightDirection.z) > 0.0001f)
+    {
+        m_LastDirectionalLightDirection = lightDirection;
+        m_HasLastDirectionalLightDirection = true;
+        m_StableCascadeHalfWidths.fill(0.0f);
+        m_StableCascadeHalfHeights.fill(0.0f);
+    }
+
+    const Fleur::Vec3 sceneMin = m_ShadowSceneBounds.GetMin();
+    const Fleur::Vec3 sceneMax = m_ShadowSceneBounds.GetMax();
+    const bool validSceneBounds = m_HasShadowSceneBounds && std::isfinite(sceneMin.x) && std::isfinite(sceneMin.y) && std::isfinite(sceneMin.z) &&
+                                   std::isfinite(sceneMax.x) && std::isfinite(sceneMax.y) && std::isfinite(sceneMax.z) && sceneMin.x < sceneMax.x &&
+                                   sceneMin.y < sceneMax.y && sceneMin.z < sceneMax.z;
+
+    std::array<Fleur::Vec4, 8> sceneCorners{};
+    if (validSceneBounds)
+    {
+        sceneCorners = {Fleur::Vec4(sceneMin.x, sceneMin.y, sceneMin.z, 1.0f), Fleur::Vec4(sceneMax.x, sceneMin.y, sceneMin.z, 1.0f),
+                        Fleur::Vec4(sceneMax.x, sceneMax.y, sceneMin.z, 1.0f), Fleur::Vec4(sceneMin.x, sceneMax.y, sceneMin.z, 1.0f),
+                        Fleur::Vec4(sceneMin.x, sceneMin.y, sceneMax.z, 1.0f), Fleur::Vec4(sceneMax.x, sceneMin.y, sceneMax.z, 1.0f),
+                        Fleur::Vec4(sceneMax.x, sceneMax.y, sceneMax.z, 1.0f), Fleur::Vec4(sceneMin.x, sceneMax.y, sceneMax.z, 1.0f)};
+    }
+    else
+    {
+        const Fleur::Vec3 cameraPosition = Fleur::Vec3(Fleur::Math::inverse(m_FrameData.camera.view)[3]);
+        const float halfSize = std::max(m_ShadowMapFrustumSettings.halfSize, 1.0f);
+        const float shadowDistance = std::max(m_ShadowMapFrustumSettings.farExtension, m_FrameData.camera.farPlane);
+        const Fleur::Vec3 baseMin = cameraPosition - Fleur::Vec3(halfSize);
+        const Fleur::Vec3 baseMax = cameraPosition + Fleur::Vec3(halfSize);
+        const Fleur::Vec3 lightExtrusion = lightDirection * shadowDistance;
+        const Fleur::Vec3 extrudedMin = baseMin + lightExtrusion;
+        const Fleur::Vec3 extrudedMax = baseMax + lightExtrusion;
+        const Fleur::Vec3 casterMin(std::min(baseMin.x, extrudedMin.x), std::min(baseMin.y, extrudedMin.y), std::min(baseMin.z, extrudedMin.z));
+        const Fleur::Vec3 casterMax(std::max(baseMax.x, extrudedMax.x), std::max(baseMax.y, extrudedMax.y), std::max(baseMax.z, extrudedMax.z));
+        sceneCorners = {Fleur::Vec4(casterMin.x, casterMin.y, casterMin.z, 1.0f), Fleur::Vec4(casterMax.x, casterMin.y, casterMin.z, 1.0f),
+                        Fleur::Vec4(casterMax.x, casterMax.y, casterMin.z, 1.0f), Fleur::Vec4(casterMin.x, casterMax.y, casterMin.z, 1.0f),
+                        Fleur::Vec4(casterMin.x, casterMin.y, casterMax.z, 1.0f), Fleur::Vec4(casterMax.x, casterMin.y, casterMax.z, 1.0f),
+                        Fleur::Vec4(casterMax.x, casterMax.y, casterMax.z, 1.0f), Fleur::Vec4(casterMin.x, casterMax.y, casterMax.z, 1.0f)};
+    }
+
+    m_CascadeSplits.Update(m_FrameData.camera.nearPlane, m_FrameData.camera.farPlane, 1.0f, m_CascadeCount);
+
+    const auto cameraFrustumInWorld = getFrustumCornersWorldSpace(m_FrameData.camera.proj, m_FrameData.camera.view);
+    float previousSplit = 0.0f;
+    for (size_t i = 0; i < m_CascadeCount; ++i)
+    {
+        const float currentSplit = m_CascadeSplits.splits[i];
+        const auto cascadeCorners = SplitFrustum(cameraFrustumInWorld, previousSplit, currentSplit);
+        m_CascadeShadowFrustums[i] = BuildDirectionalShadowFrustum(cascadeCorners, lightDirection, &sceneCorners, i);
+        previousSplit = currentSplit;
+    }
+
 }
 
 void vk::backend::impl::ExecuteDirectionalShadowSubpass()
@@ -1361,118 +1612,32 @@ void vk::backend::impl::ExecuteDirectionalShadowSubpass()
     auto& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
 
-    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), &frame.scene.m_SceneNodeTransformsDescriptor, 1);
+    const Fleur::Vec3 lightDirection = Fleur::Math::normalize(Fleur::Vec3(m_FrameData.directionalLight.dirIntens));
+    UpdateDirectionalShadowFrustum(lightDirection);
 
-    Fleur::Vec3 lightDirection = Fleur::Math::normalize(Fleur::Vec3(m_FrameData.directionalLight.dirIntens));
+    DirectionalShadowMatrices matrices{};
+    matrices.cascadeCount = m_CascadeCount;
+    for (size_t i = 0; i < m_CascadeCount; ++i)
+        matrices.lightSpaceMatrices[i] = m_CascadeShadowFrustums[i].lightSpaceMatrix;
+    const float cameraDepthRange = m_FrameData.camera.farPlane - m_FrameData.camera.nearPlane;
+    for (size_t i = 0; i < m_CascadeCount; ++i)
+        matrices.cascadeSplits[i / 4][i % 4] = m_FrameData.camera.nearPlane + m_CascadeSplits.splits[i] * cameraDepthRange;
+    frame.scene.m_DirectionalShadowMatricesBuffer.MemCopy(&matrices, sizeof(matrices));
 
-    if (!m_HasLastDirectionalLightDirection || Fleur::Math::abs(lightDirection.x - m_LastDirectionalLightDirection.x) > 0.0001f ||
-        Fleur::Math::abs(lightDirection.y - m_LastDirectionalLightDirection.y) > 0.0001f ||
-        Fleur::Math::abs(lightDirection.z - m_LastDirectionalLightDirection.z) > 0.0001f)
-    {
-        m_LastDirectionalLightDirection = lightDirection;
-        m_HasLastDirectionalLightDirection = true;
-        m_DirectionalShadowFrustumDirty = true;
-    }
-
-    if (m_DirectionalShadowFrustumDirty)
-    {
-        const auto& shadowFrustum = m_ShadowMapFrustumSettings;
-        Fleur::Vec3 up(0.0f, 1.0f, 0.0f);
-        if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
-            up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
-
-        const Fleur::Vec3 sceneMin = m_ShadowSceneBounds.GetMin();
-        const Fleur::Vec3 sceneMax = m_ShadowSceneBounds.GetMax();
-        const bool validSceneBounds = m_HasShadowSceneBounds && std::isfinite(sceneMin.x) && std::isfinite(sceneMin.y) && std::isfinite(sceneMin.z) &&
-                                      std::isfinite(sceneMax.x) && std::isfinite(sceneMax.y) && std::isfinite(sceneMax.z) && sceneMin.x < sceneMax.x &&
-                                      sceneMin.y < sceneMax.y && sceneMin.z < sceneMax.z;
-
-        if (validSceneBounds)
-        {
-            const Fleur::Vec3 min = sceneMin;
-            const Fleur::Vec3 max = sceneMax;
-            const Fleur::Vec3 center = (min + max) * 0.5f;
-            constexpr float padding = 0.1f;
-
-            const Fleur::Vec3 sceneCorners[8] = {{min.x, min.y, min.z}, {max.x, min.y, min.z}, {max.x, max.y, min.z}, {min.x, max.y, min.z},
-                                                 {min.x, min.y, max.z}, {max.x, min.y, max.z}, {max.x, max.y, max.z}, {min.x, max.y, max.z}};
-
-            float minDepth = std::numeric_limits<float>::infinity();
-            float maxDepth = -std::numeric_limits<float>::infinity();
-            for (const Fleur::Vec3& corner : sceneCorners)
-            {
-                const float depth = Fleur::Math::dot(corner - center, lightDirection);
-                minDepth = std::min(minDepth, depth);
-                maxDepth = std::max(maxDepth, depth);
-            }
-
-            // Place the virtual camera just before the nearest scene point in
-            // light space, instead of using the diagonal radius of the AABB.
-            const Fleur::Vec3 lightPos = center - lightDirection * (-minDepth + padding);
-            const Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, center, up);
-
-            float minX = std::numeric_limits<float>::infinity();
-            float maxX = -std::numeric_limits<float>::infinity();
-            float minY = std::numeric_limits<float>::infinity();
-            float maxY = -std::numeric_limits<float>::infinity();
-            float minZ = std::numeric_limits<float>::infinity();
-            float maxZ = -std::numeric_limits<float>::infinity();
-
-            for (int x = 0; x < 2; x++)
-                for (int y = 0; y < 2; y++)
-                    for (int z = 0; z < 2; z++)
-                    {
-                        const Fleur::Vec3 corner{x ? max.x : min.x, y ? max.y : min.y, z ? max.z : min.z};
-                        const Fleur::Vec3 lightSpaceCorner = Fleur::Vec3(lightView * Fleur::Vec4(corner, 1.0f));
-                        minX = std::min(minX, lightSpaceCorner.x);
-                        maxX = std::max(maxX, lightSpaceCorner.x);
-                        minY = std::min(minY, lightSpaceCorner.y);
-                        maxY = std::max(maxY, lightSpaceCorner.y);
-                        minZ = std::min(minZ, lightSpaceCorner.z);
-                        maxZ = std::max(maxZ, lightSpaceCorner.z);
-                    }
-
-            const float shadowNear = std::max(0.01f, -maxZ - padding);
-            const float shadowFar = std::max(shadowNear + 0.1f, -minZ + padding);
-            const float centerX = (minX + maxX) * 0.5f;
-            const float centerY = (minY + maxY) * 0.5f;
-            const float halfSize = std::max(maxX - minX, maxY - minY) * 0.5f + padding;
-            Fleur::Mat4 lightProjection =
-                Fleur::Math::orthoRH_ZO(centerX - halfSize, centerX + halfSize, centerY - halfSize, centerY + halfSize, shadowNear, shadowFar);
-            lightProjection[1][1] *= -1;
-            m_LightSpaceMatrix = lightProjection * lightView;
-        }
-        else
-        {
-            const float halfSize = shadowFrustum.halfSize;
-            const Fleur::Vec3 lightPos = Fleur::Vec3(m_FrameData.directionalLight.pos);
-            const float lightDistance = Fleur::Math::length(lightPos);
-            const float shadowNear = lightDistance * shadowFrustum.nearDistanceFactor;
-            const float shadowFar = lightDistance + shadowFrustum.farExtension;
-            const Fleur::Mat4 lightView = Fleur::Math::lookAt(lightPos, lightPos + lightDirection * shadowFar, up);
-            Fleur::Mat4 lightProjection = Fleur::Math::orthoRH_ZO(-halfSize, halfSize, -halfSize, halfSize, shadowNear, shadowFar);
-            lightProjection[1][1] *= -1;
-            m_LightSpaceMatrix = lightProjection * lightView;
-        }
-
-        m_DirectionalShadowFrustumDirty = false;
-    }
-
-    const auto& shadowFrustum = m_ShadowMapFrustumSettings;
-
-    if (shadowFrustum.drawDebugFrustum)
-        m_DebugDraw->Frustum(Fleur::Math::inverse(m_LightSpaceMatrix), Fleur::Vec3(0.0f, 1.0f, 1.0f));
+    std::array<VkDescriptorSet, 2> shadowDescriptorSets{
+        frame.scene.m_SceneNodeTransformsDescriptor,
+        frame.scene.m_DirectionalShadowMatricesDescriptor,
+    };
+    cmd.BindDescriptorSets(m_ShadowPipeline->GetPipelineLayout(), shadowDescriptorSets.data(), shadowDescriptorSets.size());
 
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         struct ShadowPushConstant
         {
-            Fleur::Mat4 lightSpaceMatrix;
             uint32_t modelIdx;
             uint32_t nodeIdx;
         } pc;
-        pc.lightSpaceMatrix = m_LightSpaceMatrix;
         pc.modelIdx = drawItem.modelTransformIdx;
         pc.nodeIdx = drawItem.nodeTransformsStartIdx;
         cmd.PushConstant(m_ShadowPipeline->GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, pc);
@@ -1528,7 +1693,7 @@ void vk::backend::impl::ExecuteShadowPass()
 {
     auto& frame = GetCurrentFrame();
     auto& cmd = frame.m_CommandBuffers;
-    auto& shadowMap = frame.m_ShadowMap;
+    auto& shadowMap = frame.m_DirectionalLightShadowMap;
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Shadow Pass");
 
@@ -1542,8 +1707,9 @@ void vk::backend::impl::ExecuteShadowPass()
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
     transitionImageLayout(*cmd.GetCommandBuffer(), shadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1);
-    frame.m_ShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
+                          m_CascadeCount);
+    frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 }
@@ -1627,14 +1793,10 @@ void vk::backend::impl::ExecuteMainPass()
     cmd.SetScissors(defaultScissors);
 
     auto& frame = GetCurrentFrame();
-    const auto& shadowMap = frame.m_ShadowMap;
-    std::array<VkDescriptorSet, 7> descriptorSets{frame.scene.m_CameraDescriptor,
-                                                  m_TextureDescriptorSet,
-                                                  frame.scene.m_SceneNodeTransformsDescriptor,
-                                                  m_PointLightsDescriptorSet,
-                                                  frame.scene.m_ShadowMapDescriptorSet,
-                                                  m_ShadowMapOffsetDescriptorSet,
-                                                  m_PointLightShadowMapsDescriptorSet};
+    const auto& shadowMap = frame.m_DirectionalLightShadowMap;
+    std::array<VkDescriptorSet, 7> descriptorSets{
+        frame.scene.m_CameraDescriptor,       m_TextureDescriptorSet,         frame.scene.m_SceneNodeTransformsDescriptor, m_PointLightsDescriptorSet,
+        frame.scene.m_ShadowMapDescriptorSet, m_ShadowMapOffsetDescriptorSet, m_PointLightShadowMapsDescriptorSet};
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Opaque Pass");
     updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, shadowMap.GetImageView(), m_ShadowMapSampler);
@@ -1644,12 +1806,16 @@ void vk::backend::impl::ExecuteMainPass()
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
         SFLPushConstant pushConstant = MakePush(primitive);
-        pushConstant.lightSpaceMatrix = m_LightSpaceMatrix;
+        // Keep the push-constant matrix consistent with the vertex interface.
+        // Directional shadow selection is performed in the fragment shader.
+        pushConstant.lightSpaceMatrix = m_CascadeShadowFrustums[0].lightSpaceMatrix;
         pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
         pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
         pushConstant.indices.y = drawItem.modelTransformIdx;
         pushConstant.indices.w = m_PointLights.size();
+        pushConstant.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
+        pushConstant.materialParams.z = static_cast<float>(m_PointLightSampling);
         pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
         cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
@@ -1663,6 +1829,8 @@ void vk::backend::impl::ExecuteMainPass()
         pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
         pushConstant.indices.y = drawItem.modelTransformIdx;
         pushConstant.indices.w = m_PointLights.size();
+        pushConstant.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
+        pushConstant.materialParams.z = static_cast<float>(m_PointLightSampling);
         cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
@@ -1677,7 +1845,7 @@ void vk::backend::impl::ExecuteMainPass()
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Debug Pass");
-    // m_DebugDraw->RecordWorld(cmd, m_FrameData.camera, m_CurrentFrame);
+    m_DebugDraw->RecordWorld(cmd, m_FrameData.camera, m_CurrentFrame);
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
     m_DebugDraw->Clear();
 
@@ -1735,8 +1903,7 @@ void vk::backend::impl::initializeOpaqueDescriptorSets()
 
     for (Frame& frame : m_Frames)
     {
-        frame.scene.m_SceneNodeTransformsDescriptor =
-            frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(2), 1);
+        frame.scene.m_SceneNodeTransformsDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(2), 1);
         frame.scene.m_CameraDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(0), 1);
         frame.scene.m_ShadowMapDescriptorSet = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(4), 1);
 
@@ -1752,7 +1919,8 @@ void vk::backend::impl::initializeOpaqueDescriptorSets()
 
     updateShadowMapDescriptorSets();
     updateTextureDescriptorSet(m_TextureDescriptorSet, m_FallbackTextureIdx, m_TextureMap[m_FallbackTextureIdx].GetImageView(), m_ImageSampler);
-    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_ShadowMap.GetImageView(), m_ShadowMapSampler);
+    updateTextureDescriptorSet(m_TextureDescriptorSet, kDebugShadowMapTextureSlot, m_Frames.front().m_DirectionalLightShadowMap.GetImageView(),
+                               m_ShadowMapSampler);
     m_OpaqueDescriptorSetsInitialized = true;
 }
 

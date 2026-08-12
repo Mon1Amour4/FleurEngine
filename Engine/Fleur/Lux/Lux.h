@@ -104,6 +104,15 @@ public:
     {
         m_MaxPointLights = maxPointLights;
     }
+    void SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                           Fleur::Graphics::LightSampling pointLight)
+    {
+        m_CascadeCount = cascadeCount;
+        m_DirectionalLightSampling = directionalLight;
+        m_PointLightSampling = pointLight;
+        if (m_Backend)
+            m_Backend->SetShadowSettings(m_CascadeCount, m_DirectionalLightSampling, m_PointLightSampling);
+    }
     uint32_t GetMaxPointLights() const
     {
         return m_MaxPointLights;
@@ -133,7 +142,11 @@ private:
     Fleur::Graphics::EGraphicsAPI m_Api{Fleur::Graphics::EGraphicsAPI::Vulkan};
     bool m_Vsync{true};
     bool m_ShowShadowMapPreview{false};
+    int32_t m_ShadowMapPreviewLayer{-1};
     uint32_t m_MaxPointLights{128};
+    uint32_t m_CascadeCount{5};
+    Fleur::Graphics::LightSampling m_DirectionalLightSampling{Fleur::Graphics::LightSampling::Default};
+    Fleur::Graphics::LightSampling m_PointLightSampling{Fleur::Graphics::LightSampling::Default};
     const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
     Fleur::Graphics::BoundingBox m_ShadowSceneBounds{};
     bool m_HasShadowSceneBounds{false};

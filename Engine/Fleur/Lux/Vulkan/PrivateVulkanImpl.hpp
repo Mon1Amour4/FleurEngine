@@ -2,18 +2,15 @@
 
 #pragma region Includes& Definitions
 
-#include "Renderer_Vulkan.h"
-
 #include <Fleur/Log.h>
-
-
 #include <vulkan/vulkan.h>
 
 #include <Fleur/Math/Math.hpp>
 #include <algorithm>
 #include <array>
-#include <cmath>
 #include <chrono>
+#include <cmath>
+#include <cstddef>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -37,22 +34,40 @@
 #include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSkybox.h"
+#include "DirectionalShadowMath.hpp"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
 #include "PointLightShadowMap.h"
+#include "Renderer_Vulkan.h"
 #include "ShadowMapOffsetTexture.h"
 #include "VkHelper.h"
 
 #if defined(FL_CONF_DEBUG)
-#define DBG_PRINT(moduleText, text) \
-    do { std::ostringstream logMessage; logMessage << moduleText << text; FL_CORE_INFO("{}", logMessage.str()); } while (false);
+#define DBG_PRINT(moduleText, text)           \
+    do                                        \
+    {                                         \
+        std::ostringstream logMessage;        \
+        logMessage << moduleText << text;     \
+        FL_CORE_INFO("{}", logMessage.str()); \
+    } while (false);
 #define MODULE "[Vulkan] "
-#define DBG_PRINTM(text) \
-    do { std::ostringstream logMessage; logMessage << MODULE << text; FL_CORE_INFO("{}", logMessage.str()); } while (false);
+#define DBG_PRINTM(text)                      \
+    do                                        \
+    {                                         \
+        std::ostringstream logMessage;        \
+        logMessage << MODULE << text;         \
+        FL_CORE_INFO("{}", logMessage.str()); \
+    } while (false);
 #else
-#define DBG_PRINT(moduleText, text) do { } while (false)
+#define DBG_PRINT(moduleText, text) \
+    do                              \
+    {                               \
+    } while (false)
 #define MODULE
-#define DBG_PRINTM(text) do { } while (false)
+#define DBG_PRINTM(text) \
+    do                   \
+    {                    \
+    } while (false)
 #endif
 
 #define VULKAN_VERSION VK_API_VERSION_1_4
@@ -297,6 +312,7 @@ PFN_vkSetDebugUtilsObjectNameEXT SetDebugUtilsObjectNameEXT = nullptr;
 struct backend::impl
 {
     impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback, uint32_t maxPointLights,
+         uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
          std::shared_ptr<spdlog::logger> logger);
     ~impl();
 
@@ -342,10 +358,11 @@ struct backend::impl
                                            VkSampleCountFlagBits samplesCount);
 
     FVkPipeline* m_ShadowPipeline{nullptr};
-    FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                      VkSampleCountFlagBits samplesCount);
-    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
-                                        const vk::GetPipelineInfo& pipelineInfo);
+    FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pGeometryInfo,
+                                      Fleur::Graphics::SFLShaderBytecode pFragmentInfo, VkSampleCountFlagBits samplesCount);
+    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo,
+                                        Fleur::Graphics::SFLShaderBytecode pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
+                                        Fleur::Graphics::SFLShaderBytecode pGeometryInfo = {});
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo);
@@ -365,6 +382,8 @@ struct backend::impl
     struct FrameSceneResources
     {
         VkDescriptorSet m_ShadowMapDescriptorSet{VK_NULL_HANDLE};
+        VkDescriptorSet m_DirectionalShadowMatricesDescriptor{VK_NULL_HANDLE};
+        FVkBuffer m_DirectionalShadowMatricesBuffer;
 
         FVkBuffer m_CameraBuffer;
         VkDescriptorSet m_CameraDescriptor{VK_NULL_HANDLE};
@@ -377,8 +396,10 @@ struct backend::impl
     VkDescriptorSet m_PointLightsDescriptorSet{VK_NULL_HANDLE};
     VkDescriptorSet m_PointLightShadowMapsDescriptorSet{VK_NULL_HANDLE};
     VkDescriptorSet m_ShadowMapOffsetDescriptorSet{VK_NULL_HANDLE};
+    VkDescriptorSet m_OverlayShadowMapDescriptorSet{VK_NULL_HANDLE};
 
     std::shared_ptr<FVkPipelineLayout> m_OpaquePipelineLayout;
+    std::shared_ptr<FVkPipelineLayout> m_ShadowPipelineLayout;
     bool m_OpaqueDescriptorSetsInitialized{false};
     FVkPipelineCache m_PipelineCache;
     std::unordered_map<std::string, std::shared_ptr<FVkPipelineLayout>> m_PipelineLayouts;
@@ -389,8 +410,8 @@ struct backend::impl
         VkFence m_InFlightFences{VK_NULL_HANDLE};
         VkSemaphore m_ImagesAvailable{VK_NULL_HANDLE};
 
-        FVkDepthTarget m_ShadowMap;
-        VkImageLayout m_ShadowMapLayout{VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
+        FVkDepthTarget m_DirectionalLightShadowMap;
+        VkImageLayout m_DirectionalLightShadowMapLayout{VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
 
         vk::abstraction::DescriptorAllocator frameDescriptors;
         FrameSceneResources scene;
@@ -492,7 +513,6 @@ struct backend::impl
         float halfSize{50.0f};
         float nearDistanceFactor{0.3f};
         float farExtension{100.0f};
-        bool drawDebugFrustum{true};
     };
     ShadowMapFrustumSettings m_ShadowMapFrustumSettings;
 
@@ -540,13 +560,41 @@ struct backend::impl
     void BeginRendering(VkCommandBuffer cmd, const FBeginRenderingDesc& desc);
     void BeginShadowRendering();
     void ExecuteShadowPass();
+    void UpdateDirectionalShadowFrustum(const Fleur::Vec3& lightDirection);
     void ExecuteDirectionalShadowSubpass();
     void ExecutePointLightShadowSubpass();
     void ExecuteMainPass();
     void SubmitFrame();
 
-    Fleur::Mat4 m_LightSpaceMatrix{};
+    struct DirectionalLightShadowFrustum
+    {
+        Fleur::Mat4 lightSpaceMatrix{};
 
+        Fleur::Vec3 center{0.0f};
+        float radius{0.0f};
+    };
+
+    DirectionalLightShadowFrustum BuildDirectionalShadowFrustum(const std::array<Fleur::Vec4, 8>& corners, const Fleur::Vec3& lightDirection,
+                                                                const std::array<Fleur::Vec4, 8>* casterCorners = nullptr,
+                                                                size_t cascadeIndex = std::numeric_limits<size_t>::max()) const;
+    static constexpr size_t kMaxCascadeCount = 16;
+
+    struct DirectionalShadowMatrices
+    {
+        std::array<Fleur::Mat4, kMaxCascadeCount> lightSpaceMatrices{};
+        uint32_t cascadeCount = 0;
+        uint32_t padding[3]{};
+        std::array<Fleur::Vec4, 4> cascadeSplits{};
+    };
+
+    static_assert(sizeof(DirectionalShadowMatrices) == 1104);
+    static_assert(offsetof(DirectionalShadowMatrices, lightSpaceMatrices) == 0);
+    static_assert(offsetof(DirectionalShadowMatrices, cascadeCount) == 1024);
+    static_assert(offsetof(DirectionalShadowMatrices, cascadeSplits) == 1040);
+
+    std::array<DirectionalLightShadowFrustum, kMaxCascadeCount> m_CascadeShadowFrustums{};
+    mutable std::array<float, kMaxCascadeCount> m_StableCascadeHalfWidths{};
+    mutable std::array<float, kMaxCascadeCount> m_StableCascadeHalfHeights{};
 
     // ---------- textures ----------
     VkDescriptorSet m_TextureDescriptorSet{VK_NULL_HANDLE};
@@ -565,9 +613,11 @@ struct backend::impl
     const Fleur::Graphics::ShaderRegistry* m_ShaderRegistry{nullptr};
     Fleur::Graphics::BoundingBox m_ShadowSceneBounds{};
     bool m_HasShadowSceneBounds{false};
-    bool m_DirectionalShadowFrustumDirty{true};
     Fleur::Vec3 m_LastDirectionalLightDirection{0.0f};
     bool m_HasLastDirectionalLightDirection{false};
+    uint32_t m_CascadeCount{5};
+    Fleur::Graphics::LightSampling m_DirectionalLightSampling{Fleur::Graphics::LightSampling::Default};
+    Fleur::Graphics::LightSampling m_PointLightSampling{Fleur::Graphics::LightSampling::Default};
     void setShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders)
     {
         m_ShaderRegistry = &shaders;
@@ -576,7 +626,15 @@ struct backend::impl
     {
         m_ShadowSceneBounds = bounds;
         m_HasShadowSceneBounds = true;
-        m_DirectionalShadowFrustumDirty = true;
+        m_StableCascadeHalfWidths.fill(0.0f);
+        m_StableCascadeHalfHeights.fill(0.0f);
+    }
+    void setShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                           Fleur::Graphics::LightSampling pointLight)
+    {
+        m_CascadeCount = std::clamp(cascadeCount, 1u, static_cast<uint32_t>(kMaxCascadeCount));
+        m_DirectionalLightSampling = directionalLight;
+        m_PointLightSampling = pointLight;
     }
     Fleur::Graphics::SFLShaderBytecode shaderInfo(std::string_view name) const;
     void createSkybox(AssetID id, SFLShaderStages shaderStages);
@@ -602,5 +660,54 @@ struct backend::impl
 
     bool m_FloorTextureWasLoaded{false};
     int32_t m_FloorTextureIdx{-1};
+
+    // Cascade shadow mapping
+    template <size_t N>
+    struct CascadeSplits
+    {
+        std::array<float, N> splits;
+        static constexpr float step = 1.0f / N;
+        CascadeSplits() : splits{}
+        {
+            Update(0.1f, 1000.0f, 1.0f, N);
+        }
+
+        void Update(float nearPlane, float farPlane, float lambda, size_t activeCount)
+        {
+            const float safeNear = std::max(nearPlane, 0.001f);
+            const float safeFar = std::max(farPlane, safeNear + 0.001f);
+            activeCount = std::clamp(activeCount, size_t{1}, N);
+            splits.fill(1.0f);
+
+            // Keep the first cascade useful for more than the tiny region
+            // immediately in front of the camera. With a logarithmic split
+            // and a far plane of 1000, the first split would otherwise be
+            // below one world unit.
+            constexpr float minimumFirstCascadeFar = 10.0f;
+            const float firstCascadeFar = std::min(safeFar, std::max(safeNear, minimumFirstCascadeFar));
+
+            for (size_t i = 0; i < activeCount; ++i)
+            {
+                float split = firstCascadeFar;
+                if (activeCount == 1)
+                    split = safeFar;
+                if (activeCount > 1)
+                {
+                    if (i > 0)
+                    {
+                        const float p = static_cast<float>(i) / static_cast<float>(activeCount - 1);
+                        const float logarithmic = firstCascadeFar * std::pow(safeFar / firstCascadeFar, p);
+                        const float uniform = firstCascadeFar + (safeFar - firstCascadeFar) * p;
+                        split = uniform * (1.0f - lambda) + logarithmic * lambda;
+                    }
+                }
+                splits[i] = (split - safeNear) / (safeFar - safeNear);
+            }
+        }
+    };
+    CascadeSplits<kMaxCascadeCount> m_CascadeSplits;
+
+    std::vector<Fleur::Vec4> getFrustumCornersWorldSpace(const Fleur::Mat4& proj, const Fleur::Mat4& view);
+    std::array<Fleur::Vec4, 8> SplitFrustum(const std::vector<Fleur::Vec4>& corners, float splitNear, float splitFar);
 };
 }  // namespace vk

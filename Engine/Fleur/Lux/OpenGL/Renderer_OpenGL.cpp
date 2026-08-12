@@ -108,8 +108,10 @@ GLuint compileProgram(const char* vs, const char* fs, const std::shared_ptr<spdl
 
 // ---------- backend (public shim) ----------
 gl::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+                     uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
                      std::shared_ptr<spdlog::logger> logger)
-    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, std::move(logger)))
+    : pImpl(new gl::backend::impl(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, cascadeCount,
+                                  directionalLight, pointLight, std::move(logger)))
 {
 }
 gl::backend::~backend()
@@ -199,6 +201,7 @@ void gl::backend::EndResize(Fleur::SRect& rect)
 
 // ---------- impl ----------
 gl::backend::impl::impl(bool /*enableValidation*/, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+                        uint32_t /*cascadeCount*/, Fleur::Graphics::LightSampling /*directionalLight*/, Fleur::Graphics::LightSampling /*pointLight*/,
                         std::shared_ptr<spdlog::logger> logger)
     : m_Logger(std::move(logger))
 {

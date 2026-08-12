@@ -183,6 +183,7 @@ void Fleur::Application::Init(ApplicationBootSettings& settings)
     renderer.value()->Init();
     renderer.value()->SetShaderRegistry(assetsManager.value()->GetShaderRegistry());
     renderer.value()->SetMaxPointLights(settings.maxPointLights);
+    renderer.value()->SetShadowSettings(settings.cascadeCount, settings.directionalLightSampling, settings.pointLightSampling);
     renderer.value()->Initialize(settings.Renderer);
     renderer.value()->SetVSync(settings.Vsync);
 

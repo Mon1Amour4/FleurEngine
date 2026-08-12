@@ -6,7 +6,6 @@
 
 layout(push_constant) uniform PushConsts
 {
-    mat4 lightSpaceMatrix;
     uint modelIdx;
     uint nodeIdx;
 } pc;
@@ -20,8 +19,11 @@ layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec2 inTexCoord;
 layout(location = 2) in vec3 inNormal;
 
+layout(location = 0) out vec4 outWorldPosition;
+
 void main()
 {
     vec4 worldPos = ssbo.transforms[pc.modelIdx] * ssbo.transforms[pc.nodeIdx + gl_InstanceIndex] * vec4(inPosition, 1);
-    gl_Position = pc.lightSpaceMatrix * worldPos;
+    gl_Position = worldPos;
+    outWorldPosition = worldPos;
 }

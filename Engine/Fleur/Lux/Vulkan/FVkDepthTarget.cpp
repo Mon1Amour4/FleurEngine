@@ -5,18 +5,20 @@
 #include "VkHelper.h"
 
 void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCommandPool, VkExtent2D extent, VkSampleCountFlagBits sampleCount,
-                            bool sampled)
+                            bool sampled, uint32_t layerCount)
 {
     Destroy();
 
     assert(device);
     assert(immediateCommandPool);
+    assert(layerCount > 0);
 
     m_DeviceContext = device;
     m_ImmediateCommandPoolContext = immediateCommandPool;
     m_Extent = extent;
     m_SampleCount = sampleCount;
     m_Sampled = sampled;
+    m_LayerCount = layerCount;
     m_Format = FindDepthFormat(m_DeviceContext->GetPhysicalDevice());
 
     VkImageCreateInfo imageInfo{};
@@ -26,7 +28,7 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     imageInfo.extent.height = extent.height;
     imageInfo.extent.depth = 1;
     imageInfo.mipLevels = 1;
-    imageInfo.arrayLayers = 1;
+    imageInfo.arrayLayers = layerCount;
     imageInfo.format = m_Format;
     imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
     imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
@@ -38,23 +40,26 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(),
                                               m_DeviceContext->GetMemoryTracker(), FVkAllocationCategory::DepthTarget, imageInfo,
                                               VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(m_Format));
-    m_Texture->CreateImageView();
+    if (layerCount > 1)
+        m_Texture->CreateImageView(VK_IMAGE_VIEW_TYPE_2D_ARRAY, layerCount);
+    else
+        m_Texture->CreateImageView();
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_DeviceContext->GetLogicalDevice(), m_ImmediateCommandPoolContext->GetCommandPool());
         frameCmd.TransitionImageLayout(vkImage, m_Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                       GetDepthAspect(m_Format), 1, 1);
+                                       GetDepthAspect(m_Format), 1, layerCount);
         frameCmd.Submit(m_DeviceContext->GetGraphicsQueue());
     }
 
     m_Initialized = true;
 }
 
-void FVkDepthTarget::Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled)
+void FVkDepthTarget::Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled, uint32_t layerCount)
 {
     assert(m_DeviceContext);
     assert(m_ImmediateCommandPoolContext);
-    Create(m_DeviceContext, m_ImmediateCommandPoolContext, extent, sampleCount, sampled);
+    Create(m_DeviceContext, m_ImmediateCommandPoolContext, extent, sampleCount, sampled, layerCount);
 }
 
 void FVkDepthTarget::Destroy()
@@ -64,6 +69,7 @@ void FVkDepthTarget::Destroy()
     m_Extent = {0, 0};
     m_SampleCount = VK_SAMPLE_COUNT_1_BIT;
     m_Sampled = false;
+    m_LayerCount = 1;
     m_Initialized = false;
 }
 

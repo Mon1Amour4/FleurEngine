@@ -66,9 +66,11 @@ void Renderer::initBackend()
     bool validation = true;
 
     if (m_Api == Fleur::Graphics::EGraphicsAPI::OpenGL)
-        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, Fleur::Log::GetCoreLogger());
+        m_Backend = new gl::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, m_CascadeCount,
+                                     m_DirectionalLightSampling, m_PointLightSampling, Fleur::Log::GetCoreLogger());
     else
-        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, Fleur::Log::GetCoreLogger());
+        m_Backend = new vk::backend(validation, window, framebufferSize, fallbackView, m_MaxPointLights, m_CascadeCount,
+                                     m_DirectionalLightSampling, m_PointLightSampling, Fleur::Log::GetCoreLogger());
 
     m_Backend->SetShaderRegistry(*m_ShaderRegistry);
 
@@ -88,7 +90,8 @@ void Renderer::InitializePipelines()
                                    .geometry = {"debugGeometryVertex", "debugGeometryFragment"}});
     m_Backend->ConfigureOverlay({"overlayVertex", "overlayFragment"});
 
-    m_Backend->CreateShadowPass(Fleur::Graphics::EFLShadowPassKind::Directional, {"shadowVertex", "shadowFragment"});
+    m_Backend->CreateShadowPass(Fleur::Graphics::EFLShadowPassKind::Directional,
+                                {.vertex = "shadowVertex", .fragment = "shadowFragment", .geometry = "shadowGeometry"});
 
     m_Backend->CreateShadowPass(Fleur::Graphics::EFLShadowPassKind::PointLight,
                                  {.vertex = "pointLightShadowVertex", .fragment = "pointLightShadowFragment", .geometry = "pointLightShadowGeometry"});
@@ -209,12 +212,16 @@ void Renderer::ShadowMapPreview(Fleur::Vec2 min, Fleur::Vec2 max)
     if (!m_Backend)
         return;
 
-    m_Backend->DrawShadowMapOverlay(min, max);
+    m_Backend->DrawShadowMapOverlay(min, max, m_ShadowMapPreviewLayer);
 }
 
 void Renderer::ToggleShadowMapPreview()
 {
-    m_ShowShadowMapPreview = !m_ShowShadowMapPreview;
+    constexpr int32_t previewLayerCount = 5;
+    ++m_ShadowMapPreviewLayer;
+    if (m_ShadowMapPreviewLayer >= previewLayerCount)
+        m_ShadowMapPreviewLayer = -1;
+    m_ShowShadowMapPreview = m_ShadowMapPreviewLayer >= 0;
 }
 
 void Renderer::StartResize()

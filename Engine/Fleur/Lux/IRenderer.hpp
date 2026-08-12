@@ -55,6 +55,8 @@ struct IRenderer
     virtual void EndResize(Fleur::SRect& rect) = 0;
     virtual void SetShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders) = 0;
     virtual void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) = 0;
+    virtual void SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                                   Fleur::Graphics::LightSampling pointLight) = 0;
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;
@@ -86,7 +88,7 @@ struct IRenderer
     virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture) = 0;
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color) = 0;
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture) = 0;
-    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max) = 0;
+    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max, int32_t layer) = 0;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) = 0;
 };

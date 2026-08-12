@@ -23,7 +23,7 @@ struct OverlayVertex
 
 struct OverlayPushConstant
 {
-    Fleur::IVec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode
+    Fleur::IVec4 params{-1, 0, 0, 0};  // x = textureIdx, y = sample mode, z = shadow layer
     Fleur::Vec4 color{1.f};
 };
 
@@ -36,6 +36,18 @@ public:
     void Create(const FVkDevice* device, const FVkSwapchain* swapchain, VkDescriptorSet texturesDescriptorSet,
                 uint32_t shadowMapTextureSlot, VkSampleCountFlagBits sampleCount, VkFormat depthFormat, uint32_t framesInFlight);
     void SetShader(vk::FVkShader* overlayShader);
+    void SetShadowMapDescriptorSet(VkDescriptorSet descriptorSet)
+    {
+        m_ShadowMapDescriptorSet = descriptorSet;
+    }
+    void SetShadowMapLayer(int32_t layer)
+    {
+        m_ShadowMapLayer = layer;
+    }
+    VkDescriptorSetLayout GetShadowMapSetLayout() const
+    {
+        return m_PipelineLayout ? m_PipelineLayout->GetSetLayout(1) : VK_NULL_HANDLE;
+    }
 
     void AddQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, Fleur::Vec4 color);
     void AddQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t textureIdx);
@@ -75,6 +87,8 @@ private:
     std::shared_ptr<FVkPipelineLayout> m_PipelineLayout;
     FVkPipelineCache m_PipelineCache;
     VkDescriptorSet m_TexturesDescriptorSet{VK_NULL_HANDLE};
+    VkDescriptorSet m_ShadowMapDescriptorSet{VK_NULL_HANDLE};
+    int32_t m_ShadowMapLayer{0};
     uint32_t m_ShadowMapTextureSlot{0};
 
     std::vector<FVkBuffer> m_Buffers;

@@ -20,6 +20,7 @@ struct backend : public Fleur::Graphics::IRenderer
     struct impl;
 
     backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+            uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
             std::shared_ptr<spdlog::logger> logger);
     virtual ~backend() override;
 
@@ -45,6 +46,7 @@ struct backend : public Fleur::Graphics::IRenderer
     void EndResize(Fleur::SRect& rect) override;
     void SetShaderRegistry(const ShaderRegistry& shaders) override;
     void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) override;
+    void SetShadowSettings(uint32_t, Fleur::Graphics::LightSampling, Fleur::Graphics::LightSampling) override {};
 
     void DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest = true) override {};  // TODO: GlDebugDraw
     void DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size = 4.0f, bool depthTest = true) override {};
@@ -55,7 +57,7 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture) override {};
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color) override {};
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture) override {};
-    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max) override {};
+    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max, int32_t layer) override {};
 
     virtual void SetDirectionalLight(Fleur::Vec3 direction, Fleur::Vec4 color, float intensity) {};  // TODO: DirectionalLight
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override {};  // TODO: PointLight

@@ -53,6 +53,14 @@ enum class FLAlphaMode
     FL_BLEND
 };
 
+enum class LightSampling : uint32_t
+{
+    Default = 0,
+    PCF_3x3,
+    PCF_5x5,
+    NoiseTexture,
+};
+
 // Engine-side material (source of truth, from glTF). Textures referenced by
 // AssetID; each backend derives its own GPU material (resolved indices) from this.
 struct FLMaterial

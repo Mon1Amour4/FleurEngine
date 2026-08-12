@@ -30,6 +30,7 @@ struct GlPrimitive
 struct backend::impl
 {
     impl(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+         uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
          std::shared_ptr<spdlog::logger> logger);
     ~impl();
 

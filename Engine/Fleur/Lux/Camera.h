@@ -68,7 +68,7 @@ private:
     uint16_t m_FOV{60};
 
     float m_NearClip{0.1f};
-    float m_FarClip{3000.f};
+    float m_FarClip{1000.f};
 
     float m_Yaw{0.f};
     float m_Pitch{0.f};

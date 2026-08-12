@@ -22,7 +22,10 @@ int APIENTRY FleurMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     settings.WindowProperties.x = 100;
     settings.WindowProperties.y = 100;
     settings.WindowProperties.CanFullscreen = false;
+
     settings.maxPointLights = 16;
+    settings.directionalLightSampling = Fleur::Graphics::LightSampling::NoiseTexture;
+    settings.pointLightSampling = Fleur::Graphics::LightSampling::NoiseTexture;
 
     Fleur::Application::instance().Init(settings);
     Fleur::Application::instance().Run();

@@ -20,8 +20,8 @@ public:
     FVkDepthTarget& operator=(FVkDepthTarget&&) noexcept = default;
 
     void Create(const FVkDevice* device, FVkCommandPool* immediateCommandPool, VkExtent2D extent, VkSampleCountFlagBits sampleCount,
-                bool sampled = false);
-    void Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled = false);
+                bool sampled = false, uint32_t layerCount = 1);
+    void Recreate(VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled = false, uint32_t layerCount = 1);
     void Destroy();
 
     bool IsInitialized() const
@@ -31,6 +31,10 @@ public:
 
     VkImageView GetImageView() const;
     VkImage GetImage() const;
+    VkExtent2D GetExtent() const
+    {
+        return m_Extent;
+    }
     VkFormat GetFormat() const
     {
         return m_Format;
@@ -48,5 +52,6 @@ private:
     VkExtent2D m_Extent{0, 0};
     VkSampleCountFlagBits m_SampleCount{VK_SAMPLE_COUNT_1_BIT};
     bool m_Sampled{false};
+    uint32_t m_LayerCount{1};
     bool m_Initialized{false};
 };

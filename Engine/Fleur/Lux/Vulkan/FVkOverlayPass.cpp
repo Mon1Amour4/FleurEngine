@@ -1,6 +1,7 @@
 #include "FVkOverlayPass.h"
 
 #include <cassert>
+#include <array>
 
 FVkOverlayPass::~FVkOverlayPass()
 {
@@ -114,13 +115,15 @@ void FVkOverlayPass::Record(FVkCommandBuffer& cmd, uint32_t frameIndex)
     m_Buffers[frameIndex].MemCopy(m_Geometry.data(), m_Geometry.size() * sizeof(OverlayVertex));
     cmd.BindPipeline(m_Pipeline->GetPipeline());
     cmd.BindVertexBuffer(&m_Buffers[frameIndex].GetBuffer());
-    cmd.BindDescriptorSets(m_Pipeline->GetPipelineLayout(), &m_TexturesDescriptorSet, 1);
+    std::array<VkDescriptorSet, 2> descriptorSets{m_TexturesDescriptorSet, m_ShadowMapDescriptorSet};
+    cmd.BindDescriptorSets(m_Pipeline->GetPipelineLayout(), descriptorSets.data(), descriptorSets.size());
     for (const auto& drawInfo : m_DrawInfos)
     {
         const auto& material = m_Materials[drawInfo.materialIdx];
         OverlayPushConstant pushConstant{};
         pushConstant.params.x = material.textureIdx;
         pushConstant.params.y = material.textureSource;
+        pushConstant.params.z = material.textureSource == 2 ? m_ShadowMapLayer : 0;
         pushConstant.color = material.color;
         cmd.PushConstant(m_Pipeline->GetPipelineLayout(), VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
         cmd.Draw(drawInfo.vertexCount, drawInfo.vertexOffset);

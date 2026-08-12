@@ -17,7 +17,9 @@ struct SFLPushConstant
     Fleur::UVec4 indices;
 
     // x = alphaCutoff
-    // yzw = unused
+    // y = directional LightSampling
+    // z = point LightSampling
+    // w = unused
     Fleur::Vec4 materialParams;
 
     Fleur::Vec4 directionalLightColor;

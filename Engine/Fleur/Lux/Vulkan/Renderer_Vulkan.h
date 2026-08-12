@@ -31,12 +31,15 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void SetFloor(AssetID texture, float height) override;
 
     backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, SFLImageView& fallback, uint32_t maxPointLights,
+            uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
             std::shared_ptr<spdlog::logger> logger);
 
     void StartResize() override;
     void EndResize(Fleur::SRect& rect) override;
     void SetShaderRegistry(const ShaderRegistry& shaders) override;
     void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) override;
+    void SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
+                           Fleur::Graphics::LightSampling pointLight) override;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
     virtual void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) override;
@@ -60,7 +63,7 @@ struct backend : public Fleur::Graphics::IRenderer
     virtual void DrawOverlayQuad(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec2 d, uint32_t texture) override;
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Vec4 color) override;
     virtual void DrawOverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, uint32_t texture) override;
-    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max) override;
+    virtual void DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max, int32_t layer) override;
 
     virtual void UpdatePointLight(const SFLPointLight* light, uint32_t lightCount) override;
 
