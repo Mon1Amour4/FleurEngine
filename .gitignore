@@ -39,3 +39,20 @@ _deps
 
 # Python
 venv
+
+# Agent / tooling scratch — real copies live in C:\Dev\fleur-scratch
+.superpowers/
+.playwright-mcp/
+.agents/
+tmp/
+tools/
+normal_debug/
+texture_previews/
+_rd_chm/
+
+# Debug dumps and experiment artifacts (repo root)
+/*.blend
+/*.blend1
+/*.glb
+/*.png
+/*.obj
