@@ -5,30 +5,26 @@
 #include <Fleur/Math/Math.hpp>
 #include <vector>
 
-struct SFLPushConstant
+struct SFLDrawPushConstants
 {
-    Fleur::Mat4 lightSpaceMatrix;
     Fleur::Vec4 baseColorFactor;
 
-    // x = nodeTransformsStartIdx
-    // y = modelTransformIdx
-    // z = materialIndex
-    // w = pointLightCount
-    Fleur::UVec4 indices;
+    // x = node transform start index
+    // y = model transform index
+    // z = unused
+    // w = point light count
+    Fleur::UVec4 drawIndices;
 
     // x = alphaCutoff
-    // y = directional LightSampling
-    // z = point LightSampling
-    // w = unused
+    // y = directional shadow sampling mode
+    // z = point light shadow sampling mode
+    // w = normal mapping enabled (temporary F4 debug toggle)
     Fleur::Vec4 materialParams;
 
-    Fleur::Vec4 directionalLightColor;
-
-    // xyz = direction, w = intensity
-    Fleur::Vec4 directionalLightDirectionIntensity;
-
-    // xyz = camera position, w = unused
-    Fleur::Vec4 cameraPos;
+    // x = albedo texture index
+    // y = normal map texture index
+    // zw = unused
+    Fleur::UVec4 textureIndices;
 };
 
 class FVkCommandPool

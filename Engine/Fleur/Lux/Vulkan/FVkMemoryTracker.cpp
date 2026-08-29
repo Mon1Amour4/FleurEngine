@@ -27,13 +27,11 @@ const char* CategoryName(FVkAllocationCategory category)
         return "Texture";
     case FVkAllocationCategory::RenderTarget:
         return "RenderTarget";
-    case FVkAllocationCategory::DepthTarget:
-        return "DepthTarget";
     }
 
     return "Unknown";
 }
-}
+}  // namespace
 
 void FVkMemoryTracker::Init(VkPhysicalDevice physicalDevice, VkDevice device)
 {
@@ -45,8 +43,7 @@ void FVkMemoryTracker::Init(VkPhysicalDevice physicalDevice, VkDevice device)
     vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &m_MemoryProperties);
 }
 
-VkDeviceMemory FVkMemoryTracker::Allocate(const VkMemoryRequirements& requirements, VkMemoryPropertyFlags properties,
-                                          FVkAllocationCategory category)
+VkDeviceMemory FVkMemoryTracker::Allocate(const VkMemoryRequirements& requirements, VkMemoryPropertyFlags properties, FVkAllocationCategory category)
 {
     assert(m_Device != VK_NULL_HANDLE);
     assert(requirements.size > 0);
@@ -56,8 +53,7 @@ VkDeviceMemory FVkMemoryTracker::Allocate(const VkMemoryRequirements& requiremen
     for (uint32_t index = 0; index < m_MemoryProperties.memoryTypeCount; ++index)
     {
         const bool typeAllowed = (requirements.memoryTypeBits & (1u << index)) != 0;
-        const bool propertiesMatch =
-            (m_MemoryProperties.memoryTypes[index].propertyFlags & properties) == properties;
+        const bool propertiesMatch = (m_MemoryProperties.memoryTypes[index].propertyFlags & properties) == properties;
         if (typeAllowed && propertiesMatch)
         {
             memoryTypeIndex = index;
@@ -124,30 +120,29 @@ void FVkMemoryTracker::PrintDiagnosis() const
     constexpr double kMiB = 1024.0 * 1024.0;
     std::ostringstream report;
     report << "[Vulkan Memory]\n"
-           << "  " << std::left << std::setw(16) << "Category" << std::right << std::setw(10) << "Objects" << std::setw(14) << "Allocations"
-           << std::setw(14) << "Memory (MiB)" << '\n'
+           << "  " << std::left << std::setw(16) << "Category" << std::right << std::setw(10) << "Objects" << std::setw(14) << "Allocations" << std::setw(14)
+           << "Memory (MiB)" << '\n'
            << "  " << std::string(54, '-') << '\n';
 
     for (size_t index = 0; index < m_TrackedBytesByCategory.size(); ++index)
     {
         const auto category = static_cast<FVkAllocationCategory>(index);
-        report << "  " << std::left << std::setw(16) << CategoryName(category) << std::right << std::setw(10)
-               << m_TrackedAllocationCountByCategory[index] << std::setw(14) << m_TrackedAllocationCountByCategory[index] << std::setw(14)
-               << std::fixed << std::setprecision(2) << (static_cast<double>(m_TrackedBytesByCategory[index]) / kMiB) << '\n';
+        report << "  " << std::left << std::setw(16) << CategoryName(category) << std::right << std::setw(10) << m_TrackedAllocationCountByCategory[index]
+               << std::setw(14) << m_TrackedAllocationCountByCategory[index] << std::setw(14) << std::fixed << std::setprecision(2)
+               << (static_cast<double>(m_TrackedBytesByCategory[index]) / kMiB) << '\n';
     }
 
     report << "  " << std::string(54, '-') << '\n'
-           << "  " << std::left << std::setw(16) << "Total" << std::right << std::setw(10) << m_Allocations.size() << std::setw(14)
-           << m_Allocations.size() << std::setw(14) << std::fixed << std::setprecision(2) << (static_cast<double>(m_TotalTrackedBytes) / kMiB)
-           << "\n\n"
-           << "  " << std::left << std::setw(8) << "Heap" << std::right << std::setw(16) << "Allocations" << std::setw(18) << "Tracked (MiB)"
-           << std::setw(18) << "Capacity (MiB)" << '\n'
+           << "  " << std::left << std::setw(16) << "Total" << std::right << std::setw(10) << m_Allocations.size() << std::setw(14) << m_Allocations.size()
+           << std::setw(14) << std::fixed << std::setprecision(2) << (static_cast<double>(m_TotalTrackedBytes) / kMiB) << "\n\n"
+           << "  " << std::left << std::setw(8) << "Heap" << std::right << std::setw(16) << "Allocations" << std::setw(18) << "Tracked (MiB)" << std::setw(18)
+           << "Capacity (MiB)" << '\n'
            << "  " << std::string(60, '-') << '\n';
 
     for (uint32_t heap = 0; heap < m_MemoryProperties.memoryHeapCount; ++heap)
     {
-        report << "  " << std::left << std::setw(8) << heap << std::right << std::setw(16) << m_TrackedAllocationCountByHeap[heap]
-               << std::setw(18) << std::fixed << std::setprecision(2) << (static_cast<double>(m_TrackedBytesByHeap[heap]) / kMiB) << std::setw(18)
+        report << "  " << std::left << std::setw(8) << heap << std::right << std::setw(16) << m_TrackedAllocationCountByHeap[heap] << std::setw(18)
+               << std::fixed << std::setprecision(2) << (static_cast<double>(m_TrackedBytesByHeap[heap]) / kMiB) << std::setw(18)
                << (static_cast<double>(m_MemoryProperties.memoryHeaps[heap].size) / kMiB) << '\n';
     }
 

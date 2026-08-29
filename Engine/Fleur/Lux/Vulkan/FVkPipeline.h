@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include <cassert>
+#include <array>
 #include <memory>
 
 #include "VkHelper.h"
@@ -40,6 +41,7 @@ struct FGraphicsPipelineDesc
     // Formats (dynamic rendering)
     uint32_t colorAttachmentCount = 1;
     VkFormat colorFormat = VK_FORMAT_UNDEFINED;
+    std::array<VkFormat, 8> colorFormats{};
     VkFormat depthFormat = VK_FORMAT_UNDEFINED;
 
     // MSAA

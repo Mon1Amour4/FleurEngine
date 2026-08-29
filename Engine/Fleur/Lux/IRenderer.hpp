@@ -16,6 +16,8 @@ namespace Fleur::Graphics
 enum class EFLPassKind
 {
     Opaque,
+    Deferred,
+    DeferredLighting,
     Shadow
 };
 
@@ -57,6 +59,8 @@ struct IRenderer
     virtual void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) = 0;
     virtual void SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
                                    Fleur::Graphics::LightSampling pointLight) = 0;
+    // TEMP_DEBUG_F4_NORMAL_MAP: temporary normal-map debug toggle.
+    virtual void SetNormalMappingEnabled(bool enabled) = 0;
 
     virtual void CreateSkybox(AssetID id, SFLShaderStages shaderStages) = 0;
     virtual void SetSkybox(AssetID id) = 0;

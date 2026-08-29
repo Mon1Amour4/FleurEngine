@@ -5,6 +5,7 @@
 #include <vulkan/vulkan.h>
 
 #include <functional>
+#include <array>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -64,7 +65,9 @@ struct GetPipelineInfo
     // Dynamic rendering formats
     uint32_t colorAttachmentCount = 1;
     VkFormat colorFormat = VK_FORMAT_UNDEFINED;
+    std::array<VkFormat, 8> colorFormats{};
     VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+
 
     bool blendEnable = false;
 
@@ -76,7 +79,8 @@ struct GetPipelineInfo
                depthBiasEnable == rhs.depthBiasEnable && depthBiasConstantFactor == rhs.depthBiasConstantFactor && depthBiasClamp == rhs.depthBiasClamp &&
                depthBiasSlopeFactor == rhs.depthBiasSlopeFactor &&
 
-               colorAttachmentCount == rhs.colorAttachmentCount && colorFormat == rhs.colorFormat && depthFormat == rhs.depthFormat &&
+               colorAttachmentCount == rhs.colorAttachmentCount && colorFormat == rhs.colorFormat && colorFormats == rhs.colorFormats &&
+               depthFormat == rhs.depthFormat &&
 
                blendEnable == rhs.blendEnable;
     }
@@ -103,6 +107,8 @@ struct hash<vk::GetPipelineInfo>
         hashCombine(std::hash<bool>{}(info.depthTestEnable));
         hashCombine(std::hash<bool>{}(info.depthWriteEnable));
         hashCombine(std::hash<uint32_t>{}(info.colorFormat));
+        for (uint32_t i = 0; i < info.colorAttachmentCount && i < info.colorFormats.size(); ++i)
+            hashCombine(std::hash<uint32_t>{}(info.colorFormats[i]));
         hashCombine(std::hash<uint32_t>{}(info.depthFormat));
         hashCombine(std::hash<bool>{}(info.blendEnable));
 

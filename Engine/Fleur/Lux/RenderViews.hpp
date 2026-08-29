@@ -12,6 +12,7 @@ struct SFLImageView
     uint32_t h{};
     uint32_t layerCount{};
     uint32_t channels{};
+    bool srgb{true};
 };
 struct SFLImageViewInfo
 {

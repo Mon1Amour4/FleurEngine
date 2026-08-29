@@ -4,8 +4,8 @@
 
 #include "VkHelper.h"
 
-void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCommandPool, VkExtent2D extent, VkSampleCountFlagBits sampleCount,
-                            bool sampled, uint32_t layerCount)
+void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCommandPool, VkExtent2D extent, VkSampleCountFlagBits sampleCount, bool sampled,
+                            uint32_t layerCount)
 {
     Destroy();
 
@@ -37,9 +37,8 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
     imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
     m_Texture = std::make_unique<FVkTexture>();
-    VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(),
-                                              m_DeviceContext->GetMemoryTracker(), FVkAllocationCategory::DepthTarget, imageInfo,
-                                              VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(m_Format));
+    VkImage vkImage = m_Texture->CreateImage(m_DeviceContext->GetLogicalDevice(), m_DeviceContext->GetPhysicalDevice(), m_DeviceContext->GetMemoryTracker(),
+                                             FVkAllocationCategory::RenderTarget, imageInfo, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, GetDepthAspect(m_Format));
     if (layerCount > 1)
         m_Texture->CreateImageView(VK_IMAGE_VIEW_TYPE_2D_ARRAY, layerCount);
     else
@@ -47,8 +46,8 @@ void FVkDepthTarget::Create(const FVkDevice* device, FVkCommandPool* immediateCo
 
     {
         FVkSingleTimeCommandBuffer frameCmd = FVkSingleTimeCommandBuffer(m_DeviceContext->GetLogicalDevice(), m_ImmediateCommandPoolContext->GetCommandPool());
-        frameCmd.TransitionImageLayout(vkImage, m_Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                       GetDepthAspect(m_Format), 1, layerCount);
+        frameCmd.TransitionImageLayout(vkImage, m_Format, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, GetDepthAspect(m_Format),
+                                       1, layerCount);
         frameCmd.Submit(m_DeviceContext->GetGraphicsQueue());
     }
 

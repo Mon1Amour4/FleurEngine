@@ -627,7 +627,8 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     return;
                 }
 
-                Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+                Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData,
+                                                            imageSettings.gammaCorrection != GAMMA_CORRECTION_LINEAR};
                 imagePtr->PostCreate(settings);
 
                 stbi_image_free(imgData);
@@ -650,7 +651,8 @@ void Fleur::AssetsManager::LoadImageAsyncInternal(std::string_view path, ImageAs
                     std::memcpy(pData + i, colorBytes, channels);
                 }
 
-                Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+                Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData,
+                                                        imageSettings.gammaCorrection != GAMMA_CORRECTION_LINEAR};
                 imagePtr->PostCreate(info);
 
                 alloc.deallocate(pData, size);
@@ -812,7 +814,8 @@ void Fleur::AssetsManager::LoadImageFromDisk(std::string_view path, ImageAsset* 
         return;
     }
 
-    Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData};
+    Fleur::Graphics::ImagePostCreation settings{(uint32_t)(width), (uint32_t)(height), (uint16_t)(desiredChannels), 1, imgData,
+                                                imageSettings.gammaCorrection != GAMMA_CORRECTION_LINEAR};
     imagePtr->PostCreate(settings);
 
     stbi_image_free(imgData);
@@ -837,7 +840,8 @@ void Fleur::AssetsManager::LoadImageFromColor(ImageAsset* imageAsset, Fleur::Ima
         std::memcpy(pData + i, colorBytes, channels);
     }
 
-    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData};
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, channels, 1, pData,
+                                            imageSettings.gammaCorrection != GAMMA_CORRECTION_LINEAR};
     imagePtr->PostCreate(info);
 
     alloc.deallocate(pData, size);
@@ -865,7 +869,8 @@ void Fleur::AssetsManager::LoadImageFromMemory(ImageAsset* imageAsset, Fleur::Im
         return;
     }
 
-    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData};
+    Fleur::Graphics::ImagePostCreation info{(uint32_t)width, (uint32_t)height, desiredChannels, 1, imgData,
+                                            imageSettings.gammaCorrection != GAMMA_CORRECTION_LINEAR};
 
     imagePtr->PostCreate(info);
     stbi_image_free(imgData);

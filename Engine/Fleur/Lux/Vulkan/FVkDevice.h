@@ -83,9 +83,15 @@ public:
     {
         return m_PresentQueue;
     }
-    inline VkFormat GetTextureFormat(uint32_t channels)
+    inline VkFormat GetTextureFormat(uint32_t channels, bool srgb = true)
     {
         assert(channels <= 4);
+
+        if (!srgb)
+        {
+            if (channels == 4 || channels == 3)
+                return VK_FORMAT_R8G8B8A8_UNORM;
+        }
 
         if (m_ForceAlpha)
             return m_SupportedFormatsMap[4];

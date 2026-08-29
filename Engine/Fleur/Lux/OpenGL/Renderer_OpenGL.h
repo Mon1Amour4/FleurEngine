@@ -47,6 +47,7 @@ struct backend : public Fleur::Graphics::IRenderer
     void SetShaderRegistry(const ShaderRegistry& shaders) override;
     void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) override;
     void SetShadowSettings(uint32_t, Fleur::Graphics::LightSampling, Fleur::Graphics::LightSampling) override {};
+    void SetNormalMappingEnabled(bool) override {};
 
     void DrawLine(Fleur::Vec3 a, Fleur::Vec3 b, Fleur::Vec3 color, bool depthTest = true) override {};  // TODO: GlDebugDraw
     void DrawPoint(Fleur::Vec3 p, Fleur::Vec3 color, float size = 4.0f, bool depthTest = true) override {};

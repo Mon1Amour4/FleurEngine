@@ -74,6 +74,8 @@ public:
     void OverlayTriangle(Fleur::Vec2 a, Fleur::Vec2 b, Fleur::Vec2 c, Fleur::Graphics::AssetID texture);
     void ShadowMapPreview(Fleur::Vec2 min, Fleur::Vec2 max);
     void ToggleShadowMapPreview();
+    // TEMP_DEBUG_F4_NORMAL_MAP: temporary normal-map debug toggle.
+    void ToggleNormalMapping();
     bool IsShadowMapPreviewEnabled() const
     {
         return m_ShowShadowMapPreview;
@@ -99,6 +101,11 @@ public:
     void SetShaderRegistry(const Fleur::Graphics::ShaderRegistry& shaders)
     {
         m_ShaderRegistry = &shaders;
+    }
+
+    bool IsNormalMappingEnabled() const
+    {
+        return m_NormalMappingEnabled;
     }
     void SetMaxPointLights(uint32_t maxPointLights)
     {
@@ -143,6 +150,8 @@ private:
     bool m_Vsync{true};
     bool m_ShowShadowMapPreview{false};
     int32_t m_ShadowMapPreviewLayer{-1};
+    // TEMP_DEBUG_F4_NORMAL_MAP: remove with ToggleNormalMapping after debugging.
+    bool m_NormalMappingEnabled{true};
     uint32_t m_MaxPointLights{128};
     uint32_t m_CascadeCount{5};
     Fleur::Graphics::LightSampling m_DirectionalLightSampling{Fleur::Graphics::LightSampling::Default};

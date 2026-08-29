@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Fleur/Math/Math.hpp>
+#include <cstddef>
 #include <vector>
 
 #define NODE_TRANSFORMS_MAX_CUP 1023
@@ -83,15 +84,24 @@ struct SVertexData
     Fleur::Vec3 Position;
     Fleur::Vec2 TexCoord;
     Fleur::Vec3 Normal;
+    Fleur::Vec4 Tangent;
 
-    SVertexData(Fleur::Vec3 pos = Fleur::Vec3(0.0f), Fleur::Vec3 text_coord = Fleur::Vec3(0.0f), Fleur::Vec3 normal = Fleur::Vec3(0.0f))
+    SVertexData(Fleur::Vec3 pos = Fleur::Vec3(0.0f), Fleur::Vec2 text_coord = Fleur::Vec2(0.0f), Fleur::Vec3 normal = Fleur::Vec3(0.0f),
+                Fleur::Vec4 tangent = Fleur::Vec4(1.0f, 0.0f, 0.0f, 1.0f))
         : Position(pos)
         , TexCoord(text_coord)
         , Normal(normal)
+        , Tangent(tangent)
     {
     }
 };
 #pragma pack(pop)
+
+static_assert(sizeof(SVertexData) == 48, "SVertexData must match the Vulkan model vertex stride");
+static_assert(offsetof(SVertexData, Position) == 0);
+static_assert(offsetof(SVertexData, TexCoord) == 12);
+static_assert(offsetof(SVertexData, Normal) == 20);
+static_assert(offsetof(SVertexData, Tangent) == 32);
 
 struct SFLCameraData
 {
@@ -133,10 +143,13 @@ struct SFLSSBODescriptorBuffer
     Fleur::Mat4 nodeTransforms[NODE_TRANSFORMS_MAX_CUP];
 };
 
-struct SFLGeometryUBO
+struct SFLSceneDataUBO
 {
     Fleur::Mat4 view;
     Fleur::Mat4 proj;
+    Fleur::Vec4 cameraPos;
+    Fleur::Vec4 directionalLightColor;
+    Fleur::Vec4 directionalLightDirectionIntensity;
 };
 
 enum ERenderStage : uint8_t

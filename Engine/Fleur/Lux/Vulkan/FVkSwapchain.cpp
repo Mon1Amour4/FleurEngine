@@ -158,7 +158,9 @@ VkPresentModeKHR FVkSwapchain::ChooseSwapPresentMode(const std::vector<VkPresent
 {
     for (const auto& availablePresentMode : availablePresentModes)
     {
-        if (availablePresentMode == /*VK_PRESENT_MODE_MAILBOX_KHR*/ VK_PRESENT_MODE_FIFO_KHR)
+        // Prefer low-latency, tear-free presentation. MAILBOX is optional,
+        // so FIFO remains the portable fallback.
+        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
         {
             return availablePresentMode;
         }

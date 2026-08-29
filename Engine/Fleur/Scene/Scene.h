@@ -43,6 +43,7 @@ private:
     Fleur::Graphics::LightingSystem* m_LightingSystem{nullptr};
     Fleur::Graphics::DirectionalLightHandle m_DirectionalLightHandle;
     std::vector<Fleur::Graphics::PointLightHandle> m_PointLightHandles;
+    float m_StressLightTime{0.0f};
 
     std::vector<SceneInstance> m_Instances;
     Graphics::Camera* m_Camera{nullptr};

@@ -80,12 +80,15 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc, const std::
     colorBlendAttachment.dstAlphaBlendFactor = desc.colorBlendAttachment.dstAlphaBlendFactor;
     colorBlendAttachment.alphaBlendOp = desc.colorBlendAttachment.alphaBlendOp;
 
+    const uint32_t colorAttachmentCount = desc.colorAttachmentCount;
+    std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments(colorAttachmentCount, colorBlendAttachment);
+
     VkPipelineColorBlendStateCreateInfo colorBlending{};
     colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
     colorBlending.logicOpEnable = VK_FALSE;
     colorBlending.logicOp = VK_LOGIC_OP_COPY;  // Optional
-    colorBlending.attachmentCount = 1;
-    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.attachmentCount = colorAttachmentCount;
+    colorBlending.pAttachments = colorBlendAttachments.empty() ? nullptr : colorBlendAttachments.data();
     colorBlending.blendConstants[0] = 0.0f;  // Optional
     colorBlending.blendConstants[1] = 0.0f;  // Optional
     colorBlending.blendConstants[2] = 0.0f;  // Optional
@@ -109,10 +112,14 @@ void FVkPipeline::Init(VkDevice device, FGraphicsPipelineDesc& desc, const std::
                                                        .minDepthBounds = 0.0f,
                                                        .maxDepthBounds = 1.0f};
 
+    std::array<VkFormat, 8> fallbackFormats{};
+    for (uint32_t i = 0; i < desc.colorAttachmentCount && i < fallbackFormats.size(); ++i)
+        fallbackFormats[i] = desc.colorFormats[i] == VK_FORMAT_UNDEFINED && i == 0 ? desc.colorFormat : desc.colorFormats[i];
+
     VkPipelineRenderingCreateInfo renderingInfo{.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR,
                                                 .pNext = nullptr,
                                                 .colorAttachmentCount = desc.colorAttachmentCount,
-        .pColorAttachmentFormats = renderingInfo.pColorAttachmentFormats = desc.colorAttachmentCount > 0 ? &desc.colorFormat : nullptr,
+                                                .pColorAttachmentFormats = desc.colorAttachmentCount > 0 ? fallbackFormats.data() : nullptr,
                                                 .depthAttachmentFormat = desc.depthFormat,
                                                 .stencilAttachmentFormat = VK_FORMAT_UNDEFINED};
 

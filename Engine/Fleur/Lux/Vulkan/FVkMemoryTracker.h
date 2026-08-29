@@ -12,7 +12,6 @@ enum class FVkAllocationCategory
     Staging,
     Texture,
     RenderTarget,
-    DepthTarget
 };
 
 class FVkMemoryTracker
@@ -20,8 +19,7 @@ class FVkMemoryTracker
 public:
     void Init(VkPhysicalDevice physicalDevice, VkDevice device);
 
-    VkDeviceMemory Allocate(const VkMemoryRequirements& requirements, VkMemoryPropertyFlags properties,
-                            FVkAllocationCategory category);
+    VkDeviceMemory Allocate(const VkMemoryRequirements& requirements, VkMemoryPropertyFlags properties, FVkAllocationCategory category);
     void Free(VkDeviceMemory memory);
 
     void PrintDiagnosis() const;

@@ -18,6 +18,7 @@ namespace
 {
 constexpr uint32_t kDebugShadowMapTextureSlot = MAX_TEXTURES - 1;
 constexpr uint32_t kPointLightShadowFaceCount = 6;
+constexpr uint32_t kPointLightShadowMapResolution = 512;
 constexpr uint32_t kDirectionalShadowMapResolution = 2048;
 constexpr float kPointLightShadowNear = 0.1f;
 }  // namespace
@@ -25,10 +26,10 @@ constexpr float kPointLightShadowNear = 0.1f;
 
 // ---------- backend ----------
 vk::backend::backend(bool enableValidation, void* pNativeHandle, Fleur::SRect& framebufferSize, Fleur::Graphics::SFLImageView& fallback,
-                     uint32_t maxPointLights, uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
-                     Fleur::Graphics::LightSampling pointLight, std::shared_ptr<spdlog::logger> logger)
-    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, cascadeCount,
-                                                 directionalLight, pointLight, std::move(logger)))
+                     uint32_t maxPointLights, uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight,
+                     std::shared_ptr<spdlog::logger> logger)
+    : pImpl(std::make_unique<vk::backend::impl>(enableValidation, pNativeHandle, framebufferSize, fallback, maxPointLights, cascadeCount, directionalLight,
+                                                pointLight, std::move(logger)))
 {
 }
 vk::backend::~backend() = default;
@@ -40,10 +41,15 @@ void vk::backend::SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bound
 {
     pImpl->setShadowSceneBounds(bounds);
 }
-void vk::backend::SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
-                                    Fleur::Graphics::LightSampling pointLight)
+void vk::backend::SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight)
 {
     pImpl->setShadowSettings(cascadeCount, directionalLight, pointLight);
+}
+
+// TEMP_DEBUG_F4_NORMAL_MAP: remove after normal-map debugging.
+void vk::backend::SetNormalMappingEnabled(bool enabled)
+{
+    pImpl->m_NormalMappingEnabled = enabled;
 }
 void vk::backend::UploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
 {
@@ -204,8 +210,8 @@ void vk::backend::DrawShadowMapOverlay(Fleur::Vec2 min, Fleur::Vec2 max, int32_t
 {
     auto& frame = pImpl->GetCurrentFrame();
     vk::abstraction::DescriptorWriter shadowMapWriter{};
-    shadowMapWriter.write_image(0, frame.m_DirectionalLightShadowMap.GetImageView(), pImpl->m_ShadowMapSampler,
-                                VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+    shadowMapWriter.write_image(0, frame.m_DirectionalLightShadowMap.GetImageView(), pImpl->m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
     shadowMapWriter.update_set(pImpl->m_Device->GetLogicalDevice(), pImpl->m_OverlayShadowMapDescriptorSet);
     pImpl->m_OverlayPass->SetShadowMapLayer(layer);
     pImpl->m_OverlayPass->AddShadowMapQuad(min, max);
@@ -225,7 +231,7 @@ vk::backend::impl::impl(bool enableValidation,
                          std::shared_ptr<spdlog::logger> logger)
     // clang-format on
     : m_Logger(std::move(logger))
-    , m_PointLightShadowMaps(std::min(maxPointLights, POINT_LIGHTS_CAPACITY))
+    , m_PointLightShadowMaps(maxPointLights)
 {
     assert(maxPointLights > 0);
     m_CascadeCount = std::clamp(cascadeCount, 1u, static_cast<uint32_t>(kMaxCascadeCount));
@@ -289,18 +295,17 @@ vk::backend::impl::impl(bool enableValidation,
         Frame& frame = m_Frames[i];
 
         frame.scene.m_SceneNodeTransformsStorageBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
-                                                             FVkAllocationCategory::Buffer,
-                                                             VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                                             NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Mat4) + sizeof(Fleur::Mat4), sizeof(Fleur::Mat4));
+                                                            FVkAllocationCategory::Buffer,
+                                                            VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                            NODE_TRANSFORMS_MAX_CUP * sizeof(Fleur::Mat4) + sizeof(Fleur::Mat4), sizeof(Fleur::Mat4));
 
-        frame.scene.m_DirectionalShadowMatricesBuffer.Init(
-            m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
-            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-            sizeof(DirectionalShadowMatrices), sizeof(Fleur::Mat4));
+        frame.scene.m_DirectionalShadowMatricesBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
+                                                           FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                                           sizeof(DirectionalShadowMatrices), sizeof(Fleur::Mat4));
 
-        frame.scene.m_CameraBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
-                                        FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                                        sizeof(SFLGeometryUBO), sizeof(Fleur::Mat4));
+        frame.scene.m_SceneDataBuffer.Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
+                                           FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                                           sizeof(SFLSceneDataUBO), sizeof(Fleur::Mat4));
 
         std::vector<vk::abstraction::DescriptorAllocator::PoolSizeRatio> frame_sizes = {
             {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, m_FramesInFlight},          // ssbo
@@ -328,8 +333,8 @@ vk::backend::impl::impl(bool enableValidation,
     for (Frame& frame : m_Frames)
     {
         frame.m_DirectionalLightShadowMap.Create(m_Device.get(), m_ImmediateCommandPool.get(),
-                                                 VkExtent2D{kDirectionalShadowMapResolution, kDirectionalShadowMapResolution},
-                                                 VK_SAMPLE_COUNT_1_BIT, true, m_CascadeCount);
+                                                 VkExtent2D{kDirectionalShadowMapResolution, kDirectionalShadowMapResolution}, VK_SAMPLE_COUNT_1_BIT, true,
+                                                 m_CascadeCount);
         frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     m_ShadowMapSampler = createShadowMapSampler();
@@ -339,6 +344,7 @@ vk::backend::impl::impl(bool enableValidation,
 
     m_VertexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
                          VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 512ul, sizeof(Fleur::Graphics::SVertexData));
+    FL_CORE_INFO("[Vulkan][VertexLayout] model vertex buffer stride={}", sizeof(Fleur::Graphics::SVertexData));
 
     m_IndexBuffer->Init(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), FVkAllocationCategory::Buffer,
                         VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 1024u * 1024ul * 256ul, sizeof(uint32_t));
@@ -368,11 +374,11 @@ vk::backend::impl::impl(bool enableValidation,
     m_ShadowMapOffsetTexture.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(),
                                     m_ImmediateCommandPool->GetCommandPool(), m_Device->GetGraphicsQueue(), 3);
 
-    const uint32_t pointShadowMapResolution = std::max(swapchainExtent.width, swapchainExtent.height);
-    m_PointLightShadowMaps.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), pointShadowMapResolution,
+    m_PointLightShadowMaps.Create(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), kPointLightShadowMapResolution,
                                   FindDepthFormat(m_Device->GetPhysicalDevice()));
 
-    m_Device->GetMemoryTracker().PrintDiagnosis();
+    m_GBuffer = std::make_unique<GBuffer>(m_Device->GetLogicalDevice(), m_Device->GetPhysicalDevice(), m_Device->GetMemoryTracker(), swapchainExtent.width,
+                                          swapchainExtent.height, FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()));
 }
 
 vk::backend::impl::~impl()
@@ -390,8 +396,11 @@ vk::backend::impl::~impl()
         Frame& frame = m_Frames[i];
         vkDestroySemaphore(m_Device->GetLogicalDevice(), frame.m_ImagesAvailable, nullptr);
         vkDestroyFence(m_Device->GetLogicalDevice(), frame.m_InFlightFences, nullptr);
+        frame.frameDescriptors.destroy_pools(m_Device->GetLogicalDevice());
     }
     destroyRenderFinishedSemaphores();
+
+    m_GBufferMaterialDescriptors.destroy_pools(m_Device->GetLogicalDevice());
 
     // 2. CommandBuffer & CommandPool
     // 3. DescriptorSet & DescriptorPool & Descriptor set layout
@@ -650,6 +659,14 @@ FVkPipeline* vk::backend::impl::createGraphicsPipeline(const char* shaderKey, Fl
     {
         m_ShadowPipelineLayout = reflectedLayout;
     }
+    else if (std::string_view(shaderKey) == "gbuffer")
+    {
+        m_GBufferPipelineLayout = reflectedLayout;
+    }
+    else if (std::string_view(shaderKey) == "deferredLighting")
+    {
+        m_DeferredLightingPipelineLayout = reflectedLayout;
+    }
 
     return &m_PipelineCache.Get(shader, pipelineInfo, reflectedLayout);
 }
@@ -691,7 +708,7 @@ FVkPipeline* vk::backend::impl::createTransparentPipeline(Fleur::Graphics::SFLSh
 }
 
 FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pGeometryInfo,
-                                                      Fleur::Graphics::SFLShaderBytecode pFragmentInfo, VkSampleCountFlagBits samplesCount)
+                                                     Fleur::Graphics::SFLShaderBytecode pFragmentInfo, VkSampleCountFlagBits samplesCount)
 {
     vk::GetPipelineInfo pipelineInfo{};
     pipelineInfo.blendEnable = false;
@@ -722,6 +739,53 @@ FVkPipeline* vk::backend::impl::createShadowPipeline(Fleur::Graphics::SFLShaderB
     return createGraphicsPipeline("shadow", pVertexInfo, pFragmentInfo, pipelineInfo, pGeometryInfo);
 }
 
+FVkPipeline* vk::backend::impl::createGBufferPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo)
+{
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.blendEnable = false;
+    pipelineInfo.depthTestEnable = true;
+    pipelineInfo.depthWriteEnable = true;
+    pipelineInfo.depthCompareOp = VK_COMPARE_OP_LESS;
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
+    pipelineInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pipelineInfo.samplesCount = VK_SAMPLE_COUNT_1_BIT;
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.colorAttachmentCount = 3;
+    pipelineInfo.colorFormats[0] = VK_FORMAT_R16G16B16A16_SFLOAT;
+    pipelineInfo.colorFormats[1] = VK_FORMAT_R16G16B16A16_SFLOAT;
+    pipelineInfo.colorFormats[2] = VK_FORMAT_R8G8B8A8_UNORM;
+    pipelineInfo.depthFormat = FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice());
+
+    FVkPipeline* pipeline = createGraphicsPipeline("gbuffer", pVertexInfo, pFragmentInfo, pipelineInfo);
+
+    if (!m_GBufferMaterialDescriptorsInitialized)
+    {
+        std::array<vk::abstraction::DescriptorAllocator::PoolSizeRatio, 1> poolSizes{{
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 2},  // diffuse + specular per primitive
+        }};
+        m_GBufferMaterialDescriptors.init(m_Device->GetLogicalDevice(), 1024, poolSizes);
+        m_GBufferMaterialDescriptorsInitialized = true;
+    }
+
+    return pipeline;
+}
+
+FVkPipeline* vk::backend::impl::createDeferredLightingPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo,
+                                                                 Fleur::Graphics::SFLShaderBytecode pFragmentInfo)
+{
+    vk::GetPipelineInfo pipelineInfo{};
+    pipelineInfo.blendEnable = false;
+    pipelineInfo.depthTestEnable = false;
+    pipelineInfo.depthWriteEnable = false;
+    pipelineInfo.cullMode = VK_CULL_MODE_NONE;
+    pipelineInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+    pipelineInfo.samplesCount = VK_SAMPLE_COUNT_1_BIT;
+    pipelineInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    pipelineInfo.colorFormat = m_Swapchain->GetImageFormat();
+    pipelineInfo.depthFormat = VK_FORMAT_UNDEFINED;
+    return createGraphicsPipeline("deferredLighting", pVertexInfo, pFragmentInfo, pipelineInfo);
+}
+
 VkShaderModule vk::backend::impl::createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo)
 {
     VkShaderModuleCreateInfo createInfo{};
@@ -740,14 +804,14 @@ void vk::backend::impl::createTextureDescriptorPool()
 {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[0].descriptorCount = MAX_TEXTURES + POINT_LIGHTS_CAPACITY + 3;
+    poolSizes[0].descriptorCount = MAX_TEXTURES + m_MaxPointLights + 6;
 
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[1].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
                                         .flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
-                                         .maxSets = 5,
+                                         .maxSets = 6,
                                         .poolSizeCount = poolSizes.size(),
                                         .pPoolSizes = poolSizes.data()};
 
@@ -820,8 +884,8 @@ void vk::backend::impl::createTextureDescriptorSets()
         .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO, .descriptorPool = m_DescriptorPool, .descriptorSetCount = 1, .pSetLayouts = &layouts[3]};
     VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &pointShadowAllocateInfo, &m_PointLightShadowMapsDescriptorSet));
 
-    std::array<VkDescriptorImageInfo, POINT_LIGHTS_CAPACITY> imageInfos{};
-    for (uint32_t index = 0; index < POINT_LIGHTS_CAPACITY; ++index)
+    std::vector<VkDescriptorImageInfo> imageInfos(m_MaxPointLights);
+    for (uint32_t index = 0; index < m_MaxPointLights; ++index)
     {
         imageInfos[index].sampler = m_ShadowMapSampler;
         imageInfos[index].imageView = m_PointLightShadowMaps.GetCubeImageView(index);
@@ -831,7 +895,7 @@ void vk::backend::impl::createTextureDescriptorSets()
     VkWriteDescriptorSet pointShadowWrite{VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
     pointShadowWrite.dstSet = m_PointLightShadowMapsDescriptorSet;
     pointShadowWrite.dstBinding = 0;
-    pointShadowWrite.descriptorCount = POINT_LIGHTS_CAPACITY;
+    pointShadowWrite.descriptorCount = m_MaxPointLights;
     pointShadowWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     pointShadowWrite.pImageInfo = imageInfos.data();
     vkUpdateDescriptorSets(m_Device->GetLogicalDevice(), 1, &pointShadowWrite, 0, nullptr);
@@ -845,7 +909,7 @@ void vk::backend::impl::uploadTextures(Fleur::Graphics::SFLImageViewInfo* pInfo)
         if (m_TextureMap.contains(imageView.ID))
             continue;
 
-        VkFormat format = m_Device->GetTextureFormat(imageView.channels);
+        VkFormat format = m_Device->GetTextureFormat(imageView.channels, imageView.srgb);
         VkImageAspectFlagBits aspect = VK_IMAGE_ASPECT_COLOR_BIT;
         uint32_t layerSize = imageView.w * imageView.h * imageView.channels;
         uint32_t imageSize = layerSize * imageView.layerCount;
@@ -1074,6 +1138,9 @@ void vk::backend::impl::createTexture(Fleur::Graphics::SFLImageView& view, FVkTe
     if (mipLevels == 0)
         mipLevels = 1;
 
+    const VkImageUsageFlags attachmentUsage = aspect == VK_IMAGE_ASPECT_DEPTH_BIT ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                                                                                   : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
     VkImageCreateInfo imageInfo{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
         .imageType = VK_IMAGE_TYPE_2D,
@@ -1138,7 +1205,7 @@ void vk::backend::impl::endResize(Fleur::SRect& rect)
     for (Frame& frame : m_Frames)
     {
         frame.m_DirectionalLightShadowMap.Recreate({kDirectionalShadowMapResolution, kDirectionalShadowMapResolution}, VK_SAMPLE_COUNT_1_BIT, true,
-                                                    m_CascadeCount);
+                                                   m_CascadeCount);
         frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
     }
     m_SwapchainImageLayouts.assign(m_Swapchain->GetSwapchainImageCount(), VK_IMAGE_LAYOUT_UNDEFINED);
@@ -1223,6 +1290,30 @@ void vk::backend::impl::createPass(EFLPassKind kind, SFLShaderStages shaderStage
         // TODO if pipeline already exists, need to release it
         m_OpaquePipeline = createOpaquePipeline(vertex, fragment, m_MultisampledRenderTarget->GetSamplesCount());
         m_TransparentPipeline = createTransparentPipeline(vertex, fragment, m_MultisampledRenderTarget->GetSamplesCount());
+    }
+    else if (kind == EFLPassKind::Deferred)
+    {
+        m_GBufferPipeline = createGBufferPipeline(vertex, fragment);
+    }
+    else if (kind == EFLPassKind::DeferredLighting)
+    {
+        m_DeferredLightingPipeline = createDeferredLightingPipeline(vertex, fragment);
+
+        const VkDescriptorSetLayout layout = m_DeferredLightingPipelineLayout->GetSetLayout(1);
+        VkDescriptorSetAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+                                              .descriptorPool = m_DescriptorPool,
+                                              .descriptorSetCount = 1,
+                                              .pSetLayouts = &layout};
+        VK_CHECK(vkAllocateDescriptorSets(m_Device->GetLogicalDevice(), &allocInfo, &m_GBufferLightingDescriptorSet));
+
+        vk::abstraction::DescriptorWriter writer{};
+        writer.write_image(0, m_GBuffer->GetPositionTexture().GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.write_image(1, m_GBuffer->GetNormalTexture().GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.write_image(2, m_GBuffer->GetAlbedoTexture().GetImageView(), m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                           VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        writer.update_set(m_Device->GetLogicalDevice(), m_GBufferLightingDescriptorSet);
     }
 }
 
@@ -1330,7 +1421,7 @@ void vk::backend::impl::updateShadowMapDescriptorSets()
     {
         vk::abstraction::DescriptorWriter shadowMapWriter{};
         shadowMapWriter.write_image(0, m_Frames[i].m_DirectionalLightShadowMap.GetImageView(), m_ShadowMapSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                     VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+                                    VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         shadowMapWriter.write_buffer(1, m_Frames[i].scene.m_DirectionalShadowMatricesBuffer.GetBuffer(), sizeof(DirectionalShadowMatrices), 0,
                                      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
         auto& frame = m_Frames[i];
@@ -1340,28 +1431,26 @@ void vk::backend::impl::updateShadowMapDescriptorSets()
 
 void vk::backend::impl::BeginRendering(VkCommandBuffer cmd, const FBeginRenderingDesc& desc)
 {
-    VkRenderingAttachmentInfoKHR colorAttachmentInfo{};
+    const uint32_t colorAttachmentCount = desc.colorAttachmentCount != 0 ? desc.colorAttachmentCount : (desc.colorAttachment ? 1u : 0u);
+    std::vector<VkRenderingAttachmentInfoKHR> colorAttachmentInfos(colorAttachmentCount);
     VkRenderingAttachmentInfoKHR depthAttachmentInfo{};
 
-    uint32_t colorAttachmentCount = 0;
-    const VkRenderingAttachmentInfoKHR* pColorAttachments = nullptr;
+    const VkRenderingAttachmentInfoKHR* pColorAttachments = colorAttachmentInfos.data();
     const VkRenderingAttachmentInfoKHR* pDepthAttachment = nullptr;
 
-    if (desc.colorAttachment)
+    for (uint32_t i = 0; i < colorAttachmentCount; ++i)
     {
-        colorAttachmentInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
-        colorAttachmentInfo.pNext = nullptr;
-        colorAttachmentInfo.imageView = desc.colorAttachment->imageView;
-        colorAttachmentInfo.imageLayout = desc.colorAttachment->imageLayout;
-        colorAttachmentInfo.resolveMode = desc.colorAttachment->resolveMode;
-        colorAttachmentInfo.resolveImageView = desc.colorAttachment->resolveImageView;
-        colorAttachmentInfo.resolveImageLayout = desc.colorAttachment->resolveImageLayout;
-        colorAttachmentInfo.loadOp = desc.colorAttachment->loadOp;
-        colorAttachmentInfo.storeOp = desc.colorAttachment->storeOp;
-        colorAttachmentInfo.clearValue = desc.colorAttachment->clearValue;
-
-        colorAttachmentCount = 1;
-        pColorAttachments = &colorAttachmentInfo;
+        const FRenderingColorAttachmentDesc& colorDesc = desc.colorAttachment[i];
+        VkRenderingAttachmentInfoKHR& colorInfo = colorAttachmentInfos[i];
+        colorInfo.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO_KHR;
+        colorInfo.imageView = colorDesc.imageView;
+        colorInfo.imageLayout = colorDesc.imageLayout;
+        colorInfo.resolveMode = colorDesc.resolveMode;
+        colorInfo.resolveImageView = colorDesc.resolveImageView;
+        colorInfo.resolveImageLayout = colorDesc.resolveImageLayout;
+        colorInfo.loadOp = colorDesc.loadOp;
+        colorInfo.storeOp = colorDesc.storeOp;
+        colorInfo.clearValue = colorDesc.clearValue;
     }
 
     if (desc.depthAttachment)
@@ -1402,8 +1491,8 @@ void vk::backend::impl::BeginShadowRendering()
     auto& directionalLightShadowMap = frame.m_DirectionalLightShadowMap;
 
     transitionImageLayout(*cmd.GetCommandBuffer(), directionalLightShadowMap.GetImage(), FVkDepthTarget::FindDepthFormat(m_Device->GetPhysicalDevice()),
-                           frame.m_DirectionalLightShadowMapLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
-                           m_CascadeCount);
+                          frame.m_DirectionalLightShadowMapLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT, 1,
+                          m_CascadeCount);
     frame.m_DirectionalLightShadowMapLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
     const VkExtent2D shadowExtent = directionalLightShadowMap.GetExtent();
@@ -1438,12 +1527,7 @@ void vk::backend::impl::BeginShadowRendering()
     // We need to bind shadow pass pipeline
     cmd.BindPipeline(m_ShadowPipeline->GetPipeline());
 
-    VkViewport defaultViewport{.x = 0,
-                               .y = 0,
-                               .width = (float)shadowExtent.width,
-                               .height = (float)shadowExtent.height,
-                               .minDepth = 0,
-                               .maxDepth = 1.0f};
+    VkViewport defaultViewport{.x = 0, .y = 0, .width = (float)shadowExtent.width, .height = (float)shadowExtent.height, .minDepth = 0, .maxDepth = 1.0f};
     cmd.SetViewport(defaultViewport);
 
     VkRect2D defaultScissors{
@@ -1453,9 +1537,10 @@ void vk::backend::impl::BeginShadowRendering()
     cmd.SetScissors(defaultScissors);
 }
 
-vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirectionalShadowFrustum(
-    const std::array<Fleur::Vec4, 8>& corners, const Fleur::Vec3& lightDirection, const std::array<Fleur::Vec4, 8>* casterCorners,
-    size_t cascadeIndex) const
+vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirectionalShadowFrustum(const std::array<Fleur::Vec4, 8>& corners,
+                                                                                                  const Fleur::Vec3& lightDirection,
+                                                                                                  const std::array<Fleur::Vec4, 8>* casterCorners,
+                                                                                                  size_t cascadeIndex) const
 {
     DirectionalLightShadowFrustum result{};
 
@@ -1463,8 +1548,7 @@ vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirecti
     if (Fleur::Math::abs(Fleur::Math::dot(lightDirection, up)) > 0.99f)
         up = Fleur::Vec3(1.0f, 0.0f, 0.0f);
 
-    for (const Fleur::Vec4& corner : corners)
-        result.center += Fleur::Vec3(corner);
+    for (const Fleur::Vec4& corner : corners) result.center += Fleur::Vec3(corner);
     result.center /= static_cast<float>(corners.size());
 
     for (const Fleur::Vec4& corner : corners)
@@ -1493,7 +1577,8 @@ vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirecti
     float minZ = std::numeric_limits<float>::infinity();
     float maxZ = -std::numeric_limits<float>::infinity();
 
-    const auto accumulateLightSpaceBounds = [&](const auto& points) {
+    const auto accumulateLightSpaceBounds = [&](const auto& points)
+    {
         for (const Fleur::Vec4& corner : points)
         {
             const Fleur::Vec3 lightSpaceCorner = Fleur::Vec3(lightView * corner);
@@ -1509,8 +1594,7 @@ vk::backend::impl::DirectionalLightShadowFrustum vk::backend::impl::BuildDirecti
     if (casterCorners)
         accumulateLightSpaceBounds(*casterCorners);
 
-    if (!std::isfinite(minX) || !std::isfinite(maxX) || !std::isfinite(minY) || !std::isfinite(maxY) || !std::isfinite(minZ) ||
-        !std::isfinite(maxZ))
+    if (!std::isfinite(minX) || !std::isfinite(maxX) || !std::isfinite(minY) || !std::isfinite(maxY) || !std::isfinite(minZ) || !std::isfinite(maxZ))
     {
         return result;
     }
@@ -1564,8 +1648,8 @@ void vk::backend::impl::UpdateDirectionalShadowFrustum(const Fleur::Vec3& lightD
     const Fleur::Vec3 sceneMin = m_ShadowSceneBounds.GetMin();
     const Fleur::Vec3 sceneMax = m_ShadowSceneBounds.GetMax();
     const bool validSceneBounds = m_HasShadowSceneBounds && std::isfinite(sceneMin.x) && std::isfinite(sceneMin.y) && std::isfinite(sceneMin.z) &&
-                                   std::isfinite(sceneMax.x) && std::isfinite(sceneMax.y) && std::isfinite(sceneMax.z) && sceneMin.x < sceneMax.x &&
-                                   sceneMin.y < sceneMax.y && sceneMin.z < sceneMax.z;
+                                  std::isfinite(sceneMax.x) && std::isfinite(sceneMax.y) && std::isfinite(sceneMax.z) && sceneMin.x < sceneMax.x &&
+                                  sceneMin.y < sceneMax.y && sceneMin.z < sceneMax.z;
 
     std::array<Fleur::Vec4, 8> sceneCorners{};
     if (validSceneBounds)
@@ -1604,7 +1688,6 @@ void vk::backend::impl::UpdateDirectionalShadowFrustum(const Fleur::Vec3& lightD
         m_CascadeShadowFrustums[i] = BuildDirectionalShadowFrustum(cascadeCorners, lightDirection, &sceneCorners, i);
         previousSplit = currentSplit;
     }
-
 }
 
 void vk::backend::impl::ExecuteDirectionalShadowSubpass()
@@ -1617,8 +1700,7 @@ void vk::backend::impl::ExecuteDirectionalShadowSubpass()
 
     DirectionalShadowMatrices matrices{};
     matrices.cascadeCount = m_CascadeCount;
-    for (size_t i = 0; i < m_CascadeCount; ++i)
-        matrices.lightSpaceMatrices[i] = m_CascadeShadowFrustums[i].lightSpaceMatrix;
+    for (size_t i = 0; i < m_CascadeCount; ++i) matrices.lightSpaceMatrices[i] = m_CascadeShadowFrustums[i].lightSpaceMatrix;
     const float cameraDepthRange = m_FrameData.camera.farPlane - m_FrameData.camera.nearPlane;
     for (size_t i = 0; i < m_CascadeCount; ++i)
         matrices.cascadeSplits[i / 4][i % 4] = m_FrameData.camera.nearPlane + m_CascadeSplits.splits[i] * cameraDepthRange;
@@ -1660,7 +1742,8 @@ void vk::backend::impl::ExecutePointLightShadowSubpass()
 
     m_PointLightShadowMaps.PrepareForSampling(cmd);
 
-    for (size_t i = 0; i < m_PointLights.size(); i++)
+    const size_t shadowedLightCount = std::min(m_PointLights.size(), static_cast<size_t>(m_PointLightShadowMaps.GetTextureCount()));
+    for (size_t i = 0; i < shadowedLightCount; i++)
     {
         const float shadowFar = m_PointLights[i].radius;
         Fleur::Mat4 shadowProj = Fleur::Math::perspective(Fleur::Math::radians(90.0f), 1.0f, kPointLightShadowNear, shadowFar);
@@ -1769,7 +1852,7 @@ void vk::backend::impl::ExecuteMainPass()
 
     if (m_Floor)
     {
-        // m_Floor->Record(*cmd.GetCommandBuffer(), GetCurrentFrame().scene.m_CameraDescriptor, m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
+        // m_Floor->Record(*cmd.GetCommandBuffer(), GetCurrentFrame().scene.m_SceneDataDescriptor, m_Swapchain->GetSwapchainExtent(), m_FrameData.camera);
     }
 
     cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
@@ -1795,7 +1878,7 @@ void vk::backend::impl::ExecuteMainPass()
     auto& frame = GetCurrentFrame();
     const auto& shadowMap = frame.m_DirectionalLightShadowMap;
     std::array<VkDescriptorSet, 7> descriptorSets{
-        frame.scene.m_CameraDescriptor,       m_TextureDescriptorSet,         frame.scene.m_SceneNodeTransformsDescriptor, m_PointLightsDescriptorSet,
+        frame.scene.m_SceneDataDescriptor,    m_TextureDescriptorSet,         frame.scene.m_SceneNodeTransformsDescriptor, m_PointLightsDescriptorSet,
         frame.scene.m_ShadowMapDescriptorSet, m_ShadowMapOffsetDescriptorSet, m_PointLightShadowMapsDescriptorSet};
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Opaque Pass");
@@ -1805,19 +1888,14 @@ void vk::backend::impl::ExecuteMainPass()
     for (const auto& drawItem : m_OpaqueDrawItems)
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-        SFLPushConstant pushConstant = MakePush(primitive);
-        // Keep the push-constant matrix consistent with the vertex interface.
-        // Directional shadow selection is performed in the fragment shader.
-        pushConstant.lightSpaceMatrix = m_CascadeShadowFrustums[0].lightSpaceMatrix;
-        pushConstant.directionalLightColor = m_FrameData.directionalLight.color;
-        pushConstant.directionalLightDirectionIntensity = m_FrameData.directionalLight.dirIntens;
-        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
-        pushConstant.indices.y = drawItem.modelTransformIdx;
-        pushConstant.indices.w = m_PointLights.size();
-        pushConstant.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
-        pushConstant.materialParams.z = static_cast<float>(m_PointLightSampling);
-        pushConstant.cameraPos = Fleur::Math::inverse(m_FrameData.camera.view)[3];
-        cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        SFLDrawPushConstants pushConstants = MakeDrawPushConstants(primitive);
+        pushConstants.drawIndices.x = drawItem.nodeTransformsStartIdx;
+        pushConstants.drawIndices.y = drawItem.modelTransformIdx;
+        pushConstants.drawIndices.w = m_PointLights.size();
+        pushConstants.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
+        pushConstants.materialParams.z = static_cast<float>(m_PointLightSampling);
+        pushConstants.materialParams.w = m_NormalMappingEnabled ? 1.0f : 0.0f;
+        cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstants);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
 
@@ -1825,19 +1903,19 @@ void vk::backend::impl::ExecuteMainPass()
     for (const auto& drawItem : m_TransparentDrawItems)
     {
         const auto& primitive = m_Primitives[drawItem.primitiveIdx];
-        SFLPushConstant pushConstant = MakePush(primitive);
-        pushConstant.indices.x = drawItem.nodeTransformsStartIdx;
-        pushConstant.indices.y = drawItem.modelTransformIdx;
-        pushConstant.indices.w = m_PointLights.size();
-        pushConstant.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
-        pushConstant.materialParams.z = static_cast<float>(m_PointLightSampling);
-        cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstant);
+        SFLDrawPushConstants pushConstants = MakeDrawPushConstants(primitive);
+        pushConstants.drawIndices.x = drawItem.nodeTransformsStartIdx;
+        pushConstants.drawIndices.y = drawItem.modelTransformIdx;
+        pushConstants.drawIndices.w = m_PointLights.size();
+        pushConstants.materialParams.y = static_cast<float>(m_DirectionalLightSampling);
+        pushConstants.materialParams.z = static_cast<float>(m_PointLightSampling);
+        pushConstants.materialParams.w = m_NormalMappingEnabled ? 1.0f : 0.0f;
+        cmd.PushConstant(m_OpaquePipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstants);
         cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
     }
     cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
 
-    m_OpaqueDrawItems.clear();
-    m_TransparentDrawItems.clear();
+    ClearFrameDrawItems();
 
     cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Overlay Pass");
     m_OverlayPass->Record(cmd, m_CurrentFrame);
@@ -1886,6 +1964,11 @@ void vk::backend::impl::SubmitFrame()
     presentInfo.swapchainCount = 1;
     presentInfo.pSwapchains = swapChains;
     presentInfo.pImageIndices = &m_ImageIndex;
+    if (m_SwapchainImageLayouts[m_ImageIndex] != VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+    {
+        FL_CORE_ERROR("[Vulkan][SwapchainLayout] Present image={} requires PRESENT_SRC_KHR but trackedLayout={}", m_ImageIndex,
+                      static_cast<uint32_t>(m_SwapchainImageLayouts[m_ImageIndex]));
+    }
     vkQueuePresentKHR(m_Device->GetPresentQueue(), &presentInfo);
 
     m_CurrentFrame = (m_CurrentFrame + 1) % m_FramesInFlight;
@@ -1904,7 +1987,7 @@ void vk::backend::impl::initializeOpaqueDescriptorSets()
     for (Frame& frame : m_Frames)
     {
         frame.scene.m_SceneNodeTransformsDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(2), 1);
-        frame.scene.m_CameraDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(0), 1);
+        frame.scene.m_SceneDataDescriptor = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(0), 1);
         frame.scene.m_ShadowMapDescriptorSet = frame.frameDescriptors.allocate(m_Device->GetLogicalDevice(), m_OpaquePipelineLayout->GetSetLayout(4), 1);
 
         vk::abstraction::DescriptorWriter ssboWriter{};
@@ -1913,8 +1996,9 @@ void vk::backend::impl::initializeOpaqueDescriptorSets()
         ssboWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_SceneNodeTransformsDescriptor);
 
         vk::abstraction::DescriptorWriter cameraUboWriter{};
-        cameraUboWriter.write_buffer(0, frame.scene.m_CameraBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLGeometryUBO), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        cameraUboWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_CameraDescriptor);
+        cameraUboWriter.write_buffer(0, frame.scene.m_SceneDataBuffer.GetBuffer(), sizeof(Fleur::Graphics::SFLSceneDataUBO), 0,
+                                     VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+        cameraUboWriter.update_set(m_Device->GetLogicalDevice(), frame.scene.m_SceneDataDescriptor);
     }
 
     updateShadowMapDescriptorSets();
@@ -1928,13 +2012,6 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
 {
     if (m_WindowResizeIsInProgress)
         return false;
-
-    const auto now = std::chrono::steady_clock::now();
-    if (now - m_LastMemoryDiagnosis >= std::chrono::seconds(10))
-    {
-        m_LastMemoryDiagnosis = now;
-        m_Device->GetMemoryTracker().PrintDiagnosis();
-    }
 
     if (!m_Swapchain->ReadyToPresent())
     {
@@ -1998,8 +2075,14 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
 
     m_PointLightsBuffer->Reset();
 
-    Fleur::Graphics::SFLGeometryUBO ubo{m_FrameData.camera.view, m_FrameData.camera.proj};
-    GetCurrentFrame().scene.m_CameraBuffer.MemCopy(&ubo, sizeof(ubo));
+    Fleur::Graphics::SFLSceneDataUBO sceneData{
+        m_FrameData.camera.view,
+        m_FrameData.camera.proj,
+        Fleur::Math::inverse(m_FrameData.camera.view)[3],
+        m_FrameData.directionalLight.color,
+        m_FrameData.directionalLight.dirIntens,
+    };
+    GetCurrentFrame().scene.m_SceneDataBuffer.MemCopy(&sceneData, sizeof(sceneData));
 
     VkResult resetCmd = vkResetCommandPool(m_Device->GetLogicalDevice(), frame.m_CommandPools.GetCommandPool(), 0);
     if (resetCmd != VK_SUCCESS)
@@ -2017,7 +2100,9 @@ bool vk::backend::impl::beginFrame(const Fleur::Graphics::RenderFrameData& frame
 void vk::backend::impl::endFrame()
 {
     ExecuteShadowPass();
-    ExecuteMainPass();
+    ExecuteGBufferPass();
+    ExecuteLightingPass();
+    GetCurrentFrame().m_CommandBuffers.End();
     SubmitFrame();
 }
 
@@ -2041,6 +2126,13 @@ void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, u
     uint64_t globalIndexOffset = m_IndexBuffer->CurrentSize() / m_IndexBuffer->StrideBytes();
     uint64_t globalVertexOffset = m_VertexBuffer->CurrentSize() / m_VertexBuffer->StrideBytes();
 
+    if (verticesCount > 0 && indexCount > 0)
+    {
+        uint32_t maxIndex = 0;
+        for (uint32_t i = 0; i < indexCount; ++i) maxIndex = std::max(maxIndex, indices[i]);
+        FL_CORE_INFO("[Vulkan][ModelUpload] id={} vertices={} indices={} maxIndex={} stride={} firstPos=({}, {}, {}) firstIndex={}", id, verticesCount,
+                     indexCount, maxIndex, sizeof(SVertexData), vertices[0].Position.x, vertices[0].Position.y, vertices[0].Position.z, indices[0]);
+    }
 
     uint64_t primitiveStartIdx = m_Primitives.size();
 
@@ -2074,6 +2166,8 @@ void vk::backend::impl::registerModel(AssetID id, const SVertexData* vertices, u
         primitive.vertexOffset = globalVertexOffset;
         primitive.bucket = item.material.mode;
         primitive.boundingBoxCenter = item.boundingBoxCenter;
+        FL_CORE_INFO("[Vulkan][ModelUpload] primitive={} indexStart={} indexCount={} vertexStart={} bbox=({}, {}, {})", i, item.indexStart, item.indexCount,
+                     item.vertexStart, item.boundingBoxCenter.x, item.boundingBoxCenter.y, item.boundingBoxCenter.z);
     }
 }
 
@@ -2114,9 +2208,6 @@ void vk::backend::impl::drawModel(AssetID id, const Fleur::Mat4& modelTransform)
         for (size_t j = 0; j < instance.primitiveCount; j++)
         {
             const auto& primitive = m_Primitives[instance.globalPrimitiveStartIdx + j];
-            const uint32_t globalPrimitiveIdx = instance.globalPrimitiveStartIdx + j;
-
-            std::vector<FLFrameDrawItem>* dstVector{nullptr};
             if (primitive.bucket == FLAlphaMode::FL_OPAQUE || primitive.bucket == FLAlphaMode::FL_MASK)
             {
                 auto& drawItem = m_OpaqueDrawItems.emplace_back();
@@ -2140,4 +2231,236 @@ void vk::backend::impl::drawModel(AssetID id, const Fleur::Mat4& modelTransform)
             }
         }
     }
+}
+
+VkDescriptorSet vk::backend::impl::GetGBufferMaterialDescriptorSet(PrimitiveDrawInfo& primitive, VkDescriptorSetLayout materialSetLayout,
+                                                                     VkImageView fallbackImageView)
+{
+    VkImageView diffuseImageView = fallbackImageView;
+    if (primitive.material.albedo >= 0)
+    {
+        const auto texture = m_TextureMap.find(primitive.material.albedo);
+        if (texture != m_TextureMap.end() && texture->second.GetImageView() != VK_NULL_HANDLE)
+            diffuseImageView = texture->second.GetImageView();
+    }
+
+    const VkImageView specularImageView = fallbackImageView;
+    if (primitive.gBufferMaterialDescriptorSet == VK_NULL_HANDLE)
+        primitive.gBufferMaterialDescriptorSet = m_GBufferMaterialDescriptors.allocate(m_Device->GetLogicalDevice(), materialSetLayout, 1);
+
+    if (primitive.gBufferDiffuseImageView != diffuseImageView || primitive.gBufferSpecularImageView != specularImageView)
+    {
+        vk::abstraction::DescriptorWriter materialWriter{};
+        materialWriter.write_image(0, diffuseImageView, m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        materialWriter.write_image(1, specularImageView, m_ImageSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        materialWriter.update_set(m_Device->GetLogicalDevice(), primitive.gBufferMaterialDescriptorSet);
+        primitive.gBufferDiffuseImageView = diffuseImageView;
+        primitive.gBufferSpecularImageView = specularImageView;
+    }
+
+    return primitive.gBufferMaterialDescriptorSet;
+}
+
+void vk::backend::impl::ClearFrameDrawItems()
+{
+    m_OpaqueDrawItems.clear();
+    m_TransparentDrawItems.clear();
+}
+
+
+// GBuffer
+vk::backend::impl::GBuffer::GBuffer(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, uint32_t width, uint32_t height,
+                                    VkFormat depthFormat)
+    : m_Device(device)
+    , m_PhysicalDevice(physicalDevice)
+    , m_MemoryTracker(memoryTracker)
+    , m_Width(width)
+    , m_Height(height)
+{
+    // Create Textures
+    createTexture(position, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT);
+    createTexture(normal, VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_ASPECT_COLOR_BIT);
+    createTexture(albedo, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT);
+    createTexture(depth, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
+}
+
+vk::backend::impl::GBuffer::~GBuffer()
+{
+}
+
+void vk::backend::impl::GBuffer::createTexture(FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect)
+{
+    uint32_t mipLevels = 1;
+    uint32_t layerCount = 1;
+    uint32_t arrayLayers = 1;
+    uint32_t channels = GetChannelsNumFromFormat(format);
+
+    const VkImageUsageFlags attachmentUsage = (aspect & VK_IMAGE_ASPECT_DEPTH_BIT) != 0 ? VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                                                                                          : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    VkImageCreateInfo imageInfo{
+        .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+        .imageType = VK_IMAGE_TYPE_2D,
+        .format = format,
+        .extent = VkExtent3D{.width = m_Width, .height = m_Height, .depth = 1},
+        .mipLevels = mipLevels,
+        .arrayLayers = arrayLayers,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .tiling = VK_IMAGE_TILING_OPTIMAL,
+        .usage = attachmentUsage | VK_IMAGE_USAGE_SAMPLED_BIT,
+        .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+    };
+
+    VkImage vkImage = texture.CreateImage(m_Device, m_PhysicalDevice, m_MemoryTracker, FVkAllocationCategory::RenderTarget, imageInfo,
+                                          VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, aspect);
+
+    texture.CreateImageView();
+}
+
+void vk::backend::impl::ExecuteGBufferPass()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Deferred Rendering");
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "G-Buffer Pass");
+
+    std::array<FRenderingColorAttachmentDesc, 3> colorAttachments{};
+    for (size_t i = 0; i < 3; i++)
+    {
+        colorAttachments[i].imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+        colorAttachments[i].loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+        colorAttachments[i].storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+        colorAttachments[i].clearValue.color = {{1.0f, 1.0f, 1.0f, 1.0f}};
+    }
+    colorAttachments[0].imageView = m_GBuffer->GetPositionTexture().GetImageView();
+    colorAttachments[1].imageView = m_GBuffer->GetNormalTexture().GetImageView();
+    colorAttachments[2].imageView = m_GBuffer->GetAlbedoTexture().GetImageView();
+
+    const VkImageLayout previousColorLayout = m_GBuffer->GetColorLayout();
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetPositionTexture().GetImage(), VK_FORMAT_R16G16B16A16_SFLOAT, previousColorLayout,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetNormalTexture().GetImage(), VK_FORMAT_R16G16B16A16_SFLOAT, previousColorLayout,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetAlbedoTexture().GetImage(), VK_FORMAT_R8G8B8A8_UNORM, previousColorLayout,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+
+    FRenderingDepthAttachmentDesc depthDesc{};
+    depthDesc.imageView = m_DepthRenderTarget.GetImageView();
+    depthDesc.imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    depthDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    depthDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    depthDesc.clearValue.depthStencil = {.depth = 1.0f, .stencil = 0};
+
+
+    FBeginRenderingDesc renderingDesc{};
+    renderingDesc.colorAttachmentCount = 3;
+    renderingDesc.renderArea = m_GBuffer->GetRenderArea();
+    renderingDesc.colorAttachment = colorAttachments.data();
+    renderingDesc.depthAttachment = &depthDesc;
+    renderingDesc.layerCount = 1;
+    renderingDesc.viewMask = 0;
+
+    BeginRendering(*cmd.GetCommandBuffer(), renderingDesc);
+
+    cmd.BindVertexBuffer(&m_VertexBuffer->GetBuffer());
+    cmd.BindIndexBuffer(&m_IndexBuffer->GetBuffer(), VK_INDEX_TYPE_UINT32);
+
+    // We need to bind shadow pass pipeline
+    cmd.BindPipeline(m_GBufferPipeline->GetPipeline());
+
+    VkViewport defaultViewport{
+        .x = 0, .y = 0, .width = m_GBuffer->GetViewport().width, .height = m_GBuffer->GetViewport().height, .minDepth = 0, .maxDepth = 1.0f};
+    cmd.SetViewport(defaultViewport);
+
+    VkRect2D defaultScissors{
+        .offset = VkOffset2D{.x = 0, .y = 0},
+        .extent = m_GBuffer->GetRenderArea().extent,
+    };
+    cmd.SetScissors(defaultScissors);
+
+    const VkImageView fallbackImageView = m_TextureMap[m_FallbackTextureIdx].GetImageView();
+    const VkDescriptorSetLayout materialSetLayout = m_GBufferPipelineLayout->GetSetLayout(1);
+
+    for (const auto& drawItem : m_OpaqueDrawItems)
+    {
+        auto& primitive = m_Primitives[drawItem.primitiveIdx];
+        const VkDescriptorSet materialDescriptorSet = GetGBufferMaterialDescriptorSet(primitive, materialSetLayout, fallbackImageView);
+
+        std::array<VkDescriptorSet, 3> descriptorSets{
+            frame.scene.m_SceneDataDescriptor,
+            materialDescriptorSet,
+            frame.scene.m_SceneNodeTransformsDescriptor,
+        };
+        cmd.BindDescriptorSets(m_GBufferPipelineLayout->Get(), descriptorSets.data(), descriptorSets.size());
+
+        SFLDrawPushConstants pushConstants = MakeDrawPushConstants(primitive);
+        pushConstants.drawIndices.x = drawItem.nodeTransformsStartIdx;
+        pushConstants.drawIndices.y = drawItem.modelTransformIdx;
+        cmd.PushConstant(m_GBufferPipelineLayout->Get(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, pushConstants);
+        cmd.DrawIndexed(primitive.indexCount, primitive.indexOffset, primitive.vertexOffset, drawItem.instanceCount, 0);
+    }
+
+    cmd.EndRendering();
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetPositionTexture().GetImage(), VK_FORMAT_R16G16B16A16_SFLOAT,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetNormalTexture().GetImage(), VK_FORMAT_R16G16B16A16_SFLOAT,
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_GBuffer->GetAlbedoTexture().GetImage(), VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_GBuffer->SetColorLayout(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+}
+
+void vk::backend::impl::ExecuteLightingPass()
+{
+    auto& frame = GetCurrentFrame();
+    auto& cmd = frame.m_CommandBuffers;
+
+    cmd.CmdBeginDebugLabel(vk::myVkCmdBeginDebugUtilsLabelEXT, "Lighting Pass");
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
+                          m_SwapchainImageLayouts[m_ImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    FRenderingColorAttachmentDesc colorDesc{};
+    colorDesc.imageView = m_Swapchain->GetSwapchainImageView(m_ImageIndex);
+    colorDesc.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorDesc.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorDesc.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorDesc.clearValue.color = {{0.0f, 0.0f, 0.0f, 1.0f}};
+
+    const VkRect2D renderArea{.offset = {0, 0}, .extent = m_Swapchain->GetSwapchainExtent()};
+    FBeginRenderingDesc renderingDesc{};
+    renderingDesc.renderArea = renderArea;
+    renderingDesc.colorAttachment = &colorDesc;
+    renderingDesc.layerCount = 1;
+    BeginRendering(*cmd.GetCommandBuffer(), renderingDesc);
+
+    cmd.BindPipeline(m_DeferredLightingPipeline->GetPipeline());
+    const VkViewport viewport{.x = 0.0f,
+                              .y = 0.0f,
+                              .width = static_cast<float>(renderArea.extent.width),
+                              .height = static_cast<float>(renderArea.extent.height),
+                              .minDepth = 0.0f,
+                              .maxDepth = 1.0f};
+    cmd.SetViewport(viewport);
+    cmd.SetScissors(renderArea);
+
+    std::array<VkDescriptorSet, 5> descriptorSets{frame.scene.m_SceneDataDescriptor, m_GBufferLightingDescriptorSet, m_PointLightsDescriptorSet,
+                                                   frame.scene.m_ShadowMapDescriptorSet, m_PointLightShadowMapsDescriptorSet};
+    cmd.BindDescriptorSets(m_DeferredLightingPipelineLayout->Get(), descriptorSets.data(), descriptorSets.size());
+    cmd.Draw(3);
+    cmd.EndRendering();
+
+    transitionImageLayout(*cmd.GetCommandBuffer(), m_Swapchain->GetSwapchainImage(m_ImageIndex), m_Swapchain->GetImageFormat(),
+                          VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    m_SwapchainImageLayouts[m_ImageIndex] = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    cmd.CmdEndDebugLabel(vk::myVkCmdEndDebugUtilsLabelEXT);
+
+    ClearFrameDrawItems();
 }

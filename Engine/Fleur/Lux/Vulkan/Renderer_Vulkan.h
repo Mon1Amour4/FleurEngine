@@ -40,6 +40,8 @@ struct backend : public Fleur::Graphics::IRenderer
     void SetShadowSceneBounds(const Fleur::Graphics::BoundingBox& bounds) override;
     void SetShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
                            Fleur::Graphics::LightSampling pointLight) override;
+    // TEMP_DEBUG_F4_NORMAL_MAP: temporary normal-map debug toggle.
+    void SetNormalMappingEnabled(bool enabled) override;
 
     virtual void CreatePass(EFLPassKind kind, SFLShaderStages shaderStages) override;
     virtual void CreateShadowPass(EFLShadowPassKind kind, SFLShaderStages shaderStages) override;

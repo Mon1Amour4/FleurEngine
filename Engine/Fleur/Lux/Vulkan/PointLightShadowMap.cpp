@@ -56,8 +56,8 @@ void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevic
         imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
         imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 
-        m_PointLightShadowMaps[index].CreateImage(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::DepthTarget, imageInfo,
-                                                   VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
+        m_PointLightShadowMaps[index].CreateImage(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::RenderTarget, imageInfo,
+                                                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, VK_IMAGE_ASPECT_DEPTH_BIT);
         m_PointLightShadowMaps[index].CreateImageView(VK_IMAGE_VIEW_TYPE_CUBE, kCubeLayers);
 
         VkImageViewCreateInfo arrayViewInfo{VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO};
@@ -72,7 +72,6 @@ void PointLightShadowMap::Create(VkDevice device, VkPhysicalDevice physicalDevic
 
     m_MatricesBuffer.Init(m_Device, m_PhysicalDevice, memoryTracker, FVkAllocationCategory::Buffer, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
                           sizeof(ShadowMatrices) * m_TextureCount, sizeof(ShadowMatrices));
-
 }
 
 void PointLightShadowMap::Begin(FVkCommandBuffer& commandBuffer, uint32_t lightIndex)
@@ -89,8 +88,7 @@ void PointLightShadowMap::Begin(FVkCommandBuffer& commandBuffer, uint32_t lightI
     m_ActiveLightIndex = lightIndex;
 
     FVkTexture& texture = m_PointLightShadowMaps[lightIndex];
-    transitionImageLayout(commandBufferHandle, texture.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
+    transitionImageLayout(commandBufferHandle, texture.GetImage(), VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL);
 
     VkRenderingAttachmentInfo depthAttachment{VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO};
     depthAttachment.imageView = m_ArrayImageViews[lightIndex];
@@ -121,8 +119,8 @@ void PointLightShadowMap::Begin(FVkCommandBuffer& commandBuffer, uint32_t lightI
     VkRect2D scissor{{0, 0}, m_Extent};
     vkCmdSetScissor(commandBufferHandle, 0, 1, &scissor);
 
-    vkCmdBindDescriptorSets(commandBufferHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 1, 1,
-                             &m_MatricesDescriptorSets[lightIndex], 0, nullptr);
+    vkCmdBindDescriptorSets(commandBufferHandle, VK_PIPELINE_BIND_POINT_GRAPHICS, m_Pipeline->GetPipelineLayout(), 1, 1, &m_MatricesDescriptorSets[lightIndex],
+                            0, nullptr);
 }
 
 void PointLightShadowMap::End(FVkCommandBuffer& commandBuffer)
@@ -134,8 +132,8 @@ void PointLightShadowMap::End(FVkCommandBuffer& commandBuffer)
 
     assert(m_ActiveLightIndex != UINT32_MAX);
     const uint32_t lightIndex = m_ActiveLightIndex;
-    transitionImageLayout(commandBufferHandle, m_PointLightShadowMaps[lightIndex].GetImage(),
-                          VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    transitionImageLayout(commandBufferHandle, m_PointLightShadowMaps[lightIndex].GetImage(), VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                          VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     m_ActiveLightIndex = UINT32_MAX;
 }
 
@@ -157,8 +155,7 @@ void PointLightShadowMap::PrepareForSampling(FVkCommandBuffer& commandBuffer)
     m_ImagesInitialized = true;
 }
 
-void PointLightShadowMap::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout,
-                                                 VkImageLayout newLayout)
+void PointLightShadowMap::transitionImageLayout(VkCommandBuffer commandBuffer, VkImage image, VkImageLayout oldLayout, VkImageLayout newLayout)
 {
     if (oldLayout == newLayout)
         return;
@@ -238,8 +235,7 @@ void PointLightShadowMap::UpdateMatrices(uint32_t lightIndex, const std::array<F
     assert(lightIndex < m_TextureCount);
 
     void* mappedMemory = m_MatricesBuffer.Map();
-    std::memcpy(static_cast<char*>(mappedMemory) + sizeof(ShadowMatrices) * lightIndex,
-                matrices.data(), sizeof(ShadowMatrices));
+    std::memcpy(static_cast<char*>(mappedMemory) + sizeof(ShadowMatrices) * lightIndex, matrices.data(), sizeof(ShadowMatrices));
     m_MatricesBuffer.Unmap();
 }
 

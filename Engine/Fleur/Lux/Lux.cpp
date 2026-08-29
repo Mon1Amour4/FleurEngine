@@ -73,6 +73,8 @@ void Renderer::initBackend()
                                      m_DirectionalLightSampling, m_PointLightSampling, Fleur::Log::GetCoreLogger());
 
     m_Backend->SetShaderRegistry(*m_ShaderRegistry);
+    // TEMP_DEBUG_F4_NORMAL_MAP: keep backend state aligned with the frontend default.
+    m_Backend->SetNormalMappingEnabled(m_NormalMappingEnabled);
 
     m_Debug = new DebugDraw(m_Backend);
     InitializePipelines();
@@ -86,6 +88,8 @@ void Renderer::InitializePipelines()
     auto fallbackAsset = assetsManager->Get<Fleur::Graphics::Image2D>("wall_placeholder2.png");
 
     m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Opaque, {"opaqueVertex", "opaqueFragment"});
+    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::Deferred, {"opaqueVertex", "deferredFragment"});
+    m_Backend->CreatePass(Fleur::Graphics::EFLPassKind::DeferredLighting, {"deferredLightingVertex", "deferredLightingFragment"});
     m_Backend->ConfigureDebugDraw({.primitives = {"debugVertex", "debugFragment"},
                                    .geometry = {"debugGeometryVertex", "debugGeometryFragment"}});
     m_Backend->ConfigureOverlay({"overlayVertex", "overlayFragment"});
@@ -222,6 +226,14 @@ void Renderer::ToggleShadowMapPreview()
     if (m_ShadowMapPreviewLayer >= previewLayerCount)
         m_ShadowMapPreviewLayer = -1;
     m_ShowShadowMapPreview = m_ShadowMapPreviewLayer >= 0;
+}
+
+// TEMP_DEBUG_F4_NORMAL_MAP: remove after normal-map debugging.
+void Renderer::ToggleNormalMapping()
+{
+    m_NormalMappingEnabled = !m_NormalMappingEnabled;
+    if (m_Backend)
+        m_Backend->SetNormalMappingEnabled(m_NormalMappingEnabled);
 }
 
 void Renderer::StartResize()

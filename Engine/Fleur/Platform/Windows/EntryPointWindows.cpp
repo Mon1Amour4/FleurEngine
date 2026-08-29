@@ -23,7 +23,7 @@ int APIENTRY FleurMain(HINSTANCE hInst, HINSTANCE hInstPrev, PSTR cmdline, int c
     settings.WindowProperties.y = 100;
     settings.WindowProperties.CanFullscreen = false;
 
-    settings.maxPointLights = 16;
+    settings.maxPointLights = 100;
     settings.directionalLightSampling = Fleur::Graphics::LightSampling::NoiseTexture;
     settings.pointLightSampling = Fleur::Graphics::LightSampling::NoiseTexture;
 

@@ -18,6 +18,7 @@ struct ImagePostCreation
     uint16_t channels{};
     uint16_t depthBytes{};
     const void* data{};
+    bool srgb{true};
 };
 
 class ImageBase
@@ -58,6 +59,8 @@ public:
         return m_Layers;
     }
 
+    bool IsSRGB() const { return m_SRGB; }
+
     [[nodiscard]] size_t GetSizeBytes() const
     {
         assert(m_SizeBytes > 0);
@@ -76,6 +79,7 @@ public:
         m_Channels = settings.channels;
         m_DepthBytes = settings.depthBytes;
         m_SizeBytes = m_Width * m_Height * m_Channels * m_DepthBytes;
+        m_SRGB = settings.srgb;
     }
 
 protected:
@@ -100,6 +104,7 @@ protected:
     size_t m_SizeBytes;
 
     bool m_IsCreated;
+    bool m_SRGB{true};
 };
 
 class Image2D : public ImageBase

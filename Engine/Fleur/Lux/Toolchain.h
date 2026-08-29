@@ -39,7 +39,7 @@ public:
             if (it->first->IsValid())
             {
                 Fleur::Graphics::ImagePostCreation settings{it->first->GetWidth(), it->first->GetHeight(), it->first->GetChannelsCount(), it->first->GetDepth(),
-                                                            it->first->GetData()};
+                                                            it->first->GetData(), it->first->IsSRGB()};
                 it->second->PostCreate(settings);
                 it = m_Pairs.erase(it);
             }

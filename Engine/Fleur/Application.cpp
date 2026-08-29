@@ -119,6 +119,10 @@ bool Fleur::Application::OnKeyPressEvent(KeyPressedEvent& event)
     case Key::F2:
         ServiceLocator::instance().GetService<Renderer>()->ToggleShadowMapPreview();
         break;
+    // TEMP_DEBUG_F4_NORMAL_MAP: remove after normal-map debugging.
+    case Key::F4:
+        ServiceLocator::instance().GetService<Renderer>()->ToggleNormalMapping();
+        break;
     case Key::D3:
     {
         auto renderer = ServiceLocator::instance().GetService<Renderer>();

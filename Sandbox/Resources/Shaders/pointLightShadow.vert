@@ -21,4 +21,5 @@ void main()
 {
     vec4 worldPosition = ssbo.transforms[pc.modelIdx] * ssbo.transforms[pc.nodeIdx + gl_InstanceIndex] * vec4(inPosition, 1.0);
     gl_Position = worldPosition;
+    // Keep the model vertex layout identical to the opaque pass.
 }

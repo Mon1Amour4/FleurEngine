@@ -1,5 +1,6 @@
 #include "FVkShader.h"
 #include "FVkPipelineLayout.h"
+#include "../Graphics.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -141,8 +142,48 @@ bool vk::FVkShader::getReflection(ShaderData& shaderData, const void* const pVer
             uint32_t componentCount = inputVariable->numeric.vector.component_count;
             uint32_t componentSize = inputVariable->numeric.scalar.width / 8;
             inputOffset += componentCount * componentSize;
+
+            FL_CORE_INFO("[Vulkan][VertexLayout] stage={} location={} format={} offset={} size={}", static_cast<uint32_t>(shaderData.shaderStage),
+                         location, static_cast<uint32_t>(format), offset, componentCount * componentSize);
         }
-        m_VertexInput.bindingDescription.stride = inputOffset;
+
+        bool isModelVertexLayout = false;
+        if (m_VertexInput.m_VertexInputAttributes.size() == 3 || m_VertexInput.m_VertexInputAttributes.size() == 4)
+        {
+            bool hasPosition = false;
+            bool hasTexCoord = false;
+            bool hasNormal = false;
+            for (const auto& attribute : m_VertexInput.m_VertexInputAttributes)
+            {
+                hasPosition |= attribute.location == 0 && attribute.format == VK_FORMAT_R32G32B32_SFLOAT;
+                hasTexCoord |= attribute.location == 1 && attribute.format == VK_FORMAT_R32G32_SFLOAT;
+                hasNormal |= attribute.location == 2 && attribute.format == VK_FORMAT_R32G32B32_SFLOAT;
+            }
+            isModelVertexLayout = hasPosition && hasTexCoord && hasNormal;
+        }
+
+        if (isModelVertexLayout)
+        {
+            for (auto& attribute : m_VertexInput.m_VertexInputAttributes)
+            {
+                switch (attribute.location)
+                {
+                    case 0: attribute.offset = offsetof(Fleur::Graphics::SVertexData, Position); break;
+                    case 1: attribute.offset = offsetof(Fleur::Graphics::SVertexData, TexCoord); break;
+                    case 2: attribute.offset = offsetof(Fleur::Graphics::SVertexData, Normal); break;
+                    case 3: attribute.offset = offsetof(Fleur::Graphics::SVertexData, Tangent); break;
+                    default: break;
+                }
+            }
+            m_VertexInput.bindingDescription.stride = sizeof(Fleur::Graphics::SVertexData);
+        }
+        else
+        {
+            m_VertexInput.bindingDescription.stride = inputOffset;
+        }
+
+        FL_CORE_INFO("[Vulkan][VertexLayout] stage={} attributes={} finalStride={} explicitModelLayout={}", static_cast<uint32_t>(shaderData.shaderStage),
+                     m_VertexInput.m_VertexInputAttributes.size(), m_VertexInput.bindingDescription.stride, isModelVertexLayout);
 
 
         const bool hasVertexAttributes = !m_VertexInput.m_VertexInputAttributes.empty();
@@ -444,6 +485,7 @@ void vk::FVkShader::BuildPipeline(FVkPipeline& pipeline, const GetPipelineInfo& 
     desc.depthBiasSlopeFactor = info.depthBiasSlopeFactor;
     desc.colorAttachmentCount = info.colorAttachmentCount;
     desc.colorFormat = info.colorFormat;
+    desc.colorFormats = info.colorFormats;
     desc.depthFormat = info.depthFormat;
     desc.vertexEntryPointName = m_VertexShader.entryPoint.c_str();
     desc.fragmentEntryPointName = m_FragmentShader.entryPoint.c_str();

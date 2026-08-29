@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "DescriptorPoolAllocator.h"
+#include "DirectionalShadowMath.hpp"
 #include "FVkBuffer.h"
 #include "FVkCommand.h"
 #include "FVkDebugDraw.h"
@@ -34,7 +35,6 @@
 #include "FVkPipelineLayout.h"
 #include "FVkShader.h"
 #include "FVkSkybox.h"
-#include "DirectionalShadowMath.hpp"
 #include "FVkSwapchain.h"
 #include "FVkTexture.h"
 #include "PointLightShadowMap.h"
@@ -74,7 +74,7 @@
 #define CUBEMAP_LAYERS_COUNT 6
 
 constexpr uint32_t MAX_TEXTURES = 4096;
-constexpr uint32_t POINT_LIGHTS_CAPACITY = 12;
+constexpr uint32_t POINT_LIGHTS_CAPACITY = 100;
 
 #pragma endregion
 
@@ -83,8 +83,8 @@ constexpr uint32_t POINT_LIGHTS_CAPACITY = 12;
 struct SGPUMaterial
 {
     Fleur::Vec4 baseColorFactor{1};
-    uint32_t albedo{0};
-    uint32_t normal{0};
+    int32_t albedo{-1};
+    int32_t normal{-1};
     float metallic{1};
     float roughness{1};
     float alphaCutoff{0};
@@ -118,27 +118,35 @@ struct PrimitiveDrawInfo
 
     SGPUMaterial material;
 
+    // The material set is shared by every instance of this primitive.  Its
+    // image views are retained so a completed asynchronous texture load can
+    // refresh the descriptor exactly once.
+    VkDescriptorSet gBufferMaterialDescriptorSet{VK_NULL_HANDLE};
+    VkImageView gBufferDiffuseImageView{VK_NULL_HANDLE};
+    VkImageView gBufferSpecularImageView{VK_NULL_HANDLE};
+
     Fleur::Vec3 boundingBoxCenter{};
 
     void FromMaterial(const Fleur::Graphics::FLMaterial& mat)
     {
         material.albedo = mat.albedo;
+        material.normal = mat.normal;
 
         material.alphaCutoff = mat.alphaCutoff;
         material.baseColorFactor = mat.baseColorFactor;
-
-        material.normal = mat.normal;
     }
 };
 
-SFLPushConstant MakePush(const PrimitiveDrawInfo& info)
+SFLDrawPushConstants MakeDrawPushConstants(const PrimitiveDrawInfo& info)
 {
-    SFLPushConstant pc{};
-    pc.indices.z = info.material.albedo;
-    pc.baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b, info.material.baseColorFactor.a};
-    pc.materialParams.x = info.material.alphaCutoff;
+    SFLDrawPushConstants constants{};
+    constants.textureIndices.x = info.material.albedo;
+    constants.textureIndices.y = info.material.normal;
+    constants.baseColorFactor = {info.material.baseColorFactor.r, info.material.baseColorFactor.g, info.material.baseColorFactor.b,
+                                 info.material.baseColorFactor.a};
+    constants.materialParams.x = info.material.alphaCutoff;
 
-    return pc;
+    return constants;
 }
 #pragma endregion
 
@@ -318,6 +326,9 @@ struct backend::impl
 
     std::shared_ptr<spdlog::logger> m_Logger;
 
+    // TEMP_DEBUG_F4_NORMAL_MAP: remove with the F4 toggle.
+    bool m_NormalMappingEnabled{true};
+
     bool beginFrame(const Fleur::Graphics::RenderFrameData& frameData);
     void endFrame();
 
@@ -342,7 +353,6 @@ struct backend::impl
     Fleur::SRect m_SurfaceRect;
 
     std::unique_ptr<FVkDevice> m_Device;
-    std::chrono::steady_clock::time_point m_LastMemoryDiagnosis{};
     std::unique_ptr<FVkSwapchain> m_Swapchain;
     VkSurfaceKHR m_Surface;
     VkSurfaceKHR createSurface(VkInstance instance, void* nativeHandle);
@@ -360,9 +370,10 @@ struct backend::impl
     FVkPipeline* m_ShadowPipeline{nullptr};
     FVkPipeline* createShadowPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pGeometryInfo,
                                       Fleur::Graphics::SFLShaderBytecode pFragmentInfo, VkSampleCountFlagBits samplesCount);
-    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo,
-                                        Fleur::Graphics::SFLShaderBytecode pFragmentInfo, const vk::GetPipelineInfo& pipelineInfo,
-                                        Fleur::Graphics::SFLShaderBytecode pGeometryInfo = {});
+    FVkPipeline* createGBufferPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo);
+    FVkPipeline* createDeferredLightingPipeline(Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo);
+    FVkPipeline* createGraphicsPipeline(const char* shaderKey, Fleur::Graphics::SFLShaderBytecode pVertexInfo, Fleur::Graphics::SFLShaderBytecode pFragmentInfo,
+                                        const vk::GetPipelineInfo& pipelineInfo, Fleur::Graphics::SFLShaderBytecode pGeometryInfo = {});
 
     // ---------- shaders ----------
     VkShaderModule createShaderModule(Fleur::Graphics::SFLShaderBytecode* pShaderInfo);
@@ -385,11 +396,15 @@ struct backend::impl
         VkDescriptorSet m_DirectionalShadowMatricesDescriptor{VK_NULL_HANDLE};
         FVkBuffer m_DirectionalShadowMatricesBuffer;
 
-        FVkBuffer m_CameraBuffer;
-        VkDescriptorSet m_CameraDescriptor{VK_NULL_HANDLE};
+        FVkBuffer m_SceneDataBuffer;
+        VkDescriptorSet m_SceneDataDescriptor{VK_NULL_HANDLE};
 
         FVkBuffer m_SceneNodeTransformsStorageBuffer;
         VkDescriptorSet m_SceneNodeTransformsDescriptor{VK_NULL_HANDLE};
+
+        VkDescriptorSet m_positionDescriptor{VK_NULL_HANDLE};
+        VkDescriptorSet m_NormalDescriptor{VK_NULL_HANDLE};
+        VkDescriptorSet m_albedoDescriptor{VK_NULL_HANDLE};
     };
 
     PointLightShadowMap m_PointLightShadowMaps;
@@ -400,7 +415,11 @@ struct backend::impl
 
     std::shared_ptr<FVkPipelineLayout> m_OpaquePipelineLayout;
     std::shared_ptr<FVkPipelineLayout> m_ShadowPipelineLayout;
+    std::shared_ptr<FVkPipelineLayout> m_GBufferPipelineLayout;
+    std::shared_ptr<FVkPipelineLayout> m_DeferredLightingPipelineLayout;
     bool m_OpaqueDescriptorSetsInitialized{false};
+    vk::abstraction::DescriptorAllocator m_GBufferMaterialDescriptors;
+    bool m_GBufferMaterialDescriptorsInitialized{false};
     FVkPipelineCache m_PipelineCache;
     std::unordered_map<std::string, std::shared_ptr<FVkPipelineLayout>> m_PipelineLayouts;
     struct Frame
@@ -413,6 +432,7 @@ struct backend::impl
         FVkDepthTarget m_DirectionalLightShadowMap;
         VkImageLayout m_DirectionalLightShadowMapLayout{VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL};
 
+        // Persistent frame descriptors: scene UBO/SSBO and shadow maps.
         vk::abstraction::DescriptorAllocator frameDescriptors;
         FrameSceneResources scene;
     };
@@ -465,6 +485,9 @@ struct backend::impl
                        const FLInstanceItem* srcInstances, uint32_t instanceCount);
     void unregisterModel(AssetID id);
     void drawModel(AssetID id, const Fleur::Mat4& transform);
+    VkDescriptorSet GetGBufferMaterialDescriptorSet(PrimitiveDrawInfo& primitive, VkDescriptorSetLayout materialSetLayout,
+                                                     VkImageView fallbackImageView);
+    void ClearFrameDrawItems();
 
     uint32_t m_CurrentFrame{0};
     static constexpr uint32_t kFramesInFlight = 3;
@@ -551,7 +574,9 @@ struct backend::impl
     {
         VkRect2D renderArea{};
 
+        uint32_t colorAttachmentCount = 0;
         const FRenderingColorAttachmentDesc* colorAttachment = nullptr;
+
         const FRenderingDepthAttachmentDesc* depthAttachment = nullptr;
 
         uint32_t layerCount = 1;
@@ -629,8 +654,7 @@ struct backend::impl
         m_StableCascadeHalfWidths.fill(0.0f);
         m_StableCascadeHalfHeights.fill(0.0f);
     }
-    void setShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight,
-                           Fleur::Graphics::LightSampling pointLight)
+    void setShadowSettings(uint32_t cascadeCount, Fleur::Graphics::LightSampling directionalLight, Fleur::Graphics::LightSampling pointLight)
     {
         m_CascadeCount = std::clamp(cascadeCount, 1u, static_cast<uint32_t>(kMaxCascadeCount));
         m_DirectionalLightSampling = directionalLight;
@@ -667,7 +691,8 @@ struct backend::impl
     {
         std::array<float, N> splits;
         static constexpr float step = 1.0f / N;
-        CascadeSplits() : splits{}
+        CascadeSplits()
+            : splits{}
         {
             Update(0.1f, 1000.0f, 1.0f, N);
         }
@@ -709,5 +734,81 @@ struct backend::impl
 
     std::vector<Fleur::Vec4> getFrustumCornersWorldSpace(const Fleur::Mat4& proj, const Fleur::Mat4& view);
     std::array<Fleur::Vec4, 8> SplitFrustum(const std::vector<Fleur::Vec4>& corners, float splitNear, float splitFar);
+
+    class GBuffer
+    {
+    public:
+        GBuffer(VkDevice device, VkPhysicalDevice physicalDevice, FVkMemoryTracker& memoryTracker, uint32_t width, uint32_t height, VkFormat depthFormat);
+        ~GBuffer();
+
+        VkViewport GetViewport() const
+        {
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = static_cast<float>(m_Width);
+            viewport.height = static_cast<float>(m_Height);
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            return viewport;
+        }
+        VkRect2D GetRenderArea() const
+        {
+            VkRect2D renderArea{};
+            renderArea.offset = {0, 0};
+            renderArea.extent = {m_Width, m_Height};
+            return renderArea;
+        }
+        const FVkTexture& GetPositionTexture() const
+        {
+            return position;
+        }
+        const FVkTexture& GetNormalTexture() const
+        {
+            return normal;
+        }
+        const FVkTexture& GetAlbedoTexture() const
+        {
+            return albedo;
+        }
+        VkImageLayout GetColorLayout() const
+        {
+            return m_ColorLayout;
+        }
+        void SetColorLayout(VkImageLayout layout)
+        {
+            m_ColorLayout = layout;
+        }
+        const FVkTexture& GetDepthTexture() const
+        {
+            return depth;
+        }
+
+    private:
+        VkDevice m_Device;
+        VkPhysicalDevice m_PhysicalDevice;
+        FVkMemoryTracker& m_MemoryTracker;
+
+        uint32_t m_Width;
+        uint32_t m_Height;
+
+        FVkTexture position;
+        FVkTexture normal;
+        FVkTexture albedo;  // Color + Specular
+        FVkTexture depth;
+        VkImageLayout m_ColorLayout{VK_IMAGE_LAYOUT_UNDEFINED};
+
+
+        void createTexture(FVkTexture& texture, VkFormat format, VkImageAspectFlags aspect);
+    };
+
+    FVkPipeline* m_GBufferPipeline{nullptr};
+    FVkPipeline* m_DeferredLightingPipeline{nullptr};
+    VkDescriptorSet m_GBufferLightingDescriptorSet{VK_NULL_HANDLE};
+    std::unique_ptr<GBuffer> m_GBuffer;
+    void ExecuteGBufferPass();
+    void ExecuteLightingPass();
 };
+
+
 }  // namespace vk

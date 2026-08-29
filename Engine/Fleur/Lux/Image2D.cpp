@@ -38,6 +38,7 @@ Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
     , m_Layers(other.m_Layers)
     , m_SizeBytes(other.m_SizeBytes)
     , m_IsCreated(other.m_IsCreated)
+    , m_SRGB(other.m_SRGB)
 {
     other.m_Width = 0;
     other.m_Height = 0;
@@ -46,6 +47,7 @@ Fleur::Graphics::ImageBase::ImageBase(ImageBase&& other) noexcept
     other.m_Layers = 0;
     other.m_SizeBytes = 0;
     other.m_IsCreated = false;
+    other.m_SRGB = true;
 }
 Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& other) noexcept
 {
@@ -59,6 +61,7 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
         m_Layers = other.m_Layers;
         m_SizeBytes = other.m_SizeBytes;
         m_IsCreated = other.m_IsCreated;
+        m_SRGB = other.m_SRGB;
 
         other.m_Width = 0;
         other.m_Height = 0;
@@ -67,6 +70,7 @@ Fleur::Graphics::ImageBase& Fleur::Graphics::ImageBase::operator=(ImageBase&& ot
         other.m_Layers = 0;
         other.m_SizeBytes = 0;
         other.m_IsCreated = false;
+        other.m_SRGB = true;
     }
     return *this;
 }
@@ -113,6 +117,7 @@ Fleur::Graphics::Image2D& Fleur::Graphics::Image2D::operator=(Fleur::Graphics::I
         m_DepthBytes = other.m_DepthBytes;
         m_Layers = other.m_Layers;
         m_SizeBytes = other.m_SizeBytes;
+        m_SRGB = other.m_SRGB;
 
         other.m_Width = 0;
         other.m_Height = 0;
@@ -147,7 +152,7 @@ Fleur::Graphics::Image2D::Image2D(Fleur::Graphics::Image2D&& other) noexcept
 
 Fleur::Graphics::SFLImageView Fleur::Graphics::Image2D::GetView() const
 {
-    return {0, (const char*)m_Bitmap.GetData(), m_Width, m_Height, m_Layers, m_Channels};
+    return {0, (const char*)m_Bitmap.GetData(), m_Width, m_Height, m_Layers, m_Channels, m_SRGB};
 }
 void Fleur::Graphics::Image2D::PostCreate(ImagePostCreation& settings)
 {

@@ -2,6 +2,7 @@
 
 #include <Fleur/Math/Math.hpp>
 #include <algorithm>
+#include <cmath>
 
 #include "AssetsManager.h"
 #include "FleurAllocator.hpp"
@@ -45,10 +46,27 @@ void Scene::Init()
     m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(Vec3(-9, 2, -2), 5, Fleur::Graphics::Color::Green(), 0.7f));
     m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(Vec3(0, 1, 0), 3, Fleur::Graphics::Color::White(), 0.7f));
 
+    // Deferred stress scene: 100 total lights, each with a cubemap shadow.
+    constexpr uint32_t kStressPointLightCount = 10;
+    m_PointLightHandles.reserve(kStressPointLightCount);
+    const std::array<Fleur::Graphics::Color, 3> stressColors{
+        Fleur::Graphics::Color::Red(),
+        Fleur::Graphics::Color::Green(),
+        Fleur::Graphics::Color::White(),
+    };
+    for (uint32_t lightIndex = static_cast<uint32_t>(m_PointLightHandles.size()); lightIndex < kStressPointLightCount; ++lightIndex)
+    {
+        const uint32_t gridX = lightIndex % 25;
+        const uint32_t gridZ = (lightIndex / 25) % 20;
+        const uint32_t gridY = (lightIndex / (25 * 20)) % 2;
+        const Vec3 position{(static_cast<float>(gridX) - 12.0f) * 1.5f, 1.0f + static_cast<float>(gridY) * 3.0f, (static_cast<float>(gridZ) - 9.5f) * 1.5f};
+        m_PointLightHandles.emplace_back(m_LightingSystem->CreatePointLight(position, 4.0f, stressColors[lightIndex % stressColors.size()], 0.08f));
+    }
+
     auto renderer = ServiceLocator::instance().GetService<Lux::Renderer>();
     renderer->CreateFloor(m_FloorTextureIdx, 0);
 
-    auto sponza = assets->LoadModelAsync("Sponza/Sponza2.glb");
+    auto sponza = assets->LoadModelAsync("Sponza/Fleur_Scene_ai_test.glb");
     m_Instances.push_back(SceneInstance{sponza->asset.handle, transform});
 
     // auto helmet = assets->LoadModelAsync("DamagedHelmet.glb");
@@ -89,6 +107,32 @@ void Scene::OnUpdate(float dtTime)
     m_LightingSystem->SetDirection(m_DirectionalLightHandle, Fleur::Math::RotatePointY(directionalDirection, center, dtTime * speed));
 
     m_LightingSystem->GetDirectionalLight(m_DirectionalLightHandle)->DebugDraw(&*renderer, m_SunTextureIdx);
+
+    // Keep the stress lights moving without creating or destroying lights.
+    // The first three are the original scene lights; all later lights orbit
+    // around their grid cells with individual phases.
+    m_StressLightTime += dtTime;
+    constexpr size_t kFirstStressLightIndex = 3;
+    /*for (size_t lightIndex = kFirstStressLightIndex; lightIndex < m_PointLightHandles.size(); ++lightIndex)
+    {
+        const uint32_t stressIndex =
+     * static_cast<uint32_t>(lightIndex - kFirstStressLightIndex);
+        const uint32_t gridX = stressIndex % 25;
+        const uint32_t gridZ = (stressIndex
+     * / 25) % 20;
+        const uint32_t gridY = (stressIndex / (25 * 20)) % 2;
+        const float phase = static_cast<float>(stressIndex) * 0.173f;
+ const
+     * float angularSpeed = 0.6f + static_cast<float>(stressIndex % 5) * 0.08f;
+        const float angle = m_StressLightTime * angularSpeed + phase;
+ const
+     * Vec3 position{(static_cast<float>(gridX) - 12.0f) * 1.5f + std::cos(angle) * 0.75f,
+                            1.0f + static_cast<float>(gridY) * 3.0f +
+     * std::sin(angle * 1.7f) * 0.5f,
+                            (static_cast<float>(gridZ) - 9.5f) * 1.5f + std::sin(angle) * 0.75f};
+
+     * m_LightingSystem->SetPosition(m_PointLightHandles[lightIndex], position);
+    }*/
 
     const auto lightingFrameData = m_LightingSystem->BuildFrameData();
     for (const auto& pointLight : lightingFrameData.pointLights)
