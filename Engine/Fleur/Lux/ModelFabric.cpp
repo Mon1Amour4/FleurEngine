@@ -1,13 +1,162 @@
 #include "ModelFabric.h"
 
+#include <filesystem>
+#include <cmath>
+#include <numeric>
+#include <unordered_map>
+#include <vector>
+
 #include "Services/ServiceLocator.h"
+#include "TangentGeneration.hpp"
+
+namespace
+{
+
+bool IsSupportedFloatComponent(cgltf_component_type componentType)
+{
+    switch (componentType)
+    {
+    case cgltf_component_type_r_8:
+    case cgltf_component_type_r_8u:
+    case cgltf_component_type_r_16:
+    case cgltf_component_type_r_16u:
+    case cgltf_component_type_r_32u:
+    case cgltf_component_type_r_32f:
+        return true;
+    case cgltf_component_type_invalid:
+    case cgltf_component_type_max_enum:
+    default:
+        return false;
+    }
+}
+
+bool IsSupportedIndexComponent(cgltf_component_type componentType)
+{
+    return componentType == cgltf_component_type_r_8u || componentType == cgltf_component_type_r_16u || componentType == cgltf_component_type_r_32u;
+}
+
+bool ValidateAttributeAccessor(const cgltf_accessor* accessor, cgltf_type expectedType, const char* attributeName)
+{
+    if (!accessor)
+    {
+        FL_CORE_ERROR("[ModelFabric] Missing {0} accessor", attributeName);
+        return false;
+    }
+
+    if (accessor->type != expectedType)
+    {
+        FL_CORE_ERROR("[ModelFabric] {0} accessor has unsupported type {1}; expected {2}", attributeName, static_cast<int>(accessor->type),
+                      static_cast<int>(expectedType));
+        return false;
+    }
+
+    if (!IsSupportedFloatComponent(accessor->component_type))
+    {
+        FL_CORE_ERROR("[ModelFabric] {0} accessor has unsupported component type {1}", attributeName, static_cast<int>(accessor->component_type));
+        return false;
+    }
+
+    return true;
+}
+
+bool ReadAttribute(const cgltf_accessor* accessor, cgltf_size index, cgltf_float* values, cgltf_size componentCount, const char* attributeName)
+{
+    if (index >= accessor->count || !cgltf_accessor_read_float(accessor, index, values, componentCount))
+    {
+        FL_CORE_ERROR("[ModelFabric] Failed to read {0} accessor element {1}", attributeName, index);
+        return false;
+    }
+
+    return true;
+}
+
+} // namespace
 
 //======================================================================
 // CGLTFModelFabric
-Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const cgltf_data const* data)
+
+std::string Fleur::Graphics::CGLTFModelFabric::s_SolidImageName = "Solid_texture";
+
+Fleur::Graphics::CGLTFModelFabric::CGLTFModelFabric(std::string_view name, const cgltf_data* data)
     : m_Name(name)
     , m_Data(data)
 {
+}
+
+std::string Fleur::Graphics::CGLTFModelFabric::GetImageAssetKey(const cgltf_image& image) const
+{
+    const std::filesystem::path modelPath(m_Name);
+
+    if (image.uri && strncmp(image.uri, "data:", 5) != 0)
+    {
+        std::string decodedUri = image.uri;
+        cgltf_decode_uri(decodedUri.data());
+        return (modelPath.parent_path() / decodedUri).lexically_normal().string();
+    }
+
+    if (m_Data && m_Data->images)
+    {
+        const size_t imageIndex = static_cast<size_t>(&image - m_Data->images);
+        return modelPath.lexically_normal().string() + "#image_" + std::to_string(imageIndex);
+    }
+
+    return modelPath.lexically_normal().string() + "#embedded_image";
+}
+
+Fleur::Graphics::AssetID Fleur::Graphics::CGLTFModelFabric::LoadImageAsset(const cgltf_image& image, Fleur::AssetsManager& assetsManager, bool srgb)
+{
+    const std::string imageAssetKey = GetImageAssetKey(image);
+
+    if (!image.uri && image.buffer_view)
+    {
+        const auto* imageBuffer = image.buffer_view;
+        const uint8_t* imageData = cgltf_buffer_view_data(imageBuffer);
+        if (!imageData)
+            return 0;
+        return assetsManager.LoadImage(imageAssetKey, {.imageSource = IMAGE_SOURCE_MEMORY,
+                                                   .gammaCorrection = srgb ? GAMMA_CORRECTION_SRGB : GAMMA_CORRECTION_LINEAR,
+                                                   .pMemoryData = const_cast<unsigned char*>(imageData),
+                                                   .sizeInMemory = static_cast<uint32_t>(imageBuffer->size)})
+            .handle.id;
+    }
+
+    if (image.uri && strncmp(image.uri, "data:", 5) == 0)
+    {
+        const char* comma = strchr(image.uri, ',');
+        if (comma && comma - image.uri >= 7 && strncmp(comma - 7, ";base64", 7) == 0)
+        {
+            const char* base64 = comma + 1;
+            const cgltf_size encodedSize = strlen(base64);
+            cgltf_size decodedSize = encodedSize - encodedSize / 4;
+            if (encodedSize >= 2)
+            {
+                decodedSize -= (base64[encodedSize - 2] == '=');
+                decodedSize -= (base64[encodedSize - 1] == '=');
+            }
+
+            void* decodedData = nullptr;
+            cgltf_options options{};
+            if (cgltf_load_buffer_base64(&options, decodedSize, base64, &decodedData) == cgltf_result_success)
+            {
+                const AssetID imageId = assetsManager.LoadImage(imageAssetKey, {.imageSource = IMAGE_SOURCE_MEMORY,
+                                                                              .gammaCorrection = srgb ? GAMMA_CORRECTION_SRGB : GAMMA_CORRECTION_LINEAR,
+                                                                              .pMemoryData = static_cast<unsigned char*>(decodedData),
+                                                                              .sizeInMemory = static_cast<uint32_t>(decodedSize)})
+                                             .handle.id;
+                free(decodedData);
+                return imageId;
+            }
+        }
+    }
+
+    if (image.uri)
+    {
+        return assetsManager.LoadImage(imageAssetKey, {.imageSource = IMAGE_SOURCE_DISK,
+                                                       .gammaCorrection = srgb ? GAMMA_CORRECTION_SRGB : GAMMA_CORRECTION_LINEAR})
+            .handle.id;
+    }
+
+    return 0;
 }
 
 Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::ProcessData(bool async)
@@ -23,123 +172,47 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
 
     for (size_t i = 0; i < m_Data->materials_count; i++)
     {
-        if ((m_Data->materials + i)->has_pbr_metallic_roughness)
+        Fleur::Graphics::FLMaterial flMaterial{};
+
+        auto currentMaterial = m_Data->materials + i;
+        cgltf_texture* baseColorTexture = currentMaterial->pbr_metallic_roughness.base_color_texture.texture;
+        memcpy(&flMaterial.baseColorFactor, currentMaterial->pbr_metallic_roughness.base_color_factor, sizeof(flMaterial.baseColorFactor));
+
+        // glTF defaults alphaMode to OPAQUE and alphaCutoff to 0.5.
+        switch (currentMaterial->alpha_mode)
         {
-            Fleur::Graphics::FLMaterial flMaterial{};
-
-            auto currentMaterial = m_Data->materials + i;
-            bool hasTexture = false;
-            cgltf_texture* baseColorTexture = currentMaterial->pbr_metallic_roughness.base_color_texture.texture;
-            std::string textureName;
-            if (baseColorTexture)
-                hasTexture = true;
-
-            // Alpha Mode
-            // - cgltf_alpha_mode_opaque - alpha values (transparency) from textures are ignored
-            // - cgltf_alpha_mode_mask  - it tells your rendering engine to evaluate the material's alpha (transparency) channel against a specific
-            // threshold value, known as alpha_cutoff
-            // - cgltf_alpha_mode_blend - indicates a material should use standard, linear-interpolated alpha blending (transparency).
-            cgltf_alpha_mode alphaMode = currentMaterial->alpha_mode;
-            if (alphaMode == cgltf_alpha_mode_opaque)
-            {
-                flMaterial.mode = FLAlphaMode::FL_OPAQUE;
-            }
-            else if (alphaMode == cgltf_alpha_mode_mask)
-            {
-                flMaterial.mode = FLAlphaMode::FL_MASK;
-                flMaterial.alphaCutoff = currentMaterial->alpha_cutoff;
-            }
-            else if (alphaMode == cgltf_alpha_mode_blend)
-            {
-                flMaterial.mode = FLAlphaMode::FL_BLEND;
-                memcpy((void*)&flMaterial.baseColorFactor, (void*)&currentMaterial->pbr_metallic_roughness.base_color_factor, 4 * sizeof(float));
-            }
-
-            static uint64_t embededTextureIdx = 0;
-            if (hasTexture)
-            {
-                cgltf_image* image = baseColorTexture->image;
-
-                // Cache-key name. Null-safe: buffer_view is null for external-file
-                // images, so the old `buffer_view->name` would crash on URI models.
-                if (image->name)
-                    textureName = std::string(image->name);
-                else if (image->buffer_view && image->buffer_view->name)
-                    textureName = std::string(image->buffer_view->name);
-                else
-                {
-                    if (image->uri)
-                        textureName = std::string(image->uri);
-                    else
-                    {
-                        textureName = "unique_embedded_texture_" + std::to_string(embededTextureIdx);
-                        embededTextureIdx++;
-                    }
-                }
-
-                if (!image->uri && image->buffer_view)
-                {
-                    // Embedded in a binary buffer (GLB)
-                    auto imageBuffer = image->buffer_view;
-                    unsigned char* imageData = reinterpret_cast<unsigned char*>(imageBuffer->buffer->data) + imageBuffer->offset;
-                    flMaterial.albedo = assetsManager
-                                            ->LoadImage(textureName, {.imageSource = IMAGE_SOURCE_MEMORY,
-                                                                      .pMemoryData = imageData,
-                                                                      .sizeInMemory = static_cast<uint32_t>(imageBuffer->size)})
-                                            .handle.id;
-                }
-                else if (image->uri && strncmp(image->uri, "data:", 5) == 0)
-                {
-                    // Embedded base64 data URI:  data:[mime];base64,<DATA>
-                    const char* comma = strchr(image->uri, ',');
-                    if (comma && comma - image->uri >= 7 && strncmp(comma - 7, ";base64", 7) == 0)
-                    {
-                        const char* base64 = comma + 1;
-                        cgltf_size b64size = strlen(base64);
-                        cgltf_size decodedSize = b64size - b64size / 4;  // 3 bytes / 4 chars
-                        if (b64size >= 2)
-                        {
-                            decodedSize -= (base64[b64size - 2] == '=');
-                            decodedSize -= (base64[b64size - 1] == '=');
-                        }
-
-                        void* decoded = nullptr;
-                        cgltf_options options{};
-                        if (cgltf_load_buffer_base64(&options, decodedSize, base64, &decoded) == cgltf_result_success)
-                        {
-                            flMaterial.albedo = assetsManager
-                                                    ->LoadImage(textureName, {.imageSource = IMAGE_SOURCE_MEMORY,
-                                                                              .pMemoryData = static_cast<unsigned char*>(decoded),
-                                                                              .sizeInMemory = static_cast<uint32_t>(decodedSize)})
-                                                    .handle.id;
-                            free(decoded);  // cgltf allocates via options' allocator (default malloc)
-                        }
-                    }
-                }
-                else if (image->uri)
-                {
-                    // External file, resolved relative to the model's directory
-                    cgltf_decode_uri(image->uri);  // percent-decode (%20 etc.) in place
-                    std::string path = /* m_ModelDir + "/" +*/ image->uri;
-                    flMaterial.albedo = assetsManager->LoadImage(path).handle.id;
-                }
-            }
-            else
-            {
-                cgltf_float* color = currentMaterial->pbr_metallic_roughness.base_color_factor;
-                Color c(color[0], color[1], color[2], color[3]);
-
-                std::string materialName;
-                if (currentMaterial->name)
-                    materialName = currentMaterial->name;
-                else
-                    materialName = std::string(m_Name) + "Solid_texture" + std::to_string(c.ToRGBA8());
-
-                flMaterial.albedo = assetsManager->LoadImage(materialName, {.imageSource = IMAGE_SOURCE_COLOR, .color = c}).handle.id;
-            }
-
-            info.materials.push_back(std::move(flMaterial));
+        case cgltf_alpha_mode_mask:
+            flMaterial.mode = FLAlphaMode::FL_MASK;
+            flMaterial.alphaCutoff = currentMaterial->alpha_cutoff;
+            break;
+        case cgltf_alpha_mode_blend:
+            flMaterial.mode = FLAlphaMode::FL_BLEND;
+            break;
+        case cgltf_alpha_mode_opaque:
+        default:
+            flMaterial.mode = FLAlphaMode::FL_OPAQUE;
+            break;
         }
+
+        if (baseColorTexture && baseColorTexture->image)
+        {
+            flMaterial.albedo = LoadImageAsset(*baseColorTexture->image, *assetsManager.get());
+        }
+        else
+        {
+            const cgltf_float* color = currentMaterial->pbr_metallic_roughness.base_color_factor;
+            Color c(color[0], color[1], color[2], color[3]);
+
+            const std::string materialName = std::string(m_Name) + "#material_" + std::to_string(i) + "#" + s_SolidImageName +
+                                              std::to_string(c.ToRGBA8());
+
+            flMaterial.albedo = assetsManager->LoadImage(materialName, {.imageSource = IMAGE_SOURCE_COLOR, .color = c}).handle.id;
+        }
+
+        if (currentMaterial->normal_texture.texture)
+            ProcessNormalTexture(currentMaterial->normal_texture, flMaterial, *assetsManager.get());
+
+        info.materials.push_back(std::move(flMaterial));
     }
 
     PrintNodeMeshes(m_Data);
@@ -169,28 +242,38 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                             for (size_t k = 0; k < primitive.attributes_count; k++)
                             {
                                 auto attrib = primitive.attributes[k];
-                                if (attrib.type == cgltf_attribute_type_position)
+                                if (attrib.type == cgltf_attribute_type_position && attrib.data)
                                     info.modelVertexCount += static_cast<uint32_t>(attrib.data->count);
                             }
-                            info.modelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
+                            if (primitive.indices)
+                                info.modelIndicesCount += static_cast<uint32_t>(primitive.indices->count);
+                            else
+                            {
+                                const cgltf_accessor* position = cgltf_find_accessor(&primitive, cgltf_attribute_type_position, 0);
+                                if (position)
+                                    info.modelIndicesCount += static_cast<uint32_t>(position->count);
+                            }
                         }
 
                         Model::Mesh& modelMesh = info.meshes.emplace_back();
                         uploadedMeshes.emplace(reinterpret_cast<std::uintptr_t>(node.mesh), info.meshes.size() - 1);
                         modelMesh.m_Primitives.reserve(cgltfMesh->primitives_count);
-                        modelMesh.m_MeshName = cgltfMesh->name;
+                        modelMesh.m_MeshName = cgltfMesh->name ? cgltfMesh->name : "";
                         modelMesh.m_MeshVertexStart = info.m_Vertices.size();
                         modelMesh.m_MeshIndexStart = info.m_Indices.size();
 
-                        info.primitiveCount += cgltfMesh->primitives_count;
                         for (size_t i = 0; i < cgltfMesh->primitives_count; i++)
                         {
                             cgltf_primitive cgltfPrimitive = cgltfMesh->primitives[i];
                             uint32_t materialIdx = static_cast<uint32_t>(cgltfPrimitive.material - m_Data->materials);
                             FLAlphaMode alphaMode = process_alpha_mode(cgltfPrimitive.material->alpha_mode);
 
-                            Model::Mesh::Primitive& meshPrimitive =
-                                modelMesh.m_Primitives.emplace_back(process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx, alphaMode));
+                            Model::Mesh::Primitive importedPrimitive = process_primitive(info.m_Vertices, info.m_Indices, cgltfPrimitive, materialIdx, alphaMode);
+                            if (importedPrimitive.GetVertexCount() == 0 || importedPrimitive.GetIdxCount() == 0)
+                                continue;
+
+                            Model::Mesh::Primitive& meshPrimitive = modelMesh.m_Primitives.emplace_back(std::move(importedPrimitive));
+                            ++info.primitiveCount;
 
                             BoundingBox primitiveBoundingBox = meshPrimitive.GetBoundingBox();
                             modelMesh.m_BoundingBox.UpdateBoundingBox(primitiveBoundingBox.GetMin(), primitiveBoundingBox.GetMax());
@@ -203,7 +286,6 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                         modelMesh.m_MeshIndexEnd = static_cast<uint32_t>(info.m_Indices.size());
 
                         info.meshInstance.emplace_back(info.meshes.size() - 1, 0, info.worldTransforms.size() - 1);
-
                     }
 
                     const uint32_t meshIndex = uploadedMeshes.at(reinterpret_cast<std::uintptr_t>(node.mesh));
@@ -211,9 +293,9 @@ Fleur::Graphics::Model::SFLPostCreateInfo Fleur::Graphics::CGLTFModelFabric::Pro
                     const Fleur::Vec3 meshMin = meshBoundingBox.GetMin();
                     const Fleur::Vec3 meshMax = meshBoundingBox.GetMax();
                     const Fleur::Mat4& nodeTransform = info.worldTransforms.back();
-                    const Fleur::Vec3 meshCorners[8] = {
-                        {meshMin.x, meshMin.y, meshMin.z}, {meshMax.x, meshMin.y, meshMin.z}, {meshMax.x, meshMax.y, meshMin.z}, {meshMin.x, meshMax.y, meshMin.z},
-                        {meshMin.x, meshMin.y, meshMax.z}, {meshMax.x, meshMin.y, meshMax.z}, {meshMax.x, meshMax.y, meshMax.z}, {meshMin.x, meshMax.y, meshMax.z}};
+                    const Fleur::Vec3 meshCorners[8] = {{meshMin.x, meshMin.y, meshMin.z}, {meshMax.x, meshMin.y, meshMin.z}, {meshMax.x, meshMax.y, meshMin.z},
+                                                        {meshMin.x, meshMax.y, meshMin.z}, {meshMin.x, meshMin.y, meshMax.z}, {meshMax.x, meshMin.y, meshMax.z},
+                                                        {meshMax.x, meshMax.y, meshMax.z}, {meshMin.x, meshMax.y, meshMax.z}};
                     for (const Fleur::Vec3& corner : meshCorners)
                     {
                         const Fleur::Vec3 worldCorner = Fleur::Vec3(nodeTransform * Fleur::Vec4(corner, 1.0f));
@@ -237,103 +319,216 @@ Fleur::Graphics::Model::Mesh::Primitive Fleur::Graphics::CGLTFModelFabric::proce
     Fleur::Graphics::Model::Mesh::Primitive meshPrimitive = Fleur::Graphics::Model::Mesh::Primitive();
     meshPrimitive.m_MatIdx = maxIdx;
     meshPrimitive.m_AlphaMode = alphaMode;
-    meshPrimitive.m_IdxCount = static_cast<uint32_t>(cgltfPrimitive.indices->count);
-    FL_CORE_ASSERT(cgltfPrimitive.type == cgltf_primitive_type_triangles, "Mesh is not triangulated");
-
-    for (size_t i = 0; i < cgltfPrimitive.attributes_count; i++)
+    if (cgltfPrimitive.type != cgltf_primitive_type_triangles)
     {
-        if (cgltfPrimitive.attributes[i].type == cgltf_attribute_type_position)
+        FL_CORE_ERROR("[ModelFabric] Rejecting unsupported primitive mode {0}; only triangles are supported", static_cast<int>(cgltfPrimitive.type));
+        return meshPrimitive;
+    }
+
+    const cgltf_accessor* positionAccessor = nullptr;
+    const cgltf_accessor* normalAccessor = nullptr;
+    const cgltf_accessor* texcoordAccessor = nullptr;
+    const cgltf_accessor* tangentAccessor = nullptr;
+    for (size_t i = 0; i < cgltfPrimitive.attributes_count; ++i)
+    {
+        const cgltf_attribute& attribute = cgltfPrimitive.attributes[i];
+        switch (attribute.type)
         {
-            meshPrimitive.m_VertexCount = static_cast<uint32_t>(cgltfPrimitive.attributes[i].data->count);
+        case cgltf_attribute_type_position:
+            positionAccessor = attribute.data;
+            break;
+        case cgltf_attribute_type_normal:
+            normalAccessor = attribute.data;
+            break;
+        case cgltf_attribute_type_texcoord:
+            if (attribute.index == 0)
+                texcoordAccessor = attribute.data;
+            break;
+        case cgltf_attribute_type_tangent:
+            if (attribute.index == 0)
+                tangentAccessor = attribute.data;
+            break;
+        default:
+            break;
         }
     }
-    meshPrimitive.m_VertexStart = static_cast<uint32_t>(vertices.size());
-    meshPrimitive.m_IdxStart = static_cast<uint32_t>(indices.size());
 
-    bool isUnpackedIndices = false;
-    const cgltf_accessor* primitiveIndicesBuffer = cgltfPrimitive.indices;
-    std::vector<uint32_t> unpackedIndices;
-    if (primitiveIndicesBuffer->component_type != cgltf_component_type_r_32u)
+    if (!ValidateAttributeAccessor(positionAccessor, cgltf_type_vec3, "POSITION"))
+        return meshPrimitive;
+    if (normalAccessor && !ValidateAttributeAccessor(normalAccessor, cgltf_type_vec3, "NORMAL"))
+        return meshPrimitive;
+    if (texcoordAccessor && !ValidateAttributeAccessor(texcoordAccessor, cgltf_type_vec2, "TEXCOORD_0"))
+        return meshPrimitive;
+    if (tangentAccessor && !ValidateAttributeAccessor(tangentAccessor, cgltf_type_vec4, "TANGENT"))
+        return meshPrimitive;
+
+    const cgltf_size sourceVertexCount = positionAccessor->count;
+    if (sourceVertexCount == 0)
     {
-        unpackedIndices.resize(primitiveIndicesBuffer->count);
-        isUnpackedIndices = true;
-        uint32_t unpackedCount = primitiveIndicesBuffer->count;
-        cgltf_accessor_unpack_indices(primitiveIndicesBuffer, unpackedIndices.data(), sizeof(uint32_t), unpackedCount);
-    }
-    const uint32_t* indexGlobalBuffer = nullptr;
-    if (isUnpackedIndices)
-        indexGlobalBuffer = unpackedIndices.data();
-    else
-        indexGlobalBuffer = static_cast<const uint32_t*>(primitiveIndicesBuffer->buffer_view->buffer->data);
-
-    size_t primitiveIndeciesStartIdx =
-        (primitiveIndicesBuffer->buffer_view->offset + primitiveIndicesBuffer->offset) / cgltf_component_size(primitiveIndicesBuffer->component_type);
-
-    const void* indexData = nullptr;
-    if (!isUnpackedIndices)
-        indexData = indexGlobalBuffer + primitiveIndeciesStartIdx;
-    else
-        indexData = unpackedIndices.data();
-
-    const float* positions = nullptr;
-    const float* normals = nullptr;
-    const float* textcoords = nullptr;
-
-    for (size_t j = 0; j < cgltfPrimitive.attributes_count; j++)
-    {
-        const cgltf_attribute& attribute = cgltfPrimitive.attributes[j];
-        const cgltf_accessor* accessor = attribute.data;
-
-        const uint8_t* attributeGlobalBuffer = static_cast<const uint8_t*>(accessor->buffer_view->buffer->data);
-        size_t startIdx = accessor->buffer_view->offset + accessor->offset;
-        const float* ptr = reinterpret_cast<const float*>(attributeGlobalBuffer + startIdx);
-
-        if (attribute.type == cgltf_attribute_type_position)
-            positions = ptr;
-        else if (attribute.type == cgltf_attribute_type_normal)
-            normals = ptr;
-        else if (attribute.type == cgltf_attribute_type_texcoord)
-            textcoords = ptr;
+        FL_CORE_ERROR("[ModelFabric] Rejecting primitive with no POSITION vertices");
+        return meshPrimitive;
     }
 
-    std::unordered_map<uint32_t, uint32_t> map;
-    for (size_t j = 0; j < primitiveIndicesBuffer->count; ++j)
+    std::vector<uint32_t> sourceIndices;
+    if (cgltfPrimitive.indices)
     {
-        uint32_t vi = reinterpret_cast<const uint32_t*>(indexData)[j];
-        if (map.contains(vi))
+        const cgltf_accessor* indexAccessor = cgltfPrimitive.indices;
+        if (indexAccessor->type != cgltf_type_scalar || !IsSupportedIndexComponent(indexAccessor->component_type))
         {
-            indices.push_back(map[vi]);
+            FL_CORE_ERROR("[ModelFabric] Rejecting primitive with unsupported index accessor");
+            return meshPrimitive;
+        }
+        sourceIndices.resize(indexAccessor->count);
+        for (cgltf_size i = 0; i < indexAccessor->count; ++i)
+        {
+            const cgltf_size sourceIndex = cgltf_accessor_read_index(indexAccessor, i);
+            if (sourceIndex >= sourceVertexCount)
+            {
+                FL_CORE_ERROR("[ModelFabric] Rejecting primitive with out-of-range vertex index {0}", sourceIndex);
+                return meshPrimitive;
+            }
+            sourceIndices[i] = static_cast<uint32_t>(sourceIndex);
+        }
+    }
+    else
+    {
+        sourceIndices.resize(sourceVertexCount);
+        std::iota(sourceIndices.begin(), sourceIndices.end(), 0u);
+    }
+
+    if (sourceIndices.empty() || sourceIndices.size() % 3 != 0)
+    {
+        FL_CORE_ERROR("[ModelFabric] Rejecting triangle primitive with index count {0}", sourceIndices.size());
+        return meshPrimitive;
+    }
+
+    // Read the source vertex stream first. This lets us generate normals and
+    // tangent space from the complete indexed topology, including shared
+    // vertices and non-indexed triangle lists.
+    std::vector<SVertexData> sourceVertices(sourceVertexCount);
+    std::vector<Fleur::Vec3> tangentAccum(sourceVertexCount, Fleur::Vec3(0.0f));
+    std::vector<Fleur::Vec3> bitangentAccum(sourceVertexCount, Fleur::Vec3(0.0f));
+    std::vector<Fleur::Vec3> generatedNormalAccum(sourceVertexCount, Fleur::Vec3(0.0f));
+
+    for (cgltf_size sourceIndex = 0; sourceIndex < sourceVertexCount; ++sourceIndex)
+    {
+        SVertexData& vertex = sourceVertices[sourceIndex];
+        cgltf_float values[4]{};
+        if (!ReadAttribute(positionAccessor, sourceIndex, values, 3, "POSITION"))
+            return meshPrimitive;
+        vertex.Position = Fleur::Vec3(values[0], values[1], values[2]);
+
+        if (normalAccessor)
+        {
+            if (!ReadAttribute(normalAccessor, sourceIndex, values, 3, "NORMAL"))
+                return meshPrimitive;
+            vertex.Normal = Fleur::Vec3(values[0], values[1], values[2]);
+        }
+        if (texcoordAccessor)
+        {
+            if (!ReadAttribute(texcoordAccessor, sourceIndex, values, 2, "TEXCOORD_0"))
+                return meshPrimitive;
+            vertex.TexCoord = Fleur::Vec2(values[0], values[1]);
+        }
+        if (tangentAccessor)
+        {
+            if (!ReadAttribute(tangentAccessor, sourceIndex, values, 4, "TANGENT"))
+                return meshPrimitive;
+            vertex.Tangent = Fleur::Vec4(values[0], values[1], values[2], values[3]);
+        }
+    }
+
+    if (!normalAccessor || !tangentAccessor)
+    {
+        for (size_t triangle = 0; triangle + 2 < sourceIndices.size(); triangle += 3)
+        {
+            const uint32_t i0 = sourceIndices[triangle + 0];
+            const uint32_t i1 = sourceIndices[triangle + 1];
+            const uint32_t i2 = sourceIndices[triangle + 2];
+            const Fleur::Vec3 edge1 = sourceVertices[i1].Position - sourceVertices[i0].Position;
+            const Fleur::Vec3 edge2 = sourceVertices[i2].Position - sourceVertices[i0].Position;
+            const Fleur::Vec3 faceNormal = Fleur::Math::cross(edge1, edge2);
+
+            if (!normalAccessor)
+            {
+                generatedNormalAccum[i0] += faceNormal;
+                generatedNormalAccum[i1] += faceNormal;
+                generatedNormalAccum[i2] += faceNormal;
+            }
+
+            if (!tangentAccessor && texcoordAccessor)
+            {
+                const auto frame = AccumulateTriangleTangent(
+                    sourceVertices[i0].Position, sourceVertices[i1].Position, sourceVertices[i2].Position,
+                    sourceVertices[i0].TexCoord, sourceVertices[i1].TexCoord, sourceVertices[i2].TexCoord);
+                if (frame.valid)
+                {
+                    tangentAccum[i0] += frame.tangent;
+                    tangentAccum[i1] += frame.tangent;
+                    tangentAccum[i2] += frame.tangent;
+                    bitangentAccum[i0] += frame.bitangent;
+                    bitangentAccum[i1] += frame.bitangent;
+                    bitangentAccum[i2] += frame.bitangent;
+                }
+            }
+        }
+
+        if (!normalAccessor)
+        {
+            for (size_t i = 0; i < sourceVertices.size(); ++i)
+            {
+                if (Fleur::Math::length(generatedNormalAccum[i]) > 0.0f)
+                    sourceVertices[i].Normal = Fleur::Math::normalize(generatedNormalAccum[i]);
+            }
+        }
+
+        if (!tangentAccessor)
+        {
+            for (size_t i = 0; i < sourceVertices.size(); ++i)
+            {
+                const auto tangent = FinalizeTangent(sourceVertices[i].Normal, tangentAccum[i], bitangentAccum[i]);
+                if (!tangent)
+                {
+                    FL_CORE_ERROR("[ModelFabric] Cannot generate tangent: invalid NORMAL at vertex {0}", i);
+                    return meshPrimitive;
+                }
+                sourceVertices[i].Tangent = *tangent;
+            }
+        }
+    }
+
+    std::vector<SVertexData> primitiveVertices;
+    std::vector<uint32_t> primitiveIndices;
+    primitiveVertices.reserve(sourceVertexCount);
+    primitiveIndices.reserve(sourceIndices.size());
+    std::unordered_map<uint32_t, uint32_t> sourceToOutput;
+    const uint32_t outputVertexBase = static_cast<uint32_t>(vertices.size());
+
+    for (const uint32_t sourceIndex : sourceIndices)
+    {
+        if (const auto existing = sourceToOutput.find(sourceIndex); existing != sourceToOutput.end())
+        {
+            primitiveIndices.push_back(outputVertexBase + existing->second);
             continue;
         }
-        SVertexData v{};
 
-        if (positions)
-        {
-            v.Position.x = positions[vi * 3 + 0];
-            v.Position.y = positions[vi * 3 + 1];
-            v.Position.z = positions[vi * 3 + 2];
+        SVertexData vertex = sourceVertices[sourceIndex];
 
-            meshPrimitive.m_BoundingBox.UpdateBoundingBox(v.Position, v.Position);
-        }
-        if (normals)
-        {
-            v.Normal.x = normals[vi * 3 + 0];
-            v.Normal.y = normals[vi * 3 + 1];
-            v.Normal.z = normals[vi * 3 + 2];
-        }
-        if (textcoords)
-        {
-            v.TexCoord.x = textcoords[vi * 2 + 0];
-            v.TexCoord.y = textcoords[vi * 2 + 1];
-        }
-
-        vertices.push_back(v);
-        uint32_t newIndex = static_cast<uint32_t>(vertices.size() - 1);
-        map[vi] = newIndex;
-        indices.push_back(newIndex);
+        const uint32_t outputIndex = static_cast<uint32_t>(primitiveVertices.size());
+        sourceToOutput.emplace(sourceIndex, outputIndex);
+        primitiveVertices.push_back(vertex);
+        primitiveIndices.push_back(outputVertexBase + outputIndex);
+        meshPrimitive.m_BoundingBox.UpdateBoundingBox(vertex.Position, vertex.Position);
     }
-    meshPrimitive.m_VertexEnd = static_cast<uint32_t>(vertices.size()) - 1;
-    meshPrimitive.m_IdxEnd = static_cast<uint32_t>(indices.size()) - 1;
+
+    meshPrimitive.m_VertexStart = static_cast<uint32_t>(vertices.size());
+    meshPrimitive.m_IdxStart = static_cast<uint32_t>(indices.size());
+    meshPrimitive.m_VertexCount = static_cast<uint32_t>(primitiveVertices.size());
+    meshPrimitive.m_IdxCount = static_cast<uint32_t>(primitiveIndices.size());
+    vertices.insert(vertices.end(), primitiveVertices.begin(), primitiveVertices.end());
+    indices.insert(indices.end(), primitiveIndices.begin(), primitiveIndices.end());
+    meshPrimitive.m_VertexEnd = static_cast<uint32_t>(vertices.size() - 1);
+    meshPrimitive.m_IdxEnd = static_cast<uint32_t>(indices.size() - 1);
 
     return meshPrimitive;
 }
@@ -359,6 +554,15 @@ Fleur::Graphics::FLAlphaMode Fleur::Graphics::CGLTFModelFabric::process_alpha_mo
     }
 }
 
+void Fleur::Graphics::CGLTFModelFabric::ProcessNormalTexture(const cgltf_texture_view& normalTexture, Fleur::Graphics::FLMaterial& material,
+                                                             Fleur::AssetsManager& assetsManager)
+{
+    if (!normalTexture.texture || !normalTexture.texture->image)
+        return;
+
+    material.normal = LoadImageAsset(*normalTexture.texture->image, assetsManager, false);
+}
+
 void Fleur::Graphics::CGLTFModelFabric::PrintNodeMeshes(const cgltf_data* data)
 {
     if (!data)
@@ -368,11 +572,11 @@ void Fleur::Graphics::CGLTFModelFabric::PrintNodeMeshes(const cgltf_data* data)
     {
         const cgltf_node& node = data->nodes[i];
 
-       // std::cout << "node[" << i << "] ";
+        // std::cout << "node[" << i << "] ";
 
         if (!node.mesh)
         {
-         //   std::cout << "mesh: nullptr\n";
+            //   std::cout << "mesh: nullptr\n";
             continue;
         }
 

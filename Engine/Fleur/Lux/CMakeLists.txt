@@ -22,6 +22,7 @@ set(PROJECT_HEADERS
     Lux.h
     Model.h
     Camera.h
+    TangentGeneration.hpp
     # ShaderObject.h
     # VertexLayout.h
     Graphics.hpp
@@ -41,6 +42,7 @@ set(PROJECT_SOURCES
     Image2D.cpp
     Color.cpp
     ModelFabric.cpp
+    TangentGeneration.cpp
     Shader.cpp
 )
 

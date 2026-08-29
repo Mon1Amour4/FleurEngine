@@ -34,7 +34,13 @@ private:
                                              cgltf_primitive& cgltfPrimitive, uint32_t maxIdx, FLAlphaMode alphaMode);
     FLAlphaMode process_alpha_mode(cgltf_alpha_mode mode);
 
+    std::string GetImageAssetKey(const cgltf_image& image) const;
+    AssetID LoadImageAsset(const cgltf_image& image, Fleur::AssetsManager& assetsManager, bool srgb = true);
+    void ProcessNormalTexture(const cgltf_texture_view& normalTexture, Fleur::Graphics::FLMaterial& material, Fleur::AssetsManager& assetsManager);
+
     void PrintNodeMeshes(const cgltf_data* data);
+
+    static std::string s_SolidImageName;
 };
 
 }  // namespace Fleur::Graphics

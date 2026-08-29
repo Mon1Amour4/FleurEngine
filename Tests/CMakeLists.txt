@@ -17,6 +17,8 @@ set(TESTS_SOURCES
     ${SRC_FOLDER}/Tests.cpp
     ${SRC_FOLDER}/CoreLibTests.cpp
     ${SRC_FOLDER}/MathTests.cpp
+    ${SRC_FOLDER}/ModelFabricTests.cpp
+    ${SRC_FOLDER}/TangentGenerationTests.cpp
     ${SRC_FOLDER}/DirectionalShadowMathTests.cpp
     ${SRC_FOLDER}/CoreLibEdgeTests.cpp
     ${SRC_FOLDER}/ConceptTests.cpp
